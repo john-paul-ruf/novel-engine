@@ -3,6 +3,9 @@
 /out/
 /dist/
 /.vite/
+/resources/pandoc/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
+.env

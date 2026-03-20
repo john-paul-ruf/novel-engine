@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="180" fill="#18181b"/>
+  <rect x="40" y="40" width="944" height="944" rx="150" fill="#27272a" stroke="#3b82f6" stroke-width="8"/>
+  <text x="512" y="440" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="320" font-weight="700" fill="#3b82f6">NE</text>
+  <text x="512" y="620" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="100" font-weight="400" fill="#a1a1aa">Novel Engine</text>
+</svg>
