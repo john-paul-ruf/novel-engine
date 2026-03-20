@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { BookSummary } from '@domain/types';
+import { useChatStore } from './chatStore';
 
 type BookState = {
   books: BookSummary[];
@@ -39,6 +40,11 @@ export const useBookStore = create<BookState>((set, get) => ({
     try {
       await window.novelEngine.books.setActive(slug);
       set({ activeSlug: slug });
+
+      // Reset chat context for the new book
+      const { switchBook } = useChatStore.getState();
+      await switchBook(slug);
+
       await get().refreshWordCount();
     } catch (error) {
       console.error('Failed to set active book:', error);

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { AGENT_REGISTRY, CREATIVE_AGENT_NAMES } from '@domain/constants';
-import type { AgentName, Conversation } from '@domain/types';
+import type { AgentName, Conversation, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 
@@ -34,10 +34,21 @@ export function ConversationList({
   expanded,
   onToggle,
 }: ConversationListProps): React.ReactElement {
-  const { conversations, activeConversation, setActiveConversation, deleteConversation, createConversation } = useChatStore();
+  const { conversations, activeConversation, setActiveConversation, deleteConversation, createConversation, pipelineLocked, lockedAgentName, lockedPhaseId } = useChatStore();
   const { activeSlug } = useBookStore();
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const filteredConversations = pipelineLocked && lockedAgentName && lockedPhaseId
+    ? conversations.filter(
+        (c) =>
+          // Match the locked phase
+          (c.agentName === lockedAgentName && c.pipelinePhase === lockedPhaseId && c.purpose === 'pipeline') ||
+          // Always show special-purpose conversations
+          c.purpose === 'voice-setup' ||
+          c.purpose === 'author-profile',
+      )
+    : conversations;
 
   const handleDelete = useCallback(
     async (e: React.MouseEvent, conversationId: string) => {
@@ -53,9 +64,9 @@ export function ConversationList({
   );
 
   const handleNewConversation = useCallback(
-    async (agentName: AgentName) => {
+    async (agentName: AgentName, phase: PipelinePhaseId | null = null) => {
       if (!activeSlug) return;
-      await createConversation(agentName, activeSlug, null);
+      await createConversation(agentName, activeSlug, phase);
       setShowAgentPicker(false);
     },
     [activeSlug, createConversation]
@@ -75,13 +86,18 @@ export function ConversationList({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-6 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-400"
       >
-        <span>Conversations ({conversations.length})</span>
+        <span>
+          Conversations ({filteredConversations.length}
+          {pipelineLocked && filteredConversations.length !== conversations.length && (
+            <span className="text-zinc-600">/{conversations.length}</span>
+          )})
+        </span>
         <span>{expanded ? '▼' : '▶'}</span>
       </button>
 
       {expanded && (
         <div className="max-h-48 overflow-y-auto px-3 pb-2">
-          {conversations.map((conv) => {
+          {filteredConversations.map((conv) => {
             const meta = AGENT_REGISTRY[conv.agentName];
             const isActive = activeConversation?.id === conv.id;
             const isConfirmingDelete = deletingId === conv.id;
@@ -135,14 +151,21 @@ export function ConversationList({
             );
           })}
 
-          {conversations.length === 0 && (
+          {filteredConversations.length === 0 && (
             <div className="px-3 py-2 text-xs text-zinc-600">
               No conversations yet
             </div>
           )}
 
           <div className="mt-1">
-            {showAgentPicker ? (
+            {pipelineLocked && lockedAgentName && lockedPhaseId ? (
+              <button
+                onClick={() => handleNewConversation(lockedAgentName, lockedPhaseId)}
+                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-400"
+              >
+                <span>+</span> New {lockedAgentName} Conversation
+              </button>
+            ) : showAgentPicker ? (
               <div className="rounded-md border border-zinc-700 bg-zinc-800 p-2">
                 <div className="mb-1 text-[10px] font-medium uppercase text-zinc-500">
                   Select Agent

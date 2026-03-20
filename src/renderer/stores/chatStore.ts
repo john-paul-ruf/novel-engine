@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
+import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
 import { useBookStore } from './bookStore';
 
 type ChatState = {
@@ -12,11 +12,21 @@ type ChatState = {
   thinkingBuffer: string;
   conversationUsage: UsageRecord[] | null;
 
+  // Pipeline lock state
+  pipelineLocked: boolean;
+  lockedAgentName: AgentName | null;
+  lockedPhaseId: PipelinePhaseId | null;
+
   loadConversations: (bookSlug: string) => Promise<void>;
   createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose?: ConversationPurpose) => Promise<void>;
   setActiveConversation: (conversationId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
+
+  // Pipeline lock actions
+  setPipelineLock: (locked: boolean) => void;
+  syncWithPipeline: (activePhase: PipelinePhase | null) => void;
+  switchBook: (newBookSlug: string) => Promise<void>;
 
   _handleStreamEvent: (event: StreamEvent) => void;
   _cleanupListener: (() => void) | null;
@@ -33,6 +43,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamBuffer: '',
   thinkingBuffer: '',
   conversationUsage: null,
+  pipelineLocked: true,
+  lockedAgentName: null,
+  lockedPhaseId: null,
   _cleanupListener: null,
 
   loadConversations: async (bookSlug: string) => {
@@ -138,6 +151,65 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error) {
       console.error('Failed to delete conversation:', error);
+    }
+  },
+
+  setPipelineLock: (locked: boolean) => {
+    set({ pipelineLocked: locked });
+  },
+
+  syncWithPipeline: (activePhase: PipelinePhase | null) => {
+    const lockedAgentName = activePhase?.agent ?? null;
+    const lockedPhaseId = activePhase?.id ?? null;
+
+    set({ lockedAgentName, lockedPhaseId });
+
+    const { pipelineLocked, activeConversation, conversations } = get();
+
+    // If locked and current conversation doesn't match the active phase, auto-switch
+    if (pipelineLocked && lockedAgentName && lockedPhaseId) {
+      const currentMatchesPhase =
+        activeConversation?.agentName === lockedAgentName &&
+        activeConversation?.pipelinePhase === lockedPhaseId &&
+        activeConversation?.purpose === 'pipeline';
+
+      if (!currentMatchesPhase) {
+        // Find the most recent conversation for this agent + phase
+        const match = conversations.find(
+          (c) =>
+            c.agentName === lockedAgentName &&
+            c.pipelinePhase === lockedPhaseId &&
+            c.purpose === 'pipeline',
+        );
+        if (match) {
+          get().setActiveConversation(match.id);
+        } else {
+          // No existing conversation — clear active so the empty state shows
+          set({ activeConversation: null, messages: [] });
+        }
+      }
+    }
+  },
+
+  switchBook: async (newBookSlug: string) => {
+    // Step 1: Clear all chat state immediately
+    set({
+      activeConversation: null,
+      conversations: [],
+      messages: [],
+      isStreaming: false,
+      isThinking: false,
+      streamBuffer: '',
+      thinkingBuffer: '',
+      conversationUsage: null,
+    });
+
+    // Step 2: Load conversations for the new book
+    try {
+      const conversations = await window.novelEngine.chat.getConversations(newBookSlug);
+      set({ conversations });
+    } catch (error) {
+      console.error('Failed to load conversations for new book:', error);
     }
   },
 

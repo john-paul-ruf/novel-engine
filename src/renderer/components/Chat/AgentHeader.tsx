@@ -3,7 +3,7 @@ import { AGENT_REGISTRY, PIPELINE_PHASES } from '@domain/constants';
 import { useChatStore } from '../../stores/chatStore';
 
 export function AgentHeader(): React.ReactElement | null {
-  const { activeConversation, conversationUsage } = useChatStore();
+  const { activeConversation, conversationUsage, pipelineLocked, lockedPhaseId } = useChatStore();
 
   const agentMeta = activeConversation
     ? AGENT_REGISTRY[activeConversation.agentName]
@@ -45,10 +45,25 @@ export function AgentHeader(): React.ReactElement | null {
           <h2 className="text-lg font-bold text-zinc-100">
             {activeConversation.agentName}
           </h2>
-          <p className="text-sm text-zinc-500">
+          <p className="flex items-center text-sm text-zinc-500">
             {agentMeta.role}
             {phaseLabel && (
               <span className="text-zinc-600"> &middot; {phaseLabel}</span>
+            )}
+            {activeConversation.purpose === 'voice-setup' && (
+              <span className="ml-2 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300">
+                Voice Setup
+              </span>
+            )}
+            {activeConversation.purpose === 'author-profile' && (
+              <span className="ml-2 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300">
+                Author Profile
+              </span>
+            )}
+            {pipelineLocked && lockedPhaseId && activeConversation.purpose === 'pipeline' && activeConversation.pipelinePhase !== lockedPhaseId && (
+              <span className="ml-2 rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                Past Phase
+              </span>
             )}
           </p>
         </div>
