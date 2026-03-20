@@ -23,7 +23,6 @@ import { ChatService } from '@app/ChatService';
 import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
 import { UsageService } from '@app/UsageService';
-import { FilePersistenceService } from '@app/FilePersistenceService';
 import { RevisionQueueService } from '@app/RevisionQueueService';
 
 // IPC
@@ -105,7 +104,7 @@ async function initializeApp(): Promise<void> {
   db = new DatabaseService(dbPath);
   const agents = new AgentService(agentsDir);
   const fs = new FileSystemService(booksDir, userDataPath);
-  const claudeClient = new ClaudeCodeClient();
+  const claudeClient = new ClaudeCodeClient(booksDir);
 
   // 4. Instantiate application services
   const contextWrangler = new ContextWrangler(settings, agents, db, fs, claudeClient);
@@ -113,7 +112,6 @@ async function initializeApp(): Promise<void> {
   const chat = new ChatService(settings, agents, db, claudeClient, contextWrangler, usage);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
-  const filePersistence = new FilePersistenceService(fs);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, contextWrangler, db, settings);
 
   // 5. Register custom protocol handler for serving local assets to renderer
@@ -145,7 +143,7 @@ async function initializeApp(): Promise<void> {
 
   // 6. Register IPC handlers
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, pipeline, build, usage, filePersistence, revisionQueue },
+    { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue },
     { userDataPath, booksDir },
   );
 

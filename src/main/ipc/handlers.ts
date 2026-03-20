@@ -26,7 +26,6 @@ import type {
 import { AVAILABLE_MODELS } from '@domain/constants';
 import type { ChatService } from '@app/ChatService';
 import type { UsageService } from '@app/UsageService';
-import type { FilePersistenceService } from '@app/FilePersistenceService';
 
 export function registerIpcHandlers(services: {
   settings: ISettingsService;
@@ -37,7 +36,6 @@ export function registerIpcHandlers(services: {
   pipeline: IPipelineService;
   build: IBuildService;
   usage: UsageService;
-  filePersistence: FilePersistenceService;
   revisionQueue: IRevisionQueueService;
 }, paths: {
   userDataPath: string;
@@ -161,17 +159,13 @@ export function registerIpcHandlers(services: {
         win.webContents.send('chat:streamEvent', streamEvent);
       },
     });
+
+    // If files were changed during this interaction, notify the renderer
+    const changedFiles = services.chat.getLastChangedFiles();
+    if (changedFiles.length > 0) {
+      win.webContents.send('chat:filesChanged', changedFiles);
+    }
   });
-
-  // === Chat (save to file) ===
-
-  ipcMain.handle('chat:saveToFile', async (_, params: {
-    bookSlug: string;
-    pipelinePhase: string;
-    targetPath: string;
-    content: string;
-    chapterSlug?: string;
-  }) => services.filePersistence.saveAgentOutput(params as Parameters<typeof services.filePersistence.saveAgentOutput>[0]));
 
   // === Pipeline ===
 

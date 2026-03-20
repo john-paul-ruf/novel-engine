@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import path from 'node:path';
 
 import type { IClaudeClient } from '@domain/interfaces';
 import type { MessageRole, StreamEvent, StreamBlockType } from '@domain/types';
@@ -12,6 +13,8 @@ const CLI_NOT_FOUND_MESSAGE =
   'Claude Code CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-code';
 
 export class ClaudeCodeClient implements IClaudeClient {
+  constructor(private booksDir: string) {}
+
   async isAvailable(): Promise<boolean> {
     try {
       await execFileAsync('claude', ['--version']);
@@ -27,29 +30,34 @@ export class ClaudeCodeClient implements IClaudeClient {
     messages: { role: MessageRole; content: string }[];
     maxTokens: number;
     thinkingBudget?: number;
+    bookSlug?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const { model, systemPrompt, messages, onEvent } = params;
+    const { model, systemPrompt, messages, bookSlug, onEvent } = params;
 
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
 
-    // Build CLI args:
-    // --verbose is required for stream-json with --print
-    // --include-partial-messages enables content_block_delta events for real-time streaming
+    // Build CLI args — full agent mode (no --print) with tool restrictions
     const args = [
-      '--print',
       '--verbose',
       '--output-format', 'stream-json',
       '--include-partial-messages',
       '--model', model,
       '--system-prompt', systemPrompt,
+      '--allowedTools', 'Read,Write,Edit,LS',
     ];
+
+    // Set working directory to book root if bookSlug is provided
+    const cwd = bookSlug
+      ? path.join(this.booksDir, bookSlug)
+      : undefined;
 
     return new Promise<void>((resolve, reject) => {
       const child = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env },
+        cwd,
       });
 
       let stdoutBuffer = '';
@@ -58,6 +66,12 @@ export class ClaudeCodeClient implements IClaudeClient {
       let currentBlockType: StreamBlockType | null = null;
       let hasEmittedText = false;
       let settled = false;
+
+      // Tool use tracking
+      let currentToolName = '';
+      let currentToolId = '';
+      let toolInputBuffer = '';
+      const changedFiles: string[] = [];
 
       const settle = (fn: () => void) => {
         if (!settled) {
@@ -82,13 +96,16 @@ export class ClaudeCodeClient implements IClaudeClient {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
-            this.mapStreamEvent(event, onEvent, thinkingBuffer, currentBlockType, hasEmittedText, (tb) => {
-              thinkingBuffer = tb;
-            }, (bt) => {
-              currentBlockType = bt;
-            }, () => {
-              hasEmittedText = true;
-            });
+            this.mapStreamEvent(
+              event, onEvent, thinkingBuffer, currentBlockType, hasEmittedText,
+              currentToolName, currentToolId, toolInputBuffer, changedFiles,
+              (tb) => { thinkingBuffer = tb; },
+              (bt) => { currentBlockType = bt; },
+              () => { hasEmittedText = true; },
+              (name) => { currentToolName = name; },
+              (id) => { currentToolId = id; },
+              (input) => { toolInputBuffer = input; },
+            );
           } catch {
             // Skip unparseable lines
           }
@@ -104,16 +121,24 @@ export class ClaudeCodeClient implements IClaudeClient {
         if (stdoutBuffer.trim()) {
           try {
             const event = JSON.parse(stdoutBuffer.trim());
-            this.mapStreamEvent(event, onEvent, thinkingBuffer, currentBlockType, hasEmittedText, (tb) => {
-              thinkingBuffer = tb;
-            }, (bt) => {
-              currentBlockType = bt;
-            }, () => {
-              hasEmittedText = true;
-            });
+            this.mapStreamEvent(
+              event, onEvent, thinkingBuffer, currentBlockType, hasEmittedText,
+              currentToolName, currentToolId, toolInputBuffer, changedFiles,
+              (tb) => { thinkingBuffer = tb; },
+              (bt) => { currentBlockType = bt; },
+              () => { hasEmittedText = true; },
+              (name) => { currentToolName = name; },
+              (id) => { currentToolId = id; },
+              (input) => { toolInputBuffer = input; },
+            );
           } catch {
             // Skip unparseable remainder
           }
+        }
+
+        // Emit filesChanged before resolving (done is emitted by mapStreamEvent on result event)
+        if (changedFiles.length > 0) {
+          onEvent({ type: 'filesChanged', paths: [...changedFiles] });
         }
 
         if (code === 0) {
@@ -217,16 +242,26 @@ export class ClaudeCodeClient implements IClaudeClient {
   }
 
   /**
+   * Extract a file path from the tool input JSON for Write/Read/Edit tools.
+   */
+  private extractFilePathFromToolInput(toolName: string, jsonStr: string): string | undefined {
+    try {
+      const input = JSON.parse(jsonStr) as Record<string, unknown>;
+      if (toolName === 'Write' || toolName === 'Read' || toolName === 'Edit') {
+        return input.file_path as string | undefined;
+      }
+    } catch {
+      // Partial JSON may not parse — that's fine
+    }
+    return undefined;
+  }
+
+  /**
    * Map a parsed CLI stream-json event to our StreamEvent type and emit it.
    *
    * The Claude CLI `--output-format stream-json` emits events following the
-   * Anthropic streaming API convention:
-   *
-   *   {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
-   *   {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}
-   *   {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"..."}}
-   *   {"type":"content_block_stop","index":0}
-   *   {"type":"result","subtype":"success","result":"Hello!","cost_usd":0.001,...}
+   * Anthropic streaming API convention. In full agent mode, it also emits
+   * tool_use and tool_result content blocks for file operations.
    */
   private mapStreamEvent(
     event: Record<string, unknown>,
@@ -234,15 +269,20 @@ export class ClaudeCodeClient implements IClaudeClient {
     thinkingBuffer: string,
     currentBlockType: StreamBlockType | null,
     hasEmittedText: boolean,
+    currentToolName: string,
+    currentToolId: string,
+    toolInputBuffer: string,
+    changedFiles: string[],
     setThinkingBuffer: (tb: string) => void,
     setCurrentBlockType: (bt: StreamBlockType | null) => void,
     markTextEmitted: () => void,
+    setCurrentToolName: (name: string) => void,
+    setCurrentToolId: (id: string) => void,
+    setToolInputBuffer: (input: string) => void,
   ): void {
     const eventType = event.type as string;
 
-    // Result event — final summary with token usage.
-    // Also contains the full response text in `result` as a fallback
-    // in case content_block_delta events were not emitted.
+    // Result event — final summary with token usage
     if (eventType === 'result') {
       // Fallback: if no textDelta events were received, emit the full result text
       const resultText = event.result as string | undefined;
@@ -260,21 +300,49 @@ export class ClaudeCodeClient implements IClaudeClient {
       return;
     }
 
-    // content_block_start — detect whether this is a thinking or text block
+    // content_block_start — detect block type (thinking, text, tool_use, tool_result)
     if (eventType === 'content_block_start') {
       const contentBlock = event.content_block as Record<string, unknown> | undefined;
-      const blockType: StreamBlockType = contentBlock?.type === 'thinking' ? 'thinking' : 'text';
-      setCurrentBlockType(blockType);
-      onEvent({ type: 'blockStart', blockType });
+      const blockType = contentBlock?.type as string | undefined;
+
+      if (blockType === 'tool_use') {
+        const toolName = contentBlock?.name as string ?? 'unknown';
+        const toolId = contentBlock?.id as string ?? '';
+        setCurrentBlockType('tool_use');
+        setCurrentToolName(toolName);
+        setCurrentToolId(toolId);
+        setToolInputBuffer('');
+        onEvent({
+          type: 'toolUse',
+          tool: { toolName, toolId, status: 'started' },
+        });
+        return;
+      }
+
+      if (blockType === 'tool_result') {
+        setCurrentBlockType('tool_result');
+        return;
+      }
+
+      const streamBlockType: StreamBlockType = blockType === 'thinking' ? 'thinking' : 'text';
+      setCurrentBlockType(streamBlockType);
+      onEvent({ type: 'blockStart', blockType: streamBlockType });
       return;
     }
 
-    // content_block_delta — extract text from the delta object
+    // content_block_delta — extract text or tool input
     if (eventType === 'content_block_delta') {
       const delta = event.delta as Record<string, unknown> | undefined;
       if (!delta) return;
 
       const deltaType = delta.type as string | undefined;
+
+      // Tool use input JSON accumulation
+      if (deltaType === 'input_json_delta') {
+        const partialJson = delta.partial_json as string ?? '';
+        setToolInputBuffer(toolInputBuffer + partialJson);
+        return;
+      }
 
       if (deltaType === 'thinking_delta' || deltaType === 'thinking') {
         const text = (delta.thinking as string) ?? '';
@@ -295,6 +363,37 @@ export class ClaudeCodeClient implements IClaudeClient {
 
     // content_block_stop — close the current block
     if (eventType === 'content_block_stop') {
+      if (currentBlockType === 'tool_use') {
+        // Parse accumulated tool input to extract file path
+        const filePath = this.extractFilePathFromToolInput(currentToolName, toolInputBuffer);
+
+        // Track files written by Write or Edit tools
+        if (filePath && (currentToolName === 'Write' || currentToolName === 'Edit')) {
+          changedFiles.push(filePath);
+        }
+
+        onEvent({
+          type: 'toolUse',
+          tool: {
+            toolName: currentToolName,
+            toolId: currentToolId,
+            filePath,
+            status: 'complete',
+          },
+        });
+
+        setToolInputBuffer('');
+        setCurrentBlockType(null);
+        setCurrentToolName('');
+        setCurrentToolId('');
+        return;
+      }
+
+      if (currentBlockType === 'tool_result') {
+        setCurrentBlockType(null);
+        return;
+      }
+
       const blockType = currentBlockType || 'text';
       onEvent({ type: 'blockEnd', blockType });
       setCurrentBlockType(null);

@@ -13,6 +13,11 @@ type ChatState = {
   statusMessage: string;
   conversationUsage: UsageRecord[] | null;
 
+  // Tool activity tracking
+  toolActivity: string[];                     // file paths written during current streaming response
+  lastChangedFiles: string[];                 // files changed in the last completed interaction
+  messageToolActivity: Record<string, string[]>;  // maps message IDs to files written during generation
+
   // Pipeline lock state
   pipelineLocked: boolean;
   lockedAgentName: AgentName | null;
@@ -31,6 +36,7 @@ type ChatState = {
 
   _handleStreamEvent: (event: StreamEvent) => void;
   _cleanupListener: (() => void) | null;
+  _cleanupFilesChanged: (() => void) | null;
   initStreamListener: () => void;
   destroyStreamListener: () => void;
 };
@@ -45,10 +51,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   thinkingBuffer: '',
   statusMessage: '',
   conversationUsage: null,
+  toolActivity: [],
+  lastChangedFiles: [],
+  messageToolActivity: {},
   pipelineLocked: true,
   lockedAgentName: null,
   lockedPhaseId: null,
   _cleanupListener: null,
+  _cleanupFilesChanged: null,
 
   loadConversations: async (bookSlug: string) => {
     try {
@@ -114,6 +124,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamBuffer: '',
       thinkingBuffer: '',
       statusMessage: 'Responding…',
+      toolActivity: [],
     }));
 
     try {
@@ -139,6 +150,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isThinking: false,
         streamBuffer: '',
         thinkingBuffer: '',
+        toolActivity: [],
       }));
     }
   },
@@ -205,6 +217,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamBuffer: '',
       thinkingBuffer: '',
       conversationUsage: null,
+      toolActivity: [],
+      lastChangedFiles: [],
+      messageToolActivity: {},
     });
 
     // Step 2: Load conversations for the new book
@@ -244,13 +259,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // No-op: transitions handled by blockStart
         break;
 
+      case 'toolUse':
+        if (event.tool.status === 'complete' && event.tool.filePath) {
+          set((state) => ({
+            toolActivity: [...state.toolActivity, event.tool.filePath!],
+          }));
+        }
+        break;
+
+      case 'filesChanged':
+        set({ lastChangedFiles: event.paths });
+        break;
+
       case 'done':
         if (activeConversation) {
+          const currentToolActivity = get().toolActivity;
+
           Promise.all([
             window.novelEngine.chat.getMessages(activeConversation.id),
             window.novelEngine.usage.byConversation(activeConversation.id),
           ]).then(([messages, usage]) => {
-            set({
+            // Associate tool activity with the last assistant message
+            const lastAssistantMessage = messages.filter((m) => m.role === 'assistant').pop();
+            const updatedToolActivity: Record<string, string[]> = {};
+            if (lastAssistantMessage && currentToolActivity.length > 0) {
+              updatedToolActivity[lastAssistantMessage.id] = currentToolActivity;
+            }
+
+            set((state) => ({
               messages,
               conversationUsage: usage,
               isStreaming: false,
@@ -258,7 +294,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
               streamBuffer: '',
               thinkingBuffer: '',
               statusMessage: '',
-            });
+              messageToolActivity: {
+                ...state.messageToolActivity,
+                ...updatedToolActivity,
+              },
+              toolActivity: [],
+              lastChangedFiles: [],
+            }));
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
             set({
@@ -267,6 +309,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
               streamBuffer: '',
               thinkingBuffer: '',
               statusMessage: '',
+              toolActivity: [],
+              lastChangedFiles: [],
             });
           });
         } else {
@@ -276,6 +320,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            toolActivity: [],
+            lastChangedFiles: [],
           });
         }
         break;
@@ -297,6 +343,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            toolActivity: [],
           };
         });
         break;
@@ -304,19 +351,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   initStreamListener: () => {
-    const { _cleanupListener, _handleStreamEvent } = get();
+    const { _cleanupListener, _cleanupFilesChanged, _handleStreamEvent } = get();
     if (_cleanupListener) {
       _cleanupListener();
     }
+    if (_cleanupFilesChanged) {
+      _cleanupFilesChanged();
+    }
+
     const cleanup = window.novelEngine.chat.onStreamEvent(_handleStreamEvent);
-    set({ _cleanupListener: cleanup });
+
+    // Register listener for file change notifications — triggers pipeline refresh
+    const cleanupFilesChanged = window.novelEngine.chat.onFilesChanged((_paths) => {
+      const { activeSlug } = useBookStore.getState();
+      if (activeSlug) {
+        // Dynamically import pipelineStore to avoid circular dependency
+        import('./pipelineStore').then(({ usePipelineStore }) => {
+          usePipelineStore.getState().loadPipeline(activeSlug);
+        }).catch((err) => {
+          console.error('Failed to refresh pipeline after file changes:', err);
+        });
+      }
+    });
+
+    set({ _cleanupListener: cleanup, _cleanupFilesChanged: cleanupFilesChanged });
   },
 
   destroyStreamListener: () => {
-    const { _cleanupListener } = get();
+    const { _cleanupListener, _cleanupFilesChanged } = get();
     if (_cleanupListener) {
       _cleanupListener();
-      set({ _cleanupListener: null });
     }
+    if (_cleanupFilesChanged) {
+      _cleanupFilesChanged();
+    }
+    set({ _cleanupListener: null, _cleanupFilesChanged: null });
   },
 }));

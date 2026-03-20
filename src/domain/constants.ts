@@ -1,4 +1,4 @@
-import type { AgentName, AgentMeta, CreativeAgentName, PipelinePhaseId, AppSettings, OutputTarget } from './types';
+import type { AgentName, AgentMeta, CreativeAgentName, PipelinePhaseId, AppSettings } from './types';
 
 // Agent metadata (everything except the systemPrompt, which comes from files)
 export const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
@@ -89,30 +89,6 @@ export const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {
   Wrangler:   2000,
 };
 
-// Maps pipeline phase to one or more target files where agent output can be saved.
-// When a phase has multiple targets, the UI shows one save button per target so the
-// user can save different assistant messages to different files.
-// Example: Verity's scaffold phase produces both a scene outline and a story bible —
-// the user clicks "Save as Scene Outline" on one message and "Save as Story Bible" on another.
-export const AGENT_OUTPUT_TARGETS: Partial<Record<PipelinePhaseId, OutputTarget[]>> = {
-  'pitch':              [{ targetPath: 'source/pitch.md',            description: 'Save as Pitch' }],
-  'scaffold':           [
-                          { targetPath: 'source/scene-outline.md',   description: 'Save as Scene Outline' },
-                          { targetPath: 'source/story-bible.md',     description: 'Save as Story Bible' },
-                        ],
-  'first-draft':        [{ targetPath: 'chapters/{slug}/draft.md',   description: 'Save as Chapter Draft', isChapter: true }],
-  'first-read':         [{ targetPath: 'source/reader-report.md',    description: 'Save as Reader Report' }],
-  'first-assessment':   [{ targetPath: 'source/dev-report.md',       description: 'Save as Dev Report' }],
-  'revision-plan-1':    [{ targetPath: 'source/project-tasks.md',    description: 'Save as Project Tasks' }],
-  'revision':           [{ targetPath: 'chapters/{slug}/draft.md',   description: 'Save as Revised Chapter', isChapter: true }],
-  'second-read':        [{ targetPath: 'source/reader-report.md',    description: 'Save as Reader Report (v2)' }],
-  'second-assessment':  [{ targetPath: 'source/dev-report.md',       description: 'Save as Dev Report (v2)' }],
-  'copy-edit':          [{ targetPath: 'source/audit-report.md',     description: 'Save as Audit Report' }],
-  'revision-plan-2':    [{ targetPath: 'source/revision-prompts.md', description: 'Save as Revision Prompts' }],
-  'mechanical-fixes':   [{ targetPath: 'chapters/{slug}/draft.md',   description: 'Save as Fixed Chapter', isChapter: true }],
-  'publish':            [{ targetPath: 'source/metadata.md',         description: 'Save as Metadata' }],
-};
-
 // Purpose-specific prompt additions — appended to Verity's system prompt for special conversations
 export const VOICE_SETUP_INSTRUCTIONS = `
 
@@ -147,7 +123,7 @@ The author wants to establish or refine their voice profile for this book. This 
 
 **If an existing voice profile is already loaded in context**, help the author refine it. Ask what feels wrong or incomplete. Update specific dimensions based on their feedback.
 
-When you present the final Voice Profile, tell the author they can save it using the "Save as Voice Profile" button below your message.
+When you present the final Voice Profile, write it to \`source/voice-profile.md\` using the Write tool.
 `;
 
 export const WRANGLER_SESSION_PARSE_PROMPT = `You are parsing Forge's revision plan output into a structured JSON execution plan.
@@ -216,7 +192,7 @@ When you have enough material, produce a polished **Author Profile** document �
 
 If an existing author profile is loaded in context, help refine it. Ask what's changed, what's missing, what no longer feels true.
 
-When you present the final Author Profile, tell the author they can save it using the "Save as Author Profile" button below your message.
+When you present the final Author Profile, write it to the author-profile.md file using the Write tool.
 `;
 
 // Canonical file manifest keys — maps to BookContext field keys and display paths.

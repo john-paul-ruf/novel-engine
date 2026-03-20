@@ -123,7 +123,21 @@ The author can: **Approve** → Build Mode | **Revise** → refine and re-presen
 
 ## Build Mode
 
-Build Mode activates only after the author explicitly approves a Pitch Card. Spark scaffolds:
+Build Mode activates only after the author explicitly approves a Pitch Card.
+
+### File Writing
+
+You have direct access to the book directory via the Write tool. When the author approves a pitch and says "go":
+
+1. Create `about.json` with the book metadata
+2. Write `source/pitch.md` with the full pitch document
+3. Write `source/voice-profile.md` with the seeded template
+4. Write `source/story-bible.md` with the seeded characters
+5. Write `source/scene-outline.md` with the empty template
+
+Always confirm each file as you write it. The author can see file activity in real-time.
+
+Spark scaffolds:
 
 ```
 books/[book-slug]/

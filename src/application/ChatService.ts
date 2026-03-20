@@ -25,8 +25,8 @@ import type { UsageService } from './UsageService';
  * 1. Validate CLI availability
  * 2. Save the user message
  * 3. Delegate context assembly to the ContextWrangler (two-call pattern)
- * 4. Build the system prompt with assembled context
- * 5. Stream the agent response via Claude CLI
+ * 4. Build the system prompt with assembled context + file-writing instructions
+ * 5. Stream the agent response via Claude CLI (full agent mode with tool use)
  * 6. Accumulate and save the assistant response
  * 7. Record token usage
  *
@@ -34,6 +34,7 @@ import type { UsageService } from './UsageService';
  */
 export class ChatService {
   private lastDiagnostics: ContextDiagnostics | null = null;
+  private lastChangedFiles: string[] = [];
 
   constructor(
     private settings: ISettingsService,
@@ -49,10 +50,11 @@ export class ChatService {
    *
    * This is the primary entry point for all agent interactions. It orchestrates
    * the full flow: context assembly via the Wrangler, CLI call, response capture,
-   * and usage tracking.
+   * and usage tracking. Agents run in full agent mode with tool use — they can
+   * read and write files directly in the book directory.
    *
    * All stream events are forwarded to the caller's onEvent callback, including
-   * thinking deltas, text deltas, and the final done/error events.
+   * thinking deltas, text deltas, tool use events, and the final done/error events.
    */
   async sendMessage(params: {
     agentName: AgentName;
@@ -62,6 +64,9 @@ export class ChatService {
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
     const { agentName, message, conversationId, bookSlug, onEvent } = params;
+
+    // Reset changed files for this interaction
+    this.lastChangedFiles = [];
 
     // Step 1: Check Claude CLI availability
     const available = await this.claude.isAvailable();
@@ -117,11 +122,18 @@ export class ChatService {
         systemPrompt += AUTHOR_PROFILE_INSTRUCTIONS;
       }
 
+      // Step 7c: Append file-writing instructions for pipeline conversations
+      const pipelinePhase = conversation?.pipelinePhase ?? null;
+      const fileInstructions = this.buildFileInstructions(pipelinePhase);
+      if (fileInstructions) {
+        systemPrompt += fileInstructions;
+      }
+
       // Step 8: Determine thinking budget
       // Use the agent's default thinking budget, but only if thinking is globally enabled
       const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
-      // Step 9: Call the Claude CLI with response capture
+      // Step 9: Call the Claude CLI with response capture (full agent mode)
       onEvent({ type: 'status', message: 'Waiting for response…' });
       let responseBuffer = '';
       let thinkingBuffer = '';
@@ -132,12 +144,16 @@ export class ChatService {
         messages: assembled.conversationMessages,
         maxTokens: appSettings.maxTokens,
         thinkingBudget,
+        bookSlug,
         onEvent: (event: StreamEvent) => {
           // Accumulate response content
           if (event.type === 'textDelta') {
             responseBuffer += event.text;
           } else if (event.type === 'thinkingDelta') {
             thinkingBuffer += event.text;
+          } else if (event.type === 'filesChanged') {
+            // Capture files changed during this interaction
+            this.lastChangedFiles = event.paths;
           } else if (event.type === 'done') {
             // Save the assistant message with accumulated content
             this.db.saveMessage({
@@ -157,7 +173,7 @@ export class ChatService {
             });
           }
 
-          // Forward ALL events to the caller
+          // Forward ALL events to the caller (including toolUse and filesChanged)
           onEvent(event);
         },
       });
@@ -165,6 +181,14 @@ export class ChatService {
       const errorMessage = err instanceof Error ? err.message : String(err);
       onEvent({ type: 'error', message: errorMessage });
     }
+  }
+
+  /**
+   * Returns the file paths that were changed during the last sendMessage interaction.
+   * Used by the IPC layer to notify the renderer of file changes for pipeline refresh.
+   */
+  getLastChangedFiles(): string[] {
+    return this.lastChangedFiles;
   }
 
   /**
@@ -214,5 +238,47 @@ export class ChatService {
    */
   getLastDiagnostics(): ContextDiagnostics | null {
     return this.lastDiagnostics;
+  }
+
+  /**
+   * Build file-writing instructions to append to the agent system prompt.
+   * Tells agents they can (and should) write files directly to the book directory.
+   */
+  private buildFileInstructions(pipelinePhase: PipelinePhaseId | null): string {
+    // Only add file instructions for pipeline conversations
+    if (!pipelinePhase) return '';
+
+    return `
+
+---
+
+## File Writing
+
+You have direct access to read and write files in this book's directory. When the author approves your output, **write it to the appropriate file** — do not just display it in chat.
+
+Use the Write tool to save files. All paths are relative to the book root directory.
+
+Key file paths:
+- \`source/pitch.md\` — the approved pitch document
+- \`source/voice-profile.md\` — the voice profile
+- \`source/scene-outline.md\` — the scene-by-scene outline
+- \`source/story-bible.md\` — characters, world, lore
+- \`source/reader-report.md\` — Ghostlight's reader report
+- \`source/dev-report.md\` — Lumen's development report
+- \`source/audit-report.md\` — Sable's copy-edit audit
+- \`source/project-tasks.md\` — Forge's revision task breakdown
+- \`source/revision-prompts.md\` — Forge's per-chapter revision prompts
+- \`source/style-sheet.md\` — Sable's style consistency rules
+- \`source/metadata.md\` — Quill's publication metadata
+- \`chapters/NN-slug/draft.md\` — chapter prose (Verity writes these)
+- \`chapters/NN-slug/notes.md\` — chapter notes
+- \`about.json\` — book metadata (title, author, status, etc.)
+
+**Important rules:**
+- Always ask for explicit approval before writing/overwriting a file
+- When writing a new version of an existing file, confirm with the author first
+- For chapters, use the format \`chapters/NN-slug-name/draft.md\` (e.g. \`chapters/01-the-awakening/draft.md\`)
+- Write complete files — never partial updates unless using the Edit tool for targeted fixes
+`;
   }
 }

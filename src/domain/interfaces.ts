@@ -89,6 +89,7 @@ export interface IClaudeClient {
     messages: { role: MessageRole; content: string }[];
     maxTokens: number;
     thinkingBudget?: number;
+    bookSlug?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
 

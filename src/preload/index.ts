@@ -89,18 +89,15 @@ const api = {
       ipcRenderer.invoke('chat:deleteConversation', conversationId),
     send: (params: SendMessageParams): Promise<void> =>
       ipcRenderer.invoke('chat:send', params),
-    saveToFile: (params: {
-      bookSlug: string;
-      pipelinePhase: string;
-      targetPath: string;
-      content: string;
-      chapterSlug?: string;
-    }): Promise<{ savedPath: string }> =>
-      ipcRenderer.invoke('chat:saveToFile', params),
     onStreamEvent: (callback: (event: StreamEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: StreamEvent) => callback(event);
       ipcRenderer.on('chat:streamEvent', handler);
       return () => ipcRenderer.removeListener('chat:streamEvent', handler);
+    },
+    onFilesChanged: (callback: (paths: string[]) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, paths: string[]) => callback(paths);
+      ipcRenderer.on('chat:filesChanged', handler);
+      return () => ipcRenderer.removeListener('chat:filesChanged', handler);
     },
   },
 

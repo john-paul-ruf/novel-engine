@@ -103,7 +103,14 @@ export type Conversation = {
 
 // === Streaming ===
 
-export type StreamBlockType = 'thinking' | 'text';
+export type StreamBlockType = 'thinking' | 'text' | 'tool_use' | 'tool_result';
+
+export type ToolUseInfo = {
+  toolName: string;        // e.g. "Write", "Read", "Edit"
+  toolId: string;          // the tool_use_id from the CLI
+  filePath?: string;       // resolved file path (for file operations)
+  status: 'started' | 'running' | 'complete' | 'error';
+};
 
 export type StreamEvent =
   | { type: 'status'; message: string }
@@ -111,6 +118,8 @@ export type StreamEvent =
   | { type: 'thinkingDelta'; text: string }
   | { type: 'textDelta'; text: string }
   | { type: 'blockEnd'; blockType: StreamBlockType }
+  | { type: 'toolUse'; tool: ToolUseInfo }
+  | { type: 'filesChanged'; paths: string[] }
   | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number }
   | { type: 'error'; message: string };
 
@@ -215,14 +224,6 @@ export type FileEntry = {
   path: string;            // relative to book root
   isDirectory: boolean;
   children?: FileEntry[];
-};
-
-// === Output Persistence ===
-
-export type OutputTarget = {
-  targetPath: string;                       // relative to book root
-  description: string;                      // shown as the save button label
-  isChapter?: boolean;                      // if true, prompt for chapter slug
 };
 
 // === IPC ===
