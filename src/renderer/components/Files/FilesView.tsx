@@ -2,6 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { marked } from 'marked';
 import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
+import { FilesHeader } from './FilesHeader';
+import { FileBrowser } from './FileBrowser';
+import { FileEditor } from './FileEditor';
+import type { FileViewMode } from '../../stores/viewStore';
 import type { BookMeta, BookStatus } from '@domain/types';
 
 // Configure marked for safe rendering
@@ -17,58 +21,6 @@ const STATUS_COLORS: Record<BookStatus, string> = {
   final: 'bg-green-700 text-green-100',
   published: 'bg-green-600 text-green-100',
 };
-
-const QUICK_ACCESS_FILES = [
-  { path: 'source/voice-profile.md', label: 'Voice Profile', icon: '🎤' },
-  { path: 'source/scene-outline.md', label: 'Scene Outline', icon: '📋' },
-  { path: 'source/story-bible.md', label: 'Story Bible', icon: '📖' },
-  { path: 'about.json', label: 'Book Info', icon: '📝' },
-];
-
-function Breadcrumb({ filePath }: { filePath: string }): React.ReactElement {
-  const parts = filePath.split('/');
-  return (
-    <div className="flex items-center gap-1 text-sm text-zinc-400">
-      {parts.map((part, i) => (
-        <span key={i} className="flex items-center gap-1">
-          {i > 0 && <span className="text-zinc-600">/</span>}
-          <span className={i === parts.length - 1 ? 'text-zinc-200 font-medium' : ''}>
-            {part}
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function NoFileSelected({ onFileSelect }: { onFileSelect: (path: string) => void }): React.ReactElement {
-  const { activeSlug } = useBookStore();
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-8">
-      <div className="text-center">
-        <div className="text-lg text-zinc-400">Select a file from the sidebar</div>
-        <div className="mt-1 text-sm text-zinc-600">or choose a common file below</div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {QUICK_ACCESS_FILES.map((file) => (
-          <button
-            key={file.path}
-            onClick={() => onFileSelect(file.path)}
-            disabled={!activeSlug}
-            className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span className="text-2xl">{file.icon}</span>
-            <div>
-              <div className="text-sm font-medium text-zinc-200">{file.label}</div>
-              <div className="text-xs text-zinc-500">{file.path}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function InlineEditField({
   value,
@@ -314,23 +266,19 @@ function countWords(text: string): number {
 }
 
 export function FilesView(): React.ReactElement {
-  const { payload } = useViewStore();
+  const { payload, navigate } = useViewStore();
   const { activeSlug } = useBookStore();
-  const { navigate } = useViewStore();
 
-  const [filePath, setFilePath] = useState<string | null>(null);
+  const viewMode: FileViewMode = payload.fileViewMode ?? (payload.filePath ? 'reader' : 'browser');
+  const filePath = payload.filePath ?? null;
+  const browserPath = payload.fileBrowserPath ?? '';
+
+  // File content state (shared between reader and editor)
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Payload-driven navigation
-  useEffect(() => {
-    if (payload.filePath) {
-      setFilePath(payload.filePath);
-    }
-  }, [payload.filePath]);
-
-  // Load file content when path changes
+  // Load file when filePath changes (for reader/editor modes)
   useEffect(() => {
     if (!filePath || !activeSlug) {
       setContent('');
@@ -341,30 +289,147 @@ export function FilesView(): React.ReactElement {
     setLoading(true);
     setError(null);
 
-    window.novelEngine.files.read(activeSlug, filePath).then((result) => {
-      if (!cancelled) {
-        setContent(result);
-        setLoading(false);
-      }
-    }).catch((err) => {
-      if (!cancelled) {
-        setError(err instanceof Error ? err.message : 'Failed to load file');
-        setContent('');
-        setLoading(false);
-      }
-    });
+    window.novelEngine.files
+      .read(activeSlug, filePath)
+      .then((result) => {
+        if (!cancelled) {
+          setContent(result);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load file');
+          setContent('');
+          setLoading(false);
+        }
+      });
 
     return () => {
       cancelled = true;
     };
   }, [filePath, activeSlug]);
 
-  const handleQuickAccess = useCallback((path: string) => {
-    navigate('files', { filePath: path });
-  }, [navigate]);
+  // View mode handlers
+  const handleBrowse = useCallback(
+    (dirPath: string) => {
+      navigate('files', { fileBrowserPath: dirPath, fileViewMode: 'browser' });
+    },
+    [navigate],
+  );
 
+  const handleFileSelect = useCallback(
+    (path: string) => {
+      navigate('files', { filePath: path, fileViewMode: 'reader' });
+    },
+    [navigate],
+  );
+
+  const handleEdit = useCallback(() => {
+    navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'editor' });
+  }, [navigate, filePath]);
+
+  const handleCloseEditor = useCallback(() => {
+    navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'reader' });
+  }, [navigate, filePath]);
+
+  const handleSave = useCallback(
+    async (newContent: string) => {
+      if (!activeSlug || !filePath) return;
+      await window.novelEngine.files.write(activeSlug, filePath, newContent);
+      setContent(newContent);
+    },
+    [activeSlug, filePath],
+  );
+
+  const handleBackToBrowser = useCallback(() => {
+    const parentDir = filePath ? filePath.split('/').slice(0, -1).join('/') : '';
+    navigate('files', { fileBrowserPath: parentDir, fileViewMode: 'browser' });
+  }, [navigate, filePath]);
+
+  const handleModeChange = useCallback(
+    (mode: FileViewMode) => {
+      if (mode === 'browser') {
+        const parentDir = filePath ? filePath.split('/').slice(0, -1).join('/') : browserPath;
+        navigate('files', { fileBrowserPath: parentDir, fileViewMode: 'browser' });
+      } else if (mode === 'reader') {
+        navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'reader' });
+      } else if (mode === 'editor') {
+        navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'editor' });
+      }
+    },
+    [navigate, filePath, browserPath],
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header with view mode switcher */}
+      <FilesHeader
+        viewMode={viewMode}
+        filePath={filePath}
+        browserPath={browserPath}
+        onModeChange={handleModeChange}
+        onBrowse={handleBrowse}
+        onBackToBrowser={handleBackToBrowser}
+        onEdit={handleEdit}
+      />
+
+      {/* Content area */}
+      {viewMode === 'browser' && (
+        <FileBrowser
+          currentPath={browserPath}
+          onNavigate={handleBrowse}
+          onFileSelect={handleFileSelect}
+        />
+      )}
+
+      {viewMode === 'reader' && (
+        <ReaderContent
+          filePath={filePath}
+          content={content}
+          loading={loading}
+          error={error}
+          activeSlug={activeSlug}
+          onFileSelect={handleFileSelect}
+          onClearFile={handleBackToBrowser}
+        />
+      )}
+
+      {viewMode === 'editor' && filePath && (
+        <FileEditor
+          filePath={filePath}
+          initialContent={content}
+          onSave={handleSave}
+          onClose={handleCloseEditor}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The reader content — extracted from the original FilesView for clarity.
+ * Handles loading states, about.json card, markdown rendering, and raw content display.
+ */
+function ReaderContent({
+  filePath,
+  content,
+  loading,
+  error,
+  activeSlug,
+  onFileSelect,
+  onClearFile,
+}: {
+  filePath: string | null;
+  content: string;
+  loading: boolean;
+  error: string | null;
+  activeSlug: string;
+  onFileSelect: (path: string) => void;
+  onClearFile: () => void;
+}): React.ReactElement {
   if (!filePath) {
-    return <NoFileSelected onFileSelect={handleQuickAccess} />;
+    return <NoFileSelected onFileSelect={onFileSelect} />;
   }
 
   if (loading) {
@@ -381,7 +446,7 @@ export function FilesView(): React.ReactElement {
         <div className="text-red-400">Failed to load file</div>
         <div className="text-sm text-zinc-500">{error}</div>
         <button
-          onClick={() => setFilePath(null)}
+          onClick={onClearFile}
           className="mt-2 rounded bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
         >
           Back
@@ -394,12 +459,7 @@ export function FilesView(): React.ReactElement {
   const isMarkdown = filePath.endsWith('.md');
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="shrink-0 border-b border-zinc-800 px-8 py-3">
-        <Breadcrumb filePath={filePath} />
-      </div>
-
+    <>
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
         {isAboutJson ? (
@@ -417,6 +477,42 @@ export function FilesView(): React.ReactElement {
           {countWords(content).toLocaleString()} words
         </div>
       )}
+    </>
+  );
+}
+
+const QUICK_ACCESS_FILES = [
+  { path: 'source/voice-profile.md', label: 'Voice Profile', icon: '🎤' },
+  { path: 'source/scene-outline.md', label: 'Scene Outline', icon: '📋' },
+  { path: 'source/story-bible.md', label: 'Story Bible', icon: '📖' },
+  { path: 'about.json', label: 'Book Info', icon: '📝' },
+];
+
+function NoFileSelected({ onFileSelect }: { onFileSelect: (path: string) => void }): React.ReactElement {
+  const { activeSlug } = useBookStore();
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-8">
+      <div className="text-center">
+        <div className="text-lg text-zinc-400">Select a file from the sidebar</div>
+        <div className="mt-1 text-sm text-zinc-600">or choose a common file below</div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {QUICK_ACCESS_FILES.map((file) => (
+          <button
+            key={file.path}
+            onClick={() => onFileSelect(file.path)}
+            disabled={!activeSlug}
+            className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="text-2xl">{file.icon}</span>
+            <div>
+              <div className="text-sm font-medium text-zinc-200">{file.label}</div>
+              <div className="text-xs text-zinc-500">{file.path}</div>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

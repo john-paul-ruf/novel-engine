@@ -136,9 +136,15 @@ export function FileTree(): React.ReactElement {
       return;
     }
 
-    // Navigate to file viewer for .md and .json files
+    if (entry.isDirectory) {
+      // Open browser mode at this directory
+      navigate('files', { fileBrowserPath: entry.path, fileViewMode: 'browser' });
+      return;
+    }
+
+    // Files open in reader mode
     if (entry.name.endsWith('.md') || entry.name.endsWith('.json')) {
-      navigate('files', { filePath: entry.path });
+      navigate('files', { filePath: entry.path, fileViewMode: 'reader' });
     }
   };
 
