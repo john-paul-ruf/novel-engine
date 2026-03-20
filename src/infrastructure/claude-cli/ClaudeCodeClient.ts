@@ -29,7 +29,7 @@ export class ClaudeCodeClient implements IClaudeClient {
     thinkingBudget?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const { model, systemPrompt, messages, thinkingBudget, onEvent } = params;
+    const { model, systemPrompt, messages, onEvent } = params;
 
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
@@ -41,10 +41,6 @@ export class ClaudeCodeClient implements IClaudeClient {
       '--model', model,
       '--system-prompt', systemPrompt,
     ];
-
-    if (thinkingBudget) {
-      args.push('--thinking-budget', String(thinkingBudget));
-    }
 
     return new Promise<void>((resolve, reject) => {
       const child = spawn('claude', args, {
