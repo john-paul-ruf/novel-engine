@@ -29,7 +29,7 @@ export class ClaudeCodeClient implements IClaudeClient {
     thinkingBudget?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const { model, systemPrompt, messages, maxTokens, thinkingBudget, onEvent } = params;
+    const { model, systemPrompt, messages, thinkingBudget, onEvent } = params;
 
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
@@ -39,7 +39,6 @@ export class ClaudeCodeClient implements IClaudeClient {
       '--print',
       '--output-format', 'stream-json',
       '--model', model,
-      '--max-tokens', String(maxTokens),
       '--system-prompt', systemPrompt,
     ];
 
@@ -133,13 +132,12 @@ export class ClaudeCodeClient implements IClaudeClient {
     userMessage: string;
     maxTokens: number;
   }): Promise<string> {
-    const { model, systemPrompt, userMessage, maxTokens } = params;
+    const { model, systemPrompt, userMessage } = params;
 
     const args = [
       '--print',
       '--output-format', 'json',
       '--model', model,
-      '--max-tokens', String(maxTokens),
       '--system-prompt', systemPrompt,
     ];
 
