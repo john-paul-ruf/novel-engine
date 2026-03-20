@@ -1,0 +1,188 @@
+import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import type {
+  ISettingsService,
+  IAgentService,
+  IDatabaseService,
+  IFileSystemService,
+  IPipelineService,
+  IBuildService,
+} from '@domain/interfaces';
+import type {
+  AgentMeta,
+  AgentName,
+  AppSettings,
+  BookMeta,
+  PipelinePhaseId,
+  SendMessageParams,
+} from '@domain/types';
+import { AVAILABLE_MODELS } from '@domain/constants';
+import type { ChatService } from '@app/ChatService';
+import type { UsageService } from '@app/UsageService';
+
+export function registerIpcHandlers(services: {
+  settings: ISettingsService;
+  agents: IAgentService;
+  db: IDatabaseService;
+  fs: IFileSystemService;
+  chat: ChatService;
+  pipeline: IPipelineService;
+  build: IBuildService;
+  usage: UsageService;
+}, paths: {
+  userDataPath: string;
+  booksDir: string;
+}): void {
+
+  // === Settings ===
+
+  ipcMain.handle('settings:load', () => services.settings.load());
+
+  ipcMain.handle('settings:detectClaudeCli', () => services.settings.detectClaudeCli());
+
+  ipcMain.handle('settings:update', (_, partial: Partial<AppSettings>) =>
+    services.settings.update(partial),
+  );
+
+  ipcMain.handle('settings:getAvailableModels', () => AVAILABLE_MODELS);
+
+  // === Agents ===
+
+  ipcMain.handle('agents:list', async () => {
+    const agents = await services.agents.loadAll();
+    return agents.map(({ systemPrompt: _prompt, ...meta }): AgentMeta => meta);
+  });
+
+  ipcMain.handle('agents:get', async (_, name: AgentName) => {
+    const agent = await services.agents.load(name);
+    const { systemPrompt: _prompt, ...meta } = agent;
+    return meta as AgentMeta;
+  });
+
+  // === Books ===
+
+  ipcMain.handle('books:list', () => services.fs.listBooks());
+
+  ipcMain.handle('books:getActiveSlug', () => services.fs.getActiveBookSlug());
+
+  ipcMain.handle('books:setActive', (_, slug: string) => services.fs.setActiveBook(slug));
+
+  ipcMain.handle('books:create', async (_, title: string) => {
+    const settings = await services.settings.load();
+    return services.fs.createBook(title, settings.authorName);
+  });
+
+  ipcMain.handle('books:getMeta', (_, slug: string) => services.fs.getBookMeta(slug));
+
+  ipcMain.handle('books:updateMeta', (_, slug: string, partial: Partial<BookMeta>) =>
+    services.fs.updateBookMeta(slug, partial),
+  );
+
+  ipcMain.handle('books:wordCount', (_, slug: string) => services.fs.countWordsPerChapter(slug));
+
+  ipcMain.handle('books:uploadCover', async (event, bookSlug: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Select Cover Image',
+      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'] }],
+      properties: ['openFile'],
+    });
+    if (canceled || filePaths.length === 0) return null;
+    return services.fs.saveCoverImage(bookSlug, filePaths[0]);
+  });
+
+  ipcMain.handle('books:getCoverImagePath', (_, slug: string) =>
+    services.fs.getCoverImageAbsolutePath(slug),
+  );
+
+  // === Files ===
+
+  ipcMain.handle('files:read', (_, bookSlug: string, path: string) =>
+    services.fs.readFile(bookSlug, path),
+  );
+
+  ipcMain.handle('files:write', (_, bookSlug: string, path: string, content: string) =>
+    services.fs.writeFile(bookSlug, path, content),
+  );
+
+  ipcMain.handle('files:exists', (_, bookSlug: string, path: string) =>
+    services.fs.fileExists(bookSlug, path),
+  );
+
+  ipcMain.handle('files:listDir', (_, bookSlug: string, path?: string) =>
+    services.fs.listDirectory(bookSlug, path),
+  );
+
+  // === Conversations ===
+
+  ipcMain.handle('chat:createConversation', (_, params: {
+    bookSlug: string;
+    agentName: AgentName;
+    pipelinePhase: PipelinePhaseId | null;
+  }) => services.chat.createConversation(params));
+
+  ipcMain.handle('chat:getConversations', (_, bookSlug: string) =>
+    services.chat.getConversations(bookSlug),
+  );
+
+  ipcMain.handle('chat:getMessages', (_, conversationId: string) =>
+    services.chat.getMessages(conversationId),
+  );
+
+  ipcMain.handle('chat:deleteConversation', (_, conversationId: string) =>
+    services.db.deleteConversation(conversationId),
+  );
+
+  // === Chat (streaming) ===
+
+  ipcMain.handle('chat:send', async (event, params: SendMessageParams) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    await services.chat.sendMessage({
+      ...params,
+      onEvent: (streamEvent) => {
+        win.webContents.send('chat:streamEvent', streamEvent);
+      },
+    });
+  });
+
+  // === Pipeline ===
+
+  ipcMain.handle('pipeline:detect', (_, bookSlug: string) =>
+    services.pipeline.detectPhases(bookSlug),
+  );
+
+  ipcMain.handle('pipeline:getActive', (_, bookSlug: string) =>
+    services.pipeline.getActivePhase(bookSlug),
+  );
+
+  // === Build ===
+
+  ipcMain.handle('build:run', async (event, bookSlug: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return services.build.build(bookSlug, (message) => {
+      win?.webContents.send('build:progress', message);
+    });
+  });
+
+  ipcMain.handle('build:isPandocAvailable', () => services.build.isPandocAvailable());
+
+  // === Usage ===
+
+  ipcMain.handle('usage:summary', (_, bookSlug?: string) => services.usage.getSummary(bookSlug));
+
+  ipcMain.handle('usage:byConversation', (_, conversationId: string) =>
+    services.usage.getByConversation(conversationId),
+  );
+
+  // === Context Diagnostics ===
+
+  ipcMain.handle('context:getLastDiagnostics', () => services.chat.getLastDiagnostics());
+
+  // === Shell ===
+
+  ipcMain.handle('shell:openExternal', (_, url: string) => shell.openExternal(url));
+
+  ipcMain.handle('shell:openPath', (_, absolutePath: string) => shell.openPath(absolutePath));
+}
