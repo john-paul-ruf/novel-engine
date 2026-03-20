@@ -2,12 +2,12 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { IFileSystemService } from '@domain/interfaces';
 import type {
-  BookContext,
   BookMeta,
   BookStatus,
   BookSummary,
-  ChapterData,
   FileEntry,
+  FileManifestItem,
+  ProjectManifest,
 } from '@domain/types';
 
 const VALID_COVER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
@@ -196,59 +196,90 @@ export class FileSystemService implements IFileSystemService {
     );
   }
 
-  // ── Book Context ──────────────────────────────────────────────────
+  // ── Project Manifest ─────────────────────────────────────────────
 
-  async loadBookContext(slug: string): Promise<BookContext> {
-    const bookRoot = path.join(this.booksDir, slug);
+  async getProjectManifest(slug: string): Promise<ProjectManifest> {
     const meta = await this.getBookMeta(slug);
+    const files: FileManifestItem[] = [];
 
-    const [
-      authorProfile,
-      pitch,
-      voiceProfile,
-      sceneOutline,
-      storyBible,
-      readerReport,
-      devReport,
-      auditReport,
-      styleSheet,
-      projectTasks,
-      revisionPrompts,
-      metadata,
-    ] = await Promise.all([
-      this.safeRead(path.join(this.userDataDir, 'author-profile.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'pitch.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'voice-profile.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'scene-outline.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'story-bible.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'reader-report.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'dev-report.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'audit-report.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'style-sheet.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'project-tasks.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'revision-prompts.md')),
-      this.safeRead(path.join(bookRoot, 'source', 'metadata.md')),
-    ]);
+    // Check each known source file
+    const sourceFiles = [
+      'source/pitch.md',
+      'source/voice-profile.md',
+      'source/scene-outline.md',
+      'source/story-bible.md',
+      'source/reader-report.md',
+      'source/dev-report.md',
+      'source/audit-report.md',
+      'source/revision-prompts.md',
+      'source/style-sheet.md',
+      'source/project-tasks.md',
+      'source/metadata.md',
+      'about.json',
+    ];
 
-    // Read chapters sorted numerically
-    const chapters = await this.loadChapters(bookRoot);
+    for (const filePath of sourceFiles) {
+      try {
+        const exists = await this.fileExists(slug, filePath);
+        if (exists) {
+          const content = await this.readFile(slug, filePath);
+          const wordCount = content.split(/\s+/).filter(Boolean).length;
+          files.push({ path: filePath, wordCount });
+        }
+      } catch {
+        // Skip files that can't be read
+      }
+    }
 
-    return {
-      meta,
-      authorProfile,
-      pitch,
-      voiceProfile,
-      sceneOutline,
-      storyBible,
-      readerReport,
-      devReport,
-      auditReport,
-      styleSheet,
-      projectTasks,
-      revisionPrompts,
-      metadata,
-      chapters,
-    };
+    // Check author-profile.md (lives in userData root, not book dir)
+    try {
+      const authorProfilePath = path.join(this.userDataDir, 'author-profile.md');
+      const content = await fs.readFile(authorProfilePath, 'utf-8');
+      if (content.trim()) {
+        const wordCount = content.split(/\s+/).filter(Boolean).length;
+        files.push({ path: 'author-profile.md', wordCount });
+      }
+    } catch {
+      // No author profile yet — that's fine
+    }
+
+    // List chapter directories and their files
+    let chapterCount = 0;
+    let totalWordCount = 0;
+
+    try {
+      const chaptersDir = path.join(this.booksDir, slug, 'chapters');
+      const entries = await fs.readdir(chaptersDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        chapterCount++;
+
+        for (const fileName of ['draft.md', 'notes.md']) {
+          const relativePath = `chapters/${entry.name}/${fileName}`;
+          try {
+            const exists = await this.fileExists(slug, relativePath);
+            if (exists) {
+              const content = await this.readFile(slug, relativePath);
+              const wc = content.split(/\s+/).filter(Boolean).length;
+              files.push({ path: relativePath, wordCount: wc });
+              if (fileName === 'draft.md') totalWordCount += wc;
+            }
+          } catch {
+            // Skip unreadable files
+          }
+        }
+      }
+    } catch {
+      // No chapters directory yet — that's fine for a new book
+    }
+
+    // Add source file word counts to total
+    totalWordCount += files
+      .filter((f) => f.path.startsWith('source/'))
+      .reduce((sum, f) => sum + f.wordCount, 0);
+
+    return { meta, files, chapterCount, totalWordCount };
   }
 
   // ── File Operations ───────────────────────────────────────────────
@@ -412,39 +443,6 @@ export class FileSystemService implements IFileSystemService {
 
   private countWordsInText(text: string): number {
     return text.split(/\s+/).filter(Boolean).length;
-  }
-
-  private async loadChapters(bookRoot: string): Promise<ChapterData[]> {
-    const chaptersDir = path.join(bookRoot, 'chapters');
-    let entries: string[];
-    try {
-      entries = await fs.readdir(chaptersDir);
-    } catch {
-      return [];
-    }
-
-    // Sort numerically by leading number
-    entries.sort((a, b) => {
-      const numA = parseInt(a, 10) || 0;
-      const numB = parseInt(b, 10) || 0;
-      return numA - numB;
-    });
-
-    const chapters: ChapterData[] = [];
-    for (const entry of entries) {
-      const entryPath = path.join(chaptersDir, entry);
-      const stat = await fs.stat(entryPath).catch(() => null);
-      if (!stat || !stat.isDirectory()) continue;
-
-      const [draft, notes] = await Promise.all([
-        this.safeRead(path.join(entryPath, 'draft.md')),
-        this.safeRead(path.join(entryPath, 'notes.md')),
-      ]);
-
-      chapters.push({ slug: entry, draft, notes });
-    }
-
-    return chapters;
   }
 
   private async buildFileTree(

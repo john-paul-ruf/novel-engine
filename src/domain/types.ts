@@ -41,21 +41,18 @@ export type ChapterData = {
   notes: string;           // contents of notes.md
 };
 
-export type BookContext = {
+// === Project Manifest (lightweight file listing) ===
+
+export type FileManifestItem = {
+  path: string;           // relative to book root, e.g. "source/pitch.md"
+  wordCount: number;      // approximate word count
+};
+
+export type ProjectManifest = {
   meta: BookMeta;
-  authorProfile: string;
-  pitch: string;
-  voiceProfile: string;
-  sceneOutline: string;
-  storyBible: string;
-  readerReport: string;
-  devReport: string;
-  auditReport: string;
-  styleSheet: string;
-  projectTasks: string;
-  revisionPrompts: string;
-  metadata: string;
-  chapters: ChapterData[];
+  files: FileManifestItem[];
+  chapterCount: number;
+  totalWordCount: number;
 };
 
 // === Pipeline ===
@@ -237,134 +234,17 @@ export type SendMessageParams = {
   bookSlug: string;
 };
 
-// === Context Wrangler ===
-// The Wrangler is an AI-powered context planner that runs a cheap CLI call
-// before every agent call to decide what context to load.
+// === Context Assembly ===
 
-export type WranglerInput = {
-  agent: AgentName;
-  userMessage: string;
-  bookStatus: BookStatus;
-  pipelinePhase: PipelinePhaseId | null;
-  purpose?: ConversationPurpose;
-  fileManifest: FileManifestEntry[];
-  chapters: ChapterManifestEntry[];
-  conversation: ConversationManifest;
-  budget: ContextBudget;
-};
-
-export type FileManifestEntry = {
-  key: string;               // e.g. 'voiceProfile', 'sceneOutline'
-  path: string;              // relative to book root
-  tokens: number;            // 0 means file does not exist
-};
-
-export type ChapterManifestEntry = {
-  number: number;
-  slug: string;
-  draftTokens: number;
-  notesTokens: number;
-};
-
-export type ConversationManifest = {
-  turnCount: number;
-  totalTokens: number;
-  recentTurns: number;       // count of recent turns
-  recentTokens: number;
-  oldTurns: number;
-  oldTokens: number;
-  hasThinkingBlocks: boolean;
-};
-
-export type ContextBudget = {
-  totalContextWindow: number;
-  systemPromptTokens: number;
-  thinkingBudget: number;
-  responseBuffer: number;
-  availableForContext: number;  // totalContextWindow - systemPromptTokens - thinkingBudget - responseBuffer
-};
-
-export type ChapterStrategy = 'none' | 'sliding-window' | 'target-neighbors' | 'full-read';
-export type ConversationStrategy = 'keep-all' | 'summarize-old' | 'keep-recent-only';
-
-export type WranglerFileDirective = {
-  key: string;
-  path: string;
-};
-
-export type WranglerSummarizeDirective = {
-  key: string;
-  path: string;
-  targetTokens: number;
-  focus: string;             // instructions for the summarization call
-};
-
-export type WranglerExcludeDirective = {
-  key: string;
-  reason: string;
-};
-
-export type WranglerChapterDirective = {
-  number: number;
-  slug: string;
-  includeDraft: boolean;
-  includeNotes: boolean;
-};
-
-export type WranglerChapterExclude = {
-  range: string;             // e.g. "1-4"
-  reason: string;
-};
-
-export type WranglerPlan = {
-  files: {
-    include: WranglerFileDirective[];
-    summarize: WranglerSummarizeDirective[];
-    exclude: WranglerExcludeDirective[];
-  };
-  chapters: {
-    strategy: ChapterStrategy;
-    include: WranglerChapterDirective[];
-    exclude: WranglerChapterExclude[];
-    batchRequired: boolean;
-    batchInstructions?: string;
-  };
-  conversation: {
-    strategy: ConversationStrategy;
-    keepRecentTurns: number;
-    dropThinkingOlderThan: number;
-    summarizeOld: boolean;
-    summaryFocus: string;    // instructions for the conversation summary call
-  };
-  reasoning: string;
-  tokenEstimate: {
-    files: number;
-    chapters: number;
-    conversation: number;
-    total: number;
-    budgetRemaining: number;
-  };
-};
-
-// The assembled context after executing the wrangler plan
 export type AssembledContext = {
-  projectContext: string;    // all project files + chapters, formatted and joined
-  conversationMessages: { role: MessageRole; content: string }[];  // compacted conversation
+  systemPrompt: string;                                    // agent prompt + manifest + guidance
+  conversationMessages: { role: MessageRole; content: string }[];
   diagnostics: ContextDiagnostics;
 };
 
 export type ContextDiagnostics = {
-  totalTokensUsed: number;
-  budgetRemaining: number;
-  filesIncluded: string[];
-  filesExcluded: string[];
-  filesSummarized: string[];
-  chapterStrategy: ChapterStrategy;
-  chaptersIncluded: number[];
-  chaptersExcluded: string;  // range description
-  conversationStrategy: ConversationStrategy;
+  filesAvailable: string[];         // files listed in the manifest
   conversationTurnsSent: number;
   conversationTurnsDropped: number;
-  wranglerReasoning: string;
-  wranglerCostTokens: number;  // tokens consumed by the wrangler call itself
+  manifestTokenEstimate: number;    // how many tokens the manifest section uses
 };

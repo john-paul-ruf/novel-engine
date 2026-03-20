@@ -18,7 +18,6 @@ import { ClaudeCodeClient } from '@infra/claude-cli';
 import { resolvePandocPath } from '@infra/pandoc';
 
 // Application
-import { ContextWrangler } from '@app/ContextWrangler';
 import { ChatService } from '@app/ChatService';
 import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
@@ -107,12 +106,11 @@ async function initializeApp(): Promise<void> {
   const claudeClient = new ClaudeCodeClient(booksDir);
 
   // 4. Instantiate application services
-  const contextWrangler = new ContextWrangler(settings, agents, db, fs, claudeClient);
   const usage = new UsageService(db);
-  const chat = new ChatService(settings, agents, db, claudeClient, contextWrangler, usage);
+  const chat = new ChatService(settings, agents, db, claudeClient, fs, usage);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
-  const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, contextWrangler, db, settings);
+  const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
 
   // 5. Register custom protocol handler for serving local assets to renderer
   protocol.handle('novel-asset', (request) => {

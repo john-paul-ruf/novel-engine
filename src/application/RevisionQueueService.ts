@@ -16,7 +16,6 @@ import type {
   IFileSystemService,
   IClaudeClient,
   IAgentService,
-  IContextWrangler,
   IDatabaseService,
   ISettingsService,
 } from '@domain/interfaces';
@@ -24,6 +23,7 @@ import {
   WRANGLER_SESSION_PARSE_PROMPT,
   WRANGLER_MODEL,
 } from '@domain/constants';
+import { ContextBuilder } from './ContextBuilder';
 
 export class RevisionQueueService implements IRevisionQueueService {
   private plans: Map<string, RevisionPlan> = new Map();
@@ -35,7 +35,6 @@ export class RevisionQueueService implements IRevisionQueueService {
     private fs: IFileSystemService,
     private claude: IClaudeClient,
     private agents: IAgentService,
-    private contextWrangler: IContextWrangler,
     private db: IDatabaseService,
     private settings: ISettingsService,
   ) {}
@@ -181,14 +180,16 @@ export class RevisionQueueService implements IRevisionQueueService {
       thinking: '',
     });
 
-    const assembled = await this.contextWrangler.assemble({
+    const manifest = await this.fs.getProjectManifest(plan.bookSlug);
+    const messages = this.db.getMessages(conversation.id);
+    const contextBuilder = new ContextBuilder();
+    const assembled = contextBuilder.build({
       agentName: 'Verity' as AgentName,
-      userMessage: session.prompt,
-      conversationId: conversation.id,
-      bookSlug: plan.bookSlug,
+      agentSystemPrompt: verity.systemPrompt,
+      manifest,
+      messages,
     });
-
-    const systemPrompt = `${verity.systemPrompt}\n\n---\n\n# Current Book Context\n\n${assembled.projectContext}`;
+    const systemPrompt = assembled.systemPrompt;
 
     await this.runConversationLoop(session, plan, systemPrompt, model, appSettings, verity);
   }

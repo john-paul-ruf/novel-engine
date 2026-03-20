@@ -1,4 +1,4 @@
-export { ContextWrangler } from './ContextWrangler';
+export { ContextBuilder } from './ContextBuilder';
 export { ChatService } from './ChatService';
 export { PipelineService } from './PipelineService';
 export { BuildService } from './BuildService';

@@ -1,8 +1,8 @@
 import type {
   IAgentService,
   IClaudeClient,
-  IContextWrangler,
   IDatabaseService,
+  IFileSystemService,
   ISettingsService,
 } from '@domain/interfaces';
 import type {
@@ -17,6 +17,7 @@ import type {
 import { nanoid } from 'nanoid';
 import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS } from '@domain/constants';
 import type { UsageService } from './UsageService';
+import { ContextBuilder } from './ContextBuilder';
 
 /**
  * ChatService — Central orchestrator for the send→stream→save message flow.
@@ -24,24 +25,24 @@ import type { UsageService } from './UsageService';
  * Coordinates the full lifecycle of a single agent interaction:
  * 1. Validate CLI availability
  * 2. Save the user message
- * 3. Delegate context assembly to the ContextWrangler (two-call pattern)
- * 4. Build the system prompt with assembled context + file-writing instructions
- * 5. Stream the agent response via Claude CLI (full agent mode with tool use)
- * 6. Accumulate and save the assistant response
- * 7. Record token usage
+ * 3. Build a lightweight file manifest and lean system prompt via ContextBuilder
+ * 4. Stream the agent response via Claude CLI (full agent mode with tool use)
+ * 5. Accumulate and save the assistant response
+ * 6. Record token usage
  *
  * Depends entirely on injected interfaces — no concrete infrastructure imports.
  */
 export class ChatService {
   private lastDiagnostics: ContextDiagnostics | null = null;
   private lastChangedFiles: string[] = [];
+  private contextBuilder = new ContextBuilder();
 
   constructor(
     private settings: ISettingsService,
     private agents: IAgentService,
     private db: IDatabaseService,
     private claude: IClaudeClient,
-    private contextWrangler: IContextWrangler,
+    private fs: IFileSystemService,
     private usage: UsageService,
   ) {}
 
@@ -49,9 +50,9 @@ export class ChatService {
    * Send a message to an agent and stream the response.
    *
    * This is the primary entry point for all agent interactions. It orchestrates
-   * the full flow: context assembly via the Wrangler, CLI call, response capture,
-   * and usage tracking. Agents run in full agent mode with tool use — they can
-   * read and write files directly in the book directory.
+   * the full flow: context assembly via the lean ContextBuilder, CLI call,
+   * response capture, and usage tracking. Agents run in full agent mode with
+   * tool use — they can read and write files directly in the book directory.
    *
    * All stream events are forwarded to the caller's onEvent callback, including
    * thinking deltas, text deltas, tool use events, and the final done/error events.
@@ -84,8 +85,7 @@ export class ChatService {
     // Step 3: Load the agent metadata and system prompt
     const agent = await this.agents.load(agentName);
 
-    // Step 4: Save the user message BEFORE context assembly
-    // This ensures the Wrangler sees the full conversation including this message
+    // Step 4: Save the user message
     this.db.saveMessage({
       conversationId,
       role: 'user',
@@ -99,48 +99,44 @@ export class ChatService {
       // Step 5: Retrieve conversation to check purpose
       const conversation = this.db.getConversation(conversationId);
 
-      // Step 5b: Assemble context via the Wrangler (two-call pattern)
-      onEvent({ type: 'status', message: 'Assembling context…' });
-      const assembled = await this.contextWrangler.assemble({
+      // Step 5b: Build lightweight manifest (fast — just file listing)
+      onEvent({ type: 'status', message: 'Preparing context…' });
+      const manifest = await this.fs.getProjectManifest(bookSlug);
+
+      // Step 6: Get conversation messages from DB
+      const messages = this.db.getMessages(conversationId);
+
+      // Step 7: Determine purpose-specific instructions
+      let purposeInstructions: string | undefined;
+      if (conversation?.purpose === 'voice-setup') {
+        purposeInstructions = VOICE_SETUP_INSTRUCTIONS;
+      } else if (conversation?.purpose === 'author-profile') {
+        purposeInstructions = AUTHOR_PROFILE_INSTRUCTIONS;
+      }
+
+      // Step 7b: Build context using the lean ContextBuilder
+      const assembled = this.contextBuilder.build({
         agentName,
-        userMessage: message,
-        conversationId,
-        bookSlug,
-        purpose: conversation?.purpose,
+        agentSystemPrompt: agent.systemPrompt,
+        manifest,
+        messages,
+        purposeInstructions,
       });
 
-      // Step 6: Store diagnostics for later retrieval by the IPC layer
+      // Step 8: Store diagnostics
       this.lastDiagnostics = assembled.diagnostics;
 
-      // Step 7: Build the full system prompt with project context
-      let systemPrompt = `${agent.systemPrompt}\n\n---\n\n# Current Book Context\n\n${assembled.projectContext}`;
-
-      // Step 7b: Append purpose-specific instructions
-      if (conversation?.purpose === 'voice-setup') {
-        systemPrompt += VOICE_SETUP_INSTRUCTIONS;
-      } else if (conversation?.purpose === 'author-profile') {
-        systemPrompt += AUTHOR_PROFILE_INSTRUCTIONS;
-      }
-
-      // Step 7c: Append file-writing instructions for pipeline conversations
-      const pipelinePhase = conversation?.pipelinePhase ?? null;
-      const fileInstructions = this.buildFileInstructions(pipelinePhase);
-      if (fileInstructions) {
-        systemPrompt += fileInstructions;
-      }
-
-      // Step 8: Determine thinking budget
-      // Use the agent's default thinking budget, but only if thinking is globally enabled
+      // Step 8b: Determine thinking budget
       const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
-      // Step 9: Call the Claude CLI with response capture (full agent mode)
+      // Step 9: Call the agent — ONE call, no Wrangler pre-call
       onEvent({ type: 'status', message: 'Waiting for response…' });
       let responseBuffer = '';
       let thinkingBuffer = '';
 
       await this.claude.sendMessage({
         model: appSettings.model,
-        systemPrompt,
+        systemPrompt: assembled.systemPrompt,
         messages: assembled.conversationMessages,
         maxTokens: appSettings.maxTokens,
         thinkingBudget,
@@ -233,52 +229,9 @@ export class ChatService {
    * Returns the ContextDiagnostics from the most recent sendMessage call.
    *
    * Used by the IPC layer to expose context assembly diagnostics to the UI,
-   * showing what files were included/excluded, chapter strategy, conversation
-   * compaction, and the Wrangler's reasoning.
+   * showing what files are available, conversation turns, and manifest token cost.
    */
   getLastDiagnostics(): ContextDiagnostics | null {
     return this.lastDiagnostics;
-  }
-
-  /**
-   * Build file-writing instructions to append to the agent system prompt.
-   * Tells agents they can (and should) write files directly to the book directory.
-   */
-  private buildFileInstructions(pipelinePhase: PipelinePhaseId | null): string {
-    // Only add file instructions for pipeline conversations
-    if (!pipelinePhase) return '';
-
-    return `
-
----
-
-## File Writing
-
-You have direct access to read and write files in this book's directory. When the author approves your output, **write it to the appropriate file** — do not just display it in chat.
-
-Use the Write tool to save files. All paths are relative to the book root directory.
-
-Key file paths:
-- \`source/pitch.md\` — the approved pitch document
-- \`source/voice-profile.md\` — the voice profile
-- \`source/scene-outline.md\` — the scene-by-scene outline
-- \`source/story-bible.md\` — characters, world, lore
-- \`source/reader-report.md\` — Ghostlight's reader report
-- \`source/dev-report.md\` — Lumen's development report
-- \`source/audit-report.md\` — Sable's copy-edit audit
-- \`source/project-tasks.md\` — Forge's revision task breakdown
-- \`source/revision-prompts.md\` — Forge's per-chapter revision prompts
-- \`source/style-sheet.md\` — Sable's style consistency rules
-- \`source/metadata.md\` — Quill's publication metadata
-- \`chapters/NN-slug/draft.md\` — chapter prose (Verity writes these)
-- \`chapters/NN-slug/notes.md\` — chapter notes
-- \`about.json\` — book metadata (title, author, status, etc.)
-
-**Important rules:**
-- Always ask for explicit approval before writing/overwriting a file
-- When writing a new version of an existing file, confirm with the author first
-- For chapters, use the format \`chapters/NN-slug-name/draft.md\` (e.g. \`chapters/01-the-awakening/draft.md\`)
-- Write complete files — never partial updates unless using the Edit tool for targeted fixes
-`;
   }
 }

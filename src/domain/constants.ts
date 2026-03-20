@@ -1,5 +1,51 @@
 import type { AgentName, AgentMeta, CreativeAgentName, PipelinePhaseId, AppSettings } from './types';
 
+// === Per-Agent Read Guidance ===
+
+export type ReadGuidance = {
+  alwaysRead: string[];
+  readIfRelevant: string[];
+  neverRead: string[];
+};
+
+export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
+  Spark: {
+    alwaysRead: ['author-profile.md'],
+    readIfRelevant: ['source/pitch.md'],
+    neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
+  },
+  Verity: {
+    alwaysRead: ['source/voice-profile.md'],
+    readIfRelevant: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/revision-prompts.md'],
+    neverRead: ['source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
+  },
+  Ghostlight: {
+    alwaysRead: [],
+    readIfRelevant: [],
+    neverRead: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/voice-profile.md', 'source/dev-report.md'],
+  },
+  Lumen: {
+    alwaysRead: ['source/reader-report.md'],
+    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md'],
+    neverRead: ['author-profile.md', 'source/revision-prompts.md'],
+  },
+  Sable: {
+    alwaysRead: ['source/style-sheet.md', 'source/story-bible.md'],
+    readIfRelevant: [],
+    neverRead: ['source/scene-outline.md', 'source/pitch.md', 'author-profile.md', 'source/reader-report.md', 'source/dev-report.md'],
+  },
+  Forge: {
+    alwaysRead: ['source/dev-report.md'],
+    readIfRelevant: ['source/reader-report.md', 'source/audit-report.md', 'source/scene-outline.md'],
+    neverRead: ['chapters/', 'author-profile.md'],
+  },
+  Quill: {
+    alwaysRead: ['author-profile.md'],
+    readIfRelevant: ['source/story-bible.md', 'source/pitch.md'],
+    neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md'],
+  },
+};
+
 // Agent metadata (everything except the systemPrompt, which comes from files)
 export const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Spark:      { filename: 'SPARK.md',      role: 'Story Pitch',           color: '#F59E0B', thinkingBudget: 8000 },
@@ -65,17 +111,10 @@ export const MAX_CONTEXT_TOKENS = 200_000;
 // Reserve for response + system prompt overhead
 export const CONTEXT_RESERVE_TOKENS = 14_000;
 
-// === Context Wrangler Configuration ===
+// === Wrangler Model (used by RevisionQueueService for parsing Forge output) ===
 
-// The model used for the Wrangler's planning call (cheap and fast)
+// The model used for parsing revision plans (cheap and fast)
 export const WRANGLER_MODEL = 'claude-sonnet-4-20250514';
-// Max tokens for the Wrangler's response (JSON plan)
-export const WRANGLER_MAX_TOKENS = 2048;
-// Max tokens for summarization calls
-export const SUMMARIZATION_MAX_TOKENS = 4096;
-
-// How many recent conversation turns to always count as "recent"
-export const WRANGLER_RECENT_TURN_COUNT = 4;
 
 // Per-agent expected response sizes (tokens) — used for response buffer calculation
 export const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {
@@ -195,11 +234,9 @@ If an existing author profile is loaded in context, help refine it. Ask what's c
 When you present the final Author Profile, write it to the author-profile.md file using the Write tool.
 `;
 
-// Canonical file manifest keys — maps to BookContext field keys and display paths.
+// Canonical file manifest keys — maps internal keys to display paths.
 // NOTE: paths are relative to the book root EXCEPT authorProfile which lives in
-// {userDataDir}/author-profile.md. The ManifestBuilder (Session 08) looks up content
-// by key from BookContext (which loadBookContext already loaded from the correct location),
-// NOT by reading from this path directly.
+// {userDataDir}/author-profile.md.
 export const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'voiceProfile',    path: 'source/voice-profile.md' },
   { key: 'sceneOutline',    path: 'source/scene-outline.md' },

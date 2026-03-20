@@ -3,18 +3,16 @@ import type {
   AgentName,
   AppSettings,
   ApprovalAction,
-  AssembledContext,
-  BookContext,
   BookMeta,
   BookSummary,
   BuildResult,
   Conversation,
-  ConversationPurpose,
   FileEntry,
   Message,
   MessageRole,
   PipelinePhase,
   PipelinePhaseId,
+  ProjectManifest,
   QueueMode,
   RevisionPlan,
   RevisionQueueEvent,
@@ -63,8 +61,8 @@ export interface IFileSystemService {
   getBookMeta(slug: string): Promise<BookMeta>;
   updateBookMeta(slug: string, partial: Partial<BookMeta>): Promise<void>;
 
-  // Book context (reads all source files)
-  loadBookContext(slug: string): Promise<BookContext>;
+  // Project manifest (lightweight file listing with word counts)
+  getProjectManifest(slug: string): Promise<ProjectManifest>;
 
   // File operations
   readFile(bookSlug: string, relativePath: string): Promise<string>;
@@ -101,18 +99,6 @@ export interface IClaudeClient {
   }): Promise<string>;
 
   isAvailable(): Promise<boolean>;
-}
-
-export interface IContextWrangler {
-  assemble(params: {
-    agentName: AgentName;
-    userMessage: string;
-    conversationId: string;
-    bookSlug: string;
-    purpose?: ConversationPurpose;
-  }): Promise<AssembledContext>;
-
-  estimateTokens(text: string): number;
 }
 
 export interface IPipelineService {
