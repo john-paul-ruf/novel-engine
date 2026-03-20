@@ -28,7 +28,8 @@ Detect which pipeline phases are complete by checking whether their key output f
 
 | Phase | Complete if file exists |
 |-------|----------------------|
-| `pitch` | `source/scene-outline.md` (Spark creates this) |
+| `pitch` | `source/pitch.md` (Spark creates this) |
+| `scaffold` | `source/scene-outline.md` (Verity builds the outline and story bible from the pitch) |
 | `first-draft` | Any `chapters/*/draft.md` exists (check via `countWordsPerChapter` — if result has length > 0 and total words > 1000) |
 | `first-read` | `source/reader-report.md` |
 | `first-assessment` | `source/dev-report.md` |
@@ -117,6 +118,8 @@ const execFileAsync = promisify(execFile);
    EPUB: [inputPath, '-o', outputPath, '--from=markdown', '--to=epub3', '--metadata=title:...', '--metadata=author:...']
    PDF:  [inputPath, '-o', outputPath, '--from=markdown', '--to=pdf', '--metadata=title:...', '--metadata=author:...']
    ```
+
+   **Cover image for EPUB:** Before generating EPUB, check if a cover image exists via `this.fs.getCoverImageAbsolutePath(bookSlug)`. If it returns a path, add `'--epub-cover-image=' + coverPath` to the EPUB args. This embeds the user-uploaded cover as the EPUB's cover page.
 
    The input path and output paths are absolute: `{booksDir}/{slug}/dist/output.{ext}`.
 

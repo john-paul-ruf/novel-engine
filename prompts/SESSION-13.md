@@ -35,7 +35,7 @@ Key shape:
 ### `src/renderer/stores/bookStore.ts`
 
 ```typescript
-// State: books list, activeBookSlug, activeBookMeta, wordCounts
+// State: books list, activeBookSlug, activeBookMeta, totalWordCount
 // Actions: loadBooks, setActiveBook, createBook, refreshWordCount
 ```
 
@@ -44,6 +44,7 @@ Key shape:
 {
   books: BookSummary[];
   activeSlug: string;
+  totalWordCount: number;   // sum of all chapter words for the active book — displayed persistently in BookSelector
   loading: boolean;
   loadBooks: () => Promise<void>;
   setActiveBook: (slug: string) => Promise<void>;
@@ -51,6 +52,9 @@ Key shape:
   refreshWordCount: () => Promise<void>;
 }
 ```
+
+**`refreshWordCount` implementation:**
+Call `window.novelEngine.books.wordCount(activeSlug)`, sum the `wordCount` values from the returned array, and set `totalWordCount`. This is the equivalent of the shell command `cat books/$BOOK/chapters/[0-9][0-9]-*/draft.md | wc -w`. The total is displayed persistently in the sidebar BookSelector (Session 15).
 
 ### `src/renderer/stores/chatStore.ts`
 

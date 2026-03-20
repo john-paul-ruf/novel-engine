@@ -27,7 +27,7 @@ A full-screen, step-by-step wizard. No sidebar, no navigation — just the wizar
 - Instructions:
   1. "Install Claude Code CLI: `npm install -g @anthropic-ai/claude-code`"
   2. "Authenticate: Run `claude login` in your terminal"
-- Link: "Learn more at docs.anthropic.com/en/docs/claude-code" (open in external browser via `window.open`)
+- Link: "Learn more at docs.anthropic.com/en/docs/claude-code" (open in external browser via `window.novelEngine.shell.openExternal('https://docs.anthropic.com/en/docs/claude-code')` — **do not use `window.open()`** which creates an Electron window instead of opening the OS browser)
 - "Check Connection" button → calls `settingsStore.detectClaudeCli()`
 - States:
   - Idle: button enabled
@@ -38,7 +38,8 @@ A full-screen, step-by-step wizard. No sidebar, no navigation — just the wizar
 
 **Step 3: Model Selection**
 - Heading: "Choose Your Model"
-- Radio cards for each model from `AVAILABLE_MODELS`:
+- Load model list on mount via `window.novelEngine.models.getAvailable()` (do NOT import `AVAILABLE_MODELS` from `@domain` — the renderer must never import domain values, only types)
+- Radio cards for each model:
   - Model name (large)
   - Description (small, gray)
   - Opus: "Recommended" badge
@@ -83,10 +84,10 @@ Shown when the user navigates to Settings from the sidebar.
 ### Claude CLI Status
 - Show connection status: green dot + "Connected" if CLI is detected, red dot + "Not connected" otherwise
 - "Re-check" button → calls `settingsStore.detectClaudeCli()` to re-verify
-- Installation instructions link if not connected
+- Installation instructions link if not connected (use `window.novelEngine.shell.openExternal()` for any external URLs)
 
 ### Model Selection
-- Same radio cards as onboarding
+- Same radio cards as onboarding (load via `window.novelEngine.models.getAvailable()`)
 - Changes save immediately via `settingsStore.update({ model })`
 
 ### Extended Thinking
@@ -115,7 +116,7 @@ Shown when the user navigates to Settings from the sidebar.
 ### About
 - App version (from `package.json`)
 - "Novel Engine — Powered by Claude Code CLI"
-- Links: GitHub repo, Claude Code docs
+- Links: GitHub repo, Claude Code docs (use `window.novelEngine.shell.openExternal(url)` for all external links — **never `window.open()`**)
 
 ### Design details
 

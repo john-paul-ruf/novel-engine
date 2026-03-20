@@ -12,14 +12,18 @@ Novel Engine Electron app. Sessions 01–14 done. Now I need to flesh out the **
 
 Dropdown-style selector at the top of the sidebar (below the drag region).
 
-**Display:**
-- Shows the active book title and word count
-- A dropdown chevron icon
+**Closed state (always visible):**
+- Shows a small **cover thumbnail** on the left (40×56px, `rounded`, `object-cover`, `bg-zinc-800` placeholder if no cover). The `src` uses the custom protocol: `novel-asset://cover/{activeSlug}`. Add a cache-busting query param `?t={timestamp}` that updates when the cover changes, so React re-fetches the image. Use an `onError` handler to hide the `<img>` and show a placeholder book icon instead.
+- Shows the active book title (bold, `text-zinc-100`) to the right of the thumbnail
+- Shows the **total word count** directly below the title: `{N} words` formatted with locale separators (e.g., "42,318 words") in `text-sm text-zinc-400`
+- A dropdown chevron icon on the right
 - Clicking opens a dropdown panel showing all books
+
+This word count is **always visible** in the sidebar — it is the primary way the user tracks manuscript progress at a glance. The count comes from `bookStore.totalWordCount` (see bookStore changes below).
 
 **Dropdown panel:**
 - List of all books from `bookStore.books`
-- Each item shows: title, status badge (colored pill), word count
+- Each item shows: small cover thumbnail (32×44px) on the left, title, status badge (colored pill), word count
 - Clicking a book calls `bookStore.setActiveBook(slug)` and closes the dropdown
 - Divider at the bottom
 - "+ New Book" button at the bottom
@@ -42,6 +46,7 @@ Dropdown-style selector at the top of the sidebar (below the drag region).
 
 On mount and when `bookStore.activeSlug` changes:
 - Call `bookStore.loadBooks()`
+- Call `bookStore.refreshWordCount()` — refreshes the total word count for the active book
 - Call `pipelineStore.loadPipeline(activeSlug)`
 - Call `chatStore.loadConversations(activeSlug)` — **required** so that the PipelineTracker's "Start" button can check for existing conversations via `chatStore.conversations.find(...)`. Without this, conversations are empty and every "Start" click creates a duplicate conversation.
 
@@ -53,7 +58,7 @@ On mount and when `bookStore.activeSlug` changes:
 
 Visual step-by-step pipeline below the book selector.
 
-**Layout:** Vertical list of all 13 phases. Each phase shows:
+**Layout:** Vertical list of all 14 phases. Each phase shows:
 - Status icon on the left:
   - Complete: green circle with checkmark (`✓`)
   - Active: blue circle with pulse animation, filled
@@ -173,6 +178,8 @@ Use minimal emoji icons for now. Replace with Lucide icons later if desired.
 ## Verification
 
 - Book selector shows all books, highlights the active one
+- **The closed state of the book selector always shows the total word count below the title** (e.g., "42,318 words")
+- Word count refreshes when switching books
 - Creating a new book adds it to the list and switches to it
 - Pipeline phases render with correct status (complete/active/locked)
 - Clicking "Start" on the active phase creates a conversation and navigates to chat

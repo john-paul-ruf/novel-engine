@@ -62,8 +62,9 @@ Replace the stub from Session 01 with the full composition root.
 ### The wiring order matters. Follow this exact sequence:
 
 ```typescript
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, protocol, net } from 'electron';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Infrastructure
 import { SettingsService } from '@infra/settings';
@@ -128,6 +129,45 @@ Declare the Vite globals at the top of the file:
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 ```
+
+### Custom protocol for serving local images
+
+Before `app.whenReady()`, register a privilege for a custom `novel-asset` protocol that can serve local files (book covers, etc.) to the renderer securely:
+
+```typescript
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'novel-asset', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
+```
+
+Inside `initializeApp()`, after paths are resolved, register the protocol handler:
+
+```typescript
+protocol.handle('novel-asset', (request) => {
+  // URL format: novel-asset://cover/{bookSlug}
+  // Resolves to the absolute cover image path on disk
+  const url = new URL(request.url);
+  if (url.hostname === 'cover') {
+    const bookSlug = url.pathname.replace(/^\//, '');
+    const bookDir = path.join(booksDir, bookSlug);
+    // Read about.json to get the cover filename, then serve the file
+    // Use net.fetch with file:// URL to serve the local file
+    const aboutPath = path.join(bookDir, 'about.json');
+    try {
+      const aboutRaw = require('node:fs').readFileSync(aboutPath, 'utf-8');
+      const about = JSON.parse(aboutRaw);
+      if (about.coverImage) {
+        const coverAbsPath = path.join(bookDir, about.coverImage);
+        return net.fetch(pathToFileURL(coverAbsPath).href);
+      }
+    } catch { /* ignore */ }
+    return new Response('Not found', { status: 404 });
+  }
+  return new Response('Not found', { status: 404 });
+});
+```
+
+This lets the renderer display cover images via `<img src="novel-asset://cover/{bookSlug}" />` without any CSP violations or `file://` access. The protocol reads the `coverImage` field from `about.json` and serves the actual file.
 
 ### `initializeApp()` — the composition root
 

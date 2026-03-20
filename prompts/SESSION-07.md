@@ -46,7 +46,7 @@ Run `claude --version` via `execFileAsync`. Return `true` if exit code 0, `false
    ```
    The last message in `params.messages` is always the new user message.
 
-2. **Write the system prompt to a temp file** (using `node:fs/promises` and `node:os` for `tmpdir()`). This avoids shell argument length limits for long agent system prompts. Clean up the temp file after the process exits.
+2. **Pass the system prompt inline.** The `--system-prompt` flag accepts a string value directly. Node's `spawn` uses `execve` under the hood (not a shell), so argument length limits are much higher than shell limits (typically 128KB–2MB on modern systems). All 7 agent system prompts are under 20KB, so inline passing is safe. No temp file is needed.
 
 3. **Build the CLI args:**
    ```typescript
@@ -55,7 +55,7 @@ Run `claude --version` via `execFileAsync`. Return `true` if exit code 0, `false
      '--output-format', 'stream-json',       // streaming JSON output
      '--model', params.model,
      '--max-tokens', String(params.maxTokens),
-     '--system-prompt', systemPromptTempPath, // path to temp file
+     '--system-prompt', params.systemPrompt,  // passed inline — safe up to ~2MB via execve
    ];
 
    // Add thinking budget if provided
@@ -107,9 +107,7 @@ Run `claude --version` via `execFileAsync`. Return `true` if exit code 0, `false
    ```
    Then throw an error.
 
-8. **Clean up.** Delete the temp system prompt file in a `finally` block.
-
-9. **Return a Promise** that resolves when the child process exits with code 0, or rejects on non-zero exit.
+8. **Return a Promise** that resolves when the child process exits with code 0, or rejects on non-zero exit.
 
 ### Key details
 
@@ -150,4 +148,4 @@ child.stdout.on('data', (chunk: Buffer) => {
 - No Electron imports, no `@anthropic-ai/sdk`, no state between calls
 - Emits `StreamEvent` objects in the correct order: blockStart → deltas → blockEnd → done
 - Handles errors by emitting error event AND re-throwing
-- Cleans up temp files in all cases (success, error, abort)
+- No temp files — system prompt is passed inline via `--system-prompt`

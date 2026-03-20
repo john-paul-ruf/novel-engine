@@ -97,7 +97,7 @@ novel-engine/
 // vite.main.config.ts
 build: {
   rollupOptions: {
-    external: ['better-sqlite3'],
+    external: ['better-sqlite3', 'archiver'],
   },
 }
 ```

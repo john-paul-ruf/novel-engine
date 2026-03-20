@@ -65,7 +65,7 @@ Props: agent meta (name, role, color), pipeline phase label, conversation usage 
 - Left side: Agent name (large, bold) with a colored left border using the agent's color. Below it: role + phase in smaller gray text.
 - Right side: Token count and estimated cost in small monospace text.
 
-**Token usage data:** After each `done` stream event in `chatStore._handleStreamEvent`, call `window.novelEngine.usage.byConversation(conversationId)` to fetch the cumulative usage for the current conversation. Store the result in `chatStore` as `conversationUsage: UsageSummary | null`. The `AgentHeader` reads this from the store.
+**Token usage data:** After each `done` stream event in `chatStore._handleStreamEvent`, call `window.novelEngine.usage.byConversation(conversationId)` to fetch the usage records for the current conversation. Store the result in `chatStore` as `conversationUsage: UsageRecord[] | null`. The `AgentHeader` reads this from the store and aggregates the totals for display (sum `inputTokens`, `outputTokens`, `thinkingTokens`, and `estimatedCost` across all records). Note: this returns `UsageRecord[]` (individual per-message records), **not** `UsageSummary` — the component aggregates them.
 
 **Style:** `border-b border-zinc-800`, padding `px-6 py-4`.
 

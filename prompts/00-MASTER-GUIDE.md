@@ -113,14 +113,15 @@ src/
 | 17 | File viewer + Build panel | Markdown preview/edit, build progress | 20 min |
 | 18 | Packaging + Pandoc bundling | Forge config, scripts, CI/CD | 15 min |
 | 19 | Agent output persistence | Save-to-file for agent responses | 20 min |
+| 20 | Voice & Author Profile setup | Guided Verity conversations for voice-per-book + global author profile | 25 min |
 
-**Total: ~5–7 hours of session time** (not counting review and iteration).
+**Total: ~6–8 hours of session time** (not counting review and iteration).
 
 ---
 
 ## Prompt Files
 
-Each session prompt is in this folder, numbered `SESSION-01.md` through `SESSION-19.md`. Open the next one, paste it into Claude Code, and go.
+Each session prompt is in this folder, numbered `SESSION-01.md` through `SESSION-20.md`. Open the next one, paste it into Claude Code, and go.
 
 ---
 
@@ -140,3 +141,43 @@ The following fixes have been applied to the session prompts (2026-03-20):
 10. **SESSION-14:** Fixed onboarding Step 5 to include inline book creation instead of depending on Session 15's BookSelector
 11. **SESSION-16:** Fixed outdated `marked` sanitization note; added conversation usage tracking for AgentHeader display
 12. **SESSION-18:** Fixed `.md` ignore pattern to not exclude agent files; added Content Security Policy task
+
+### Errata Round 2 — Deep Audit (2026-03-20)
+
+13. **SESSION-02:** Added `renameFile(bookSlug, oldPath, newPath)` to `IFileSystemService` — required by Session 19's version archiving logic
+14. **SESSION-06:** Added `renameFile` implementation using `fs.rename` from `node:fs/promises`
+15. **SESSION-07:** Replaced temp-file-based `--system-prompt` with inline string — the CLI flag accepts text, not file paths. Node's `spawn`/`execve` supports args up to ~2MB, well above agent prompt sizes
+16. **SESSION-11:** Added `shell:openExternal` IPC handler + preload bridge for opening URLs in OS browser; added `settings:getAvailableModels` handler to expose `AVAILABLE_MODELS` constant to renderer without violating the "no domain value imports" rule; moved `shell.openPath` and `shell.openExternal` into preload bridge
+17. **SESSION-14:** Replaced all `window.open()` calls with `window.novelEngine.shell.openExternal()` — `window.open()` creates Electron windows, not OS browser tabs; changed model list source from `AVAILABLE_MODELS` import to `window.novelEngine.models.getAvailable()` IPC call
+18. **SESSION-16:** Fixed `conversationUsage` type from `UsageSummary | null` to `UsageRecord[] | null` — `byConversation` returns individual records, not an aggregated summary
+19. **SESSION-17:** Removed duplicate `shell:openPath` preload entry (now in Session 11); added `shell.openExternal` for Pandoc install link
+20. **Moved `architect.md`** from `agents/` to `prompts/` to prevent bootstrap from copying it to the user's custom-agents directory
+
+### Errata Round 3 — Design Refinements (2026-03-20)
+
+21. **SESSION-13:** Added `totalWordCount: number` to `bookStore` shape; documented `refreshWordCount` implementation (sums chapter word counts via IPC, equivalent to `cat chapters/*/draft.md | wc -w`)
+22. **SESSION-15:** Made the BookSelector's closed state **always show total word count** below the book title (e.g., "42,318 words") — this is the persistent at-a-glance word count display; added `bookStore.refreshWordCount()` to the data loading sequence
+23. **SESSION-17:** Complete rewrite of Task 1 (FilesView) — **removed all edit mode** (no textarea, no Edit/Save/Cancel buttons, no unsaved changes warning). The app is read-only except for book title and author name, which are inline-editable on the `about.json` card. All other content is produced by agents and saved via Session 19's "Save to File". Added Task 3 zip export: `build:exportZip` IPC handler using `archiver` npm package + `dialog.showSaveDialog` → bundles all `dist/` artifacts into a zip. Added `archiver` dependency. Added "Download All" button to BuildView. Added Task 4 pipeline gate: explicit check that `dist/output.md` exists before allowing Quill's publish phase to start
+
+### Errata Round 4 — Pitch Document + Scaffold Phase (2026-03-20)
+
+24. **SESSION-02:** Added `pitch: string` field to `BookContext` type. Added `'scaffold'` to `PipelinePhaseId`. Changed Spark's role from `'Pitch & Scaffold'` to `'Story Pitch'`. Added new `scaffold` phase to `PIPELINE_PHASES` (agent: Verity, label: "Story Scaffold") between pitch and first-draft. Updated pitch phase label/description to reflect its narrowed scope.
+25. **SESSION-06:** Added `pitch` → `source/pitch.md` to the `loadBookContext` field-to-filename mapping
+26. **SESSION-08:** Promoted `pitch` to Priority 1 in Verity's context (it's her primary input during scaffolding). Added `pitch` to Lumen's context at Priority 4. Updated Spark's label from "Pitch & Scaffold" to "Story Pitch".
+27. **SESSION-10:** Changed pitch phase detection from `source/scene-outline.md` to `source/pitch.md`. Added scaffold phase detection: complete when `source/scene-outline.md` exists (Verity builds the outline from the pitch).
+28. **SESSION-19:** Changed `AGENT_OUTPUT_TARGETS` from single-target to multi-target per phase: type is now `Partial<Record<PipelinePhaseId, OutputTarget[]>>`. Added `OutputTarget` type. Pitch phase now has one target: `source/pitch.md`. New scaffold phase has two targets: `source/scene-outline.md` ("Save as Scene Outline") and `source/story-bible.md` ("Save as Story Bible"). Updated `FilePersistenceService.saveAgentOutput` to accept `targetPath` param. Updated IPC and preload accordingly. Updated `MessageBubble` to render one save button per target. Scaffold pipeline detection gates on `scene-outline.md` — the story bible is supplementary.
+29. **architect.md:** Updated pipeline detection table and per-agent context loading table
+
+### Errata Round 5 — Voice Profile & Author Profile Conversational Setup (2026-03-20)
+
+30. **SESSION-02:** Added `ConversationPurpose` type (`'pipeline' | 'voice-setup' | 'author-profile'`). Added `purpose: ConversationPurpose` field to `Conversation` type. Added `purpose?: ConversationPurpose` optional param to `IContextBuilder.build()` in `interfaces.ts`.
+31. **SESSION-02 (constants):** Added `VOICE_SETUP_INSTRUCTIONS` and `AUTHOR_PROFILE_INSTRUCTIONS` constants — purpose-specific prompt appendices for Verity's voice interview and author profile interview protocols.
+32. **SESSION-04:** Added `purpose TEXT NOT NULL DEFAULT 'pipeline'` column to `conversations` table schema. Added migration check for existing databases (`ALTER TABLE` if column missing). Updated `DatabaseService` CRUD to include `purpose` in all conversation queries.
+33. **SESSION-08:** Added optional `purpose?: ConversationPurpose` param to `ContextBuilder.build()`. When `purpose === 'voice-setup'`, loads only voice profile + author profile. When `purpose === 'author-profile'`, loads only existing author profile. Pipeline purpose uses existing behavior unchanged.
+34. **SESSION-09:** Updated `ChatService.sendMessage` step 6 to append `VOICE_SETUP_INSTRUCTIONS` or `AUTHOR_PROFILE_INSTRUCTIONS` to system prompt based on conversation purpose. Updated `createConversation` to accept and pass `purpose` parameter.
+35. **SESSION-11:** Updated `chat:createConversation` handler to accept `purpose` param. Updated preload `chat.createConversation` signature to include optional `purpose`. Added `ConversationPurpose` to preload's `import type` list.
+36. **SESSION-13:** Updated `chatStore.createConversation` to accept `purpose: ConversationPurpose = 'pipeline'` as fourth parameter.
+37. **SESSION-14:** Replaced Author Profile textarea in Settings with: markdown preview of current profile, "Set Up with Verity" / "Refine with Verity" button (opens author-profile purpose conversation), and collapsible "Edit Manually" fallback textarea. Simplified onboarding Step 4 to keep textarea for quick entry with "Skip" option and note about Verity refinement later.
+38. **SESSION-16 (MessageBubble):** Extended save button logic to check `activeConversation.purpose` in addition to `pipelinePhase`. Voice-setup conversations show "Save as Voice Profile" → writes via `files:write`. Author-profile conversations show "Save as Author Profile" → writes via `settings:saveAuthorProfile`. Uses sentinel path `__author-profile__` to distinguish IPC routing.
+39. **SESSION-15 (Sidebar):** Added `VoiceSetupButton` component between BookSelector and PipelineTracker. Shows "Set Up Voice Profile" with purple accent. Resumes existing voice-setup conversation if one exists for the active book, otherwise creates new one with Verity.
+40. **SESSION-16 (ConversationList):** Added purple "Voice Setup" and "Author Profile" badges on conversations with non-pipeline purpose.

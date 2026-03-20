@@ -182,7 +182,7 @@ src/
     │   ├── Layout/                # AppLayout, Sidebar
     │   ├── Onboarding/            # First-run wizard
     │   ├── Settings/              # Settings panel
-    │   ├── Sidebar/               # BookSelector, PipelineTracker, FileTree
+    │   ├── Sidebar/               # BookSelector, VoiceSetupButton, PipelineTracker, FileTree
     │   ├── Chat/                  # ChatView, MessageBubble, ThinkingBlock, ChatInput
     │   ├── Files/                 # FilesView (markdown viewer/editor)
     │   └── Build/                 # BuildView (progress log, output files)
@@ -276,9 +276,9 @@ When building the ContextBuilder, these are the per-agent context rules derived 
 | Agent | Loads | Does NOT Load |
 |-------|-------|---------------|
 | **Spark** | authorProfile | Everything else (works from conversation) |
-| **Verity** | voiceProfile, sceneOutline, storyBible, revisionPrompts, authorProfile, all chapters (draft + notes) | readerReport, devReport, auditReport |
-| **Ghostlight** | All chapters (draft ONLY) | notes, source docs, outlines — cold read only |
-| **Lumen** | readerReport, sceneOutline, storyBible, all chapters (draft + notes) | authorProfile, revisionPrompts |
+| **Verity** | voiceProfile, sceneOutline, storyBible, revisionPrompts, authorProfile, pitch, all chapters (draft + notes) | readerReport, devReport, auditReport |
+| **Ghostlight** | All chapters (draft ONLY) | notes, source docs, outlines, pitch — cold read only |
+| **Lumen** | readerReport, sceneOutline, storyBible, pitch, all chapters (draft + notes) | authorProfile, revisionPrompts |
 | **Sable** | styleSheet, storyBible, all chapters (draft only) | notes, outlines, reports |
 | **Forge** | devReport, readerReport, auditReport, sceneOutline | chapters, authorProfile |
 | **Quill** | authorProfile, storyBible | chapters, reports |
@@ -291,7 +291,8 @@ Detect phases by checking for the existence of key output files:
 
 | Phase | Complete When |
 |-------|--------------|
-| pitch | `source/scene-outline.md` exists |
+| pitch | `source/pitch.md` exists |
+| scaffold | `source/scene-outline.md` exists |
 | first-draft | chapters exist with >1000 total words |
 | first-read | `source/reader-report.md` exists |
 | first-assessment | `source/dev-report.md` exists |

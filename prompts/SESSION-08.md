@@ -30,17 +30,18 @@ Return `Math.ceil(text.length / CHARS_PER_TOKEN)` using the constant from `@doma
 
 3. **Per-agent context rules** (these come directly from the original repo's agent definitions):
 
-   **Spark** (Pitch & Scaffold):
+   **Spark** (Story Pitch):
    - Priority 1: `authorProfile`
    - That's it. Spark works from conversation, not from existing book files.
 
    **Verity** (Ghostwriter):
-   - Priority 1: `voiceProfile`
-   - Priority 2: `sceneOutline`
-   - Priority 3: `storyBible`
-   - Priority 4: `revisionPrompts` (if present — these are the Forge-generated session prompts)
-   - Priority 5: `authorProfile`
-   - Priority 6: Each chapter (`draft` + `notes` combined per chapter)
+   - Priority 1: `pitch` (Spark's pitch document — this is Verity's primary input during the scaffold phase, and remains valuable context during drafting and revision)
+   - Priority 2: `voiceProfile`
+   - Priority 3: `sceneOutline`
+   - Priority 4: `storyBible`
+   - Priority 5: `revisionPrompts` (if present — these are the Forge-generated session prompts)
+   - Priority 6: `authorProfile`
+   - Priority 7: Each chapter (`draft` + `notes` combined per chapter)
 
    **Ghostlight** (First Reader):
    - Priority 1: Each chapter (`draft` ONLY — no notes, no source docs)
@@ -50,7 +51,8 @@ Return `Math.ceil(text.length / CHARS_PER_TOKEN)` using the constant from `@doma
    - Priority 1: `readerReport` (Ghostlight's output)
    - Priority 2: `sceneOutline`
    - Priority 3: `storyBible`
-   - Priority 4: Each chapter (`draft` + `notes`)
+   - Priority 4: `pitch` (Spark's original vision — helps Lumen assess whether the draft fulfills the author's intent)
+   - Priority 5: Each chapter (`draft` + `notes`)
 
    **Sable** (Copy Editor):
    - Priority 1: `styleSheet`

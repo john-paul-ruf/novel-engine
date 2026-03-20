@@ -43,6 +43,7 @@ type BookMeta = {
   author: string;
   status: BookStatus;
   created: string;         // ISO date
+  coverImage: string;      // relative path to cover image (e.g. "cover.jpg"), empty string if none
 };
 
 type BookSummary = BookMeta & {
@@ -59,6 +60,7 @@ type ChapterData = {
 type BookContext = {
   meta: BookMeta;
   authorProfile: string;
+  pitch: string;
   voiceProfile: string;
   sceneOutline: string;
   storyBible: string;
@@ -75,7 +77,7 @@ type BookContext = {
 // === Pipeline ===
 
 type PipelinePhaseId =
-  | 'pitch' | 'first-draft' | 'first-read' | 'first-assessment'
+  | 'pitch' | 'scaffold' | 'first-draft' | 'first-read' | 'first-assessment'
   | 'revision-plan-1' | 'revision' | 'second-read' | 'second-assessment'
   | 'copy-edit' | 'revision-plan-2' | 'mechanical-fixes' | 'build' | 'publish';
 
@@ -244,12 +246,17 @@ interface IFileSystemService {
   // File operations
   readFile(bookSlug: string, relativePath: string): Promise<string>;
   writeFile(bookSlug: string, relativePath: string, content: string): Promise<void>;
+  renameFile(bookSlug: string, oldPath: string, newPath: string): Promise<void>;
   fileExists(bookSlug: string, relativePath: string): Promise<boolean>;
   listDirectory(bookSlug: string, relativePath?: string): Promise<FileEntry[]>;
 
   // Word count
   countWords(bookSlug: string): Promise<number>;
   countWordsPerChapter(bookSlug: string): Promise<{ slug: string; wordCount: number }[]>;
+
+  // Cover image
+  saveCoverImage(bookSlug: string, sourcePath: string): Promise<string>;  // copies image, returns relative path (e.g. "cover.jpg")
+  getCoverImageAbsolutePath(bookSlug: string): Promise<string | null>;    // returns absolute path if cover exists, null otherwise
 }
 
 interface IClaudeClient {
@@ -294,7 +301,7 @@ import type { AgentName, AgentMeta, PipelinePhaseId, AppSettings } from './types
 // filenames here should reflect the real files on disk.
 // Actual files: SPARK.md, VERITY.md, GHOSTLIGHT.md, LUMEN.md, SABLE.md, FORGE.MD, Quill.md
 const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
-  Spark:      { filename: 'SPARK.md',      role: 'Pitch & Scaffold',      color: '#F59E0B', thinkingBudget: 8000 },
+  Spark:      { filename: 'SPARK.md',      role: 'Story Pitch',           color: '#F59E0B', thinkingBudget: 8000 },
   Verity:     { filename: 'VERITY.md',     role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000 },
   Ghostlight: { filename: 'GHOSTLIGHT.md', role: 'First Reader',          color: '#06B6D4', thinkingBudget: 6000 },
   Lumen:      { filename: 'LUMEN.md',      role: 'Developmental Editor',  color: '#10B981', thinkingBudget: 16000 },
@@ -305,8 +312,9 @@ const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
 
 // Pipeline phase definitions (order matters — it IS the pipeline)
 const PIPELINE_PHASES: { id: PipelinePhaseId; label: string; agent: AgentName | null; description: string }[] = [
-  { id: 'pitch',              label: 'Pitch & Scaffold',      agent: 'Spark',      description: 'Discover your story idea and scaffold the project' },
-  { id: 'first-draft',        label: 'First Draft',           agent: 'Verity',     description: 'Write the complete first draft' },
+  { id: 'pitch',              label: 'Story Pitch',           agent: 'Spark',      description: 'Discover and pitch your story concept' },
+  { id: 'scaffold',           label: 'Story Scaffold',        agent: 'Verity',     description: 'Build the scene outline and story bible from the pitch' },
+  { id: 'first-draft',        label: 'First Draft',           agent: 'Verity',     description: 'Write the complete first draft chapter by chapter' },
   { id: 'first-read',         label: 'First Read',            agent: 'Ghostlight', description: 'Cold read for reader experience feedback' },
   { id: 'first-assessment',   label: 'Structural Assessment', agent: 'Lumen',      description: 'Diagnose structural strengths and weaknesses' },
   { id: 'revision-plan-1',    label: 'Revision Plan',         agent: 'Forge',      description: 'Synthesize feedback into a revision task list' },

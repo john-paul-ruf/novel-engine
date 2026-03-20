@@ -54,6 +54,21 @@ export function registerIpcHandlers(services: {
 - `'books:getMeta'` → `(_, slug: string)` → `services.fs.getBookMeta(slug)`
 - `'books:updateMeta'` → `(_, slug: string, partial)` → `services.fs.updateBookMeta(slug, partial)`
 - `'books:wordCount'` → `(_, slug: string)` → `services.fs.countWordsPerChapter(slug)`
+- `'books:uploadCover'` → uses `dialog.showOpenDialog` to let the user pick an image file (filters: `['jpg', 'jpeg', 'png', 'webp', 'gif']`), then calls `services.fs.saveCoverImage(bookSlug, selectedPath)`. Returns the relative path string on success, `null` if the user cancelled. Implementation:
+  ```typescript
+  ipcMain.handle('books:uploadCover', async (event, bookSlug: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Select Cover Image',
+      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'] }],
+      properties: ['openFile'],
+    });
+    if (canceled || filePaths.length === 0) return null;
+    return services.fs.saveCoverImage(bookSlug, filePaths[0]);
+  });
+  ```
+- `'books:getCoverImagePath'` → `(_, slug: string)` → `services.fs.getCoverImageAbsolutePath(slug)`
 
 **Files:**
 - `'files:read'` → `(_, bookSlug: string, path: string)` → `services.fs.readFile(bookSlug, path)`
@@ -105,6 +120,12 @@ ipcMain.handle('build:run', async (event, bookSlug: string) => {
 - `'usage:summary'` → `(_, bookSlug?: string)` → `services.usage.getSummary(bookSlug)`
 - `'usage:byConversation'` → `(_, conversationId: string)` → `services.usage.getByConversation(conversationId)`
 
+**Shell:**
+- `'shell:openExternal'` → `(_, url: string)` → `shell.openExternal(url)` — opens URLs in the OS default browser. Import `shell` from `electron`. Used by the renderer for external links (docs, GitHub, etc.).
+
+**Settings (static data):**
+- `'settings:getAvailableModels'` → returns `AVAILABLE_MODELS` from `@domain/constants`. This exposes the model list to the renderer without violating the architecture rule against importing domain values in the renderer.
+
 > **Forward compatibility note:** Sessions 14 and 17 will add additional IPC channels (`settings:saveAuthorProfile`, `settings:loadAuthorProfile`, `books:getAbsolutePath`, `shell:openPath`). These use the `paths` parameter in the function signature above. When implementing those sessions, add the handlers to the same `registerIpcHandlers` function and update the preload accordingly.
 
 ---
@@ -148,6 +169,8 @@ const api = {
     getMeta: (slug: string): Promise<BookMeta> => ipcRenderer.invoke('books:getMeta', slug),
     updateMeta: (slug: string, partial: Partial<BookMeta>): Promise<void> => ipcRenderer.invoke('books:updateMeta', slug, partial),
     wordCount: (slug: string): Promise<{ slug: string; wordCount: number }[]> => ipcRenderer.invoke('books:wordCount', slug),
+    uploadCover: (bookSlug: string): Promise<string | null> => ipcRenderer.invoke('books:uploadCover', bookSlug),
+    getCoverImagePath: (bookSlug: string): Promise<string | null> => ipcRenderer.invoke('books:getCoverImagePath', bookSlug),
   },
 
   // Files
@@ -198,6 +221,18 @@ const api = {
   usage: {
     summary: (bookSlug?: string): Promise<UsageSummary> => ipcRenderer.invoke('usage:summary', bookSlug),
     byConversation: (conversationId: string): Promise<UsageRecord[]> => ipcRenderer.invoke('usage:byConversation', conversationId),
+  },
+
+  // Shell (external links, file opening)
+  shell: {
+    openPath: (absolutePath: string): Promise<string> => ipcRenderer.invoke('shell:openPath', absolutePath),
+    openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
+  },
+
+  // Models (static data from domain, exposed to renderer via IPC)
+  models: {
+    getAvailable: (): Promise<{ id: string; label: string; description: string }[]> =>
+      ipcRenderer.invoke('settings:getAvailableModels'),
   },
 };
 

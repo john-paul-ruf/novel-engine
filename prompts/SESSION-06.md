@@ -42,7 +42,7 @@ constructor(
    - `books/{slug}/chapters/`
    - `books/{slug}/assets/`
    - `books/{slug}/dist/`
-3. Write `about.json` with title, `author` (default `''` if not provided), status `'scaffolded'`, ISO creation date
+3. Write `about.json` with title, `author` (default `''` if not provided), status `'scaffolded'`, ISO creation date, `coverImage: ''`
 4. Write starter source files (voice-profile.md, scene-outline.md, story-bible.md) with template content
 5. Set as active book
 6. Return the `BookMeta`
@@ -53,6 +53,7 @@ Read all source files using a private `safeRead(path)` helper that returns empty
 | BookContext field | File path |
 |---|---|
 | `authorProfile` | `{userDataDir}/author-profile.md` (NOTE: lives in user data root, not in the book) |
+| `pitch` | `source/pitch.md` |
 | `voiceProfile` | `source/voice-profile.md` |
 | `sceneOutline` | `source/scene-outline.md` |
 | `storyBible` | `source/story-bible.md` |
@@ -70,6 +71,8 @@ Read all chapter directories sorted numerically, loading `draft.md` and `notes.m
 
 **`writeFile(bookSlug, relativePath, content)`:** Write to `booksDir/{slug}/{relativePath}`. Create parent directories if needed with `{ recursive: true }`.
 
+**`renameFile(bookSlug, oldPath, newPath)`:** Rename (move) a file from `booksDir/{slug}/{oldPath}` to `booksDir/{slug}/{newPath}`. Use `fs.rename` from `node:fs/promises`. Create parent directories of the destination if needed. Throw a descriptive error if the source file doesn't exist. This is used by `FilePersistenceService` (Session 19) for version archiving (e.g., renaming `reader-report.md` to `reader-report-v1.md`).
+
 **`fileExists(bookSlug, relativePath)`:** Check existence, return boolean.
 
 **`listDirectory(bookSlug, relativePath?)`:**
@@ -83,6 +86,17 @@ Build a recursive `FileEntry[]` tree, max depth 3. Skip `.git` and `node_modules
 
 **`countWordsPerChapter(slug)`:** Return per-chapter word counts as `{ slug: string; wordCount: number }[]`.
 
+**`saveCoverImage(bookSlug, sourcePath)`:**
+1. Determine the file extension from `sourcePath` (e.g., `.jpg`, `.png`, `.webp`). Validate it's one of: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`. Throw if not a supported image type.
+2. Copy the file from `sourcePath` to `{booksDir}/{slug}/cover{ext}` using `fs.copyFile`. If a previous cover exists with a different extension, delete it first (only one cover image at a time).
+3. Update `about.json` by calling `this.updateBookMeta(bookSlug, { coverImage: 'cover' + ext })`.
+4. Return the relative path string (e.g., `'cover.jpg'`).
+
+**`getCoverImageAbsolutePath(bookSlug)`:**
+1. Read `about.json` to get `coverImage`. If empty, return `null`.
+2. Build the absolute path: `{booksDir}/{slug}/{coverImage}`.
+3. Check if the file exists. If yes return the absolute path, if no return `null`.
+
 ### Private helpers
 
 - `safeRead(absolutePath: string): Promise<string>` — try readFile, catch → return `''`
@@ -95,3 +109,5 @@ Build a recursive `FileEntry[]` tree, max depth 3. Skip `.git` and `node_modules
 - No imports from Electron, application, renderer, or other infrastructure
 - `createBook()` produces the full directory tree with all starter files
 - `loadBookContext()` returns a valid `BookContext` even when most files don't exist yet
+- `saveCoverImage()` copies the image, updates about.json, and returns the relative path
+- `getCoverImageAbsolutePath()` returns the absolute path when a cover exists, null otherwise
