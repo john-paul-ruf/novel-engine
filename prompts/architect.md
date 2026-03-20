@@ -34,7 +34,7 @@ You execute **session prompts** — discrete, ordered build tasks that each prod
 | State | Zustand |
 | Database | better-sqlite3 |
 | AI Backend | Claude Code CLI (`claude` command, spawned as child process) |
-| Build | Pandoc (bundled binary) via execa |
+| Build | Pandoc (bundled binary) via child_process |
 | IDs | nanoid |
 | Markdown | marked |
 | IPC | Electron contextBridge + ipcMain/ipcRenderer |
@@ -66,7 +66,7 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 - Contains: services that orchestrate infrastructure
 - Imports from: domain (types + interfaces), nanoid
 - Does NOT import concrete infrastructure classes — depends on injected interfaces
-- Exception: `BuildService` may import `execa` directly since the build step is inherently a system operation
+- Exception: `BuildService` may import `child_process` directly since the build step is inherently a system operation
 
 **Main/IPC** (`src/main/`, `src/preload/`):
 - `src/main/index.ts` is the **composition root** — the ONLY place concrete classes are instantiated
@@ -87,24 +87,24 @@ Services are composed in `src/main/index.ts` and injected via constructors:
 ```typescript
 // Application services depend on interfaces, not concrete classes
 class ChatService {
-  constructor(
-    private settings: ISettingsService,  // ← interface, not SettingsService
-    private agents: IAgentService,
-    private db: IDatabaseService,
-    private claude: IClaudeClient,
-    private contextWrangler: IContextWrangler,
-  ) {}
+    constructor(
+        private settings: ISettingsService,  // ← interface, not SettingsService
+        private agents: IAgentService,
+        private db: IDatabaseService,
+        private claude: IClaudeClient,
+        private contextWrangler: IContextWrangler,
+    ) {}
 }
 
 // The ContextWrangler also depends on interfaces
 class ContextWrangler {
-  constructor(
-    private settings: ISettingsService,
-    private agents: IAgentService,
-    private db: IDatabaseService,
-    private fs: IFileSystemService,
-    private claude: IClaudeClient,
-  ) {}
+    constructor(
+        private settings: ISettingsService,
+        private agents: IAgentService,
+        private db: IDatabaseService,
+        private fs: IFileSystemService,
+        private claude: IClaudeClient,
+    ) {}
 }
 ```
 

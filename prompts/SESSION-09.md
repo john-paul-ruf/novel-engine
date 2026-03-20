@@ -24,11 +24,12 @@ class ChatService {
     private db: IDatabaseService,
     private claude: IClaudeClient,
     private contextWrangler: IContextWrangler,
+    private usage: UsageService,
   ) {}
 }
 ```
 
-All dependencies are injected. The main process will wire them up.
+All dependencies are injected. The main process will wire them up. The `UsageService` (Session 10) centralizes cost calculation — `ChatService` delegates token tracking to it via `this.usage.recordUsage(...)`.
 
 **Note:** Unlike the previous design, `ChatService` no longer takes `IFileSystemService` or loads book context directly. The `ContextWrangler` handles all context assembly internally — it has its own `IFileSystemService` and `IDatabaseService` references.
 
@@ -94,18 +95,12 @@ async sendMessage(params: {
     - Accumulate `thinkingDelta` events into a `thinkingBuffer` string
     - When a `done` event arrives:
       - Save the assistant message: `this.db.saveMessage({ conversationId, role: 'assistant', content: responseBuffer, thinking: thinkingBuffer })`
-      - Record usage: `this.db.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: event.thinkingTokens, model, estimatedCost: this.calculateCost(model, inputTokens, outputTokens) })`
+      - Record usage via the injected `UsageService`: `this.usage.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: event.thinkingTokens, model })`
     - Forward ALL events to `params.onEvent` (the caller still gets everything)
 
 10. **Error handling.** Wrap the entire flow (steps 5–9) in try/catch. On error, emit `{ type: 'error', message: error.message }` via `params.onEvent`.
 
-### Helper Method: `calculateCost`
-
-```typescript
-private calculateCost(model: string, inputTokens: number, outputTokens: number): number
-```
-
-Use `MODEL_PRICING` from `@domain/constants`. Return the cost in dollars.
+**Note:** Cost calculation is handled by `UsageService` (Session 10) — `ChatService` does not calculate cost itself.
 
 ### Helper Method: `createConversation`
 
@@ -114,10 +109,11 @@ async createConversation(params: {
   bookSlug: string;
   agentName: AgentName;
   pipelinePhase: PipelinePhaseId | null;
+  purpose?: ConversationPurpose;
 }): Promise<Conversation>
 ```
 
-Delegates to `this.db.createConversation()` with a generated ID (use `nanoid()`), the provided params, and an empty title (title gets set on first message by the DB service).
+Delegates to `this.db.createConversation()` with a generated ID (use `nanoid()`), the provided params, `purpose: params.purpose ?? 'pipeline'`, and an empty title (title gets set on first message by the DB service).
 
 ### Helper Method: `getConversations`
 
@@ -146,7 +142,7 @@ Returns the `ContextDiagnostics` from the most recent `sendMessage` call. Used b
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
-- Constructor takes 5 interface parameters: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IContextWrangler`
+- Constructor takes 6 interface parameters: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IContextWrangler`, `UsageService`
 - `sendMessage` uses `contextWrangler.assemble()` instead of manually loading book context
 - The user message is saved to the DB BEFORE calling the Wrangler (so the Wrangler sees the full conversation)
 - Response and thinking are accumulated and saved after `done`

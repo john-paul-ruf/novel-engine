@@ -294,13 +294,13 @@ Add a CSP meta tag to the renderer's `index.html` to prevent XSS attacks. The ma
 
 Add this to the `<head>` of `index.html`:
 ```html
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: novel-asset:; connect-src 'self';">
 ```
 
 This allows:
 - Scripts only from the app itself (no remote scripts)
 - Styles from the app + inline (needed for Tailwind)
-- Images from the app + data URIs
+- Images from the app + data URIs + `novel-asset://` protocol (used for serving cover images from disk via Session 12's custom protocol)
 - No external network connections from the renderer (Claude CLI calls go through the main process)
 
 ---

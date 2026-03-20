@@ -541,15 +541,20 @@ const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {
   Sable:      10000,  // writes full audit reports
   Forge:      8000,   // writes revision task lists
   Quill:      6000,   // writes metadata + descriptions
+  Wrangler:   2000,   // infrastructure agent — JSON plans only
 };
 
-// Canonical file manifest keys — maps to book context file paths
+// Canonical file manifest keys — maps to BookContext field keys and display paths.
+// NOTE: paths are relative to the book root EXCEPT authorProfile which lives in
+// {userDataDir}/author-profile.md. The ManifestBuilder (Session 08) looks up content
+// by key from BookContext (which loadBookContext already loaded from the correct location),
+// NOT by reading from this path directly.
 const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'voiceProfile',    path: 'source/voice-profile.md' },
   { key: 'sceneOutline',    path: 'source/scene-outline.md' },
   { key: 'storyBible',      path: 'source/story-bible.md' },
   { key: 'pitch',           path: 'source/pitch.md' },
-  { key: 'authorProfile',   path: 'author-profile.md' },
+  { key: 'authorProfile',   path: 'author-profile.md' },  // global file — lives in userDataDir, not book root
   { key: 'readerReport',    path: 'source/reader-report.md' },
   { key: 'devReport',       path: 'source/dev-report.md' },
   { key: 'auditReport',     path: 'source/audit-report.md' },

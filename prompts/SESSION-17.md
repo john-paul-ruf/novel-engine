@@ -186,7 +186,7 @@ The view shown when `currentView === 'build'`.
 
 ## Task 3: Shell Open + Zip Export IPC
 
-The `shell.openPath` and `shell.openExternal` handlers and preload bridge methods were already added in Session 11. No changes needed there.
+The `shell.openPath`, `shell.openExternal` handlers and preload bridge methods were already added in Session 11. Only `books:getAbsolutePath` is new.
 
 Add the `books:getAbsolutePath` handler to `src/main/ipc/handlers.ts`:
 

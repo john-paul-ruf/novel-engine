@@ -245,8 +245,8 @@ Full flow:
      thinkingBudget,
    });
    ```
-6. **Load the Wrangler agent prompt** via `this.agents.load('Wrangler' as AgentName)`.
-   - **Note:** `'Wrangler'` is not in the `AgentName` union type since it's an infrastructure agent. The `AgentService.load()` method should handle this — it matches by filename in the registry. To support this, the Wrangler must be added to the `AGENT_REGISTRY` in constants (see "Required changes to other sessions" below). Alternatively, cast to `AgentName` and handle the fact that the AgentService does case-insensitive filename matching.
+6. **Load the Wrangler agent prompt** via `this.agents.load('Wrangler')`.
+   - **Note:** `'Wrangler'` IS in the `AgentName` union type (defined in Session 02), so no cast is needed. The `AgentService.load()` method matches by filename from `AGENT_REGISTRY` with case-insensitive matching.
    - If loading fails (agent file missing), fall back directly to `buildFallbackPlan()`.
 7. **Call the Wrangler CLI:**
    ```typescript

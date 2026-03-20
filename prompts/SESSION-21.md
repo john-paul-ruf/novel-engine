@@ -121,8 +121,8 @@ interface IRevisionQueueService {
   // Execute a single session — sends prompt to Verity, streams response
   runSession(planId: string, sessionId: string): Promise<void>;
 
-  // Run all remaining pending sessions sequentially
-  runAll(planId: string): Promise<void>;
+  // Run all remaining pending sessions sequentially (selective mode filters by selectedSessionIds)
+  runAll(planId: string, selectedSessionIds?: string[]): Promise<void>;
 
   // Author decision on a session at an approval gate
   respondToGate(planId: string, sessionId: string, action: ApprovalAction, message?: string): void;
@@ -531,15 +531,21 @@ respondToGate(planId: string, sessionId: string, action: ApprovalAction, message
 ### `runAll(planId): Promise<void>`
 
 ```typescript
-async runAll(planId: string): Promise<void> {
+async runAll(planId: string, selectedSessionIds?: string[]): Promise<void> {
   const plan = this.plans.get(planId);
   if (!plan) throw new Error('Plan not found');
 
   this.paused = false;
 
-  const pendingSessions = plan.sessions
+  let pendingSessions = plan.sessions
     .filter(s => s.status === 'pending')
     .sort((a, b) => a.index - b.index);
+
+  // In selective mode, only run sessions the user selected
+  if (selectedSessionIds && selectedSessionIds.length > 0) {
+    const selectedSet = new Set(selectedSessionIds);
+    pendingSessions = pendingSessions.filter(s => selectedSet.has(s.id));
+  }
 
   for (const session of pendingSessions) {
     if (this.paused) {
@@ -700,8 +706,8 @@ ipcMain.handle('revision:runSession', async (_, planId: string, sessionId: strin
   return services.revisionQueue.runSession(planId, sessionId);
 });
 
-ipcMain.handle('revision:runAll', async (_, planId: string) => {
-  return services.revisionQueue.runAll(planId);
+ipcMain.handle('revision:runAll', async (_, planId: string, selectedSessionIds?: string[]) => {
+  return services.revisionQueue.runAll(planId, selectedSessionIds);
 });
 
 ipcMain.handle('revision:respondToGate', (_, planId: string, sessionId: string, action: string, message?: string) => {
@@ -773,8 +779,8 @@ revision: {
     ipcRenderer.invoke('revision:loadPlan', bookSlug),
   runSession: (planId: string, sessionId: string): Promise<void> =>
     ipcRenderer.invoke('revision:runSession', planId, sessionId),
-  runAll: (planId: string): Promise<void> =>
-    ipcRenderer.invoke('revision:runAll', planId),
+  runAll: (planId: string, selectedSessionIds?: string[]): Promise<void> =>
+    ipcRenderer.invoke('revision:runAll', planId, selectedSessionIds),
   respondToGate: (planId: string, sessionId: string, action: ApprovalAction, message?: string): Promise<void> =>
     ipcRenderer.invoke('revision:respondToGate', planId, sessionId, action, message),
   approveSession: (planId: string, sessionId: string): Promise<void> =>
@@ -913,11 +919,15 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   },
 
   runAll: async () => {
-    const { planId } = get();
+    const { planId, plan, selectedSessionIds } = get();
     if (!planId) return;
     set({ isRunning: true });
     try {
-      await window.novelEngine.revision.runAll(planId);
+      // In selective mode, pass the selected session IDs to filter
+      const sessionIds = plan?.mode === 'selective'
+        ? Array.from(selectedSessionIds)
+        : undefined;
+      await window.novelEngine.revision.runAll(planId, sessionIds);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -1607,7 +1617,7 @@ import { useViewStore } from '../../stores/viewStore';
 
 export function RevisionQueueButton() {
   const { activeSlug } = useBookStore();
-  const { navigate, activeView } = useViewStore();
+  const { navigate, currentView } = useViewStore();
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
 
   useEffect(() => {
@@ -1630,7 +1640,7 @@ export function RevisionQueueButton() {
     <button
       onClick={() => navigate('revision-queue')}
       className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-        activeView === 'revision-queue'
+        currentView === 'revision-queue'
           ? 'text-orange-300 bg-zinc-800/70'
           : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
       }`}

@@ -30,33 +30,28 @@ The user experience:
 
 ---
 
-## Task 1: Domain Type Changes
+## Task 1: Domain Type Verification
 
-### Update `src/domain/types.ts`
+### Verify `src/domain/types.ts`
 
-Add the `ConversationPurpose` type and update `Conversation`:
+**These types already exist from Session 02.** Verify that `ConversationPurpose` and the `purpose` field on `Conversation` are present. They should already be defined as:
 
 ```typescript
-// After the existing StreamEvent type
 type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile';
-```
 
-Update the `Conversation` type to include `purpose`:
-
-```typescript
 type Conversation = {
   id: string;
   bookSlug: string;
   agentName: AgentName;
   pipelinePhase: PipelinePhaseId | null;
-  purpose: ConversationPurpose;  // NEW — defaults to 'pipeline'
+  purpose: ConversationPurpose;  // defaults to 'pipeline'
   title: string;
   createdAt: string;
   updatedAt: string;
 };
 ```
 
-Export `ConversationPurpose`.
+If they are missing for any reason, add them now. `ConversationPurpose` must be exported.
 
 ### Update `src/domain/constants.ts`
 
@@ -133,7 +128,7 @@ Export both constants.
 
 ### Update `src/infrastructure/database/schema.ts`
 
-Add the `purpose` column to the `conversations` table:
+**The `purpose` column already exists in the schema from Session 04.** The `conversations` table was created with `purpose TEXT NOT NULL DEFAULT 'pipeline'` from the start. Verify the schema matches:
 
 ```sql
 conversations (
@@ -148,23 +143,25 @@ conversations (
 )
 ```
 
-**Migration for existing databases:** After `initializeSchema`, add a migration check:
+**Safety migration (optional):** As a defensive measure for any databases created by an early development build that may have lacked the column, you may add this check after `initializeSchema`:
 
 ```typescript
-// Check if purpose column exists; add it if not (handles databases created before Session 20)
+// Safety check: ensure purpose column exists (should already be there from Session 04)
 const columns = db.pragma('table_info(conversations)') as { name: string }[];
 if (!columns.some(c => c.name === 'purpose')) {
   db.exec(`ALTER TABLE conversations ADD COLUMN purpose TEXT NOT NULL DEFAULT 'pipeline'`);
 }
 ```
 
-### Update `src/infrastructure/database/DatabaseService.ts`
+### Verify `src/infrastructure/database/DatabaseService.ts`
 
-1. **`createConversation`**: Accept and store the `purpose` field. Update the prepared INSERT statement to include `purpose`.
+Verify that Session 04's implementation already handles the `purpose` field correctly:
 
-2. **`getConversation`** and **`listConversations`**: Include `purpose` in the SELECT and map it in the camelCase conversion.
+1. **`createConversation`**: Should already accept and store the `purpose` field in the prepared INSERT statement.
 
-3. Update all prepared statements that touch the `conversations` table.
+2. **`getConversation`** and **`listConversations`**: Should already include `purpose` in the SELECT and map it in the camelCase conversion.
+
+3. If any of these are missing, update the prepared statements now.
 
 ---
 

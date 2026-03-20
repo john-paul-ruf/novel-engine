@@ -79,7 +79,7 @@ novel-engine/
 ### 6. Configure the renderer
 
 - `src/renderer/main.tsx`: Standard React 18 `createRoot` mounting `<App />`
-- `src/renderer/App.tsx`: A simple component that renders "Novel Engine" centered on screen. Use Tailwind classes. Dark background (`bg-gray-950 text-gray-100`).
+- `src/renderer/App.tsx`: A simple component that renders "Novel Engine" centered on screen. Use Tailwind classes. Dark background (`bg-zinc-950 text-zinc-100`).
 - `src/renderer/styles/globals.css`: Tailwind directives — `@import "tailwindcss"` and `@plugin "@tailwindcss/typography"` (enables `prose` classes for markdown rendering)
 
 ### 7. Configure Vite

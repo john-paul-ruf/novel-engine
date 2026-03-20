@@ -202,7 +202,7 @@ async function initializeApp() {
   // 4. Instantiate application services
   const contextWrangler = new ContextWrangler(settings, agents, db, fs, claudeClient);
   const usage = new UsageService(db);
-  const chat = new ChatService(settings, agents, db, claudeClient, contextWrangler);
+  const chat = new ChatService(settings, agents, db, claudeClient, contextWrangler, usage);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
 

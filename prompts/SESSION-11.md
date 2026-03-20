@@ -125,11 +125,12 @@ ipcMain.handle('build:run', async (event, bookSlug: string) => {
 
 **Shell:**
 - `'shell:openExternal'` → `(_, url: string)` → `shell.openExternal(url)` — opens URLs in the OS default browser. Import `shell` from `electron`. Used by the renderer for external links (docs, GitHub, etc.).
+- `'shell:openPath'` → `(_, absolutePath: string)` → `shell.openPath(absolutePath)` — opens a file or folder in the OS default application. Used by the Build view to open output files (docx, epub, pdf).
 
 **Settings (static data):**
 - `'settings:getAvailableModels'` → returns `AVAILABLE_MODELS` from `@domain/constants`. This exposes the model list to the renderer without violating the architecture rule against importing domain values in the renderer.
 
-> **Forward compatibility note:** Sessions 14 and 17 will add additional IPC channels (`settings:saveAuthorProfile`, `settings:loadAuthorProfile`, `books:getAbsolutePath`, `shell:openPath`). These use the `paths` parameter in the function signature above. When implementing those sessions, add the handlers to the same `registerIpcHandlers` function and update the preload accordingly.
+> **Forward compatibility note:** Sessions 14 and 17 will add additional IPC channels (`settings:saveAuthorProfile`, `settings:loadAuthorProfile`, `books:getAbsolutePath`). These use the `paths` parameter in the function signature above. When implementing those sessions, add the handlers to the same `registerIpcHandlers` function and update the preload accordingly.
 
 ---
 
