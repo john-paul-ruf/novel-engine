@@ -1,0 +1,1 @@
+export { RevisionQueueView } from './RevisionQueueView';

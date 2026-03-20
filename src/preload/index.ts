@@ -3,6 +3,7 @@ import type {
   AgentMeta,
   AgentName,
   AppSettings,
+  ApprovalAction,
   BookMeta,
   BookSummary,
   BuildResult,
@@ -13,6 +14,9 @@ import type {
   Message,
   PipelinePhase,
   PipelinePhaseId,
+  QueueMode,
+  RevisionPlan,
+  RevisionQueueEvent,
   SendMessageParams,
   StreamEvent,
   UsageRecord,
@@ -129,6 +133,35 @@ const api = {
       ipcRenderer.invoke('usage:summary', bookSlug),
     byConversation: (conversationId: string): Promise<UsageRecord[]> =>
       ipcRenderer.invoke('usage:byConversation', conversationId),
+  },
+
+  // Revision Queue
+  revision: {
+    loadPlan: (bookSlug: string): Promise<RevisionPlan> =>
+      ipcRenderer.invoke('revision:loadPlan', bookSlug),
+    runSession: (planId: string, sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('revision:runSession', planId, sessionId),
+    runAll: (planId: string, selectedSessionIds?: string[]): Promise<void> =>
+      ipcRenderer.invoke('revision:runAll', planId, selectedSessionIds),
+    respondToGate: (planId: string, sessionId: string, action: ApprovalAction, message?: string): Promise<void> =>
+      ipcRenderer.invoke('revision:respondToGate', planId, sessionId, action, message),
+    approveSession: (planId: string, sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('revision:approveSession', planId, sessionId),
+    rejectSession: (planId: string, sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('revision:rejectSession', planId, sessionId),
+    skipSession: (planId: string, sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('revision:skipSession', planId, sessionId),
+    pause: (planId: string): Promise<void> =>
+      ipcRenderer.invoke('revision:pause', planId),
+    setMode: (planId: string, mode: QueueMode): Promise<void> =>
+      ipcRenderer.invoke('revision:setMode', planId, mode),
+    getPlan: (planId: string): Promise<RevisionPlan | null> =>
+      ipcRenderer.invoke('revision:getPlan', planId),
+    onEvent: (callback: (event: RevisionQueueEvent) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, event: RevisionQueueEvent) => callback(event);
+      ipcRenderer.on('revision:event', handler);
+      return () => { ipcRenderer.removeListener('revision:event', handler); };
+    },
   },
 
   // Context Diagnostics

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type ViewId = 'onboarding' | 'chat' | 'files' | 'build' | 'settings';
+type ViewId = 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue';
 
 type ViewPayload = {
   filePath?: string;

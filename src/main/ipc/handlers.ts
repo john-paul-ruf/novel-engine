@@ -10,14 +10,17 @@ import type {
   IFileSystemService,
   IPipelineService,
   IBuildService,
+  IRevisionQueueService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
   AgentName,
   AppSettings,
+  ApprovalAction,
   BookMeta,
   ConversationPurpose,
   PipelinePhaseId,
+  QueueMode,
   SendMessageParams,
 } from '@domain/types';
 import { AVAILABLE_MODELS } from '@domain/constants';
@@ -35,6 +38,7 @@ export function registerIpcHandlers(services: {
   build: IBuildService;
   usage: UsageService;
   filePersistence: FilePersistenceService;
+  revisionQueue: IRevisionQueueService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -252,4 +256,54 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('shell:openExternal', (_, url: string) => shell.openExternal(url));
 
   ipcMain.handle('shell:openPath', (_, absolutePath: string) => shell.openPath(absolutePath));
+
+  // === Revision Queue ===
+
+  ipcMain.handle('revision:loadPlan', async (_, bookSlug: string) => {
+    return services.revisionQueue.loadPlan(bookSlug);
+  });
+
+  ipcMain.handle('revision:runSession', async (_, planId: string, sessionId: string) => {
+    return services.revisionQueue.runSession(planId, sessionId);
+  });
+
+  ipcMain.handle('revision:runAll', async (_, planId: string, selectedSessionIds?: string[]) => {
+    return services.revisionQueue.runAll(planId, selectedSessionIds);
+  });
+
+  ipcMain.handle('revision:respondToGate', (_, planId: string, sessionId: string, action: string, message?: string) => {
+    services.revisionQueue.respondToGate(planId, sessionId, action as ApprovalAction, message);
+  });
+
+  ipcMain.handle('revision:approveSession', async (_, planId: string, sessionId: string) => {
+    return services.revisionQueue.approveSession(planId, sessionId);
+  });
+
+  ipcMain.handle('revision:rejectSession', async (_, planId: string, sessionId: string) => {
+    return services.revisionQueue.rejectSession(planId, sessionId);
+  });
+
+  ipcMain.handle('revision:skipSession', async (_, planId: string, sessionId: string) => {
+    return services.revisionQueue.skipSession(planId, sessionId);
+  });
+
+  ipcMain.handle('revision:pause', (_, planId: string) => {
+    services.revisionQueue.pause(planId);
+  });
+
+  ipcMain.handle('revision:setMode', (_, planId: string, mode: string) => {
+    services.revisionQueue.setMode(planId, mode as QueueMode);
+  });
+
+  ipcMain.handle('revision:getPlan', (_, planId: string) => {
+    return services.revisionQueue.getPlan(planId);
+  });
+
+  // Forward revision queue events to all renderer windows
+  services.revisionQueue.onEvent((event) => {
+    const wins = BrowserWindow.getAllWindows();
+    for (const win of wins) {
+      win.webContents.send('revision:event', event);
+    }
+  });
 }

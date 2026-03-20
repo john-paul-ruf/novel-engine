@@ -24,6 +24,7 @@ import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
 import { UsageService } from '@app/UsageService';
 import { FilePersistenceService } from '@app/FilePersistenceService';
+import { RevisionQueueService } from '@app/RevisionQueueService';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -113,6 +114,7 @@ async function initializeApp(): Promise<void> {
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const filePersistence = new FilePersistenceService(fs);
+  const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, contextWrangler, db, settings);
 
   // 5. Register custom protocol handler for serving local assets to renderer
   protocol.handle('novel-asset', (request) => {
@@ -143,7 +145,7 @@ async function initializeApp(): Promise<void> {
 
   // 6. Register IPC handlers
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, pipeline, build, usage, filePersistence },
+    { settings, agents, db, fs, chat, pipeline, build, usage, filePersistence, revisionQueue },
     { userDataPath, booksDir },
   );
 

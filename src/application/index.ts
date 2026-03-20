@@ -4,3 +4,4 @@ export { PipelineService } from './PipelineService';
 export { BuildService } from './BuildService';
 export { UsageService } from './UsageService';
 export { FilePersistenceService } from './FilePersistenceService';
+export { RevisionQueueService } from './RevisionQueueService';

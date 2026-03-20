@@ -147,6 +147,56 @@ export type UsageSummary = {
   conversationCount: number;
 };
 
+// === Revision Queue ===
+
+export type RevisionSessionStatus = 'pending' | 'running' | 'awaiting-approval' | 'approved' | 'rejected' | 'skipped';
+
+export type ApprovalAction = 'approve' | 'reject' | 'skip' | 'retry';
+
+export type QueueMode = 'manual' | 'auto-approve' | 'auto-skip' | 'selective';
+
+export type RevisionSession = {
+  id: string;
+  index: number;                   // 1-based session order
+  title: string;                   // e.g. "Ch 20-26 Thesis Audit"
+  chapters: string[];              // chapter slugs referenced
+  taskNumbers: number[];           // which project-task numbers this covers
+  model: 'opus' | 'sonnet';       // Forge's model assignment
+  prompt: string;                  // the full prompt text to send to Verity
+  notes: string;                   // Forge's notes (e.g. "Read-only. Produces catalog.")
+  status: RevisionSessionStatus;
+  conversationId: string | null;   // set when session starts running
+  response: string;                // accumulated response text
+};
+
+export type RevisionPlanPhase = {
+  number: number;
+  name: string;
+  taskCount: number;
+  completedCount: number;
+};
+
+export type RevisionPlan = {
+  id: string;
+  bookSlug: string;
+  sessions: RevisionSession[];
+  totalTasks: number;
+  completedTaskNumbers: number[];  // task numbers already marked [x]
+  phases: RevisionPlanPhase[];
+  mode: QueueMode;
+  createdAt: string;
+};
+
+export type RevisionQueueEvent =
+  | { type: 'session:status'; sessionId: string; status: RevisionSessionStatus }
+  | { type: 'session:chunk'; sessionId: string; text: string }
+  | { type: 'session:thinking'; sessionId: string; text: string }
+  | { type: 'session:done'; sessionId: string; taskNumbers: number[] }
+  | { type: 'session:gate'; sessionId: string; gateText: string }
+  | { type: 'plan:progress'; completedTasks: number; totalTasks: number }
+  | { type: 'queue:done' }
+  | { type: 'error'; sessionId: string; message: string };
+
 // === Build ===
 
 export type BuildFormat = 'md' | 'docx' | 'epub' | 'pdf';

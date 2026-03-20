@@ -3,6 +3,7 @@ import { BookSelector } from '../Sidebar/BookSelector';
 import { VoiceSetupButton } from '../Sidebar/VoiceSetupButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
 import { FileTree } from '../Sidebar/FileTree';
+import { RevisionQueueButton } from '../Sidebar/RevisionQueueButton';
 
 type ViewId = 'chat' | 'files' | 'build' | 'settings';
 
@@ -54,6 +55,7 @@ export function Sidebar(): React.ReactElement {
 
       {/* Voice setup — contextual to active book */}
       <VoiceSetupButton />
+      <RevisionQueueButton />
 
       {/* Pipeline tracker + File tree — scrollable */}
       <div className="flex-1 overflow-y-auto">
