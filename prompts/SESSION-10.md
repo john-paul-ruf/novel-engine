@@ -158,7 +158,7 @@ Add `UsageService` as a 7th constructor dependency to `ChatService`. Replace inl
 
 ```typescript
 const usage = new UsageService(db);
-const chat = new ChatService(settings, agents, db, fs, anthropicClient, contextBuilder, usage);
+const chat = new ChatService(settings, agents, db, fs, claudeClient, contextBuilder, usage);
 ```
 
 ---

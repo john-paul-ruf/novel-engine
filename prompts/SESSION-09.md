@@ -21,7 +21,7 @@ class ChatService {
     private agents: IAgentService,
     private db: IDatabaseService,
     private fs: IFileSystemService,
-    private api: IAnthropicClient,
+    private claude: IClaudeClient,
     private contextBuilder: IContextBuilder,
   ) {}
 }
@@ -43,7 +43,7 @@ async sendMessage(params: {
 
 **Step-by-step flow:**
 
-1. **Get the API key.** Call `this.settings.getApiKey()`. If null, emit an error event and return.
+1. **Check Claude CLI availability.** Call `this.claude.isAvailable()`. If false, emit an error event with message "Claude Code CLI not found or not authenticated. Run `claude login` to set up." and return.
 
 2. **Load settings.** Call `this.settings.load()` to get model, maxTokens, thinking config.
 
@@ -64,17 +64,16 @@ async sendMessage(params: {
    {contextString}
    ```
 
-7. **Load conversation history.** Call `this.db.getMessages(params.conversationId)`. **This MUST execute before step 8** — we load existing history before saving the new user message to avoid including it twice in the API call. Map to the `{ role, content }` format the API expects. Do NOT include thinking content in the history — the API ignores previous thinking blocks.
+7. **Load conversation history.** Call `this.db.getMessages(params.conversationId)`. **This MUST execute before step 8** — we load existing history before saving the new user message to avoid including it twice in the CLI call. Map to the `{ role, content }` format the CLI expects. Do NOT include thinking content in the history — previous thinking blocks are not needed.
 
 8. **Save the user message.** Call `this.db.saveMessage({ conversationId, role: 'user', content: params.message, thinking: '' })`.
 
-9. **Call the API.** Invoke `this.api.sendMessage()` with:
-   - `apiKey` from step 1
+9. **Call the Claude CLI.** Invoke `this.claude.sendMessage()` with:
    - `model` from settings
    - `systemPrompt` from step 6
    - `messages` = history from step 7 + the new user message
    - `maxTokens` from settings
-   - `thinking` = `{ type: 'enabled', budget_tokens: agent.thinkingBudget }` if thinking is enabled, otherwise `undefined`
+   - `thinkingBudget` = `agent.thinkingBudget` if thinking is enabled, otherwise `undefined`
    - `onEvent` = a wrapper around `params.onEvent` that also captures the full response
 
 10. **Capture the response.** Inside the `onEvent` wrapper:
@@ -85,7 +84,7 @@ async sendMessage(params: {
       - Record usage: `this.db.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: event.thinkingTokens, model, estimatedCost: this.calculateCost(model, inputTokens, outputTokens) })` (The `done` event now includes `thinkingTokens` — see Session 02's `StreamEvent` type.)
     - Forward ALL events to `params.onEvent` (the caller still gets everything)
 
-11. **Error handling.** Wrap the API call in try/catch. On error, emit `{ type: 'error', message: error.message }` via `params.onEvent`.
+11. **Error handling.** Wrap the CLI call in try/catch. On error, emit `{ type: 'error', message: error.message }` via `params.onEvent`.
 
 ### Helper Method: `calculateCost`
 
@@ -126,7 +125,7 @@ Delegates to `this.db.getMessages(conversationId)`.
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
-- Constructor takes 6 interface parameters (no concrete types) — note: Session 10 will add `UsageService` as a 7th dependency
+- Constructor takes 6 interface parameters (no concrete types — `IClaudeClient` instead of `IAnthropicClient`) — note: Session 10 will add `UsageService` as a 7th dependency
 - `sendMessage` follows the 11-step flow exactly
 - Response and thinking are accumulated and saved after `done`
 - Token usage is recorded with cost calculation

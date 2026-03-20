@@ -39,8 +39,7 @@ export function registerIpcHandlers(services: {
 
 **Settings:**
 - `'settings:load'` → `services.settings.load()`
-- `'settings:saveApiKey'` → `(_, key: string)` → `services.settings.saveApiKey(key)`
-- `'settings:validateApiKey'` → `(_, key: string)` → `services.settings.validateApiKey(key)`
+- `'settings:detectClaudeCli'` → `services.settings.detectClaudeCli()`
 - `'settings:update'` → `(_, partial)` → `services.settings.update(partial)`
 
 **Agents:**
@@ -130,8 +129,7 @@ const api = {
   // Settings
   settings: {
     load: (): Promise<AppSettings> => ipcRenderer.invoke('settings:load'),
-    saveApiKey: (key: string): Promise<void> => ipcRenderer.invoke('settings:saveApiKey', key),
-    validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('settings:validateApiKey', key),
+    detectClaudeCli: (): Promise<boolean> => ipcRenderer.invoke('settings:detectClaudeCli'),
     update: (partial: Partial<AppSettings>): Promise<void> => ipcRenderer.invoke('settings:update', partial),
   },
 
@@ -227,7 +225,7 @@ declare global {
 
 - Both files compile with `npx tsc --noEmit`
 - `handlers.ts` has no business logic — every handler is a one-liner delegation (exception: `books:create` reads `authorName` from settings before delegating)
-- `preload/index.ts` exposes the full API surface including `agents.get`
+- `preload/index.ts` exposes the full bridge surface including `agents.get` and `settings.detectClaudeCli`
 - `preload/index.ts` has explicit `import type` statements from `@domain/types` at the top
 - Event listeners (`onStreamEvent`, `onProgress`) return cleanup functions
 - `window.novelEngine` has full TypeScript types in the renderer

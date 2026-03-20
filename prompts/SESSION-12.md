@@ -70,7 +70,7 @@ import { SettingsService } from '@infra/settings';
 import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
 import { FileSystemService } from '@infra/filesystem';
-import { AnthropicClient } from '@infra/anthropic';
+import { ClaudeCodeClient } from '@infra/claude-cli';
 
 // Application
 import { ContextBuilder } from '@app/ContextBuilder';
@@ -157,12 +157,12 @@ async function initializeApp() {
   const db = new DatabaseService(dbPath);
   const agents = new AgentService(agentsDir);
   const fs = new FileSystemService(booksDir, userDataPath);
-  const anthropicClient = new AnthropicClient();
+  const claudeClient = new ClaudeCodeClient();
 
   // 4. Instantiate application services
   const contextBuilder = new ContextBuilder();
   const usage = new UsageService(db);
-  const chat = new ChatService(settings, agents, db, fs, anthropicClient, contextBuilder, usage);
+  const chat = new ChatService(settings, agents, db, fs, claudeClient, contextBuilder, usage);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
 

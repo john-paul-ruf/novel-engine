@@ -20,7 +20,6 @@ Run the Electron Forge create command with the Vite TypeScript template. Project
 - `react`, `react-dom`
 - `zustand` (state management)
 - `better-sqlite3` (local database)
-- `@anthropic-ai/sdk` (Claude API)
 - `nanoid@3` (ID generation — **pin to v3**, the last CJS-compatible version; v4+ is ESM-only and breaks in Vite's main process build)
 - `marked` (markdown rendering)
 - `@tailwindcss/typography` (prose classes for rendered markdown)
@@ -103,13 +102,9 @@ build: {
 }
 ```
 
-Also externalize `@anthropic-ai/sdk` since it makes network requests and has no benefit from bundling:
+This ensures the native package is loaded at runtime from `node_modules` rather than being bundled.
 
-```typescript
-external: ['better-sqlite3', '@anthropic-ai/sdk'],
-```
-
-This ensures these packages are loaded at runtime from `node_modules` rather than being bundled.
+> **Note:** This app uses the Claude Code CLI (`claude`) for AI interactions instead of the `@anthropic-ai/sdk`. No API SDK is needed — the CLI is spawned as a child process at runtime.
 
 > **Note on `execa`:** Session 10 (BuildService) no longer uses `execa`. It uses Node.js built-in `child_process.execFile` instead, eliminating the CJS/ESM compatibility concern. Do **not** install `execa` as a dependency.
 

@@ -105,7 +105,7 @@ Props: `message: Message`
 - Max width: `max-w-3xl`
 - If the message has `thinking` content (non-empty string), show a `ThinkingBlock` above the response
 
-**Render the markdown safely:** Use `dangerouslySetInnerHTML={{ __html: marked.parse(content) }}`. Configure `marked` with `{ breaks: true, gfm: true }` for GitHub-flavored markdown with line break support. Note: `marked` v4+ removed built-in sanitization — there is no sanitizer to disable. Security is handled by Electron's CSP, and content comes from the Anthropic API, not from untrusted user input.
+**Render the markdown safely:** Use `dangerouslySetInnerHTML={{ __html: marked.parse(content) }}`. Configure `marked` with `{ breaks: true, gfm: true }` for GitHub-flavored markdown with line break support. Note: `marked` v4+ removed built-in sanitization — there is no sanitizer to disable. Security is handled by Electron's CSP, and content comes from the Claude Code CLI, not from untrusted user input.
 
 ---
 
@@ -220,7 +220,7 @@ deleteConversation: async (conversationId: string) => {
 
 - Selecting an agent and starting a conversation shows the chat interface
 - Typing a message and pressing Enter sends it (appears as a blue bubble on the right)
-- The agent's response streams in token by token (if API key is set)
+- The agent's response streams in token by token (if Claude CLI is connected)
 - Extended thinking appears in the amber panel above the response
 - Thinking block auto-collapses after the response finishes
 - Historical thinking content is expandable on past messages

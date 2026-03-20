@@ -127,7 +127,7 @@ type StreamEvent =
 // === Settings ===
 
 type AppSettings = {
-  hasApiKey: boolean;
+  hasClaudeCli: boolean;   // true if `claude` CLI is detected and authenticated
   model: string;
   maxTokens: number;
   enableThinking: boolean;
@@ -200,9 +200,7 @@ Define service interfaces (ports). These are the contracts that infrastructure i
 
 interface ISettingsService {
   load(): Promise<AppSettings>;
-  saveApiKey(key: string): Promise<void>;
-  getApiKey(): Promise<string | null>;
-  validateApiKey(key: string): Promise<boolean>;
+  detectClaudeCli(): Promise<boolean>;  // checks if `claude` CLI is installed and authenticated
   update(partial: Partial<AppSettings>): Promise<void>;
 }
 
@@ -254,16 +252,16 @@ interface IFileSystemService {
   countWordsPerChapter(bookSlug: string): Promise<{ slug: string; wordCount: number }[]>;
 }
 
-interface IAnthropicClient {
+interface IClaudeClient {
   sendMessage(params: {
-    apiKey: string;
     model: string;
     systemPrompt: string;
     messages: { role: MessageRole; content: string }[];
     maxTokens: number;
-    thinking?: { type: 'enabled'; budget_tokens: number };
+    thinkingBudget?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
+  isAvailable(): Promise<boolean>;  // checks if `claude` CLI is installed
 }
 
 interface IContextBuilder {
@@ -324,7 +322,7 @@ const PIPELINE_PHASES: { id: PipelinePhaseId; label: string; agent: AgentName | 
 
 // Default settings
 const DEFAULT_SETTINGS: AppSettings = {
-  hasApiKey: false,
+  hasClaudeCli: false,
   model: 'claude-opus-4-20250514',
   maxTokens: 8192,
   enableThinking: true,

@@ -290,7 +290,7 @@ node_modules/
 
 ## Task 7: Content Security Policy
 
-Add a CSP meta tag to the renderer's `index.html` to prevent XSS attacks. The main risk is HTML rendered via `marked.parse()` — while the content comes from the Anthropic API, defense in depth is important.
+Add a CSP meta tag to the renderer's `index.html` to prevent XSS attacks. The main risk is HTML rendered via `marked.parse()` — while the content comes from the Claude Code CLI, defense in depth is important.
 
 Add this to the `<head>` of `index.html`:
 ```html
@@ -301,7 +301,7 @@ This allows:
 - Scripts only from the app itself (no remote scripts)
 - Styles from the app + inline (needed for Tailwind)
 - Images from the app + data URIs
-- No external network connections from the renderer (API calls go through the main process)
+- No external network connections from the renderer (Claude CLI calls go through the main process)
 
 ---
 

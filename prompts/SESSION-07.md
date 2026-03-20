@@ -1,123 +1,153 @@
-# Session 07 — Anthropic Client
+# Session 07 — Claude Code CLI Client
 
 ## Context
 
-Novel Engine Electron app. Sessions 01–06 done. Now I need the **Anthropic API client** — it wraps the `@anthropic-ai/sdk`, handles streaming, extended thinking, and emits typed `StreamEvent` objects.
+Novel Engine Electron app. Sessions 01–06 done. Now I need the **Claude Code CLI client** — it wraps the `claude` command-line tool, handles streaming via `--output-format stream-json`, extended thinking, and emits typed `StreamEvent` objects.
 
 ## Architecture Rule
 
-Lives in `src/infrastructure/anthropic/`. Imports from `@domain` and `@anthropic-ai/sdk`. Implements `IAnthropicClient`. No Electron imports.
+Lives in `src/infrastructure/claude-cli/`. Imports from `@domain` and Node.js builtins (`child_process`, `path`, `os`). Implements `IClaudeClient`. No Electron imports, no `@anthropic-ai/sdk`.
 
 ## Task
 
-Create `src/infrastructure/anthropic/AnthropicClient.ts` and `index.ts` barrel.
+Create `src/infrastructure/claude-cli/ClaudeCodeClient.ts` and `index.ts` barrel.
 
 ### Interface It Implements
 
 ```typescript
-interface IAnthropicClient {
+interface IClaudeClient {
   sendMessage(params: {
-    apiKey: string;
     model: string;
     systemPrompt: string;
     messages: { role: MessageRole; content: string }[];
     maxTokens: number;
-    thinking?: { type: 'enabled'; budget_tokens: number };
+    thinkingBudget?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
+  isAvailable(): Promise<boolean>;
 }
 ```
 
 ### Implementation
 
+**`isAvailable()`:**
+
+Run `claude --version` via `execFileAsync`. Return `true` if exit code 0, `false` otherwise. Wrap in try/catch.
+
 **`sendMessage(params)`:**
 
-1. Create a new `Anthropic` client instance with the provided `apiKey`. Create it fresh each call — don't cache the client, since the key can change.
+1. **Build the conversation prompt.** Reconstruct the conversation history as a single prompt string. Format previous messages as:
+   ```
+   Human: {user message}
 
-2. Build the request body:
+   Assistant: {assistant message}
+
+   Human: {latest user message}
+   ```
+   The last message in `params.messages` is always the new user message.
+
+2. **Write the system prompt to a temp file** (using `node:fs/promises` and `node:os` for `tmpdir()`). This avoids shell argument length limits for long agent system prompts. Clean up the temp file after the process exits.
+
+3. **Build the CLI args:**
    ```typescript
-   {
-     model: params.model,
-     max_tokens: params.maxTokens,
-     system: params.systemPrompt,
-     messages: params.messages,
-     stream: true,
-     // Only include thinking if provided
-     ...(params.thinking && { thinking: params.thinking }),
+   const args = [
+     '--print',                              // non-interactive mode
+     '--output-format', 'stream-json',       // streaming JSON output
+     '--model', params.model,
+     '--max-tokens', String(params.maxTokens),
+     '--system-prompt', systemPromptTempPath, // path to temp file
+   ];
+
+   // Add thinking budget if provided
+   if (params.thinkingBudget) {
+     args.push('--thinking-budget', String(params.thinkingBudget));
    }
    ```
 
-3. If thinking is enabled, add the `interleaved-thinking-2025-05-14` beta header via the `betas` parameter on the SDK's `messages.stream()` call. Check the SDK docs — the `stream()` method may accept `betas` as an option.
-
-4. Use the SDK's streaming interface. The `@anthropic-ai/sdk` provides `client.messages.stream()` which returns an async iterable of events. Iterate through them and map to our `StreamEvent` type:
-
-   - `content_block_start` where the block type is `'thinking'` → emit `{ type: 'blockStart', blockType: 'thinking' }`
-   - `content_block_start` where the block type is `'text'` → emit `{ type: 'blockStart', blockType: 'text' }`
-   - `content_block_delta` with `delta.type === 'thinking_delta'` → emit `{ type: 'thinkingDelta', text: delta.thinking }`
-   - `content_block_delta` with `delta.type === 'text_delta'` → emit `{ type: 'textDelta', text: delta.text }`
-   - `content_block_delta` with `delta.type === 'signature_delta'` → ignore (crypto signature, not for display)
-   - `content_block_stop` → emit `{ type: 'blockEnd', blockType: currentBlockType }` (track which block type we're in)
-   - `message_stop` → don't emit here; we emit `done` after the loop
-
-5. After the stream completes, get the final message's `usage` object. Track thinking tokens by accumulating the length of thinking deltas and estimating via `CHARS_PER_TOKEN`, OR by reading the usage object's thinking-specific fields if the SDK exposes them (check `finalMessage.usage` for a `cache_creation_input_tokens` or thinking-related field). Emit:
+4. **Spawn the `claude` process** using `child_process.spawn` (NOT `execFile` — we need streaming stdout):
    ```typescript
-   { type: 'done', inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, thinkingTokens: estimatedThinkingTokens }
+   const child = spawn('claude', args, {
+     stdio: ['pipe', 'pipe', 'pipe'],
+     env: { ...process.env },
+   });
    ```
-   For `thinkingTokens`: estimate from the accumulated thinking buffer using `Math.ceil(thinkingBuffer.length / CHARS_PER_TOKEN)` from `@domain/constants`. This is an approximation — the actual thinking token count may be higher since the API returns a condensed summary of its reasoning.
 
-6. Wrap the entire thing in a try/catch. On error, emit:
+5. **Write the conversation prompt to stdin** and close it:
    ```typescript
-   { type: 'error', message: error.message || 'Unknown API error' }
+   child.stdin.write(conversationPrompt);
+   child.stdin.end();
    ```
-   Then re-throw so the caller knows it failed.
+
+6. **Parse streaming JSON from stdout.** The CLI outputs newline-delimited JSON objects. Buffer stdout data and split on newlines. Parse each complete line as JSON and map to our `StreamEvent` type:
+
+   The `stream-json` format emits objects like:
+   ```json
+   {"type":"assistant","subtype":"thinking","content_block_start":true}
+   {"type":"assistant","subtype":"thinking","content":"reasoning text..."}
+   {"type":"assistant","subtype":"thinking","content_block_stop":true}
+   {"type":"assistant","subtype":"text","content_block_start":true}
+   {"type":"assistant","subtype":"text","content":"response text..."}
+   {"type":"assistant","subtype":"text","content_block_stop":true}
+   {"type":"result","cost_usd":0.05,"input_tokens":1500,"output_tokens":800,"duration_ms":5000}
+   ```
+
+   Map these to `StreamEvent`:
+   - `content_block_start` with `subtype === 'thinking'` → emit `{ type: 'blockStart', blockType: 'thinking' }`
+   - `content_block_start` with `subtype === 'text'` → emit `{ type: 'blockStart', blockType: 'text' }`
+   - `subtype === 'thinking'` with `content` (no `content_block_start`/`stop`) → emit `{ type: 'thinkingDelta', text: content }`
+   - `subtype === 'text'` with `content` (no `content_block_start`/`stop`) → emit `{ type: 'textDelta', text: content }`
+   - `content_block_stop` → emit `{ type: 'blockEnd', blockType: currentBlockType }`
+   - `type === 'result'` → emit `{ type: 'done', inputTokens, outputTokens, thinkingTokens: estimatedFromBuffer }`
+
+   For `thinkingTokens`: estimate from the accumulated thinking buffer using `Math.ceil(thinkingBuffer.length / CHARS_PER_TOKEN)` from `@domain/constants`.
+
+7. **Handle stderr.** Accumulate stderr output. If the process exits with a non-zero code, emit:
+   ```typescript
+   { type: 'error', message: stderrBuffer || `Claude CLI exited with code ${code}` }
+   ```
+   Then throw an error.
+
+8. **Clean up.** Delete the temp system prompt file in a `finally` block.
+
+9. **Return a Promise** that resolves when the child process exits with code 0, or rejects on non-zero exit.
 
 ### Key details
 
-- **Do NOT store state between calls.** This class is stateless. Every call gets its own client instance and stream.
+- **Do NOT store state between calls.** This class is stateless. Every call spawns a fresh `claude` process.
 - **Track the current block type** in a local variable within `sendMessage` so you can emit the correct `blockEnd` event.
-- **The SDK's streaming API** may return events via `for await (const event of stream)` or via event listeners. Use whichever pattern the SDK supports — check the `@anthropic-ai/sdk` types for the correct streaming approach. The SDK's `messages.stream()` method returns an object with `.on('event', callback)` style listeners, but also supports `for await` via the async iterable protocol. Use the event listener approach for clearer mapping.
-- Use `stream.on('text', ...)` for text deltas and handle raw events for thinking blocks since the SDK's convenience methods may not expose thinking content.
+- **Handle partial JSON lines** in the stdout buffer — a chunk from the child process may contain a partial line. Only parse complete lines (ending with `\n`).
+- **The `claude` CLI must be in PATH.** If not found, `spawn` will emit an `error` event. Catch it and emit a user-friendly error: "Claude Code CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-code"
 
-### Actually, here's the most reliable pattern with the SDK:
+### Reliable stdout parsing pattern:
 
 ```typescript
-// The betas parameter is passed as an option to the stream() method,
-// NOT inside the message body. Check the current @anthropic-ai/sdk version
-// for the correct parameter position. As of SDK v0.39+:
+let stdoutBuffer = '';
+let thinkingBuffer = '';
+let currentBlockType: 'thinking' | 'text' | null = null;
 
-const streamParams = {
-  model: params.model,
-  max_tokens: params.maxTokens,
-  system: params.systemPrompt,
-  messages: params.messages,
-  ...(params.thinking && { thinking: params.thinking }),
-};
+child.stdout.on('data', (chunk: Buffer) => {
+  stdoutBuffer += chunk.toString();
+  const lines = stdoutBuffer.split('\n');
+  // Keep the last (possibly incomplete) line in the buffer
+  stdoutBuffer = lines.pop() || '';
 
-// If thinking is enabled, pass betas as a separate option:
-const stream = params.thinking
-  ? client.messages.stream(streamParams, {
-      headers: { 'anthropic-beta': 'interleaved-thinking-2025-05-14' },
-    })
-  : client.messages.stream(streamParams);
-
-stream.on('event', (event) => {
-  // Handle raw SSE events here - this gives you content_block_start,
-  // content_block_delta, content_block_stop, message_stop
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try {
+      const event = JSON.parse(line);
+      // Map to StreamEvent and emit via params.onEvent
+    } catch {
+      // Skip unparseable lines
+    }
+  }
 });
-
-const finalMessage = await stream.finalMessage();
-// finalMessage.usage has input_tokens, output_tokens
-// Track thinking buffer length to estimate thinkingTokens for the done event
 ```
-
-> **SDK Version Note:** The exact API for passing beta headers varies between SDK versions. The `headers` approach via the second options parameter is the most stable pattern. If the SDK version supports `betas: [...]` as a top-level stream parameter, that also works. **Before implementing, run `npx tsc --noEmit` against a test file that imports `@anthropic-ai/sdk` and check the TypeScript types for `client.messages.stream()` to confirm the correct streaming pattern and parameter positions.** The SDK's types are the source of truth — not this prompt.
-
-Use the `'event'` listener to get the raw event objects. This is the most reliable way to see thinking blocks, since the convenience listeners like `stream.on('text', ...)` skip thinking content.
 
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
-- Implements `IAnthropicClient`
-- No Electron imports, no state between calls
+- Implements `IClaudeClient`
+- No Electron imports, no `@anthropic-ai/sdk`, no state between calls
 - Emits `StreamEvent` objects in the correct order: blockStart → deltas → blockEnd → done
 - Handles errors by emitting error event AND re-throwing
+- Cleans up temp files in all cases (success, error, abort)

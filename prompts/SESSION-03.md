@@ -2,11 +2,11 @@
 
 ## Context
 
-I'm building an Electron app called "Novel Engine." Sessions 01–02 created the scaffold and domain layer. Now I need the **Settings service** — the first infrastructure implementation. It manages the API key (encrypted via Electron's `safeStorage`), model selection, and all app preferences.
+I'm building an Electron app called "Novel Engine." Sessions 01–02 created the scaffold and domain layer. Now I need the **Settings service** — the first infrastructure implementation. It manages Claude CLI detection, model selection, and all app preferences.
 
 ## Architecture Rule
 
-This file lives in `src/infrastructure/settings/`. It imports from `@domain` and from Electron/Node builtins. It implements `ISettingsService` from `src/domain/interfaces.ts`. It does NOT import from application, renderer, or any other infrastructure module.
+This file lives in `src/infrastructure/settings/`. It imports from `@domain` and from Node builtins. It implements `ISettingsService` from `src/domain/interfaces.ts`. It does NOT import from application, renderer, or any other infrastructure module.
 
 ## Task
 
@@ -15,19 +15,19 @@ Create `src/infrastructure/settings/SettingsService.ts`.
 ### How it works
 
 1. **Settings are stored in a JSON file** at `{userData}/settings.json`. Use `electron.app.getPath('userData')` to get the path.
-2. **The API key is stored separately**, encrypted via `electron.safeStorage.encryptString()`. The encrypted bytes are stored as a base64 string in `settings.json` under the key `_encryptedApiKey`. This key is **never** returned through `load()` — the public settings shape (`AppSettings`) only has `hasApiKey: boolean`.
-3. **`getApiKey()`** decrypts and returns the key. Returns `null` if no key is stored.
-4. **`validateApiKey(key)`** makes a minimal API call to Anthropic (send "Say ok" with `max_tokens: 10` using `claude-sonnet-4-20250514`) and returns `true`/`false`. Use the `@anthropic-ai/sdk`.
-5. **`load()`** reads the JSON file, merges with `DEFAULT_SETTINGS` from `@domain/constants`, and returns `AppSettings`. Never exposes the encrypted key.
-6. **`update(partial)`** merges the partial into the existing settings and writes the file. Does NOT touch the API key — that's only through `saveApiKey`.
-7. **`saveApiKey(key)`** encrypts the key, stores it in the settings file, and also sets `hasApiKey: true`.
+2. **No API key management.** This app uses the Claude Code CLI (`claude`) for AI interactions. The CLI handles its own authentication via `claude login`. No API key is stored, encrypted, or managed by this app.
+3. **`detectClaudeCli()`** checks if the `claude` CLI is installed and authenticated by running `claude --version` via `child_process.execFile`. Returns `true` if it exits with code 0, `false` otherwise. Also updates `hasClaudeCli` in the settings file.
+4. **`load()`** reads the JSON file, merges with `DEFAULT_SETTINGS` from `@domain/constants`, and returns `AppSettings`.
+5. **`update(partial)`** merges the partial into the existing settings and writes the file.
 
 ### Implementation details
 
 - Use `fs.readFile`/`fs.writeFile` (from `node:fs/promises`) for file I/O
+- Use `execFile` from `node:child_process` (promisified) for CLI detection
 - Use a simple `try/catch` around the read — if the file doesn't exist, return defaults
 - Constructor takes a `userDataPath: string` parameter so it's testable (not hardcoded to Electron's path)
 - The class should be instantiatable as: `new SettingsService(app.getPath('userData'))`
+- `detectClaudeCli` should try `claude --version` first. If that succeeds, also run `claude doctor` to verify the CLI is properly authenticated. Return `true` only if both succeed.
 
 ### Also create
 
@@ -40,4 +40,5 @@ Create `src/infrastructure/settings/SettingsService.ts`.
 - No imports from `@app`, `renderer`, `main`, or other `@infra` modules
 - Constructor accepts `userDataPath: string`
 - `load()` return type matches `AppSettings`
-- `_encryptedApiKey` never appears in `load()` output
+- No API key encryption or `safeStorage` usage anywhere
+- `detectClaudeCli()` returns a boolean based on CLI availability

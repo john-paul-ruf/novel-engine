@@ -2,9 +2,9 @@
 
 ## How to Use These Prompts
 
-There are **18 sessions** below. Run them **in order**, one at a time, in WebStorm with Zencoder. Each session prompt:
+There are **19 sessions** below. Run them **in order**, one at a time, using the Claude Code CLI. Each session prompt:
 
-- Is self-contained — paste the whole thing into a fresh Zencoder chat
+- Is self-contained — paste the whole thing into a fresh Claude Code session
 - States exactly what files to create or modify
 - Specifies the architecture rules to follow
 - Ends with a verification step so you know it worked
@@ -15,7 +15,7 @@ There are **18 sessions** below. Run them **in order**, one at a time, in WebSto
 git add -A && git commit -m "Before session N"
 ```
 
-**During each session:** Paste the prompt. Let the agent work. Review the output. If it needs tweaks, stay in the same chat and iterate.
+**During each session:** Paste the prompt. Let the agent work. Review the output. If it needs tweaks, stay in the same session and iterate.
 
 **After each session:** Run the verification step at the bottom of each prompt. If it passes, commit and move on.
 
@@ -33,7 +33,7 @@ This app follows **Clean Architecture** with strict layer boundaries:
 ├─────────────────────────────────────────────┤
 │  Application (services, use cases)           │  ← Knows about Domain + Infra
 ├─────────────────────────────────────────────┤
-│  Infrastructure (DB, API, filesystem)        │  ← Implements Domain interfaces
+│  Infrastructure (DB, Claude CLI, filesystem)  │  ← Implements Domain interfaces
 ├─────────────────────────────────────────────┤
 │  Domain (types, interfaces, constants)       │  ← Knows about NOTHING
 └─────────────────────────────────────────────┘
@@ -56,15 +56,15 @@ src/
 │   └── constants.ts        # Agent metadata, pipeline phases, defaults
 │
 ├── infrastructure/         # Concrete implementations of domain interfaces
-│   ├── settings/           # API key storage, app preferences
+│   ├── settings/           # CLI detection, app preferences
 │   ├── database/           # SQLite schema, repositories
 │   ├── agents/             # Agent .md file loader
 │   ├── filesystem/         # Book CRUD, file I/O
-│   ├── anthropic/          # API client, streaming, thinking
+│   ├── claude-cli/         # Claude Code CLI wrapper, streaming, thinking
 │   └── pandoc/             # Binary resolution, exec wrapper
 │
 ├── application/            # Business logic / orchestration
-│   ├── ChatService.ts      # Agent + context + API + history
+│   ├── ChatService.ts      # Agent + context + CLI + history
 │   ├── ContextBuilder.ts   # Per-agent context assembly + token budgeting
 │   ├── PipelineService.ts  # Phase detection, transitions
 │   ├── BuildService.ts     # Manuscript assembly + Pandoc
@@ -96,11 +96,11 @@ src/
 |---|---------|-----------------|-------------|
 | 01 | Project scaffold | Working Electron + Vite + React + TS shell | 20 min |
 | 02 | Domain layer | All types, interfaces, constants | 15 min |
-| 03 | Settings infrastructure | Encrypted API key, app preferences | 15 min |
+| 03 | Settings infrastructure | Claude CLI detection, app preferences | 15 min |
 | 04 | Database infrastructure | SQLite schema, conversation/message/usage repos | 20 min |
 | 05 | Agent loader | Reads agent .md files, returns typed data | 10 min |
 | 06 | Filesystem infrastructure | Book CRUD, active-book, file I/O | 15 min |
-| 07 | Anthropic client | API wrapper with streaming + extended thinking | 20 min |
+| 07 | Claude Code CLI client | CLI wrapper with streaming + extended thinking | 20 min |
 | 08 | Context builder | Per-agent context assembly, token budgeting | 15 min |
 | 09 | Chat service | Orchestrates the full send→stream→save cycle | 20 min |
 | 10 | Pipeline + Build services | Phase detection, Pandoc wrapper | 15 min |
@@ -112,14 +112,15 @@ src/
 | 16 | Chat UI + thinking blocks | Messages, streaming, thinking panel | 30 min |
 | 17 | File viewer + Build panel | Markdown preview/edit, build progress | 20 min |
 | 18 | Packaging + Pandoc bundling | Forge config, scripts, CI/CD | 15 min |
+| 19 | Agent output persistence | Save-to-file for agent responses | 20 min |
 
-**Total: ~5–6 hours of session time** (not counting review and iteration).
+**Total: ~5–7 hours of session time** (not counting review and iteration).
 
 ---
 
 ## Prompt Files
 
-Each session prompt is in this folder, numbered `SESSION-01.md` through `SESSION-18.md`. Open the next one, paste it into Zencoder, and go.
+Each session prompt is in this folder, numbered `SESSION-01.md` through `SESSION-19.md`. Open the next one, paste it into Claude Code, and go.
 
 ---
 
@@ -127,7 +128,7 @@ Each session prompt is in this folder, numbered `SESSION-01.md` through `SESSION
 
 The following fixes have been applied to the session prompts (2026-03-20):
 
-1. **SESSION-01:** Added native module externalization (`better-sqlite3`, `execa`, `@anthropic-ai/sdk`) in `vite.main.config.ts`
+1. **SESSION-01:** Added native module externalization (`better-sqlite3`, `execa`) in `vite.main.config.ts`; removed `@anthropic-ai/sdk` in favor of Claude Code CLI
 2. **SESSION-02:** Fixed `AGENT_REGISTRY` filenames to match actual agent files (`FORGE.MD`, `Quill.md`); added `thinkingTokens` to `StreamEvent.done`
 3. **SESSION-06:** Added documentation for `getBookMeta()` and `updateBookMeta()` implementations
 4. **SESSION-07:** Updated `done` event to include `thinkingTokens` estimated from thinking buffer length

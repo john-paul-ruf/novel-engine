@@ -2,7 +2,7 @@
 
 ## Context
 
-Novel Engine Electron app. Session 13 created the UI shell. Now I need the **onboarding wizard** (first-run API key setup) and the **settings panel** (ongoing configuration).
+Novel Engine Electron app. Session 13 created the UI shell. Now I need the **onboarding wizard** (first-run Claude CLI setup) and the **settings panel** (ongoing configuration).
 
 ## Architecture Rule
 
@@ -21,18 +21,20 @@ A full-screen, step-by-step wizard. No sidebar, no navigation — just the wizar
 - Brief tagline: "Turn your ideas into polished manuscripts with AI agents that collaborate like a real publishing team."
 - "Get Started" button → next step
 
-**Step 2: API Key**
+**Step 2: Claude Code CLI Setup**
 - Heading: "Connect to Claude"
-- Explanation: "Novel Engine uses Claude's API directly. You'll need an Anthropic API key."
-- Link: "Get a key at console.anthropic.com" (open in external browser via `window.open`)
-- Input field: password-type input for the key (with a show/hide toggle)
-- "Validate Key" button → calls `settingsStore.validateApiKey(key)`
+- Explanation: "Novel Engine uses the Claude Code CLI for AI interactions. This is cheaper than direct API access and uses your existing Claude subscription."
+- Instructions:
+  1. "Install Claude Code CLI: `npm install -g @anthropic-ai/claude-code`"
+  2. "Authenticate: Run `claude login` in your terminal"
+- Link: "Learn more at docs.anthropic.com/en/docs/claude-code" (open in external browser via `window.open`)
+- "Check Connection" button → calls `settingsStore.detectClaudeCli()`
 - States:
   - Idle: button enabled
-  - Validating: button disabled, spinner
-  - Valid: green checkmark, "Next" button appears
-  - Invalid: red message "Invalid key. Check that you copied the full key."
-- On valid → save the key via `settingsStore.saveApiKey(key)` → next step
+  - Checking: button disabled, spinner
+  - Connected: green checkmark + "Claude CLI detected!", "Next" button appears
+  - Not found: red message "Claude Code CLI not found. Make sure it's installed and you've run `claude login`."
+- On connected → next step
 
 **Step 3: Model Selection**
 - Heading: "Choose Your Model"
@@ -78,10 +80,10 @@ Shown when the user navigates to Settings from the sidebar.
 
 **Sections:**
 
-### API Key
-- Show masked key (last 4 chars visible): "sk-ant-...xxxx"
-- "Change Key" button → reveals input + validate flow (same as onboarding step 2)
-- Status indicator: green dot + "Connected" if key is set
+### Claude CLI Status
+- Show connection status: green dot + "Connected" if CLI is detected, red dot + "Not connected" otherwise
+- "Re-check" button → calls `settingsStore.detectClaudeCli()` to re-verify
+- Installation instructions link if not connected
 
 ### Model Selection
 - Same radio cards as onboarding
@@ -93,7 +95,6 @@ Shown when the user navigates to Settings from the sidebar.
   - Labels: "1K (quick)" | "10K (default)" | "32K (deep)"
   - Show current value: "{N} tokens"
 - Toggle: "Auto-collapse thinking after response" (checkbox)
-- Cost note: "Extended thinking adds ~${estimate}/message at current Opus pricing"
 
 ### Appearance
 - Theme selector: Dark / Light / System (radio group)
@@ -113,8 +114,8 @@ Shown when the user navigates to Settings from the sidebar.
 
 ### About
 - App version (from `package.json`)
-- "Novel Engine — Built on Claude by Anthropic"
-- Links: GitHub repo, Anthropic docs
+- "Novel Engine — Powered by Claude Code CLI"
+- Links: GitHub repo, Claude Code docs
 
 ### Design details
 
@@ -164,9 +165,10 @@ The `NovelEngineAPI` type auto-updates since it is `typeof api`.
 ## Verification
 
 - On fresh app start (delete `{userData}/.initialized`), the onboarding wizard appears
-- API key validation works (shows error for bad key, success for good key)
+- Claude CLI detection works (shows green checkmark if `claude` is installed, error if not)
 - After completing onboarding, the main app layout appears
 - Settings panel shows all sections
 - Changing the model saves immediately
 - Thinking toggle and slider work
 - Token usage section shows data (or "No usage data yet")
+- Re-check button in settings re-detects Claude CLI status

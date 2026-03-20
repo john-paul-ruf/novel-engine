@@ -17,8 +17,8 @@ Everything in `src/renderer/`. Components only access the backend through `windo
 ```typescript
 // State: AppSettings + loading flag + actions
 // On mount: load settings from bridge
-// Actions: saveApiKey, validateApiKey, updateSettings
-// After saveApiKey: reload settings to get updated hasApiKey
+// Actions: detectClaudeCli, updateSettings
+// After detectClaudeCli: reload settings to get updated hasClaudeCli
 ```
 
 Key shape:
@@ -27,8 +27,7 @@ Key shape:
   settings: AppSettings | null;
   loading: boolean;
   load: () => Promise<void>;
-  saveApiKey: (key: string) => Promise<void>;
-  validateApiKey: (key: string) => Promise<boolean>;
+  detectClaudeCli: () => Promise<boolean>;
   update: (partial: Partial<AppSettings>) => Promise<void>;
 }
 ```
