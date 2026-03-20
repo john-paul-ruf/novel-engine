@@ -106,6 +106,7 @@ export type Conversation = {
 export type StreamBlockType = 'thinking' | 'text';
 
 export type StreamEvent =
+  | { type: 'status'; message: string }
   | { type: 'blockStart'; blockType: StreamBlockType }
   | { type: 'thinkingDelta'; text: string }
   | { type: 'textDelta'; text: string }

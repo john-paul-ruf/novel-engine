@@ -6,7 +6,7 @@ import { ThinkingBlock } from './ThinkingBlock';
 marked.setOptions({ breaks: true, gfm: true });
 
 export function StreamingMessage(): React.ReactElement | null {
-  const { isStreaming, isThinking, thinkingBuffer, streamBuffer } = useChatStore();
+  const { isStreaming, isThinking, thinkingBuffer, streamBuffer, statusMessage } = useChatStore();
 
   const renderedHtml = useMemo(() => {
     if (!streamBuffer) return '';
@@ -17,10 +17,18 @@ export function StreamingMessage(): React.ReactElement | null {
 
   const showThinking = thinkingBuffer.length > 0 || isThinking;
   const showResponse = streamBuffer.length > 0;
+  const showStatus = statusMessage && !showThinking && !showResponse;
 
   return (
     <div className="px-6 py-2">
       <div className="max-w-3xl">
+        {showStatus && (
+          <div className="flex items-center gap-2 py-2 text-sm text-zinc-400">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+            {statusMessage}
+          </div>
+        )}
+
         {showThinking && (
           <ThinkingBlock
             content={thinkingBuffer}

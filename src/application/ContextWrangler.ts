@@ -25,6 +25,19 @@ import { TokenEstimator } from './context/TokenEstimator';
 import { ManifestBuilder } from './context/ManifestBuilder';
 import { PlanExecutor } from './context/PlanExecutor';
 
+/**
+ * Skip the Wrangler API call when total project content (files + chapters) is
+ * below this token threshold. The static per-agent fallback rules are sufficient
+ * for small projects, saving 3-8 seconds of latency per message.
+ */
+const WRANGLER_SKIP_THRESHOLD = 10_000;
+
+/**
+ * Also invoke the Wrangler when the conversation has enough turns that
+ * compaction strategy matters, even if the project content is small.
+ */
+const WRANGLER_SKIP_TURN_THRESHOLD = 15;
+
 /** Per-agent file inclusion rules for the fallback plan. */
 const FALLBACK_FILE_RULES: Record<CreativeAgentName, string[]> = {
   Spark: ['authorProfile'],
@@ -102,34 +115,49 @@ export class ContextWrangler implements IContextWrangler {
         wranglerInput.purpose = purpose;
       }
 
-      // 6b. Try to load the Wrangler agent prompt and make the planning call
+      // 6b. Decide whether to call the Wrangler or use the fast fallback.
+      // The Wrangler adds a full API round-trip (~3-8s). Skip it when the project
+      // context is small enough that the static per-agent rules are sufficient.
       let plan: WranglerPlan;
-      try {
-        const wranglerAgent = await this.agents.load('Wrangler');
+      const totalFileTokens = wranglerInput.fileManifest.reduce((sum, f) => sum + f.tokens, 0);
+      const totalChapterTokens = wranglerInput.chapters.reduce((sum, c) => sum + c.draftTokens + c.notesTokens, 0);
+      const totalProjectTokens = totalFileTokens + totalChapterTokens;
+      const conversationTurns = wranglerInput.conversation.turnCount;
 
-        // 7. Call the Wrangler CLI — cheap Sonnet call to decide what context to load
-        const planJson = await this.claude.sendOneShot({
-          model: WRANGLER_MODEL,
-          systemPrompt: wranglerAgent.systemPrompt,
-          userMessage: JSON.stringify(wranglerInput),
-          maxTokens: WRANGLER_MAX_TOKENS,
-        });
+      const needsWrangler = totalProjectTokens > WRANGLER_SKIP_THRESHOLD
+        || conversationTurns > WRANGLER_SKIP_TURN_THRESHOLD;
 
-        // 8. Parse the response as WranglerPlan
+      if (needsWrangler) {
         try {
-          plan = JSON.parse(planJson) as WranglerPlan;
-        } catch {
-          console.warn('Wrangler returned invalid JSON, using fallback plan');
-          plan = this.buildFallbackPlan(wranglerInput);
-        }
+          const wranglerAgent = await this.agents.load('Wrangler');
 
-        // 9. Validate the plan — must have all three required sections
-        if (!plan.files || !plan.chapters || !plan.conversation) {
-          console.warn('Wrangler plan missing required fields, using fallback plan');
+          // 7. Call the Wrangler CLI — cheap Sonnet call to decide what context to load
+          const planJson = await this.claude.sendOneShot({
+            model: WRANGLER_MODEL,
+            systemPrompt: wranglerAgent.systemPrompt,
+            userMessage: JSON.stringify(wranglerInput),
+            maxTokens: WRANGLER_MAX_TOKENS,
+          });
+
+          // 8. Parse the response as WranglerPlan
+          try {
+            plan = JSON.parse(planJson) as WranglerPlan;
+          } catch {
+            console.warn('Wrangler returned invalid JSON, using fallback plan');
+            plan = this.buildFallbackPlan(wranglerInput);
+          }
+
+          // 9. Validate the plan — must have all three required sections
+          if (!plan.files || !plan.chapters || !plan.conversation) {
+            console.warn('Wrangler plan missing required fields, using fallback plan');
+            plan = this.buildFallbackPlan(wranglerInput);
+          }
+        } catch (err) {
+          console.warn('Wrangler agent load or CLI call failed, using fallback plan:', err);
           plan = this.buildFallbackPlan(wranglerInput);
         }
-      } catch (err) {
-        console.warn('Wrangler agent load or CLI call failed, using fallback plan:', err);
+      } else {
+        // Small context — use static rules directly, skip the Wrangler API call
         plan = this.buildFallbackPlan(wranglerInput);
       }
 

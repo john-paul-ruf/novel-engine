@@ -10,6 +10,7 @@ type ChatState = {
   isThinking: boolean;
   streamBuffer: string;
   thinkingBuffer: string;
+  statusMessage: string;
   conversationUsage: UsageRecord[] | null;
 
   // Pipeline lock state
@@ -42,6 +43,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isThinking: false,
   streamBuffer: '',
   thinkingBuffer: '',
+  statusMessage: '',
   conversationUsage: null,
   pipelineLocked: true,
   lockedAgentName: null,
@@ -111,6 +113,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: true,
       streamBuffer: '',
       thinkingBuffer: '',
+      statusMessage: 'Responding…',
     }));
 
     try {
@@ -217,11 +220,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { activeConversation } = get();
 
     switch (event.type) {
+      case 'status':
+        set({ statusMessage: event.message });
+        break;
+
       case 'blockStart':
         if (event.blockType === 'thinking') {
-          set({ isThinking: true, isStreaming: true });
+          set({ isThinking: true, isStreaming: true, statusMessage: '' });
         } else if (event.blockType === 'text') {
-          set({ isThinking: false });
+          set({ isThinking: false, statusMessage: '' });
         }
         break;
 
@@ -250,6 +257,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               isThinking: false,
               streamBuffer: '',
               thinkingBuffer: '',
+              statusMessage: '',
             });
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
@@ -258,6 +266,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               isThinking: false,
               streamBuffer: '',
               thinkingBuffer: '',
+              statusMessage: '',
             });
           });
         } else {
@@ -266,6 +275,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isThinking: false,
             streamBuffer: '',
             thinkingBuffer: '',
+            statusMessage: '',
           });
         }
         break;
@@ -286,6 +296,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isThinking: false,
             streamBuffer: '',
             thinkingBuffer: '',
+            statusMessage: '',
           };
         });
         break;

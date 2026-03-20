@@ -95,6 +95,7 @@ export class ChatService {
       const conversation = this.db.getConversation(conversationId);
 
       // Step 5b: Assemble context via the Wrangler (two-call pattern)
+      onEvent({ type: 'status', message: 'Assembling context…' });
       const assembled = await this.contextWrangler.assemble({
         agentName,
         userMessage: message,
@@ -121,6 +122,7 @@ export class ChatService {
       const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
       // Step 9: Call the Claude CLI with response capture
+      onEvent({ type: 'status', message: 'Waiting for response…' });
       let responseBuffer = '';
       let thinkingBuffer = '';
 

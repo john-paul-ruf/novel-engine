@@ -34,10 +34,14 @@ export class ClaudeCodeClient implements IClaudeClient {
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
 
-    // Build CLI args
+    // Build CLI args:
+    // --verbose is required for stream-json with --print
+    // --include-partial-messages enables content_block_delta events for real-time streaming
     const args = [
       '--print',
+      '--verbose',
       '--output-format', 'stream-json',
+      '--include-partial-messages',
       '--model', model,
       '--system-prompt', systemPrompt,
     ];
@@ -52,6 +56,7 @@ export class ClaudeCodeClient implements IClaudeClient {
       let stderrBuffer = '';
       let thinkingBuffer = '';
       let currentBlockType: StreamBlockType | null = null;
+      let hasEmittedText = false;
       let settled = false;
 
       const settle = (fn: () => void) => {
@@ -77,10 +82,12 @@ export class ClaudeCodeClient implements IClaudeClient {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
-            this.mapStreamEvent(event, onEvent, thinkingBuffer, currentBlockType, (tb) => {
+            this.mapStreamEvent(event, onEvent, thinkingBuffer, currentBlockType, hasEmittedText, (tb) => {
               thinkingBuffer = tb;
             }, (bt) => {
               currentBlockType = bt;
+            }, () => {
+              hasEmittedText = true;
             });
           } catch {
             // Skip unparseable lines
@@ -97,10 +104,12 @@ export class ClaudeCodeClient implements IClaudeClient {
         if (stdoutBuffer.trim()) {
           try {
             const event = JSON.parse(stdoutBuffer.trim());
-            this.mapStreamEvent(event, onEvent, thinkingBuffer, currentBlockType, (tb) => {
+            this.mapStreamEvent(event, onEvent, thinkingBuffer, currentBlockType, hasEmittedText, (tb) => {
               thinkingBuffer = tb;
             }, (bt) => {
               currentBlockType = bt;
+            }, () => {
+              hasEmittedText = true;
             });
           } catch {
             // Skip unparseable remainder
@@ -209,60 +218,86 @@ export class ClaudeCodeClient implements IClaudeClient {
 
   /**
    * Map a parsed CLI stream-json event to our StreamEvent type and emit it.
+   *
+   * The Claude CLI `--output-format stream-json` emits events following the
+   * Anthropic streaming API convention:
+   *
+   *   {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+   *   {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}
+   *   {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"..."}}
+   *   {"type":"content_block_stop","index":0}
+   *   {"type":"result","subtype":"success","result":"Hello!","cost_usd":0.001,...}
    */
   private mapStreamEvent(
     event: Record<string, unknown>,
     onEvent: (event: StreamEvent) => void,
     thinkingBuffer: string,
     currentBlockType: StreamBlockType | null,
+    hasEmittedText: boolean,
     setThinkingBuffer: (tb: string) => void,
     setCurrentBlockType: (bt: StreamBlockType | null) => void,
+    markTextEmitted: () => void,
   ): void {
-    const subtype = event.subtype as string | undefined;
-    const content = event.content as string | undefined;
-    const isBlockStart = event.content_block_start === true;
-    const isBlockStop = event.content_block_stop === true;
     const eventType = event.type as string;
 
-    // Result event — final summary with token usage
+    // Result event — final summary with token usage.
+    // Also contains the full response text in `result` as a fallback
+    // in case content_block_delta events were not emitted.
     if (eventType === 'result') {
-      const inputTokens = (event.input_tokens as number) || 0;
-      const outputTokens = (event.output_tokens as number) || 0;
+      // Fallback: if no textDelta events were received, emit the full result text
+      const resultText = event.result as string | undefined;
+      if (resultText && !hasEmittedText) {
+        onEvent({ type: 'blockStart', blockType: 'text' });
+        onEvent({ type: 'textDelta', text: resultText });
+        onEvent({ type: 'blockEnd', blockType: 'text' });
+      }
+
+      const usage = event.usage as Record<string, number> | undefined;
+      const inputTokens = usage?.input_tokens ?? 0;
+      const outputTokens = usage?.output_tokens ?? 0;
       const thinkingTokens = Math.ceil(thinkingBuffer.length / CHARS_PER_TOKEN);
       onEvent({ type: 'done', inputTokens, outputTokens, thinkingTokens });
       return;
     }
 
-    // Block start events
-    if (isBlockStart && subtype === 'thinking') {
-      setCurrentBlockType('thinking');
-      onEvent({ type: 'blockStart', blockType: 'thinking' });
+    // content_block_start — detect whether this is a thinking or text block
+    if (eventType === 'content_block_start') {
+      const contentBlock = event.content_block as Record<string, unknown> | undefined;
+      const blockType: StreamBlockType = contentBlock?.type === 'thinking' ? 'thinking' : 'text';
+      setCurrentBlockType(blockType);
+      onEvent({ type: 'blockStart', blockType });
       return;
     }
 
-    if (isBlockStart && subtype === 'text') {
-      setCurrentBlockType('text');
-      onEvent({ type: 'blockStart', blockType: 'text' });
+    // content_block_delta — extract text from the delta object
+    if (eventType === 'content_block_delta') {
+      const delta = event.delta as Record<string, unknown> | undefined;
+      if (!delta) return;
+
+      const deltaType = delta.type as string | undefined;
+
+      if (deltaType === 'thinking_delta' || deltaType === 'thinking') {
+        const text = (delta.thinking as string) ?? '';
+        setThinkingBuffer(thinkingBuffer + text);
+        onEvent({ type: 'thinkingDelta', text });
+        return;
+      }
+
+      if (deltaType === 'text_delta' || deltaType === 'text') {
+        const text = (delta.text as string) ?? '';
+        markTextEmitted();
+        onEvent({ type: 'textDelta', text });
+        return;
+      }
+
       return;
     }
 
-    // Block stop events
-    if (isBlockStop) {
-      const blockType = currentBlockType || (subtype as StreamBlockType) || 'text';
+    // content_block_stop — close the current block
+    if (eventType === 'content_block_stop') {
+      const blockType = currentBlockType || 'text';
       onEvent({ type: 'blockEnd', blockType });
       setCurrentBlockType(null);
-      return;
-    }
-
-    // Content delta events (have content but no block start/stop flags)
-    if (content !== undefined && subtype === 'thinking') {
-      setThinkingBuffer(thinkingBuffer + content);
-      onEvent({ type: 'thinkingDelta', text: content });
-      return;
-    }
-
-    if (content !== undefined && subtype === 'text') {
-      onEvent({ type: 'textDelta', text: content });
       return;
     }
   }
