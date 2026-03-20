@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { marked } from 'marked';
-import type { Message } from '@domain/types';
+import type { Conversation, Message } from '@domain/types';
 import { ThinkingBlock } from './ThinkingBlock';
 import { CHARS_PER_TOKEN } from '@domain/constants';
 
@@ -9,9 +9,10 @@ marked.setOptions({ breaks: true, gfm: true });
 type MessageBubbleProps = {
   message: Message;
   toolActivity?: string[];  // file paths written during this message's generation
+  conversationOverride?: Conversation;  // used by modal to bypass chatStore
 };
 
-export function MessageBubble({ message, toolActivity }: MessageBubbleProps): React.ReactElement {
+export function MessageBubble({ message, toolActivity, conversationOverride }: MessageBubbleProps): React.ReactElement {
   const isUser = message.role === 'user';
   const hasThinking = message.thinking.length > 0;
 

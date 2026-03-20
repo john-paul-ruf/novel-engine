@@ -1,9 +1,11 @@
 import { useViewStore } from '../../stores/viewStore';
+import { useModalChatStore } from '../../stores/modalChatStore';
 import { ChatView } from '../Chat/ChatView';
 import { FilesView } from '../Files/FilesView';
 import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
 import { RevisionQueueView } from '../RevisionQueue';
+import { ChatModal } from '../Chat/ChatModal';
 import { Sidebar } from './Sidebar';
 
 function ViewContent(): React.ReactElement {
@@ -30,12 +32,15 @@ function ViewContent(): React.ReactElement {
 }
 
 export function AppLayout(): React.ReactElement {
+  const isModalOpen = useModalChatStore((s) => s.isOpen);
+
   return (
     <div className="flex h-screen w-screen bg-zinc-950 text-zinc-100">
       <Sidebar />
       <main className="flex-1 overflow-hidden">
         <ViewContent />
       </main>
+      {isModalOpen && <ChatModal />}
     </div>
   );
 }

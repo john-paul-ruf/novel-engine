@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { useChatStore } from '../../stores/chatStore';
 import { useBookStore } from '../../stores/bookStore';
-import { useViewStore } from '../../stores/viewStore';
+import { useModalChatStore } from '../../stores/modalChatStore';
 import type { UsageSummary } from '@domain/types';
 
 type ModelOption = { id: string; label: string; description: string };
@@ -337,29 +336,12 @@ function AuthorProfileSection(): React.ReactElement {
     [update],
   );
 
+  const openModal = useModalChatStore((s) => s.open);
+
   const handleEditWithVerity = useCallback(async () => {
     const { activeSlug } = useBookStore.getState();
-    const chatStore = useChatStore.getState();
-    const viewStore = useViewStore.getState();
-
-    // Find existing author-profile conversation or create new one
-    const existing = chatStore.conversations.find(
-      (c) => c.purpose === 'author-profile',
-    );
-
-    if (existing) {
-      await chatStore.setActiveConversation(existing.id);
-    } else {
-      await chatStore.createConversation(
-        'Verity',
-        activeSlug || '',
-        null,
-        'author-profile',
-      );
-    }
-
-    viewStore.navigate('chat');
-  }, []);
+    await openModal('author-profile', activeSlug || '');
+  }, [openModal]);
 
   const handleSaveManual = useCallback(async () => {
     setSaving(true);

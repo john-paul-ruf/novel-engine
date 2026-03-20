@@ -1,0 +1,250 @@
+import { create } from 'zustand';
+import type { Conversation, ConversationPurpose, Message, StreamEvent } from '@domain/types';
+import { streamRouter } from './streamRouter';
+
+type ModalChatState = {
+  // Visibility
+  isOpen: boolean;
+  purpose: ConversationPurpose | null;
+  bookSlug: string;
+
+  // Conversation state
+  conversation: Conversation | null;
+  messages: Message[];
+  isStreaming: boolean;
+  isThinking: boolean;
+  streamBuffer: string;
+  thinkingBuffer: string;
+  statusMessage: string;
+
+  // Actions
+  open: (purpose: ConversationPurpose, bookSlug: string) => Promise<void>;
+  close: () => void;
+  sendMessage: (content: string) => Promise<void>;
+
+  // Stream handling (internal)
+  _handleStreamEvent: (event: StreamEvent) => void;
+  _cleanupListener: (() => void) | null;
+  initStreamListener: () => void;
+  destroyStreamListener: () => void;
+};
+
+export const useModalChatStore = create<ModalChatState>((set, get) => ({
+  isOpen: false,
+  purpose: null,
+  bookSlug: '',
+  conversation: null,
+  messages: [],
+  isStreaming: false,
+  isThinking: false,
+  streamBuffer: '',
+  thinkingBuffer: '',
+  statusMessage: '',
+  _cleanupListener: null,
+
+  open: async (purpose: ConversationPurpose, bookSlug: string) => {
+    try {
+      const conversations = await window.novelEngine.chat.getConversations(bookSlug);
+      const existing = conversations.find(
+        (c) => c.purpose === purpose && c.bookSlug === bookSlug,
+      );
+
+      if (existing) {
+        const messages = await window.novelEngine.chat.getMessages(existing.id);
+        set({
+          isOpen: true,
+          purpose,
+          bookSlug,
+          conversation: existing,
+          messages,
+        });
+      } else {
+        const conversation = await window.novelEngine.chat.createConversation({
+          bookSlug,
+          agentName: 'Verity',
+          pipelinePhase: null,
+          purpose,
+        });
+        set({
+          isOpen: true,
+          purpose,
+          bookSlug,
+          conversation,
+          messages: [],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to open modal chat:', error);
+    }
+  },
+
+  close: () => {
+    const { isStreaming } = get();
+    if (isStreaming) return;
+    set({ isOpen: false });
+  },
+
+  sendMessage: async (content: string) => {
+    const { conversation, bookSlug } = get();
+    if (!conversation) return;
+
+    const tempMessage: Message = {
+      id: 'temp-' + Date.now(),
+      role: 'user',
+      content,
+      thinking: '',
+      conversationId: conversation.id,
+      timestamp: new Date().toISOString(),
+    };
+
+    streamRouter.target = 'modal';
+
+    set((state) => ({
+      messages: [...state.messages, tempMessage],
+      isStreaming: true,
+      streamBuffer: '',
+      thinkingBuffer: '',
+      statusMessage: 'Responding…',
+    }));
+
+    try {
+      await window.novelEngine.chat.send({
+        agentName: conversation.agentName,
+        message: content,
+        conversationId: conversation.id,
+        bookSlug,
+      });
+    } catch (error) {
+      console.error('Failed to send modal message:', error);
+      const errorMessage: Message = {
+        id: 'error-' + Date.now(),
+        role: 'assistant',
+        content: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
+        thinking: '',
+        conversationId: conversation.id,
+        timestamp: new Date().toISOString(),
+      };
+      set((state) => ({
+        messages: [...state.messages, errorMessage],
+        isStreaming: false,
+        isThinking: false,
+        streamBuffer: '',
+        thinkingBuffer: '',
+      }));
+      streamRouter.target = 'main';
+    }
+  },
+
+  _handleStreamEvent: (event: StreamEvent) => {
+    if (streamRouter.target !== 'modal') return;
+
+    const { conversation } = get();
+
+    switch (event.type) {
+      case 'status':
+        set({ statusMessage: event.message });
+        break;
+
+      case 'blockStart':
+        if (event.blockType === 'thinking') {
+          set({ isThinking: true, isStreaming: true, statusMessage: '' });
+        } else if (event.blockType === 'text') {
+          set({ isThinking: false, statusMessage: '' });
+        }
+        break;
+
+      case 'thinkingDelta':
+        set((state) => ({ thinkingBuffer: state.thinkingBuffer + event.text }));
+        break;
+
+      case 'textDelta':
+        set((state) => ({ streamBuffer: state.streamBuffer + event.text }));
+        break;
+
+      case 'blockEnd':
+        break;
+
+      case 'toolUse':
+        break;
+
+      case 'filesChanged':
+        break;
+
+      case 'done':
+        if (conversation) {
+          window.novelEngine.chat.getMessages(conversation.id)
+            .then((messages) => {
+              set({
+                messages,
+                isStreaming: false,
+                isThinking: false,
+                streamBuffer: '',
+                thinkingBuffer: '',
+                statusMessage: '',
+              });
+              streamRouter.target = 'main';
+            })
+            .catch((error) => {
+              console.error('Failed to reload modal messages after done:', error);
+              set({
+                isStreaming: false,
+                isThinking: false,
+                streamBuffer: '',
+                thinkingBuffer: '',
+                statusMessage: '',
+              });
+              streamRouter.target = 'main';
+            });
+        } else {
+          set({
+            isStreaming: false,
+            isThinking: false,
+            streamBuffer: '',
+            thinkingBuffer: '',
+            statusMessage: '',
+          });
+          streamRouter.target = 'main';
+        }
+        break;
+
+      case 'error':
+        set((state) => {
+          const errorMessage: Message = {
+            id: 'error-' + Date.now(),
+            role: 'assistant',
+            content: `Error: ${event.message}`,
+            thinking: '',
+            conversationId: conversation?.id ?? '',
+            timestamp: new Date().toISOString(),
+          };
+          return {
+            messages: [...state.messages, errorMessage],
+            isStreaming: false,
+            isThinking: false,
+            streamBuffer: '',
+            thinkingBuffer: '',
+            statusMessage: '',
+          };
+        });
+        streamRouter.target = 'main';
+        break;
+    }
+  },
+
+  initStreamListener: () => {
+    const { _cleanupListener, _handleStreamEvent } = get();
+    if (_cleanupListener) {
+      _cleanupListener();
+    }
+    const cleanup = window.novelEngine.chat.onStreamEvent(_handleStreamEvent);
+    set({ _cleanupListener: cleanup });
+  },
+
+  destroyStreamListener: () => {
+    const { _cleanupListener } = get();
+    if (_cleanupListener) {
+      _cleanupListener();
+    }
+    set({ _cleanupListener: null });
+  },
+}));

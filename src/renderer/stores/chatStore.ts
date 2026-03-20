@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
 import { useBookStore } from './bookStore';
+import { streamRouter } from './streamRouter';
 
 type ChatState = {
   activeConversation: Conversation | null;
@@ -232,6 +233,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   _handleStreamEvent: (event: StreamEvent) => {
+    if (streamRouter.target !== 'main') return;
+
     const { activeConversation } = get();
 
     switch (event.type) {
