@@ -129,6 +129,9 @@ export class ChatService {
       // Step 8b: Determine thinking budget
       const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
+      // Step 8c: Emit callStart metadata so the activity monitor knows what's happening
+      onEvent({ type: 'callStart', agentName, model: appSettings.model, bookSlug });
+
       // Step 9: Call the agent — ONE call, no Wrangler pre-call
       onEvent({ type: 'status', message: 'Waiting for response…' });
       let responseBuffer = '';

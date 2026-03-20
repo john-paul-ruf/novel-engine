@@ -110,6 +110,7 @@ export type ToolUseInfo = {
 };
 
 export type StreamEvent =
+  | { type: 'callStart'; agentName: AgentName; model: string; bookSlug: string }
   | { type: 'status'; message: string }
   | { type: 'blockStart'; blockType: StreamBlockType }
   | { type: 'thinkingDelta'; text: string }
