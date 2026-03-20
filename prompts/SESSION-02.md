@@ -107,11 +107,14 @@ type Message = {
   timestamp: string;       // ISO date
 };
 
+type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile';
+
 type Conversation = {
   id: string;
   bookSlug: string;
   agentName: AgentName;
   pipelinePhase: PipelinePhaseId | null;
+  purpose: ConversationPurpose;  // defaults to 'pipeline'
   title: string;           // derived from first user message
   createdAt: string;
   updatedAt: string;
@@ -446,7 +449,7 @@ Export every interface.
 ### File 3: `src/domain/constants.ts`
 
 ```typescript
-import type { AgentName, AgentMeta, PipelinePhaseId, AppSettings } from './types';
+import type { AgentName, AgentMeta, CreativeAgentName, PipelinePhaseId, AppSettings } from './types';
 
 // Agent metadata (everything except the systemPrompt, which comes from files)
 // IMPORTANT: Filenames MUST match the actual files in the agents/ directory.

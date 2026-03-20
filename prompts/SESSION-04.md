@@ -24,6 +24,7 @@ conversations (
   book_slug     TEXT NOT NULL,
   agent_name    TEXT NOT NULL,
   pipeline_phase TEXT,
+  purpose       TEXT NOT NULL DEFAULT 'pipeline',
   title         TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -63,10 +64,10 @@ Constructor: `constructor(dbPath: string)` — opens the SQLite database and cal
 **Implementation patterns:**
 - Use **prepared statements** stored as private class members, initialized in the constructor. This avoids re-preparing on every call.
 - Every method maps between the snake_case database columns and the camelCase domain types. Do this mapping explicitly in each method — don't use a generic mapper.
-- `createConversation`: Generates an ID using `nanoid()`. Returns the full `Conversation` object.
+- `createConversation`: Generates an ID using `nanoid()`. Accepts and stores the `purpose` field (maps to the `purpose` column, defaults to `'pipeline'`). Returns the full `Conversation` object including `purpose`.
 - `saveMessage`: Generates an ID using `nanoid()`. Also updates the parent conversation's `updated_at`. If this is the first user message, also sets the conversation's `title` to the first 80 characters of the message content.
 - `getMessages`: Returns messages ordered by `timestamp ASC`.
-- `listConversations`: Returns conversations for a book slug, ordered by `updated_at DESC`.
+- `listConversations`: Returns conversations for a book slug, ordered by `updated_at DESC`. Include `purpose` in the SELECT and camelCase mapping.
 - `recordUsage`: Simple insert.
 - `getUsageSummary`: Aggregates all usage. If `bookSlug` is provided, filter by joining through conversations.
 - `getUsageByConversation`: Returns all usage records for a conversation.

@@ -2,7 +2,7 @@
 
 ## How to Use These Prompts
 
-There are **19 sessions** below. Run them **in order**, one at a time, using the Claude Code CLI. Each session prompt:
+There are **20 sessions** below. Run them **in order**, one at a time, using the Claude Code CLI. Each session prompt:
 
 - Is self-contained — paste the whole thing into a fresh Claude Code session
 - States exactly what files to create or modify
@@ -200,3 +200,13 @@ The static `ContextBuilder` has been replaced with the **Context Wrangler** — 
 38. **SESSION-16 (MessageBubble):** Extended save button logic to check `activeConversation.purpose` in addition to `pipelinePhase`. Voice-setup conversations show "Save as Voice Profile" → writes via `files:write`. Author-profile conversations show "Save as Author Profile" → writes via `settings:saveAuthorProfile`. Uses sentinel path `__author-profile__` to distinguish IPC routing.
 39. **SESSION-15 (Sidebar):** Added `VoiceSetupButton` component between BookSelector and PipelineTracker. Shows "Set Up Voice Profile" with purple accent. Resumes existing voice-setup conversation if one exists for the active book, otherwise creates new one with Verity.
 40. **SESSION-16 (ConversationList):** Added purple "Voice Setup" and "Author Profile" badges on conversations with non-pipeline purpose.
+
+### Errata Round 7 — Inline Fixes (2026-03-20)
+
+The following errata from previous rounds were applied **directly into the session prompt files** (not just documented here):
+
+41. **SESSION-02:** `ConversationPurpose` type and `purpose` field on `Conversation` are now defined inline in the types code block (previously only in Round 6 errata notes). Added `CreativeAgentName` to the `constants.ts` import line.
+42. **SESSION-04:** `purpose TEXT NOT NULL DEFAULT 'pipeline'` column added directly to the `conversations` CREATE TABLE schema. `createConversation` and `listConversations` descriptions updated to include `purpose` handling.
+43. **SESSION-10:** Fixed stale `ChatService` constructor example. Changed "7th constructor dependency" to "6th" (post-Wrangler refactor: 5 existing + usage = 6). Fixed composition root example from `ChatService(settings, agents, db, fs, claudeClient, contextBuilder, usage)` to `ChatService(settings, agents, db, claudeClient, contextWrangler, usage)`.
+44. **SESSION-19:** Moved `OutputTarget` type definition from `constants.ts` to `types.ts` (types belong in `types.ts` per architecture rules). `constants.ts` imports `OutputTarget` from `./types`.
+45. **00-MASTER-GUIDE:** Fixed session count from "19 sessions" to "20 sessions".

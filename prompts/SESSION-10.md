@@ -155,13 +155,13 @@ const cost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_0
 
 ### Integration with ChatService (Session 09)
 
-Add `UsageService` as a 7th constructor dependency to `ChatService`. Replace inline `calculateCost` + `db.recordUsage` with `usage.recordUsage(...)`.
+Add `UsageService` as a 6th constructor dependency to `ChatService` (after the existing 5: `settings`, `agents`, `db`, `claude`, `contextWrangler`). Replace inline `calculateCost` + `db.recordUsage` with `usage.recordUsage(...)`.
 
 ### Integration with composition root (Session 12)
 
 ```typescript
 const usage = new UsageService(db);
-const chat = new ChatService(settings, agents, db, fs, claudeClient, contextBuilder, usage);
+const chat = new ChatService(settings, agents, db, claudeClient, contextWrangler, usage);
 ```
 
 ---

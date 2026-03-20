@@ -16,16 +16,23 @@ This is a **user-driven** save, not automatic. The user reads the agent's respon
 
 ## Task 1: File Persistence Rules
 
-Define which agent + phase combinations produce which files. Add this to `src/domain/constants.ts`:
+Define which agent + phase combinations produce which files.
+
+First, add the `OutputTarget` type to `src/domain/types.ts`:
 
 ```typescript
-// A single save target for an agent's output.
 type OutputTarget = {
   targetPath: string;                       // relative to book root
   description: string;                      // shown as the save button label
   isChapter?: boolean;                      // if true, prompt for chapter slug
 };
+```
 
+Export it alongside the other types.
+
+Then, add the constant to `src/domain/constants.ts` (import `OutputTarget` from `./types`):
+
+```typescript
 // Maps pipeline phase to one or more target files where agent output can be saved.
 // When a phase has multiple targets, the UI shows one save button per target so the
 // user can save different assistant messages to different files.
@@ -51,7 +58,7 @@ const AGENT_OUTPUT_TARGETS: Partial<Record<PipelinePhaseId, OutputTarget[]>> = {
 };
 ```
 
-Export the `OutputTarget` type and the `AGENT_OUTPUT_TARGETS` constant.
+Export `AGENT_OUTPUT_TARGETS` from `constants.ts`. The `OutputTarget` type is already exported from `types.ts`.
 
 ---
 
