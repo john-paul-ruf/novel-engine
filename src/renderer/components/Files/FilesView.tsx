@@ -5,6 +5,7 @@ import { useBookStore } from '../../stores/bookStore';
 import { FilesHeader } from './FilesHeader';
 import { FileBrowser } from './FileBrowser';
 import { FileEditor } from './FileEditor';
+import { StructuredBrowser } from './StructuredBrowser';
 import type { FileViewMode } from '../../stores/viewStore';
 import type { BookMeta, BookStatus } from '@domain/types';
 
@@ -342,6 +343,13 @@ export function FilesView(): React.ReactElement {
     [activeSlug, filePath],
   );
 
+  const handleFileEdit = useCallback(
+    (path: string) => {
+      navigate('files', { filePath: path, fileViewMode: 'editor' });
+    },
+    [navigate],
+  );
+
   const handleBackToBrowser = useCallback(() => {
     const parentDir = filePath ? filePath.split('/').slice(0, -1).join('/') : '';
     navigate('files', { fileBrowserPath: parentDir, fileViewMode: 'browser' });
@@ -376,11 +384,19 @@ export function FilesView(): React.ReactElement {
 
       {/* Content area */}
       {viewMode === 'browser' && (
-        <FileBrowser
-          currentPath={browserPath}
-          onNavigate={handleBrowse}
-          onFileSelect={handleFileSelect}
-        />
+        browserPath ? (
+          <FileBrowser
+            currentPath={browserPath}
+            onNavigate={handleBrowse}
+            onFileSelect={handleFileSelect}
+          />
+        ) : (
+          <StructuredBrowser
+            activeSlug={activeSlug}
+            onFileSelect={handleFileSelect}
+            onFileEdit={handleFileEdit}
+          />
+        )
       )}
 
       {viewMode === 'reader' && (
@@ -429,7 +445,11 @@ function ReaderContent({
   onClearFile: () => void;
 }): React.ReactElement {
   if (!filePath) {
-    return <NoFileSelected onFileSelect={onFileSelect} />;
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-zinc-500">Select a file to view</div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -481,38 +501,3 @@ function ReaderContent({
   );
 }
 
-const QUICK_ACCESS_FILES = [
-  { path: 'source/voice-profile.md', label: 'Voice Profile', icon: '🎤' },
-  { path: 'source/scene-outline.md', label: 'Scene Outline', icon: '📋' },
-  { path: 'source/story-bible.md', label: 'Story Bible', icon: '📖' },
-  { path: 'about.json', label: 'Book Info', icon: '📝' },
-];
-
-function NoFileSelected({ onFileSelect }: { onFileSelect: (path: string) => void }): React.ReactElement {
-  const { activeSlug } = useBookStore();
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-8">
-      <div className="text-center">
-        <div className="text-lg text-zinc-400">Select a file from the sidebar</div>
-        <div className="mt-1 text-sm text-zinc-600">or choose a common file below</div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {QUICK_ACCESS_FILES.map((file) => (
-          <button
-            key={file.path}
-            onClick={() => onFileSelect(file.path)}
-            disabled={!activeSlug}
-            className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span className="text-2xl">{file.icon}</span>
-            <div>
-              <div className="text-sm font-medium text-zinc-200">{file.label}</div>
-              <div className="text-xs text-zinc-500">{file.path}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
