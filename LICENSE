@@ -1,0 +1,76 @@
+PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 the.phoenix (john.paul.ruf@gmail.com). All Rights Reserved.
+
+NOTICE: This software and all associated files, documentation, source code,
+object code, and any derivative works (collectively, the "Software") are the
+exclusive property of the copyright holder identified above.
+
+1. GRANT OF LICENSE
+   No license, right, or interest in the Software is granted to any person or
+   entity under this agreement, whether by implication, estoppel, or otherwise.
+
+2. RESTRICTIONS
+   You may NOT, under any circumstances:
+   a) Use, execute, or run the Software for any purpose whatsoever;
+   b) Copy, reproduce, or duplicate the Software in whole or in part;
+   c) Modify, adapt, translate, reverse engineer, decompile, disassemble, or
+      create derivative works based on the Software;
+   d) Distribute, sublicense, lease, rent, loan, sell, resell, or otherwise
+      transfer the Software or any rights therein to any third party;
+   e) Display, publish, or make the Software available to any third party,
+      whether publicly or privately;
+   f) Remove, alter, or obscure any proprietary notices, labels, or marks on
+      the Software;
+   g) Use the Software to develop competing products or services;
+   h) Use the Software for benchmarking, performance testing, or comparative
+      analysis without prior written consent;
+   i) Store, host, or archive the Software on any server, repository, or
+      storage medium not owned and controlled by the copyright holder;
+   j) Reference, incorporate, or integrate any portion of the Software into
+      any other software, product, or service;
+   k) Use any ideas, algorithms, architectures, data structures, or
+      methodologies embodied in the Software for any purpose;
+   l) Train, fine-tune, or otherwise use the Software as input for any machine
+      learning model, artificial intelligence system, or automated data
+      processing system.
+
+3. NO OPEN SOURCE
+   This Software is NOT open source. No open-source license (including but not
+   limited to MIT, GPL, Apache, BSD, MPL, or any Creative Commons license)
+   applies to this Software, regardless of any metadata, configuration files,
+   or automated tooling that may suggest otherwise. In the event of any conflict
+   between this license and any other file in this repository (including but not
+   limited to package.json, README files, or CI/CD configurations), this LICENSE
+   file shall take absolute precedence.
+
+4. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. THE COPYRIGHT HOLDER
+   SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM
+   THE SOFTWARE.
+
+5. CONFIDENTIALITY
+   The Software constitutes confidential and proprietary trade secret
+   information. Any unauthorized access to, use of, or disclosure of the
+   Software may result in irreparable harm and shall entitle the copyright
+   holder to seek injunctive relief in addition to all other remedies available
+   at law or in equity.
+
+6. TERMINATION
+   Any rights inadvertently granted herein terminate immediately and
+   automatically upon any breach of this license. Upon termination, you must
+   destroy all copies of the Software in your possession.
+
+7. GOVERNING LAW
+   This license shall be governed by and construed in accordance with the laws
+   of the jurisdiction in which the copyright holder resides, without regard to
+   conflict of law principles.
+
+8. ENTIRE AGREEMENT
+   This license constitutes the entire agreement regarding the Software and
+   supersedes all prior agreements, understandings, and communications, whether
+   written or oral.
+
+For licensing inquiries, contact: john.paul.ruf@gmail.com
