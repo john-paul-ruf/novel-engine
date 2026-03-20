@@ -22,6 +22,7 @@ import type {
 import { AVAILABLE_MODELS } from '@domain/constants';
 import type { ChatService } from '@app/ChatService';
 import type { UsageService } from '@app/UsageService';
+import type { FilePersistenceService } from '@app/FilePersistenceService';
 
 export function registerIpcHandlers(services: {
   settings: ISettingsService;
@@ -32,6 +33,7 @@ export function registerIpcHandlers(services: {
   pipeline: IPipelineService;
   build: IBuildService;
   usage: UsageService;
+  filePersistence: FilePersistenceService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -154,6 +156,16 @@ export function registerIpcHandlers(services: {
       },
     });
   });
+
+  // === Chat (save to file) ===
+
+  ipcMain.handle('chat:saveToFile', async (_, params: {
+    bookSlug: string;
+    pipelinePhase: string;
+    targetPath: string;
+    content: string;
+    chapterSlug?: string;
+  }) => services.filePersistence.saveAgentOutput(params as Parameters<typeof services.filePersistence.saveAgentOutput>[0]));
 
   // === Pipeline ===
 

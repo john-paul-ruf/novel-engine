@@ -3,3 +3,4 @@ export { ChatService } from './ChatService';
 export { PipelineService } from './PipelineService';
 export { BuildService } from './BuildService';
 export { UsageService } from './UsageService';
+export { FilePersistenceService } from './FilePersistenceService';

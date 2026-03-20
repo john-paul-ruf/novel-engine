@@ -166,6 +166,14 @@ export type FileEntry = {
   children?: FileEntry[];
 };
 
+// === Output Persistence ===
+
+export type OutputTarget = {
+  targetPath: string;                       // relative to book root
+  description: string;                      // shown as the save button label
+  isChapter?: boolean;                      // if true, prompt for chapter slug
+};
+
 // === IPC ===
 // These define the exact shape of data crossing the IPC bridge.
 // The preload and handlers both conform to these.
