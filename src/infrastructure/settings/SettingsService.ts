@@ -34,20 +34,15 @@ export class SettingsService implements ISettingsService {
 
   async detectClaudeCli(): Promise<boolean> {
     try {
-      await execFile('claude', ['--version']);
+      // Only use --version — `claude doctor` is interactive (prompts "Press Enter")
+      // and will hang indefinitely when called from a child process with no stdin.
+      const { stdout } = await execFile('claude', ['--version'], { timeout: 10_000 });
+      const found = stdout.trim().length > 0;
+      await this.update({ hasClaudeCli: found });
+      return found;
     } catch {
       await this.update({ hasClaudeCli: false });
       return false;
     }
-
-    try {
-      await execFile('claude', ['doctor']);
-    } catch {
-      await this.update({ hasClaudeCli: false });
-      return false;
-    }
-
-    await this.update({ hasClaudeCli: true });
-    return true;
   }
 }
