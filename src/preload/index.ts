@@ -51,6 +51,8 @@ const api = {
       ipcRenderer.invoke('books:uploadCover', bookSlug),
     getCoverImagePath: (bookSlug: string): Promise<string | null> =>
       ipcRenderer.invoke('books:getCoverImagePath', bookSlug),
+    getAbsolutePath: (bookSlug: string, relativePath: string): Promise<string> =>
+      ipcRenderer.invoke('books:getAbsolutePath', bookSlug, relativePath),
   },
 
   // Files
@@ -107,6 +109,8 @@ const api = {
       ipcRenderer.on('build:progress', handler);
       return () => ipcRenderer.removeListener('build:progress', handler);
     },
+    exportZip: (bookSlug: string): Promise<string | null> =>
+      ipcRenderer.invoke('build:exportZip', bookSlug),
   },
 
   // Usage

@@ -1,6 +1,8 @@
 import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
 import * as fsPromises from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
 import * as path from 'node:path';
+import archiver from 'archiver';
 import type {
   ISettingsService,
   IAgentService,
@@ -97,6 +99,10 @@ export function registerIpcHandlers(services: {
     services.fs.getCoverImageAbsolutePath(slug),
   );
 
+  ipcMain.handle('books:getAbsolutePath', (_, bookSlug: string, relativePath: string) =>
+    path.join(paths.booksDir, bookSlug, relativePath),
+  );
+
   // === Files ===
 
   ipcMain.handle('files:read', (_, bookSlug: string, path: string) =>
@@ -169,6 +175,35 @@ export function registerIpcHandlers(services: {
   });
 
   ipcMain.handle('build:isPandocAvailable', () => services.build.isPandocAvailable());
+
+  ipcMain.handle('build:exportZip', async (event, bookSlug: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    const distDir = path.join(paths.booksDir, bookSlug, 'dist');
+    const meta = await services.fs.getBookMeta(bookSlug);
+    const slug = meta.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Export Build Artifacts',
+      defaultPath: `${slug}-build.zip`,
+      filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+    });
+
+    if (canceled || !filePath) return null;
+
+    return new Promise<string>((resolve, reject) => {
+      const output = createWriteStream(filePath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      output.on('close', () => resolve(filePath));
+      archive.on('error', reject);
+
+      archive.pipe(output);
+      archive.directory(distDir, false);
+      archive.finalize();
+    });
+  });
 
   // === Usage ===
 

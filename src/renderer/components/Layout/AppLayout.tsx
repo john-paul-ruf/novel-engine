@@ -1,5 +1,7 @@
 import { useViewStore } from '../../stores/viewStore';
 import { ChatView } from '../Chat/ChatView';
+import { FilesView } from '../Files/FilesView';
+import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
 import { Sidebar } from './Sidebar';
 
@@ -10,17 +12,9 @@ function ViewContent(): React.ReactElement {
     case 'chat':
       return <ChatView />;
     case 'files':
-      return (
-        <div className="flex h-full items-center justify-center text-zinc-500">
-          <p className="text-lg">Files View</p>
-        </div>
-      );
+      return <FilesView />;
     case 'build':
-      return (
-        <div className="flex h-full items-center justify-center text-zinc-500">
-          <p className="text-lg">Build View</p>
-        </div>
-      );
+      return <BuildView />;
     case 'settings':
       return <SettingsView />;
     default:

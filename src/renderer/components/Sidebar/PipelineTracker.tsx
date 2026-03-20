@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { PhaseStatus, PipelinePhase } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -48,6 +49,7 @@ export function PipelineTracker(): React.ReactElement {
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate } = useViewStore();
+  const [publishWarning, setPublishWarning] = useState<string | null>(null);
 
   if (!activeSlug || phases.length === 0) {
     return (
@@ -91,6 +93,21 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
+    // Safety net: publish requires build artifacts
+    if (phase.id === 'publish') {
+      try {
+        const exists = await window.novelEngine.files.exists(activeSlug, 'dist/output.md');
+        if (!exists) {
+          setPublishWarning('Run the Build step first to generate output files.');
+          setTimeout(() => setPublishWarning(null), 5000);
+          return;
+        }
+      } catch {
+        // If check fails, proceed anyway — pipeline status should prevent this
+      }
+    }
+
+    setPublishWarning(null);
     await openOrCreateConversation(phase);
   };
 
@@ -99,6 +116,11 @@ export function PipelineTracker(): React.ReactElement {
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
         Pipeline
       </div>
+      {publishWarning && (
+        <div className="mb-2 rounded bg-amber-950 px-2 py-1.5 text-[10px] text-amber-300">
+          {publishWarning}
+        </div>
+      )}
       <div>
         {phases.map((phase, index) => (
           <div key={phase.id}>
