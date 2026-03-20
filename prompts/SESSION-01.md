@@ -21,8 +21,9 @@ Run the Electron Forge create command with the Vite TypeScript template. Project
 - `zustand` (state management)
 - `better-sqlite3` (local database)
 - `@anthropic-ai/sdk` (Claude API)
-- `execa` (for running Pandoc)
+- `execa@^5` (for running Pandoc — pin to v5, the last CJS-compatible version)
 - `marked` (markdown rendering)
+- `@tailwindcss/typography` (prose classes for rendered markdown)
 - `nanoid` (ID generation)
 
 **Dev:**
@@ -81,13 +82,14 @@ novel-engine/
 
 - `src/renderer/main.tsx`: Standard React 18 `createRoot` mounting `<App />`
 - `src/renderer/App.tsx`: A simple component that renders "Novel Engine" centered on screen. Use Tailwind classes. Dark background (`bg-gray-950 text-gray-100`).
-- `src/renderer/styles/globals.css`: Tailwind `@import "tailwindcss"` directive
+- `src/renderer/styles/globals.css`: Tailwind directives — `@import "tailwindcss"` and `@plugin "@tailwindcss/typography"` (enables `prose` classes for markdown rendering)
 
 ### 7. Configure Vite
 
 - `vite.renderer.config.ts`: Add `@vitejs/plugin-react` and `@tailwindcss/vite` plugins
 - Make sure the renderer config resolves `.tsx` files
-- Ensure path aliases work: `@domain/*` → `src/domain/*`, `@infra/*` → `src/infrastructure/*`, `@app/*` → `src/application/*`
+- Ensure path aliases work **in all three Vite configs** (main, preload, and renderer): `@domain/*` → `src/domain/*`, `@infra/*` → `src/infrastructure/*`, `@app/*` → `src/application/*`
+- The preload config needs these aliases because it will use `import type` from `@domain` in Session 11
 
 ### 8. Configure TypeScript
 

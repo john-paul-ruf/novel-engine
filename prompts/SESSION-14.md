@@ -138,7 +138,7 @@ ipcMain.handle('settings:loadAuthorProfile', async () => {
 });
 ```
 
-These handlers use `paths.userDataPath` from the `paths` parameter added in PATCH-03. Import `fs/promises` as `fsPromises` and `path` from `node:path` at the top of handlers file.
+These handlers use `paths.userDataPath` from the `paths` parameter in the `registerIpcHandlers` function signature (defined in Session 11). Import `fs/promises` as `fsPromises` and `path` from `node:path` at the top of handlers file.
 
 Update preload `api.settings` in `src/preload/index.ts`:
 

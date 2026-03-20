@@ -28,6 +28,7 @@ export function registerIpcHandlers(services: {
   chat: ChatService;
   pipeline: IPipelineService;
   build: IBuildService;
+  usage: UsageService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -102,10 +103,10 @@ ipcMain.handle('build:run', async (event, bookSlug: string) => {
 - `'build:isPandocAvailable'` → `services.build.isPandocAvailable()`
 
 **Usage:**
-- `'usage:summary'` → `(_, bookSlug?: string)` → `services.db.getUsageSummary(bookSlug)`
-- `'usage:byConversation'` → `(_, conversationId: string)` → `services.db.getUsageByConversation(conversationId)`
+- `'usage:summary'` → `(_, bookSlug?: string)` → `services.usage.getSummary(bookSlug)`
+- `'usage:byConversation'` → `(_, conversationId: string)` → `services.usage.getByConversation(conversationId)`
 
-> **Forward compatibility note:** Sessions 14 and 17 will add additional IPC channels (`settings:saveAuthorProfile`, `settings:loadAuthorProfile`, `books:getAbsolutePath`, `shell:openPath`). These require the `paths` parameter added above. When implementing those sessions, add the handlers to the same `registerIpcHandlers` function and update the preload accordingly.
+> **Forward compatibility note:** Sessions 14 and 17 will add additional IPC channels (`settings:saveAuthorProfile`, `settings:loadAuthorProfile`, `books:getAbsolutePath`, `shell:openPath`). These use the `paths` parameter in the function signature above. When implementing those sessions, add the handlers to the same `registerIpcHandlers` function and update the preload accordingly.
 
 ---
 

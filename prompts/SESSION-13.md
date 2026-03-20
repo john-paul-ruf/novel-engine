@@ -201,6 +201,7 @@ Style the nav buttons: active state uses `bg-zinc-800`, hover uses `bg-zinc-800/
 
 ```css
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar { width: 8px; }

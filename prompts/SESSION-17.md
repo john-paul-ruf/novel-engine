@@ -51,7 +51,7 @@ useEffect(() => {
 }, [payload.filePath]);
 ```
 
-This connects to FileTree sidebar (PATCH-06) which calls `viewStore.navigate('files', { filePath })`.
+This connects to the FileTree sidebar component (Session 15) which calls `viewStore.navigate('files', { filePath })`.
 
 **No file selected state:**
 Show a centered message: "Select a file from the sidebar" with a grid of quick-access cards for common files: voice-profile.md, scene-outline.md, story-bible.md, about.json.
@@ -203,7 +203,7 @@ getAbsolutePath: (bookSlug: string, relativePath: string): Promise<string> =>
   ipcRenderer.invoke('books:getAbsolutePath', bookSlug, relativePath),
 ```
 
-The `books:getAbsolutePath` handler uses `paths.booksDir` from PATCH-03:
+The `books:getAbsolutePath` handler uses `paths.booksDir` from the `registerIpcHandlers` function signature (defined in Session 11):
 
 ```typescript
 ipcMain.handle('books:getAbsolutePath', (_, bookSlug: string, relativePath: string) => {

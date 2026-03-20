@@ -48,7 +48,22 @@ constructor(
 6. Return the `BookMeta`
 
 **`loadBookContext(slug)`:**
-Read all source files using a private `safeRead(path)` helper that returns empty string on any error. Read all chapter directories sorted numerically, loading `draft.md` and `notes.md` from each. Assemble into `BookContext`.
+Read all source files using a private `safeRead(path)` helper that returns empty string on any error. The field-to-filename mapping is:
+
+| BookContext field | File path |
+|---|---|
+| `authorProfile` | `{userDataDir}/author-profile.md` (NOTE: lives in user data root, not in the book) |
+| `voiceProfile` | `source/voice-profile.md` |
+| `sceneOutline` | `source/scene-outline.md` |
+| `storyBible` | `source/story-bible.md` |
+| `readerReport` | `source/reader-report.md` |
+| `devReport` | `source/dev-report.md` |
+| `auditReport` | `source/audit-report.md` |
+| `styleSheet` | `source/style-sheet.md` |
+| `projectTasks` | `source/project-tasks.md` |
+| `revisionPrompts` | `source/revision-prompts.md` |
+
+Read all chapter directories sorted numerically, loading `draft.md` and `notes.md` from each. Assemble into `BookContext`.
 
 **`readFile(bookSlug, relativePath)`:** Read from `booksDir/{slug}/{relativePath}`. Throw if not found.
 
@@ -57,7 +72,7 @@ Read all source files using a private `safeRead(path)` helper that returns empty
 **`fileExists(bookSlug, relativePath)`:** Check existence, return boolean.
 
 **`listDirectory(bookSlug, relativePath?)`:**
-Build a recursive `FileEntry[]` tree, max depth 3. Skip `.git`, `node_modules`, `dist` directories. Sort directories first, then files, both alphabetically.
+Build a recursive `FileEntry[]` tree, max depth 3. Skip `.git` and `node_modules` directories. Sort directories first, then files, both alphabetically.
 
 **`countWords(slug)`:** Sum words across all `chapters/*/draft.md` files. Words = split on `/\s+/`, filter empty.
 

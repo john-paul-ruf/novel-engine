@@ -57,6 +57,7 @@ import { ContextBuilder } from '@app/ContextBuilder';
 import { ChatService } from '@app/ChatService';
 import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
+import { UsageService } from '@app/UsageService';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -140,13 +141,14 @@ async function initializeApp() {
 
   // 4. Instantiate application services
   const contextBuilder = new ContextBuilder();
-  const chat = new ChatService(settings, agents, db, fs, anthropicClient, contextBuilder);
+  const usage = new UsageService(db);
+  const chat = new ChatService(settings, agents, db, fs, anthropicClient, contextBuilder, usage);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
 
   // 5. Register IPC handlers
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, pipeline, build },
+    { settings, agents, db, fs, chat, pipeline, build, usage },
     { userDataPath, booksDir }
   );
 

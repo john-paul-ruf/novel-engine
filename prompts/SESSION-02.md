@@ -284,7 +284,7 @@ Export every interface.
 ### File 3: `src/domain/constants.ts`
 
 ```typescript
-import type { AgentName, PipelinePhaseId, AppSettings } from './types';
+import type { AgentName, AgentMeta, PipelinePhaseId, AppSettings } from './types';
 
 // Agent metadata (everything except the systemPrompt, which comes from files)
 const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
