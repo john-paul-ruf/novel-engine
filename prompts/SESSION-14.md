@@ -1,0 +1,164 @@
+# Session 14 — Onboarding Wizard + Settings Panel
+
+## Context
+
+Novel Engine Electron app. Session 13 created the UI shell. Now I need the **onboarding wizard** (first-run API key setup) and the **settings panel** (ongoing configuration).
+
+## Architecture Rule
+
+All components in `src/renderer/components/`. Access data through Zustand stores. Stores access the backend through `window.novelEngine`. Use Tailwind for all styling. No external UI component libraries.
+
+---
+
+## Task 1: Onboarding Wizard
+
+### `src/renderer/components/Onboarding/OnboardingWizard.tsx`
+
+A full-screen, step-by-step wizard. No sidebar, no navigation — just the wizard. Shown when `settings.initialized === false`.
+
+**Step 1: Welcome**
+- App logo/name centered
+- Brief tagline: "Turn your ideas into polished manuscripts with AI agents that collaborate like a real publishing team."
+- "Get Started" button → next step
+
+**Step 2: API Key**
+- Heading: "Connect to Claude"
+- Explanation: "Novel Engine uses Claude's API directly. You'll need an Anthropic API key."
+- Link: "Get a key at console.anthropic.com" (open in external browser via `window.open`)
+- Input field: password-type input for the key (with a show/hide toggle)
+- "Validate Key" button → calls `settingsStore.validateApiKey(key)`
+- States:
+  - Idle: button enabled
+  - Validating: button disabled, spinner
+  - Valid: green checkmark, "Next" button appears
+  - Invalid: red message "Invalid key. Check that you copied the full key."
+- On valid → save the key via `settingsStore.saveApiKey(key)` → next step
+
+**Step 3: Model Selection**
+- Heading: "Choose Your Model"
+- Radio cards for each model from `AVAILABLE_MODELS`:
+  - Model name (large)
+  - Description (small, gray)
+  - Opus: "Recommended" badge
+- Default: Opus selected
+- "Next" button → save model via `settingsStore.update({ model: selectedModel })` → next step
+
+**Step 4: Author Profile**
+- Heading: "Tell Us About Your Writing"
+- Include a small text input for **Author Name**:
+  - Label: "Your name (as it appears on book covers)"
+  - Store in settings via `settingsStore.update({ authorName })`
+  - Used as the default `author` field when creating books
+- Large textarea with placeholder: "What genres do you write? What's your style? Who are your influences? What makes your voice unique?"
+- "Skip" link (small, gray) and "Save & Continue" button
+- On save: write the content via `window.novelEngine.files.write` — but we don't have a book yet. Instead, use a new IPC call or save to a store temporarily. **Actually:** the author profile lives at `{userDataPath}/author-profile.md`. Add a dedicated `settings:saveAuthorProfile` IPC channel, or since we already have the filesystem service, add it. For now, just save via `window.novelEngine.files.write('', 'author-profile.md', content)` — but this path convention needs to work. **Simplest approach:** add `'settings:saveAuthorProfile'` to the IPC handlers that writes to `{userDataPath}/author-profile.md`. Add corresponding preload method.
+
+**Step 5: Ready**
+- Heading: "You're All Set!"
+- Summary of what was configured
+- "Create Your First Book" button → calls `settingsStore.update({ initialized: true })`, navigates to the chat view, and opens a "New Book" dialog
+
+### Design details
+
+- Each step is a centered card, max-width 600px
+- Progress indicator: dots or step numbers at the top
+- Smooth transitions between steps (simple opacity/transform animation)
+- Dark background matching the app theme
+- All inputs use: `bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500`
+
+---
+
+## Task 2: Settings Panel
+
+### `src/renderer/components/Settings/SettingsView.tsx`
+
+Shown when the user navigates to Settings from the sidebar.
+
+**Sections:**
+
+### API Key
+- Show masked key (last 4 chars visible): "sk-ant-...xxxx"
+- "Change Key" button → reveals input + validate flow (same as onboarding step 2)
+- Status indicator: green dot + "Connected" if key is set
+
+### Model Selection
+- Same radio cards as onboarding
+- Changes save immediately via `settingsStore.update({ model })`
+
+### Extended Thinking
+- Toggle: "Show agent thinking" (checkbox)
+- Slider: "Default thinking budget" — range 1024 to 32000, step 1024
+  - Labels: "1K (quick)" | "10K (default)" | "32K (deep)"
+  - Show current value: "{N} tokens"
+- Toggle: "Auto-collapse thinking after response" (checkbox)
+- Cost note: "Extended thinking adds ~${estimate}/message at current Opus pricing"
+
+### Appearance
+- Theme selector: Dark / Light / System (radio group)
+- Note: "Only dark theme is available in this version" (disable light/system for now)
+
+### Token Usage Summary
+- Total tokens used (input + output + thinking)
+- Total estimated cost
+- "Since: {date of first usage}"
+- Per-book breakdown if there are multiple books
+
+### About
+- App version (from `package.json`)
+- "Novel Engine — Built on Claude by Anthropic"
+- Links: GitHub repo, Anthropic docs
+
+### Design details
+
+- Left-aligned, max-width 700px, comfortable padding
+- Each section separated by a thin `border-b border-zinc-800` divider
+- Section headings: `text-lg font-semibold text-zinc-100 mb-4`
+- Help text: `text-sm text-zinc-500`
+- Inputs match the onboarding style
+
+---
+
+## Task 3: New IPC channel for author profile
+
+Add these handlers to `registerIpcHandlers` in `src/main/ipc/handlers.ts`:
+
+```typescript
+ipcMain.handle('settings:saveAuthorProfile', async (_, content: string) => {
+  const profilePath = path.join(paths.userDataPath, 'author-profile.md');
+  await fsPromises.writeFile(profilePath, content, 'utf-8');
+});
+
+ipcMain.handle('settings:loadAuthorProfile', async () => {
+  const profilePath = path.join(paths.userDataPath, 'author-profile.md');
+  try {
+    return await fsPromises.readFile(profilePath, 'utf-8');
+  } catch {
+    return '';
+  }
+});
+```
+
+These handlers use `paths.userDataPath` from the `paths` parameter added in PATCH-03. Import `fs/promises` as `fsPromises` and `path` from `node:path` at the top of handlers file.
+
+Update preload `api.settings` in `src/preload/index.ts`:
+
+```typescript
+saveAuthorProfile: (content: string): Promise<void> =>
+  ipcRenderer.invoke('settings:saveAuthorProfile', content),
+loadAuthorProfile: (): Promise<string> =>
+  ipcRenderer.invoke('settings:loadAuthorProfile'),
+```
+
+The `NovelEngineAPI` type auto-updates since it is `typeof api`.
+
+---
+
+## Verification
+
+- On fresh app start (delete `{userData}/.initialized`), the onboarding wizard appears
+- API key validation works (shows error for bad key, success for good key)
+- After completing onboarding, the main app layout appears
+- Settings panel shows all sections
+- Changing the model saves immediately
+- Thinking toggle and slider work
+- Token usage section shows data (or "No usage data yet")
