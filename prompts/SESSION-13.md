@@ -92,14 +92,14 @@ Key shape:
 - `thinkingDelta` → append to `thinkingBuffer`
 - `textDelta` → append to `streamBuffer`
 - `blockEnd` → no-op (transitions are handled by blockStart)
-- `done` → create a new `Message` from buffers, add to `messages`, reset all streaming state
+- `done` → **reload messages from backend** via `window.novelEngine.chat.getMessages(conversationId)` and replace the local `messages` array entirely. This ensures we have the DB-saved assistant message with its real `id` and `timestamp` rather than a locally-constructed phantom message. Reset all streaming state (`isStreaming`, `isThinking`, `streamBuffer`, `thinkingBuffer`).
 - `error` → reset streaming state, add an error message to `messages`
 
 **Critical: `sendMessage` implementation:**
 1. Read `activeConversation` from the store to get `conversationId` and `agentName`
 2. Read `bookStore.getState().activeSlug` for `bookSlug` (cross-store read via `getState()`)
 3. If no active conversation, throw/return early
-4. Add the user message to `messages` immediately (optimistic)
+4. Add the user message to `messages` immediately (optimistic update for instant UI feedback). Construct a temporary `Message` with `id: 'temp-' + Date.now()`, `role: 'user'`, `content`, `thinking: ''`, `conversationId`, `timestamp: new Date().toISOString()`. This temporary message will be replaced by the real DB message when the `done` handler reloads messages.
 5. Set `isStreaming: true`, clear buffers
 6. Call `window.novelEngine.chat.send({ agentName, message: content, conversationId, bookSlug })`. Wrap in try/catch — if the IPC invoke rejects (network error, crash), reset `isStreaming` and add an error message to `messages`. The response comes via the stream listener, but the Promise rejection must also be handled to avoid unhandled rejection errors.
 

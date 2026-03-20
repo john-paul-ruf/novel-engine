@@ -77,7 +77,13 @@ constructor(
 
 ### `isPandocAvailable(): Promise<boolean>`
 
-Try to run `{pandocPath} --version` using `execa`. Return true if it exits with code 0, false otherwise. Import `execa` directly — this is one of the few infrastructure concerns allowed in an application service because the build step IS a system operation.
+Try to run `{pandocPath} --version` using `execFile` from `node:child_process` (wrapped in a Promise). Return true if it exits with code 0, false otherwise. Use the Node.js built-in `child_process` module instead of `execa` to avoid ESM/CJS compatibility issues:
+
+```typescript
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const execFileAsync = promisify(execFile);
+```
 
 ### `build(bookSlug, onProgress): Promise<BuildResult>`
 
@@ -101,7 +107,7 @@ Try to run `{pandocPath} --version` using `execa`. Return true if it exits with 
 5. **Generate each format.** For each of `['docx', 'epub', 'pdf']`:
    - `onProgress(\`Generating ${format.toUpperCase()}...\`)`
    - Build the Pandoc command args
-   - Run via `execa`
+   - Run via `execFileAsync`
    - On success: `onProgress(\`${format.toUpperCase()} ✓\`)`
    - On failure: `onProgress(\`${format.toUpperCase()} failed: ${error.message}\`)`, record the error
 

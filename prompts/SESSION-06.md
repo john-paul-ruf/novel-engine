@@ -62,6 +62,7 @@ Read all source files using a private `safeRead(path)` helper that returns empty
 | `styleSheet` | `source/style-sheet.md` |
 | `projectTasks` | `source/project-tasks.md` |
 | `revisionPrompts` | `source/revision-prompts.md` |
+| `metadata` | `source/metadata.md` |
 
 Read all chapter directories sorted numerically, loading `draft.md` and `notes.md` from each. Assemble into `BookContext`.
 

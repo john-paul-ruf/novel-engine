@@ -51,7 +51,7 @@ A full-screen, step-by-step wizard. No sidebar, no navigation — just the wizar
   - Used as the default `author` field when creating books
 - Large textarea with placeholder: "What genres do you write? What's your style? Who are your influences? What makes your voice unique?"
 - "Skip" link (small, gray) and "Save & Continue" button
-- On save: write the content via `window.novelEngine.files.write` — but we don't have a book yet. Instead, use a new IPC call or save to a store temporarily. **Actually:** the author profile lives at `{userDataPath}/author-profile.md`. Add a dedicated `settings:saveAuthorProfile` IPC channel, or since we already have the filesystem service, add it. For now, just save via `window.novelEngine.files.write('', 'author-profile.md', content)` — but this path convention needs to work. **Simplest approach:** add `'settings:saveAuthorProfile'` to the IPC handlers that writes to `{userDataPath}/author-profile.md`. Add corresponding preload method.
+- On save: call `window.novelEngine.settings.saveAuthorProfile(content)` — this writes to `{userDataPath}/author-profile.md` via the dedicated IPC channel added in Task 3 below.
 
 **Step 5: Ready**
 - Heading: "You're All Set!"
@@ -104,6 +104,12 @@ Shown when the user navigates to Settings from the sidebar.
 - Total estimated cost
 - "Since: {date of first usage}"
 - Per-book breakdown if there are multiple books
+
+### Author Profile
+- Shows the current author name (from settings) with an "Edit" button to change it
+- A textarea showing the contents of `author-profile.md` loaded via `window.novelEngine.settings.loadAuthorProfile()`
+- "Save" button → calls `window.novelEngine.settings.saveAuthorProfile(content)` and `settingsStore.update({ authorName })` if the name changed
+- This is the **only** place to edit the author profile after onboarding
 
 ### About
 - App version (from `package.json`)

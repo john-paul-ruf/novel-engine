@@ -21,10 +21,9 @@ Run the Electron Forge create command with the Vite TypeScript template. Project
 - `zustand` (state management)
 - `better-sqlite3` (local database)
 - `@anthropic-ai/sdk` (Claude API)
-- `execa@^5` (for running Pandoc — pin to v5, the last CJS-compatible version)
+- `nanoid@3` (ID generation — **pin to v3**, the last CJS-compatible version; v4+ is ESM-only and breaks in Vite's main process build)
 - `marked` (markdown rendering)
 - `@tailwindcss/typography` (prose classes for rendered markdown)
-- `nanoid` (ID generation)
 
 **Dev:**
 - `@types/react`, `@types/react-dom`
@@ -93,13 +92,13 @@ novel-engine/
 
 **Critical: Native module and CJS externalization in `vite.main.config.ts`:**
 
-`better-sqlite3` is a native Node module (N-API) that **cannot** be bundled by Vite. `execa@^5` is a CJS package that may have interop issues in Vite's ESM bundling. Both must be externalized:
+`better-sqlite3` is a native Node module (N-API) that **cannot** be bundled by Vite. It must be externalized:
 
 ```typescript
 // vite.main.config.ts
 build: {
   rollupOptions: {
-    external: ['better-sqlite3', 'execa'],
+    external: ['better-sqlite3'],
   },
 }
 ```
@@ -107,10 +106,12 @@ build: {
 Also externalize `@anthropic-ai/sdk` since it makes network requests and has no benefit from bundling:
 
 ```typescript
-external: ['better-sqlite3', 'execa', '@anthropic-ai/sdk'],
+external: ['better-sqlite3', '@anthropic-ai/sdk'],
 ```
 
 This ensures these packages are loaded at runtime from `node_modules` rather than being bundled.
+
+> **Note on `execa`:** Session 10 (BuildService) no longer uses `execa`. It uses Node.js built-in `child_process.execFile` instead, eliminating the CJS/ESM compatibility concern. Do **not** install `execa` as a dependency.
 
 ### 8. Configure TypeScript
 

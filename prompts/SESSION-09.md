@@ -6,7 +6,7 @@ Novel Engine Electron app. Sessions 01–08 done. Now I need the **Chat Service*
 
 ## Architecture Rule
 
-Lives in `src/application/ChatService.ts`. Imports from `@domain` and `nanoid`. Depends on domain interfaces (injected via constructor). Does NOT import any concrete infrastructure class directly — it depends on the *interfaces*.
+Lives in `src/application/ChatService.ts`. Imports from `@domain` and `nanoid` (v3, CJS — use `import { nanoid } from 'nanoid'`). Depends on domain interfaces (injected via constructor). Does NOT import any concrete infrastructure class directly — it depends on the *interfaces*.
 
 ## Task
 
@@ -64,7 +64,7 @@ async sendMessage(params: {
    {contextString}
    ```
 
-7. **Load conversation history.** Call `this.db.getMessages(params.conversationId)`. Map to the `{ role, content }` format the API expects. Do NOT include thinking content in the history — the API ignores previous thinking blocks.
+7. **Load conversation history.** Call `this.db.getMessages(params.conversationId)`. **This MUST execute before step 8** — we load existing history before saving the new user message to avoid including it twice in the API call. Map to the `{ role, content }` format the API expects. Do NOT include thinking content in the history — the API ignores previous thinking blocks.
 
 8. **Save the user message.** Call `this.db.saveMessage({ conversationId, role: 'user', content: params.message, thinking: '' })`.
 

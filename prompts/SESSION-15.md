@@ -43,6 +43,7 @@ Dropdown-style selector at the top of the sidebar (below the drag region).
 On mount and when `bookStore.activeSlug` changes:
 - Call `bookStore.loadBooks()`
 - Call `pipelineStore.loadPipeline(activeSlug)`
+- Call `chatStore.loadConversations(activeSlug)` — **required** so that the PipelineTracker's "Start" button can check for existing conversations via `chatStore.conversations.find(...)`. Without this, conversations are empty and every "Start" click creates a duplicate conversation.
 
 ---
 

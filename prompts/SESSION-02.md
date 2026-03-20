@@ -68,6 +68,7 @@ type BookContext = {
   styleSheet: string;
   projectTasks: string;
   revisionPrompts: string;
+  metadata: string;
   chapters: ChapterData[];
 };
 
@@ -225,6 +226,9 @@ interface IDatabaseService {
   recordUsage(record: Omit<UsageRecord, 'timestamp'>): void;
   getUsageSummary(bookSlug?: string): UsageSummary;
   getUsageByConversation(conversationId: string): UsageRecord[];
+
+  // Lifecycle
+  close(): void;
 }
 
 interface IFileSystemService {

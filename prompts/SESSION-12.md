@@ -35,7 +35,27 @@ Check if `{userDataPath}/.initialized` exists. Return true if it doesn't.
 
 ---
 
-## Task 2: `src/main/index.ts`
+## Task 2: `src/infrastructure/pandoc/index.ts`
+
+**Create this before `src/main/index.ts`** — the main entry imports from `@infra/pandoc`, so this file must exist first.
+
+Small utility to resolve the Pandoc binary path.
+
+```typescript
+import path from 'node:path';
+import os from 'node:os';
+
+export function resolvePandocPath(resourcesPath: string): string {
+  const platform = os.platform();
+  const arch = os.arch();
+  const ext = platform === 'win32' ? '.exe' : '';
+  return path.join(resourcesPath, 'pandoc', `pandoc-${platform}-${arch}${ext}`);
+}
+```
+
+---
+
+## Task 3: `src/main/index.ts`
 
 Replace the stub from Session 01 with the full composition root.
 
@@ -189,22 +209,6 @@ async function initializeApp() {
 ```
 
 ---
-
-## Task 3: `src/infrastructure/pandoc/index.ts`
-
-Small utility to resolve the Pandoc binary path.
-
-```typescript
-import path from 'node:path';
-import os from 'node:os';
-
-export function resolvePandocPath(resourcesPath: string): string {
-  const platform = os.platform();
-  const arch = os.arch();
-  const ext = platform === 'win32' ? '.exe' : '';
-  return path.join(resourcesPath, 'pandoc', `pandoc-${platform}-${arch}${ext}`);
-}
-```
 
 ## Verification
 

@@ -6,7 +6,7 @@ Novel Engine Electron app. Sessions 01–03 done. Now I need the **database laye
 
 ## Architecture Rule
 
-Lives in `src/infrastructure/database/`. Imports from `@domain`, `better-sqlite3`, and `nanoid`. Implements `IDatabaseService`. No imports from Electron, application, renderer, or other infrastructure modules.
+Lives in `src/infrastructure/database/`. Imports from `@domain`, `better-sqlite3`, and `nanoid` (v3, CJS — use `import { nanoid } from 'nanoid'`). Implements `IDatabaseService`. No imports from Electron, application, renderer, or other infrastructure modules.
 
 ## Task
 
@@ -71,6 +71,7 @@ Constructor: `constructor(dbPath: string)` — opens the SQLite database and cal
 - `getUsageSummary`: Aggregates all usage. If `bookSlug` is provided, filter by joining through conversations.
 - `getUsageByConversation`: Returns all usage records for a conversation.
 - `deleteConversation`: Deletes the conversation (cascade handles messages and usage).
+- `close`: Calls `this.db.close()` on the underlying `better-sqlite3` `Database` instance. Used by the main process `before-quit` handler to prevent WAL corruption.
 
 ### File 3: `src/infrastructure/database/index.ts`
 

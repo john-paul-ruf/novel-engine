@@ -110,7 +110,7 @@ const finalMessage = await stream.finalMessage();
 // Track thinking buffer length to estimate thinkingTokens for the done event
 ```
 
-> **SDK Version Note:** The exact API for passing beta headers varies between SDK versions. The `headers` approach via the second options parameter is the most stable pattern. If the SDK version supports `betas: [...]` as a top-level stream parameter, that also works. The implementer should check the installed SDK's TypeScript types to determine which pattern their version supports.
+> **SDK Version Note:** The exact API for passing beta headers varies between SDK versions. The `headers` approach via the second options parameter is the most stable pattern. If the SDK version supports `betas: [...]` as a top-level stream parameter, that also works. **Before implementing, run `npx tsc --noEmit` against a test file that imports `@anthropic-ai/sdk` and check the TypeScript types for `client.messages.stream()` to confirm the correct streaming pattern and parameter positions.** The SDK's types are the source of truth — not this prompt.
 
 Use the `'event'` listener to get the raw event objects. This is the most reliable way to see thinking blocks, since the convenience listeners like `stream.on('text', ...)` skip thinking content.
 
