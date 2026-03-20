@@ -1,21 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/chatStore';
 import { MessageBubble } from './MessageBubble';
 import { StreamingMessage } from './StreamingMessage';
 
 export function MessageList(): React.ReactElement {
-  const { messages, isStreaming, streamBuffer, thinkingBuffer, messageToolActivity } = useChatStore();
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
+  // Granular selectors — DO NOT subscribe to streamBuffer/thinkingBuffer here.
+  // StreamingMessage handles its own subscriptions. Subscribing here would
+  // re-render every MessageBubble on every streaming delta.
+  const messages = useChatStore((s) => s.messages);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const messageToolActivity = useChatStore((s) => s.messageToolActivity);
 
-  // Track if user is at the bottom using IntersectionObserver
+  const containerRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+
+  // Track if user is at the bottom using IntersectionObserver.
+  // Use a ref instead of state to avoid re-renders on scroll.
   useEffect(() => {
     const sentinel = bottomRef.current;
     if (!sentinel) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsAtBottom(entry.isIntersecting);
+        isAtBottomRef.current = entry.isIntersecting;
       },
       { threshold: 0.1 }
     );
@@ -24,16 +32,12 @@ export function MessageList(): React.ReactElement {
     return () => observer.disconnect();
   }, []);
 
-  // Auto-scroll when new content arrives, but only if user is at bottom
-  const scrollToBottom = useCallback(() => {
-    if (isAtBottom && bottomRef.current) {
+  // Scroll to bottom when messages change (new message added or conversation switched)
+  useEffect(() => {
+    if (isAtBottomRef.current && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [isAtBottom]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamBuffer, thinkingBuffer, scrollToBottom]);
+  }, [messages]);
 
   // Always scroll when streaming starts
   useEffect(() => {
@@ -42,8 +46,29 @@ export function MessageList(): React.ReactElement {
     }
   }, [isStreaming]);
 
+  // During streaming, use a MutationObserver on the container to auto-scroll
+  // as StreamingMessage appends content — without subscribing to store updates.
+  useEffect(() => {
+    if (!isStreaming || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const observer = new MutationObserver(() => {
+      if (isAtBottomRef.current && bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
+  }, [isStreaming]);
+
   return (
-    <div className="flex-1 overflow-y-auto py-4">
+    <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
       {messages.map((message) => (
         <MessageBubble
           key={message.id}

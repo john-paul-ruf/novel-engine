@@ -6,6 +6,7 @@ import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
 import { RevisionQueueView } from '../RevisionQueue';
 import { ChatModal } from '../Chat/ChatModal';
+import { CliActivityPanel } from '../CliActivity/CliActivityPanel';
 import { Sidebar } from './Sidebar';
 
 function ViewContent(): React.ReactElement {
@@ -41,6 +42,7 @@ export function AppLayout(): React.ReactElement {
         <ViewContent />
       </main>
       {isModalOpen && <ChatModal />}
+      <CliActivityPanel />
     </div>
   );
 }

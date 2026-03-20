@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { useSettingsStore } from '../../stores/settingsStore';
 
@@ -45,7 +45,12 @@ export function ThinkingBlock({
     }
   }, [content, isStreaming, expanded]);
 
-  const renderedHtml = content ? String(marked.parse(content)) : '';
+  // Only parse markdown when content changes — avoids re-parsing on every render
+  // caused by parent re-renders or state changes (expanded toggle, scroll, etc.)
+  const renderedHtml = useMemo(
+    () => (content ? String(marked.parse(content)) : ''),
+    [content],
+  );
 
   return (
     <div className="mb-2 rounded-lg border border-amber-500/20 bg-amber-950/20">

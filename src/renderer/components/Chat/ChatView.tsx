@@ -7,6 +7,7 @@ import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
 import { AgentHeader } from './AgentHeader';
 import { ChatInput } from './ChatInput';
+import { ChatTitleBar } from './ChatTitleBar';
 import { ConversationList } from './ConversationList';
 import { MessageList } from './MessageList';
 import { PipelineLockBanner } from './PipelineLockBanner';
@@ -52,6 +53,7 @@ export function ChatView(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col">
+      <ChatTitleBar />
       <ConversationList
         expanded={conversationsExpanded}
         onToggle={() => setConversationsExpanded((prev) => !prev)}

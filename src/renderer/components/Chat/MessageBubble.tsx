@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { marked } from 'marked';
 import type { Conversation, Message } from '@domain/types';
 import { ThinkingBlock } from './ThinkingBlock';
@@ -12,7 +12,7 @@ type MessageBubbleProps = {
   conversationOverride?: Conversation;  // used by modal to bypass chatStore
 };
 
-export function MessageBubble({ message, toolActivity, conversationOverride }: MessageBubbleProps): React.ReactElement {
+export const MessageBubble = memo(function MessageBubble({ message, toolActivity, conversationOverride }: MessageBubbleProps): React.ReactElement {
   const isUser = message.role === 'user';
   const hasThinking = message.thinking.length > 0;
 
@@ -69,4 +69,4 @@ export function MessageBubble({ message, toolActivity, conversationOverride }: M
       </div>
     </div>
   );
-}
+});
