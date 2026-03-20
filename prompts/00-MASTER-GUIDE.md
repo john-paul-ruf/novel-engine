@@ -2,7 +2,7 @@
 
 ## How to Use These Prompts
 
-There are **20 sessions** below. Run them **in order**, one at a time, using the Claude Code CLI. Each session prompt:
+There are **21 sessions** below. Run them **in order**, one at a time, using the Claude Code CLI. Each session prompt:
 
 - Is self-contained — paste the whole thing into a fresh Claude Code session
 - States exactly what files to create or modify
@@ -72,7 +72,8 @@ src/
 │   ├── ChatService.ts      # Agent + context + CLI + history
 │   ├── PipelineService.ts  # Phase detection, transitions
 │   ├── BuildService.ts     # Manuscript assembly + Pandoc
-│   └── UsageService.ts     # Token tracking + cost estimation
+│   ├── UsageService.ts     # Token tracking + cost estimation
+│   └── RevisionQueueService.ts  # Wrangler-parsed session queue + execution
 │
 ├── main/                   # Electron main process entry
 │   ├── index.ts            # App lifecycle, window creation
@@ -118,6 +119,7 @@ src/
 | 18 | Packaging + Pandoc bundling | Forge config, scripts, CI/CD | 15 min |
 | 19 | Agent output persistence | Save-to-file for agent responses | 20 min |
 | 20 | Voice & Author Profile setup | Guided Verity conversations for voice-per-book + global author profile | 25 min |
+| 21 | Revision Queue (Session Wrangler) | Wrangler-parsed session queue, 4 execution modes, approval gates | 30 min |
 
 **Total: ~6–8 hours of session time** (not counting review and iteration).
 
