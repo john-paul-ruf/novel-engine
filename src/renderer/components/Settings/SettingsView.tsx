@@ -1,0 +1,456 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useSettingsStore } from '../../stores/settingsStore';
+import type { UsageSummary } from '@domain/types';
+
+type ModelOption = { id: string; label: string; description: string };
+
+function SectionDivider(): React.ReactElement {
+  return <div className="border-b border-zinc-800" />;
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }): React.ReactElement {
+  return <h3 className="mb-4 text-lg font-semibold text-zinc-100">{children}</h3>;
+}
+
+function HelpText({ children }: { children: React.ReactNode }): React.ReactElement {
+  return <p className="text-sm text-zinc-500">{children}</p>;
+}
+
+function ClaudeCliSection(): React.ReactElement {
+  const { settings, detectClaudeCli } = useSettingsStore();
+  const [checking, setChecking] = useState(false);
+
+  const handleRecheck = useCallback(async () => {
+    setChecking(true);
+    await detectClaudeCli();
+    setChecking(false);
+  }, [detectClaudeCli]);
+
+  const connected = settings?.hasClaudeCli ?? false;
+
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Claude CLI Status</SectionHeading>
+      <div className="flex items-center gap-3">
+        <span
+          className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
+        />
+        <span className={`text-sm font-medium ${connected ? 'text-green-400' : 'text-red-400'}`}>
+          {connected ? 'Connected' : 'Not connected'}
+        </span>
+        <button
+          onClick={handleRecheck}
+          disabled={checking}
+          className="ml-auto rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50"
+        >
+          {checking ? 'Checking...' : 'Re-check'}
+        </button>
+      </div>
+      {!connected && (
+        <div className="mt-2">
+          <button
+            onClick={() =>
+              window.novelEngine.shell.openExternal(
+                'https://docs.anthropic.com/en/docs/claude-code',
+              )
+            }
+            className="text-sm text-blue-400 underline decoration-blue-400/30 transition-colors hover:text-blue-300"
+          >
+            Installation instructions
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ModelSelectionSection(): React.ReactElement {
+  const { settings, update } = useSettingsStore();
+  const [models, setModels] = useState<ModelOption[]>([]);
+
+  useEffect(() => {
+    window.novelEngine.models.getAvailable().then(setModels).catch(console.error);
+  }, []);
+
+  const selected = settings?.model ?? 'claude-opus-4-20250514';
+
+  const handleSelect = useCallback(
+    async (modelId: string) => {
+      await update({ model: modelId });
+    },
+    [update],
+  );
+
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Model Selection</SectionHeading>
+      <div className="space-y-2">
+        {models.map((model) => (
+          <button
+            key={model.id}
+            onClick={() => handleSelect(model.id)}
+            className={`w-full rounded-lg border p-3 text-left transition-colors ${
+              selected === model.id
+                ? 'border-blue-500 bg-blue-500/10'
+                : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className={`h-4 w-4 rounded-full border-2 ${
+                  selected === model.id
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-zinc-600'
+                }`}
+              >
+                {selected === model.id && (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                  </div>
+                )}
+              </div>
+              <span className="text-sm font-semibold text-zinc-100">{model.label}</span>
+              {model.id === 'claude-opus-4-20250514' && (
+                <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
+                  Recommended
+                </span>
+              )}
+            </div>
+            <p className="mt-1 pl-6 text-xs text-zinc-500">{model.description}</p>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ThinkingSection(): React.ReactElement {
+  const { settings, update } = useSettingsStore();
+
+  const enableThinking = settings?.enableThinking ?? true;
+  const thinkingBudget = settings?.thinkingBudget ?? 10000;
+  const autoCollapse = settings?.autoCollapseThinking ?? true;
+
+  const formatBudget = (value: number): string => {
+    if (value >= 1000) {
+      return `${Math.round(value / 1000)}K`;
+    }
+    return String(value);
+  };
+
+  return (
+    <section className="space-y-4">
+      <SectionHeading>Extended Thinking</SectionHeading>
+
+      <label className="flex cursor-pointer items-center gap-3">
+        <input
+          type="checkbox"
+          checked={enableThinking}
+          onChange={(e) => update({ enableThinking: e.target.checked })}
+          className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+        />
+        <span className="text-sm text-zinc-300">Show agent thinking</span>
+      </label>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-zinc-300">Default thinking budget</span>
+          <span className="text-sm font-medium text-zinc-200">
+            {thinkingBudget.toLocaleString()} tokens
+          </span>
+        </div>
+        <input
+          type="range"
+          min={1024}
+          max={32000}
+          step={1024}
+          value={thinkingBudget}
+          onChange={(e) => update({ thinkingBudget: Number(e.target.value) })}
+          className="w-full accent-blue-500"
+        />
+        <div className="flex justify-between text-xs text-zinc-500">
+          <span>{formatBudget(1024)} (quick)</span>
+          <span>{formatBudget(10240)} (default)</span>
+          <span>{formatBudget(32000)} (deep)</span>
+        </div>
+      </div>
+
+      <label className="flex cursor-pointer items-center gap-3">
+        <input
+          type="checkbox"
+          checked={autoCollapse}
+          onChange={(e) => update({ autoCollapseThinking: e.target.checked })}
+          className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+        />
+        <span className="text-sm text-zinc-300">Auto-collapse thinking after response</span>
+      </label>
+    </section>
+  );
+}
+
+function AppearanceSection(): React.ReactElement {
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Appearance</SectionHeading>
+      <div className="space-y-2">
+        {(['dark', 'light', 'system'] as const).map((theme) => (
+          <label
+            key={theme}
+            className={`flex items-center gap-3 ${theme !== 'dark' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+          >
+            <input
+              type="radio"
+              name="theme"
+              value={theme}
+              checked={theme === 'dark'}
+              disabled={theme !== 'dark'}
+              readOnly={theme === 'dark'}
+              className="h-4 w-4 border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-zinc-300 capitalize">{theme}</span>
+          </label>
+        ))}
+      </div>
+      <HelpText>Only dark theme is available in this version</HelpText>
+    </section>
+  );
+}
+
+function UsageSection(): React.ReactElement {
+  const [summary, setSummary] = useState<UsageSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.novelEngine.usage
+      .summary()
+      .then(setSummary)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const formatCost = (cost: number): string => {
+    if (cost < 0.01) return '$0.00';
+    return `$${cost.toFixed(2)}`;
+  };
+
+  const formatTokens = (tokens: number): string => {
+    if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+    if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}K`;
+    return String(tokens);
+  };
+
+  if (loading) {
+    return (
+      <section className="space-y-3">
+        <SectionHeading>Token Usage Summary</SectionHeading>
+        <HelpText>Loading usage data...</HelpText>
+      </section>
+    );
+  }
+
+  const hasUsage = summary && summary.conversationCount > 0;
+
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Token Usage Summary</SectionHeading>
+
+      {!hasUsage ? (
+        <HelpText>No usage data yet</HelpText>
+      ) : (
+        <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Total tokens used</span>
+            <span className="text-sm font-medium text-zinc-200">
+              {formatTokens(
+                summary.totalInputTokens +
+                  summary.totalOutputTokens +
+                  summary.totalThinkingTokens,
+              )}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Input</span>
+            <span className="text-sm text-zinc-300">
+              {formatTokens(summary.totalInputTokens)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Output</span>
+            <span className="text-sm text-zinc-300">
+              {formatTokens(summary.totalOutputTokens)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Thinking</span>
+            <span className="text-sm text-zinc-300">
+              {formatTokens(summary.totalThinkingTokens)}
+            </span>
+          </div>
+          <div className="mt-2 border-t border-zinc-700 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Estimated cost</span>
+              <span className="text-sm font-semibold text-zinc-100">
+                {formatCost(summary.totalCost)}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Conversations</span>
+            <span className="text-sm text-zinc-300">{summary.conversationCount}</span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AuthorProfileSection(): React.ReactElement {
+  const { settings, update } = useSettingsStore();
+  const [authorName, setAuthorName] = useState('');
+  const [profileText, setProfileText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+
+  useEffect(() => {
+    setAuthorName(settings?.authorName ?? '');
+    window.novelEngine.settings
+      .loadAuthorProfile()
+      .then(setProfileText)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [settings?.authorName]);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      await window.novelEngine.settings.saveAuthorProfile(profileText);
+      if (authorName !== (settings?.authorName ?? '')) {
+        await update({ authorName });
+      }
+      setEditingName(false);
+    } catch (error) {
+      console.error('Failed to save author profile:', error);
+    } finally {
+      setSaving(false);
+    }
+  }, [profileText, authorName, settings?.authorName, update]);
+
+  if (loading) {
+    return (
+      <section className="space-y-3">
+        <SectionHeading>Author Profile</SectionHeading>
+        <HelpText>Loading...</HelpText>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <SectionHeading>Author Profile</SectionHeading>
+
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-zinc-300">Author name</label>
+        {editingName ? (
+          <input
+            type="text"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-zinc-200">
+              {settings?.authorName || 'Not set'}
+            </span>
+            <button
+              onClick={() => setEditingName(true)}
+              className="text-xs text-blue-400 transition-colors hover:text-blue-300"
+            >
+              Edit
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-zinc-300">Profile</label>
+        <textarea
+          value={profileText}
+          onChange={(e) => setProfileText(e.target.value)}
+          placeholder="What genres do you write? What's your style? Who are your influences?"
+          rows={6}
+          className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        />
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+      >
+        {saving ? 'Saving...' : 'Save'}
+      </button>
+    </section>
+  );
+}
+
+function AboutSection(): React.ReactElement {
+  return (
+    <section className="space-y-3">
+      <SectionHeading>About</SectionHeading>
+      <div className="space-y-2">
+        <p className="text-sm text-zinc-300">
+          <span className="font-medium">Novel Engine</span> v0.1.0
+        </p>
+        <HelpText>Powered by Claude Code CLI</HelpText>
+        <div className="flex gap-4">
+          <button
+            onClick={() =>
+              window.novelEngine.shell.openExternal(
+                'https://github.com/novel-engine/novel-engine',
+              )
+            }
+            className="text-sm text-blue-400 underline decoration-blue-400/30 transition-colors hover:text-blue-300"
+          >
+            GitHub
+          </button>
+          <button
+            onClick={() =>
+              window.novelEngine.shell.openExternal(
+                'https://docs.anthropic.com/en/docs/claude-code',
+              )
+            }
+            className="text-sm text-blue-400 underline decoration-blue-400/30 transition-colors hover:text-blue-300"
+          >
+            Claude Code Docs
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function SettingsView(): React.ReactElement {
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-[700px] space-y-8 px-6 py-8">
+        <h2 className="text-2xl font-bold text-zinc-100">Settings</h2>
+
+        <ClaudeCliSection />
+        <SectionDivider />
+        <ModelSelectionSection />
+        <SectionDivider />
+        <ThinkingSection />
+        <SectionDivider />
+        <AppearanceSection />
+        <SectionDivider />
+        <UsageSection />
+        <SectionDivider />
+        <AuthorProfileSection />
+        <SectionDivider />
+        <AboutSection />
+      </div>
+    </div>
+  );
+}

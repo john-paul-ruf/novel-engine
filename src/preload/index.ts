@@ -24,6 +24,10 @@ const api = {
     load: (): Promise<AppSettings> => ipcRenderer.invoke('settings:load'),
     detectClaudeCli: (): Promise<boolean> => ipcRenderer.invoke('settings:detectClaudeCli'),
     update: (partial: Partial<AppSettings>): Promise<void> => ipcRenderer.invoke('settings:update', partial),
+    saveAuthorProfile: (content: string): Promise<void> =>
+      ipcRenderer.invoke('settings:saveAuthorProfile', content),
+    loadAuthorProfile: (): Promise<string> =>
+      ipcRenderer.invoke('settings:loadAuthorProfile'),
   },
 
   // Agents

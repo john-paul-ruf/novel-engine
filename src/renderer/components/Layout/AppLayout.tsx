@@ -1,4 +1,5 @@
 import { useViewStore } from '../../stores/viewStore';
+import { SettingsView } from '../Settings/SettingsView';
 import { Sidebar } from './Sidebar';
 
 function ViewContent(): React.ReactElement {
@@ -24,11 +25,7 @@ function ViewContent(): React.ReactElement {
         </div>
       );
     case 'settings':
-      return (
-        <div className="flex h-full items-center justify-center text-zinc-500">
-          <p className="text-lg">Settings View</p>
-        </div>
-      );
+      return <SettingsView />;
     default:
       return (
         <div className="flex h-full items-center justify-center text-zinc-500">

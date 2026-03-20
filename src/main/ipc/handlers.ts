@@ -1,4 +1,6 @@
 import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import * as fsPromises from 'node:fs/promises';
+import * as path from 'node:path';
 import type {
   ISettingsService,
   IAgentService,
@@ -179,6 +181,22 @@ export function registerIpcHandlers(services: {
   // === Context Diagnostics ===
 
   ipcMain.handle('context:getLastDiagnostics', () => services.chat.getLastDiagnostics());
+
+  // === Author Profile ===
+
+  ipcMain.handle('settings:saveAuthorProfile', async (_, content: string) => {
+    const profilePath = path.join(paths.userDataPath, 'author-profile.md');
+    await fsPromises.writeFile(profilePath, content, 'utf-8');
+  });
+
+  ipcMain.handle('settings:loadAuthorProfile', async () => {
+    const profilePath = path.join(paths.userDataPath, 'author-profile.md');
+    try {
+      return await fsPromises.readFile(profilePath, 'utf-8');
+    } catch {
+      return '';
+    }
+  });
 
   // === Shell ===
 
