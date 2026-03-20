@@ -59,11 +59,13 @@ If `chatStore.activeConversation` is null, show a centered empty state:
 
 ### `src/renderer/components/Chat/AgentHeader.tsx`
 
-Props: agent meta (name, role, color), pipeline phase label, token count, estimated cost.
+Props: agent meta (name, role, color), pipeline phase label, conversation usage stats.
 
 **Layout:**
 - Left side: Agent name (large, bold) with a colored left border using the agent's color. Below it: role + phase in smaller gray text.
 - Right side: Token count and estimated cost in small monospace text.
+
+**Token usage data:** After each `done` stream event in `chatStore._handleStreamEvent`, call `window.novelEngine.usage.byConversation(conversationId)` to fetch the cumulative usage for the current conversation. Store the result in `chatStore` as `conversationUsage: UsageSummary | null`. The `AgentHeader` reads this from the store.
 
 **Style:** `border-b border-zinc-800`, padding `px-6 py-4`.
 
@@ -103,7 +105,7 @@ Props: `message: Message`
 - Max width: `max-w-3xl`
 - If the message has `thinking` content (non-empty string), show a `ThinkingBlock` above the response
 
-**Render the markdown safely:** Use `dangerouslySetInnerHTML={{ __html: marked.parse(content) }}`. Configure `marked` to NOT sanitize (Electron's CSP handles security, and the content comes from the API, not user input in the DOM sense).
+**Render the markdown safely:** Use `dangerouslySetInnerHTML={{ __html: marked.parse(content) }}`. Configure `marked` with `{ breaks: true, gfm: true }` for GitHub-flavored markdown with line break support. Note: `marked` v4+ removed built-in sanitization — there is no sanitizer to disable. Security is handled by Electron's CSP, and content comes from the Anthropic API, not from untrusted user input.
 
 ---
 

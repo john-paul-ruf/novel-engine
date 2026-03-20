@@ -74,6 +74,10 @@ Read all chapter directories sorted numerically, loading `draft.md` and `notes.m
 **`listDirectory(bookSlug, relativePath?)`:**
 Build a recursive `FileEntry[]` tree, max depth 3. Skip `.git` and `node_modules` directories. Sort directories first, then files, both alphabetically.
 
+**`getBookMeta(slug)`:** Read `about.json` from `booksDir/{slug}/about.json`, parse as JSON, and return a `BookMeta` object. Throw a descriptive error if the file doesn't exist or is malformed.
+
+**`updateBookMeta(slug, partial)`:** Read the existing `about.json`, merge with the provided `Partial<BookMeta>`, and write back. Only merge known `BookMeta` fields — don't blindly spread the partial to avoid writing unexpected keys.
+
 **`countWords(slug)`:** Sum words across all `chapters/*/draft.md` files. Words = split on `/\s+/`, filter empty.
 
 **`countWordsPerChapter(slug)`:** Return per-chapter word counts as `{ slug: string; wordCount: number }[]`.

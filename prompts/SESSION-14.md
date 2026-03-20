@@ -56,7 +56,9 @@ A full-screen, step-by-step wizard. No sidebar, no navigation — just the wizar
 **Step 5: Ready**
 - Heading: "You're All Set!"
 - Summary of what was configured
-- "Create Your First Book" button → calls `settingsStore.update({ initialized: true })`, navigates to the chat view, and opens a "New Book" dialog
+- Includes a **"Book Title" input** with a placeholder like "My First Novel" — this lets the user create their first book right here in the wizard
+- "Launch Novel Engine" button → calls `settingsStore.update({ initialized: true })`, creates the book via `bookStore.createBook(title)` if the user entered a title, then navigates to the chat view. This avoids depending on Session 15's `BookSelector` component which doesn't exist yet.
+- If the user leaves the title blank, just complete onboarding without creating a book — they can do it from the sidebar later.
 
 ### Design details
 

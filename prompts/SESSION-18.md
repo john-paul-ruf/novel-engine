@@ -97,13 +97,18 @@ const config: ForgeConfig = {
       },
     }),
 
-    // Ignore dev-only files
+    // Ignore dev-only files from the app bundle.
+    // NOTE: Do NOT ignore all .md files — agent .md files are needed at runtime.
+    // Agent files are bundled via extraResource (above), so the ignore pattern
+    // only affects the app's source directory, not extra resources. However,
+    // to be safe, use a more targeted pattern.
     ignore: [
       /^\/scripts$/,
       /^\/docs$/,
-      /^\/sessions$/,
-      /\.md$/,
+      /^\/prompts$/,
+      /^\/prep-work$/,
       /^\/\.git/,
+      /^\/README\.md$/,
     ],
   },
 
@@ -283,7 +288,24 @@ node_modules/
 
 ---
 
-## Task 7: README
+## Task 7: Content Security Policy
+
+Add a CSP meta tag to the renderer's `index.html` to prevent XSS attacks. The main risk is HTML rendered via `marked.parse()` — while the content comes from the Anthropic API, defense in depth is important.
+
+Add this to the `<head>` of `index.html`:
+```html
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';">
+```
+
+This allows:
+- Scripts only from the app itself (no remote scripts)
+- Styles from the app + inline (needed for Tailwind)
+- Images from the app + data URIs
+- No external network connections from the renderer (API calls go through the main process)
+
+---
+
+## Task 8: README
 
 Create a `README.md` for the Electron project:
 

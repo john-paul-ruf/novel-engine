@@ -51,7 +51,7 @@ export function registerIpcHandlers(services: {
 - `'books:list'` → `services.fs.listBooks()`
 - `'books:getActiveSlug'` → `services.fs.getActiveBookSlug()`
 - `'books:setActive'` → `(_, slug: string)` → `services.fs.setActiveBook(slug)`
-- `'books:create'` → `(_, title: string)` → `services.fs.createBook(title)`
+- `'books:create'` → `(_, title: string)` → reads `authorName` from `services.settings.load()` and passes it: `services.fs.createBook(title, settings.authorName)`. This ensures books use the author name configured during onboarding.
 - `'books:getMeta'` → `(_, slug: string)` → `services.fs.getBookMeta(slug)`
 - `'books:updateMeta'` → `(_, slug: string, partial)` → `services.fs.updateBookMeta(slug, partial)`
 - `'books:wordCount'` → `(_, slug: string)` → `services.fs.countWordsPerChapter(slug)`
@@ -118,6 +118,13 @@ Replace the stub from Session 01 with the full typed preload bridge.
 
 ```typescript
 import { contextBridge, ipcRenderer } from 'electron';
+// IMPORTANT: Import ONLY types from domain — never values. The preload runs
+// in a sandboxed context and cannot access main-process modules.
+import type {
+  AppSettings, AgentMeta, AgentName, BookSummary, BookMeta,
+  FileEntry, Conversation, Message, PipelinePhaseId, PipelinePhase,
+  SendMessageParams, StreamEvent, BuildResult, UsageSummary, UsageRecord,
+} from '@domain/types';
 
 const api = {
   // Settings
@@ -131,6 +138,7 @@ const api = {
   // Agents
   agents: {
     list: (): Promise<AgentMeta[]> => ipcRenderer.invoke('agents:list'),
+    get: (name: AgentName): Promise<AgentMeta> => ipcRenderer.invoke('agents:get', name),
   },
 
   // Books
@@ -218,8 +226,9 @@ declare global {
 ## Verification
 
 - Both files compile with `npx tsc --noEmit`
-- `handlers.ts` has no business logic — every handler is a one-liner delegation
-- `preload/index.ts` exposes the full API surface
+- `handlers.ts` has no business logic — every handler is a one-liner delegation (exception: `books:create` reads `authorName` from settings before delegating)
+- `preload/index.ts` exposes the full API surface including `agents.get`
+- `preload/index.ts` has explicit `import type` statements from `@domain/types` at the top
 - Event listeners (`onStreamEvent`, `onProgress`) return cleanup functions
 - `window.novelEngine` has full TypeScript types in the renderer
-- The preload file imports NO domain/infrastructure/application code — only types (use `import type`)
+- The preload file imports NO domain/infrastructure/application **values** — only types (use `import type`)

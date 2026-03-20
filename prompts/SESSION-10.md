@@ -49,6 +49,8 @@ Detect which pipeline phases are complete by checking whether their key output f
 4. All phases after it are `locked`
 5. Map against `PIPELINE_PHASES` from `@domain/constants` to produce the full `PipelinePhase[]`
 
+**Design note:** This assumes a strictly linear pipeline. If phases are completed out of order (e.g., a user manually creates `reader-report.md` before writing any chapters), the algorithm still treats the first incomplete phase as `active` and everything after it as `locked`. This is intentional — the pipeline enforces a sequential workflow.
+
 ### `getActivePhase(bookSlug): Promise<PipelinePhase | null>`
 
 Call `detectPhases`, return the one with `status === 'active'`, or null if all complete.
@@ -107,7 +109,7 @@ Try to run `{pandocPath} --version` using `execa`. Return true if it exits with 
    ```
    DOCX: [inputPath, '-o', outputPath, '--from=markdown', '--to=docx', '--metadata=title:...', '--metadata=author:...']
    EPUB: [inputPath, '-o', outputPath, '--from=markdown', '--to=epub3', '--metadata=title:...', '--metadata=author:...']
-   PDF:  [inputPath, '-o', outputPath, '--from=markdown', '--to=pdf', '--pdf-engine=wkhtmltopdf', '--metadata=title:...', '--metadata=author:...']
+   PDF:  [inputPath, '-o', outputPath, '--from=markdown', '--to=pdf', '--metadata=title:...', '--metadata=author:...']
    ```
 
    The input path and output paths are absolute: `{booksDir}/{slug}/dist/output.{ext}`.
@@ -116,7 +118,7 @@ Try to run `{pandocPath} --version` using `execa`. Return true if it exits with 
 
 7. Return `BuildResult` with the success status, formats array, and total word count.
 
-**Note:** PDF will fail if wkhtmltopdf isn't available. That's fine — catch the error, report it, and continue. The build succeeds partially (md + docx + epub).
+**Note:** PDF generation requires a LaTeX engine (e.g., `pdflatex`, `xelatex`, or `tectonic`) to be installed on the system. Pandoc uses LaTeX as its default PDF engine. If no LaTeX engine is available, the PDF step will fail. That's fine — catch the error, report it, and continue. The build succeeds partially (md + docx + epub).
 
 ## Task 3: `src/application/UsageService.ts`
 

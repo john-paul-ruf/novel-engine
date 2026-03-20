@@ -120,7 +120,7 @@ type StreamEvent =
   | { type: 'thinkingDelta'; text: string }
   | { type: 'textDelta'; text: string }
   | { type: 'blockEnd'; blockType: StreamBlockType }
-  | { type: 'done'; inputTokens: number; outputTokens: number }
+  | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number }
   | { type: 'error'; message: string };
 
 // === Settings ===
@@ -287,14 +287,18 @@ Export every interface.
 import type { AgentName, AgentMeta, PipelinePhaseId, AppSettings } from './types';
 
 // Agent metadata (everything except the systemPrompt, which comes from files)
+// IMPORTANT: Filenames MUST match the actual files in the agents/ directory.
+// The AgentService (Session 05) does case-insensitive matching, but the canonical
+// filenames here should reflect the real files on disk.
+// Actual files: SPARK.md, VERITY.md, GHOSTLIGHT.md, LUMEN.md, SABLE.md, FORGE.MD, Quill.md
 const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Spark:      { filename: 'SPARK.md',      role: 'Pitch & Scaffold',      color: '#F59E0B', thinkingBudget: 8000 },
   Verity:     { filename: 'VERITY.md',     role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000 },
   Ghostlight: { filename: 'GHOSTLIGHT.md', role: 'First Reader',          color: '#06B6D4', thinkingBudget: 6000 },
   Lumen:      { filename: 'LUMEN.md',      role: 'Developmental Editor',  color: '#10B981', thinkingBudget: 16000 },
   Sable:      { filename: 'SABLE.md',      role: 'Copy Editor',           color: '#EF4444', thinkingBudget: 4000 },
-  Forge:      { filename: 'FORGE.md',      role: 'Task Master',           color: '#F97316', thinkingBudget: 8000 },
-  Quill:      { filename: 'QUILL.md',      role: 'Publisher',             color: '#6366F1', thinkingBudget: 4000 },
+  Forge:      { filename: 'FORGE.MD',      role: 'Task Master',           color: '#F97316', thinkingBudget: 8000 },
+  Quill:      { filename: 'Quill.md',      role: 'Publisher',             color: '#6366F1', thinkingBudget: 4000 },
 };
 
 // Pipeline phase definitions (order matters — it IS the pipeline)

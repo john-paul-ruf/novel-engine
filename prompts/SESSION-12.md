@@ -169,6 +169,23 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+
+// Clean up database connection on quit to prevent WAL corruption
+app.on('before-quit', () => {
+  db.close();
+});
+```
+
+**Important:** The `db` variable needs to be accessible from the `before-quit` handler. Either promote it to module scope, or store a reference via a cleanup registry. The simplest approach: declare `let db: DatabaseService;` at module scope and assign it inside `initializeApp()`.
+
+```typescript
+let db: DatabaseService; // module-level reference for cleanup
+
+async function initializeApp() {
+  // ... same as above, but assign to the module-level db variable
+  db = new DatabaseService(dbPath);
+  // ...
+}
 ```
 
 ---

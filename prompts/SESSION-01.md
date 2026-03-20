@@ -91,6 +91,27 @@ novel-engine/
 - Ensure path aliases work **in all three Vite configs** (main, preload, and renderer): `@domain/*` → `src/domain/*`, `@infra/*` → `src/infrastructure/*`, `@app/*` → `src/application/*`
 - The preload config needs these aliases because it will use `import type` from `@domain` in Session 11
 
+**Critical: Native module and CJS externalization in `vite.main.config.ts`:**
+
+`better-sqlite3` is a native Node module (N-API) that **cannot** be bundled by Vite. `execa@^5` is a CJS package that may have interop issues in Vite's ESM bundling. Both must be externalized:
+
+```typescript
+// vite.main.config.ts
+build: {
+  rollupOptions: {
+    external: ['better-sqlite3', 'execa'],
+  },
+}
+```
+
+Also externalize `@anthropic-ai/sdk` since it makes network requests and has no benefit from bundling:
+
+```typescript
+external: ['better-sqlite3', 'execa', '@anthropic-ai/sdk'],
+```
+
+This ensures these packages are loaded at runtime from `node_modules` rather than being bundled.
+
 ### 8. Configure TypeScript
 
 - `tsconfig.json`: Strict mode, `jsx: 'react-jsx'`, `esModuleInterop: true`

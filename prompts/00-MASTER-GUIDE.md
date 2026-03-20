@@ -120,3 +120,22 @@ src/
 ## Prompt Files
 
 Each session prompt is in this folder, numbered `SESSION-01.md` through `SESSION-18.md`. Open the next one, paste it into Zencoder, and go.
+
+---
+
+## Errata Applied
+
+The following fixes have been applied to the session prompts (2026-03-20):
+
+1. **SESSION-01:** Added native module externalization (`better-sqlite3`, `execa`, `@anthropic-ai/sdk`) in `vite.main.config.ts`
+2. **SESSION-02:** Fixed `AGENT_REGISTRY` filenames to match actual agent files (`FORGE.MD`, `Quill.md`); added `thinkingTokens` to `StreamEvent.done`
+3. **SESSION-06:** Added documentation for `getBookMeta()` and `updateBookMeta()` implementations
+4. **SESSION-07:** Updated `done` event to include `thinkingTokens` estimated from thinking buffer length
+5. **SESSION-09:** Updated usage recording to use `thinkingTokens` from done event; noted Session 10 will add 7th dependency
+6. **SESSION-10:** Replaced deprecated `wkhtmltopdf` PDF engine with Pandoc's default LaTeX engine; added linear pipeline design note
+7. **SESSION-11:** Added explicit `import type` statements to preload; added `agents.get` to preload bridge; fixed `books:create` to pass `authorName` from settings
+8. **SESSION-12:** Added `db.close()` cleanup on `before-quit` to prevent WAL corruption
+9. **SESSION-13:** Added `ErrorBoundary` component; added loading state before settings load; fixed `sendMessage` error handling; clarified `viewStore` initialization
+10. **SESSION-14:** Fixed onboarding Step 5 to include inline book creation instead of depending on Session 15's BookSelector
+11. **SESSION-16:** Fixed outdated `marked` sanitization note; added conversation usage tracking for AgentHeader display
+12. **SESSION-18:** Fixed `.md` ignore pattern to not exclude agent files; added Content Security Policy task

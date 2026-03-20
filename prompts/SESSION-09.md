@@ -82,7 +82,7 @@ async sendMessage(params: {
     - Accumulate `thinkingDelta` events into a `thinkingBuffer` string
     - When a `done` event arrives:
       - Save the assistant message: `this.db.saveMessage({ conversationId, role: 'assistant', content: responseBuffer, thinking: thinkingBuffer })`
-      - Record usage: `this.db.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: 0, model, estimatedCost: this.calculateCost(model, inputTokens, outputTokens) })`
+      - Record usage: `this.db.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: event.thinkingTokens, model, estimatedCost: this.calculateCost(model, inputTokens, outputTokens) })` (The `done` event now includes `thinkingTokens` — see Session 02's `StreamEvent` type.)
     - Forward ALL events to `params.onEvent` (the caller still gets everything)
 
 11. **Error handling.** Wrap the API call in try/catch. On error, emit `{ type: 'error', message: error.message }` via `params.onEvent`.
@@ -126,7 +126,7 @@ Delegates to `this.db.getMessages(conversationId)`.
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
-- Constructor takes 6 interface parameters (no concrete types)
+- Constructor takes 6 interface parameters (no concrete types) — note: Session 10 will add `UsageService` as a 7th dependency
 - `sendMessage` follows the 11-step flow exactly
 - Response and thinking are accumulated and saved after `done`
 - Token usage is recorded with cost calculation

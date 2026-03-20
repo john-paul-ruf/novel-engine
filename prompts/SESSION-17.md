@@ -129,7 +129,7 @@ The view shown when `currentView === 'build'`.
 │  │ Generating EPUB...                │  │
 │  │ EPUB ✓                            │  │
 │  │ Generating PDF...                 │  │
-│  │ PDF failed: wkhtmltopdf not found │  │
+│  │ PDF failed: pdflatex not found    │  │
 │  │ Build complete!                   │  │
 │  └───────────────────────────────────┘  │
 │                                         │

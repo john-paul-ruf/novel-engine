@@ -101,7 +101,7 @@ Key shape:
 3. If no active conversation, throw/return early
 4. Add the user message to `messages` immediately (optimistic)
 5. Set `isStreaming: true`, clear buffers
-6. Call `window.novelEngine.chat.send({ agentName, message: content, conversationId, bookSlug })` — this is fire-and-forget, the response comes via the stream listener
+6. Call `window.novelEngine.chat.send({ agentName, message: content, conversationId, bookSlug })`. Wrap in try/catch — if the IPC invoke rejects (network error, crash), reset `isStreaming` and add an error message to `messages`. The response comes via the stream listener, but the Promise rejection must also be handled to avoid unhandled rejection errors.
 
 > **Cross-store access:** Zustand stores can read other stores via `useOtherStore.getState()` outside of React components. This is the recommended pattern for store-to-store communication.
 
@@ -136,11 +136,13 @@ type ViewPayload = {
 };
 
 {
-  currentView: ViewId;
+  currentView: ViewId;     // Initialize to 'chat' — onboarding is handled by App.tsx's settings gate, not by viewStore
   payload: ViewPayload;
   navigate: (view: ViewId, payload?: ViewPayload) => void;
 }
 ```
+
+**Important:** The `viewStore` always initializes with `currentView: 'chat'`. The onboarding flow is controlled entirely by `App.tsx` checking `settings.initialized` — it does NOT use `viewStore.currentView === 'onboarding'`. The `'onboarding'` value in the `ViewId` type exists for forward compatibility but is not used by the initial implementation.
 
 > **Navigation payload:** The `navigate` function sets both `currentView` and `payload` atomically. When `payload` is omitted, it defaults to `{}`. Components read `payload` on mount to determine what to display. For example:
 >
@@ -156,8 +158,11 @@ type ViewPayload = {
 
 The top-level component. On mount:
 1. Load settings from the store
-2. If `settings.initialized === false`, show the `Onboarding` view
-3. Otherwise, show the main layout
+2. While `settings === null` (loading), show a minimal loading state: a full-screen `bg-zinc-950` div — this prevents a flash of onboarding content before settings are loaded
+3. If `settings.initialized === false`, show the `Onboarding` view
+4. Otherwise, show the main layout
+
+**Wrap the entire app in an `ErrorBoundary` component** (`src/renderer/components/ErrorBoundary.tsx`) — a React class component that catches render errors and shows a recovery screen instead of a white screen crash. The fallback should show the error message and a "Reload" button that calls `window.location.reload()`.
 
 ### `src/renderer/components/Layout/AppLayout.tsx`
 
@@ -231,7 +236,9 @@ Use Tailwind's `zinc` scale for the dark theme:
 ## Verification
 
 - `npm start` shows the app with a dark sidebar and main content area
+- A brief loading state (dark screen) shows while settings load, then the appropriate view renders
 - Navigation buttons switch between views (even though views are placeholder text)
 - No console errors
 - macOS: the title bar area is draggable
 - Stores are created but no data is loaded yet (that comes with the real UI components)
+- The `ErrorBoundary` catches render errors and shows a recovery screen (test by temporarily throwing in a component)

@@ -59,10 +59,11 @@ interface IAnthropicClient {
    - `content_block_stop` → emit `{ type: 'blockEnd', blockType: currentBlockType }` (track which block type we're in)
    - `message_stop` → don't emit here; we emit `done` after the loop
 
-5. After the stream completes, get the final message's `usage` object. Emit:
+5. After the stream completes, get the final message's `usage` object. Track thinking tokens by accumulating the length of thinking deltas and estimating via `CHARS_PER_TOKEN`, OR by reading the usage object's thinking-specific fields if the SDK exposes them (check `finalMessage.usage` for a `cache_creation_input_tokens` or thinking-related field). Emit:
    ```typescript
-   { type: 'done', inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }
+   { type: 'done', inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, thinkingTokens: estimatedThinkingTokens }
    ```
+   For `thinkingTokens`: estimate from the accumulated thinking buffer using `Math.ceil(thinkingBuffer.length / CHARS_PER_TOKEN)` from `@domain/constants`. This is an approximation — the actual thinking token count may be higher since the API returns a condensed summary of its reasoning.
 
 6. Wrap the entire thing in a try/catch. On error, emit:
    ```typescript
@@ -106,6 +107,7 @@ stream.on('event', (event) => {
 
 const finalMessage = await stream.finalMessage();
 // finalMessage.usage has input_tokens, output_tokens
+// Track thinking buffer length to estimate thinkingTokens for the done event
 ```
 
 > **SDK Version Note:** The exact API for passing beta headers varies between SDK versions. The `headers` approach via the second options parameter is the most stable pattern. If the SDK version supports `betas: [...]` as a top-level stream parameter, that also works. The implementer should check the installed SDK's TypeScript types to determine which pattern their version supports.
