@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentName, Conversation, Message, PipelinePhaseId, StreamEvent } from '@domain/types';
+import type { AgentName, Conversation, Message, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
 import { useBookStore } from './bookStore';
 
 type ChatState = {
@@ -10,6 +10,7 @@ type ChatState = {
   isThinking: boolean;
   streamBuffer: string;
   thinkingBuffer: string;
+  conversationUsage: UsageRecord[] | null;
 
   loadConversations: (bookSlug: string) => Promise<void>;
   createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null) => Promise<void>;
@@ -31,6 +32,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isThinking: false,
   streamBuffer: '',
   thinkingBuffer: '',
+  conversationUsage: null,
   _cleanupListener: null,
 
   loadConversations: async (bookSlug: string) => {
@@ -61,10 +63,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setActiveConversation: async (conversationId: string) => {
     try {
-      const messages = await window.novelEngine.chat.getMessages(conversationId);
+      const [messages, usage] = await Promise.all([
+        window.novelEngine.chat.getMessages(conversationId),
+        window.novelEngine.usage.byConversation(conversationId),
+      ]);
       const { conversations } = get();
       const conversation = conversations.find((c) => c.id === conversationId) ?? null;
-      set({ activeConversation: conversation, messages });
+      set({ activeConversation: conversation, messages, conversationUsage: usage });
     } catch (error) {
       console.error('Failed to set active conversation:', error);
     }
@@ -161,9 +166,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       case 'done':
         if (activeConversation) {
-          window.novelEngine.chat.getMessages(activeConversation.id).then((messages) => {
+          Promise.all([
+            window.novelEngine.chat.getMessages(activeConversation.id),
+            window.novelEngine.usage.byConversation(activeConversation.id),
+          ]).then(([messages, usage]) => {
             set({
               messages,
+              conversationUsage: usage,
               isStreaming: false,
               isThinking: false,
               streamBuffer: '',

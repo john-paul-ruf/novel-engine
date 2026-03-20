@@ -1,4 +1,5 @@
 import { useViewStore } from '../../stores/viewStore';
+import { ChatView } from '../Chat/ChatView';
 import { SettingsView } from '../Settings/SettingsView';
 import { Sidebar } from './Sidebar';
 
@@ -7,11 +8,7 @@ function ViewContent(): React.ReactElement {
 
   switch (currentView) {
     case 'chat':
-      return (
-        <div className="flex h-full items-center justify-center text-zinc-500">
-          <p className="text-lg">Chat View</p>
-        </div>
-      );
+      return <ChatView />;
     case 'files':
       return (
         <div className="flex h-full items-center justify-center text-zinc-500">
