@@ -2,7 +2,7 @@
 
 ## Context
 
-Novel Engine Electron app. Sessions 01–08 done. Now I need the **Chat Service** — the central orchestrator that ties everything together for a single "send message and get a streamed response" operation.
+Novel Engine Electron app. Sessions 01–08 done. Now I need the **Chat Service** — the central orchestrator that ties everything together for a single "send message and get a streamed response" operation. It uses the **Context Wrangler** (Session 08) to intelligently assemble context before each agent call.
 
 ## Architecture Rule
 
@@ -16,18 +16,21 @@ Create `src/application/ChatService.ts`.
 
 ```typescript
 class ChatService {
+  private lastDiagnostics: ContextDiagnostics | null = null;
+
   constructor(
     private settings: ISettingsService,
     private agents: IAgentService,
     private db: IDatabaseService,
-    private fs: IFileSystemService,
     private claude: IClaudeClient,
-    private contextBuilder: IContextBuilder,
+    private contextWrangler: IContextWrangler,
   ) {}
 }
 ```
 
 All dependencies are injected. The main process will wire them up.
+
+**Note:** Unlike the previous design, `ChatService` no longer takes `IFileSystemService` or loads book context directly. The `ContextWrangler` handles all context assembly internally — it has its own `IFileSystemService` and `IDatabaseService` references.
 
 ### Primary Method: `sendMessage`
 
@@ -49,11 +52,25 @@ async sendMessage(params: {
 
 3. **Load the agent.** Call `this.agents.load(params.agentName)`. Use the agent's `thinkingBudget` from the agent metadata (not the global setting) as the default, but respect the global `enableThinking` toggle.
 
-4. **Load book context.** Call `this.fs.loadBookContext(params.bookSlug)`.
+4. **Save the user message FIRST.** Call `this.db.saveMessage({ conversationId: params.conversationId, role: 'user', content: params.message, thinking: '' })`. We save before assembling context so the Wrangler can see the full conversation including this message.
 
-5. **Build the context string.** Call `this.contextBuilder.build(params.agentName, bookContext)`.
+5. **Assemble context via the Wrangler.** Call:
+   ```typescript
+   const assembled = await this.contextWrangler.assemble({
+     agentName: params.agentName,
+     userMessage: params.message,
+     conversationId: params.conversationId,
+     bookSlug: params.bookSlug,
+   });
+   ```
+   This runs the full two-call pattern: manifest → Wrangler CLI → parse plan → execute plan. It returns:
+   - `projectContext`: formatted string of all project files and chapters
+   - `conversationMessages`: compacted conversation history as `{ role, content }[]`
+   - `diagnostics`: full breakdown of what was included/excluded and why
 
-6. **Assemble the system prompt.** Concatenate:
+6. **Store diagnostics.** Save `assembled.diagnostics` to `this.lastDiagnostics` so the IPC layer can expose it to the UI.
+
+7. **Assemble the system prompt.** Concatenate:
    ```
    {agent.systemPrompt}
 
@@ -61,30 +78,26 @@ async sendMessage(params: {
 
    # Current Book Context
 
-   {contextString}
+   {assembled.projectContext}
    ```
 
-7. **Load conversation history.** Call `this.db.getMessages(params.conversationId)`. **This MUST execute before step 8** — we load existing history before saving the new user message to avoid including it twice in the CLI call. Map to the `{ role, content }` format the CLI expects. Do NOT include thinking content in the history — previous thinking blocks are not needed.
-
-8. **Save the user message.** Call `this.db.saveMessage({ conversationId, role: 'user', content: params.message, thinking: '' })`.
-
-9. **Call the Claude CLI.** Invoke `this.claude.sendMessage()` with:
+8. **Call the Claude CLI.** Invoke `this.claude.sendMessage()` with:
    - `model` from settings
-   - `systemPrompt` from step 6
-   - `messages` = history from step 7 + the new user message
+   - `systemPrompt` from step 7
+   - `messages` = `assembled.conversationMessages` (already includes the new user message and any compacted history)
    - `maxTokens` from settings
    - `thinkingBudget` = `agent.thinkingBudget` if thinking is enabled, otherwise `undefined`
    - `onEvent` = a wrapper around `params.onEvent` that also captures the full response
 
-10. **Capture the response.** Inside the `onEvent` wrapper:
+9. **Capture the response.** Inside the `onEvent` wrapper:
     - Accumulate `textDelta` events into a `responseBuffer` string
     - Accumulate `thinkingDelta` events into a `thinkingBuffer` string
     - When a `done` event arrives:
       - Save the assistant message: `this.db.saveMessage({ conversationId, role: 'assistant', content: responseBuffer, thinking: thinkingBuffer })`
-      - Record usage: `this.db.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: event.thinkingTokens, model, estimatedCost: this.calculateCost(model, inputTokens, outputTokens) })` (The `done` event now includes `thinkingTokens` — see Session 02's `StreamEvent` type.)
+      - Record usage: `this.db.recordUsage({ conversationId, inputTokens, outputTokens, thinkingTokens: event.thinkingTokens, model, estimatedCost: this.calculateCost(model, inputTokens, outputTokens) })`
     - Forward ALL events to `params.onEvent` (the caller still gets everything)
 
-11. **Error handling.** Wrap the CLI call in try/catch. On error, emit `{ type: 'error', message: error.message }` via `params.onEvent`.
+10. **Error handling.** Wrap the entire flow (steps 5–9) in try/catch. On error, emit `{ type: 'error', message: error.message }` via `params.onEvent`.
 
 ### Helper Method: `calculateCost`
 
@@ -122,12 +135,22 @@ async getMessages(conversationId: string): Promise<Message[]>
 
 Delegates to `this.db.getMessages(conversationId)`.
 
+### Helper Method: `getLastDiagnostics`
+
+```typescript
+getLastDiagnostics(): ContextDiagnostics | null
+```
+
+Returns the `ContextDiagnostics` from the most recent `sendMessage` call. Used by the IPC layer to expose context diagnostics to the UI.
+
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
-- Constructor takes 6 interface parameters (no concrete types — `IClaudeClient` instead of `IAnthropicClient`) — note: Session 10 will add `UsageService` as a 7th dependency
-- `sendMessage` follows the 11-step flow exactly
+- Constructor takes 5 interface parameters: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IContextWrangler`
+- `sendMessage` uses `contextWrangler.assemble()` instead of manually loading book context
+- The user message is saved to the DB BEFORE calling the Wrangler (so the Wrangler sees the full conversation)
 - Response and thinking are accumulated and saved after `done`
 - Token usage is recorded with cost calculation
 - All events are forwarded to the caller's `onEvent` callback
+- `getLastDiagnostics()` returns context assembly diagnostics
 - No direct infrastructure imports — only `@domain`

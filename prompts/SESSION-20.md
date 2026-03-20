@@ -213,44 +213,46 @@ async createConversation(params: {
 
 ---
 
-## Task 4: Context Builder — Purpose-Aware Context
+## Task 4: Context Wrangler — Purpose-Aware Context
 
-### Update `src/application/ContextBuilder.ts`
+The `ContextWrangler` already handles purpose-aware context intelligently through its AI-powered planning. However, the `IContextWrangler.assemble()` interface needs to accept the `purpose` parameter so it can include it in the Wrangler's input.
 
-The `build` method currently takes `(agentName, bookContext)`. Add an optional `purpose` parameter:
+### Update `src/domain/interfaces.ts`
 
-```typescript
-build(agentName: AgentName, bookContext: BookContext, purpose?: ConversationPurpose): string
-```
-
-Update the `IContextBuilder` interface in `src/domain/interfaces.ts` to match:
+Add optional `purpose` to the `assemble` params:
 
 ```typescript
-interface IContextBuilder {
-  build(agentName: AgentName, bookContext: BookContext, purpose?: ConversationPurpose): string;
+interface IContextWrangler {
+  assemble(params: {
+    agentName: AgentName;
+    userMessage: string;
+    conversationId: string;
+    bookSlug: string;
+    purpose?: ConversationPurpose;
+  }): Promise<AssembledContext>;
   estimateTokens(text: string): number;
 }
 ```
 
-**Purpose-specific context rules:**
+### Update `src/application/ContextWrangler.ts`
 
-When `purpose === 'voice-setup'`:
-- Priority 1: `voiceProfile` (if it exists — this is the profile being refined)
-- Priority 2: `authorProfile` (helps Verity understand the writer)
-- Nothing else. Keep context minimal so Verity focuses on the voice interview.
+When `purpose === 'voice-setup'` or `'author-profile'`, the Wrangler still runs but with a modified input that signals the special purpose. The Wrangler agent prompt already handles this — voice-setup and author-profile conversations get minimal project context since they're focused interviews, not manuscript work.
 
-When `purpose === 'author-profile'`:
-- Priority 1: `authorProfile` (if it exists — this is the profile being refined)
-- Nothing else. The author profile is book-agnostic.
+Pass the purpose through to the `WranglerInput` so the Wrangler can see it. Add an optional `purpose` field to the `WranglerInput` type.
 
-When `purpose === 'pipeline'` or `undefined`: existing behavior, unchanged.
+### Update ChatService `sendMessage`
 
-### Update ChatService `sendMessage` step 5
-
-Pass the purpose through:
+Pass the conversation purpose through when calling `contextWrangler.assemble()`:
 
 ```typescript
-const contextString = this.contextBuilder.build(params.agentName, bookContext, conversation?.purpose);
+const conversation = this.db.getConversation(params.conversationId);
+const assembled = await this.contextWrangler.assemble({
+  agentName: params.agentName,
+  userMessage: params.message,
+  conversationId: params.conversationId,
+  bookSlug: params.bookSlug,
+  purpose: conversation?.purpose,
+});
 ```
 
 ---
@@ -658,11 +660,11 @@ This helps the user distinguish special-purpose conversations from regular pipel
 | File | Change |
 |------|--------|
 | `src/domain/types.ts` | Add `ConversationPurpose` type, add `purpose` to `Conversation` |
-| `src/domain/interfaces.ts` | Add optional `purpose` param to `IContextBuilder.build()` |
+| `src/domain/interfaces.ts` | Add optional `purpose` param to `IContextWrangler.assemble()` |
 | `src/domain/constants.ts` | Add `VOICE_SETUP_INSTRUCTIONS`, `AUTHOR_PROFILE_INSTRUCTIONS` |
 | `src/infrastructure/database/schema.ts` | Add `purpose` column + migration |
 | `src/infrastructure/database/DatabaseService.ts` | Update CRUD for `purpose` field |
-| `src/application/ContextBuilder.ts` | Purpose-aware context assembly |
+| `src/application/ContextWrangler.ts` | Purpose-aware context assembly (passes purpose to Wrangler input) |
 | `src/application/ChatService.ts` | Purpose-aware system prompt, updated `createConversation` |
 | `src/main/ipc/handlers.ts` | Pass `purpose` through `chat:createConversation` |
 | `src/preload/index.ts` | Update `chat.createConversation` signature |

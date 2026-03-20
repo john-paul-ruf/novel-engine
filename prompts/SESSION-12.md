@@ -74,7 +74,7 @@ import { FileSystemService } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
 
 // Application
-import { ContextBuilder } from '@app/ContextBuilder';
+import { ContextWrangler } from '@app/ContextWrangler';
 import { ChatService } from '@app/ChatService';
 import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
@@ -200,9 +200,9 @@ async function initializeApp() {
   const claudeClient = new ClaudeCodeClient();
 
   // 4. Instantiate application services
-  const contextBuilder = new ContextBuilder();
+  const contextWrangler = new ContextWrangler(settings, agents, db, fs, claudeClient);
   const usage = new UsageService(db);
-  const chat = new ChatService(settings, agents, db, fs, claudeClient, contextBuilder, usage);
+  const chat = new ChatService(settings, agents, db, claudeClient, contextWrangler);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
 

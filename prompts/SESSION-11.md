@@ -120,6 +120,9 @@ ipcMain.handle('build:run', async (event, bookSlug: string) => {
 - `'usage:summary'` → `(_, bookSlug?: string)` → `services.usage.getSummary(bookSlug)`
 - `'usage:byConversation'` → `(_, conversationId: string)` → `services.usage.getByConversation(conversationId)`
 
+**Context Diagnostics:**
+- `'context:getLastDiagnostics'` → `services.chat.getLastDiagnostics()` — returns the `ContextDiagnostics` from the most recent `sendMessage` call, or `null` if no messages have been sent. This lets the UI display what context the Wrangler assembled (files included/excluded, chapter strategy, conversation compaction, reasoning, token usage).
+
 **Shell:**
 - `'shell:openExternal'` → `(_, url: string)` → `shell.openExternal(url)` — opens URLs in the OS default browser. Import `shell` from `electron`. Used by the renderer for external links (docs, GitHub, etc.).
 
@@ -144,6 +147,7 @@ import type {
   AppSettings, AgentMeta, AgentName, BookSummary, BookMeta,
   FileEntry, Conversation, Message, PipelinePhaseId, PipelinePhase,
   SendMessageParams, StreamEvent, BuildResult, UsageSummary, UsageRecord,
+  ContextDiagnostics,
 } from '@domain/types';
 
 const api = {
@@ -221,6 +225,11 @@ const api = {
   usage: {
     summary: (bookSlug?: string): Promise<UsageSummary> => ipcRenderer.invoke('usage:summary', bookSlug),
     byConversation: (conversationId: string): Promise<UsageRecord[]> => ipcRenderer.invoke('usage:byConversation', conversationId),
+  },
+
+  // Context Diagnostics
+  context: {
+    getLastDiagnostics: (): Promise<ContextDiagnostics | null> => ipcRenderer.invoke('context:getLastDiagnostics'),
   },
 
   // Shell (external links, file opening)

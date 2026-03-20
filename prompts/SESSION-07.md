@@ -24,6 +24,16 @@ interface IClaudeClient {
     thinkingBudget?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
+
+  // One-shot non-streaming call used by the Context Wrangler and summarization.
+  // Returns the raw text response (no streaming events).
+  sendOneShot(params: {
+    model: string;
+    systemPrompt: string;
+    userMessage: string;
+    maxTokens: number;
+  }): Promise<string>;
+
   isAvailable(): Promise<boolean>;
 }
 ```
@@ -141,11 +151,48 @@ child.stdout.on('data', (chunk: Buffer) => {
 });
 ```
 
+### Method: `sendOneShot`
+
+```typescript
+async sendOneShot(params: {
+  model: string;
+  systemPrompt: string;
+  userMessage: string;
+  maxTokens: number;
+}): Promise<string>
+```
+
+A non-streaming call that returns the full text response as a string. Used by the Context Wrangler for planning calls and by the PlanExecutor for summarization.
+
+**Implementation:**
+
+1. Build CLI args similar to `sendMessage`, but with `--output-format json` (not `stream-json`):
+   ```typescript
+   const args = [
+     '--print',
+     '--output-format', 'json',
+     '--model', params.model,
+     '--max-tokens', String(params.maxTokens),
+     '--system-prompt', params.systemPrompt,
+   ];
+   ```
+
+2. Spawn the `claude` process, write `params.userMessage` to stdin, close stdin.
+
+3. Collect all stdout into a buffer. When the process exits:
+   - Parse the JSON response. The `json` output format returns a single JSON object with a `result` field containing the response text.
+   - Extract and return the text content.
+
+4. On error (non-zero exit, parse failure), throw with a descriptive message.
+
+This method is intentionally simple — no streaming events, no thinking budget, no conversation history. It's a fire-and-forget call for infrastructure tasks.
+
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
-- Implements `IClaudeClient`
+- Implements `IClaudeClient` (both `sendMessage` and `sendOneShot`)
 - No Electron imports, no `@anthropic-ai/sdk`, no state between calls
-- Emits `StreamEvent` objects in the correct order: blockStart → deltas → blockEnd → done
+- `sendMessage` emits `StreamEvent` objects in the correct order: blockStart → deltas → blockEnd → done
+- `sendOneShot` returns a plain string — no streaming events
 - Handles errors by emitting error event AND re-throwing
 - No temp files — system prompt is passed inline via `--system-prompt`

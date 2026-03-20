@@ -19,7 +19,10 @@ Define these types. Use `type` not `interface` for data shapes. Use `interface` 
 ```typescript
 // === Agent ===
 
-type AgentName = 'Spark' | 'Verity' | 'Ghostlight' | 'Lumen' | 'Sable' | 'Forge' | 'Quill';
+type AgentName = 'Spark' | 'Verity' | 'Ghostlight' | 'Lumen' | 'Sable' | 'Forge' | 'Quill' | 'Wrangler';
+
+// The 7 creative agents that the author interacts with
+type CreativeAgentName = Exclude<AgentName, 'Wrangler'>;
 
 type AgentMeta = {
   name: AgentName;
@@ -189,6 +192,137 @@ type SendMessageParams = {
   conversationId: string;
   bookSlug: string;
 };
+
+// === Context Wrangler ===
+// The Wrangler is an AI-powered context planner that runs a cheap CLI call
+// before every agent call to decide what context to load.
+
+type WranglerInput = {
+  agent: AgentName;
+  userMessage: string;
+  bookStatus: BookStatus;
+  pipelinePhase: PipelinePhaseId | null;
+  fileManifest: FileManifestEntry[];
+  chapters: ChapterManifestEntry[];
+  conversation: ConversationManifest;
+  budget: ContextBudget;
+};
+
+type FileManifestEntry = {
+  key: string;               // e.g. 'voiceProfile', 'sceneOutline'
+  path: string;              // relative to book root
+  tokens: number;            // 0 means file does not exist
+};
+
+type ChapterManifestEntry = {
+  number: number;
+  slug: string;
+  draftTokens: number;
+  notesTokens: number;
+};
+
+type ConversationManifest = {
+  turnCount: number;
+  totalTokens: number;
+  recentTurns: number;       // count of recent turns
+  recentTokens: number;
+  oldTurns: number;
+  oldTokens: number;
+  hasThinkingBlocks: boolean;
+};
+
+type ContextBudget = {
+  totalContextWindow: number;
+  systemPromptTokens: number;
+  thinkingBudget: number;
+  responseBuffer: number;
+  availableForContext: number;  // totalContextWindow - systemPromptTokens - thinkingBudget - responseBuffer
+};
+
+type ChapterStrategy = 'none' | 'sliding-window' | 'target-neighbors' | 'full-read';
+type ConversationStrategy = 'keep-all' | 'summarize-old' | 'keep-recent-only';
+
+type WranglerFileDirective = {
+  key: string;
+  path: string;
+};
+
+type WranglerSummarizeDirective = {
+  key: string;
+  path: string;
+  targetTokens: number;
+  focus: string;             // instructions for the summarization call
+};
+
+type WranglerExcludeDirective = {
+  key: string;
+  reason: string;
+};
+
+type WranglerChapterDirective = {
+  number: number;
+  slug: string;
+  includeDraft: boolean;
+  includeNotes: boolean;
+};
+
+type WranglerChapterExclude = {
+  range: string;             // e.g. "1-4"
+  reason: string;
+};
+
+type WranglerPlan = {
+  files: {
+    include: WranglerFileDirective[];
+    summarize: WranglerSummarizeDirective[];
+    exclude: WranglerExcludeDirective[];
+  };
+  chapters: {
+    strategy: ChapterStrategy;
+    include: WranglerChapterDirective[];
+    exclude: WranglerChapterExclude[];
+    batchRequired: boolean;
+    batchInstructions?: string;
+  };
+  conversation: {
+    strategy: ConversationStrategy;
+    keepRecentTurns: number;
+    dropThinkingOlderThan: number;
+    summarizeOld: boolean;
+    summaryFocus: string;    // instructions for the conversation summary call
+  };
+  reasoning: string;
+  tokenEstimate: {
+    files: number;
+    chapters: number;
+    conversation: number;
+    total: number;
+    budgetRemaining: number;
+  };
+};
+
+// The assembled context after executing the wrangler plan
+type AssembledContext = {
+  projectContext: string;    // all project files + chapters, formatted and joined
+  conversationMessages: { role: MessageRole; content: string }[];  // compacted conversation
+  diagnostics: ContextDiagnostics;
+};
+
+type ContextDiagnostics = {
+  totalTokensUsed: number;
+  budgetRemaining: number;
+  filesIncluded: string[];
+  filesExcluded: string[];
+  filesSummarized: string[];
+  chapterStrategy: ChapterStrategy;
+  chaptersIncluded: number[];
+  chaptersExcluded: string;  // range description
+  conversationStrategy: ConversationStrategy;
+  conversationTurnsSent: number;
+  conversationTurnsDropped: number;
+  wranglerReasoning: string;
+  wranglerCostTokens: number;  // tokens consumed by the wrangler call itself
+};
 ```
 
 Export every type.
@@ -268,11 +402,30 @@ interface IClaudeClient {
     thinkingBudget?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
+
+  // One-shot JSON call for the Wrangler and summarization tasks.
+  // Returns the raw text response (expected to be JSON).
+  sendOneShot(params: {
+    model: string;
+    systemPrompt: string;
+    userMessage: string;
+    maxTokens: number;
+  }): Promise<string>;
+
   isAvailable(): Promise<boolean>;  // checks if `claude` CLI is installed
 }
 
-interface IContextBuilder {
-  build(agentName: AgentName, bookContext: BookContext): string;
+interface IContextWrangler {
+  // The main entry point. Called before every agent CLI call.
+  // Runs a cheap Wrangler CLI call to plan context, then executes the plan.
+  assemble(params: {
+    agentName: AgentName;
+    userMessage: string;
+    conversationId: string;
+    bookSlug: string;
+  }): Promise<AssembledContext>;
+
+  // Token estimation utility
   estimateTokens(text: string): number;
 }
 
@@ -299,7 +452,7 @@ import type { AgentName, AgentMeta, PipelinePhaseId, AppSettings } from './types
 // IMPORTANT: Filenames MUST match the actual files in the agents/ directory.
 // The AgentService (Session 05) does case-insensitive matching, but the canonical
 // filenames here should reflect the real files on disk.
-// Actual files: SPARK.md, VERITY.md, GHOSTLIGHT.md, LUMEN.md, SABLE.md, FORGE.MD, Quill.md
+// Actual files: SPARK.md, VERITY.md, GHOSTLIGHT.md, LUMEN.md, SABLE.md, FORGE.MD, Quill.md, WRANGLER.md
 const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Spark:      { filename: 'SPARK.md',      role: 'Story Pitch',           color: '#F59E0B', thinkingBudget: 8000 },
   Verity:     { filename: 'VERITY.md',     role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000 },
@@ -308,7 +461,11 @@ const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Sable:      { filename: 'SABLE.md',      role: 'Copy Editor',           color: '#EF4444', thinkingBudget: 4000 },
   Forge:      { filename: 'FORGE.MD',      role: 'Task Master',           color: '#F97316', thinkingBudget: 8000 },
   Quill:      { filename: 'Quill.md',      role: 'Publisher',             color: '#6366F1', thinkingBudget: 4000 },
+  Wrangler:   { filename: 'WRANGLER.md',   role: 'Context Planner',       color: '#71717A', thinkingBudget: 0 },
 };
+
+// Creative agents only — excludes Wrangler (used for UI agent lists)
+const CREATIVE_AGENT_NAMES: CreativeAgentName[] = ['Spark', 'Verity', 'Ghostlight', 'Lumen', 'Sable', 'Forge', 'Quill'];
 
 // Pipeline phase definitions (order matters — it IS the pipeline)
 const PIPELINE_PHASES: { id: PipelinePhaseId; label: string; agent: AgentName | null; description: string }[] = [
@@ -359,6 +516,45 @@ const CHARS_PER_TOKEN = 4;
 const MAX_CONTEXT_TOKENS = 200_000;
 // Reserve for response + system prompt overhead
 const CONTEXT_RESERVE_TOKENS = 14_000;
+
+// === Context Wrangler Configuration ===
+
+// The model used for the Wrangler's planning call (cheap and fast)
+const WRANGLER_MODEL = 'claude-sonnet-4-20250514';
+// Max tokens for the Wrangler's response (JSON plan)
+const WRANGLER_MAX_TOKENS = 2048;
+// Max tokens for summarization calls
+const SUMMARIZATION_MAX_TOKENS = 4096;
+
+// How many recent conversation turns to always count as "recent"
+const WRANGLER_RECENT_TURN_COUNT = 4;
+
+// Per-agent expected response sizes (tokens) — used for response buffer calculation
+const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {
+  Spark:      4000,   // conversational, shorter responses
+  Verity:     10000,  // writes full chapters — needs the most room
+  Ghostlight: 12000,  // writes full reader reports
+  Lumen:      12000,  // writes full dev reports
+  Sable:      10000,  // writes full audit reports
+  Forge:      8000,   // writes revision task lists
+  Quill:      6000,   // writes metadata + descriptions
+};
+
+// Canonical file manifest keys — maps to book context file paths
+const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
+  { key: 'voiceProfile',    path: 'source/voice-profile.md' },
+  { key: 'sceneOutline',    path: 'source/scene-outline.md' },
+  { key: 'storyBible',      path: 'source/story-bible.md' },
+  { key: 'pitch',           path: 'source/pitch.md' },
+  { key: 'authorProfile',   path: 'author-profile.md' },
+  { key: 'readerReport',    path: 'source/reader-report.md' },
+  { key: 'devReport',       path: 'source/dev-report.md' },
+  { key: 'auditReport',     path: 'source/audit-report.md' },
+  { key: 'revisionPrompts', path: 'source/revision-prompts.md' },
+  { key: 'styleSheet',      path: 'source/style-sheet.md' },
+  { key: 'projectTasks',    path: 'source/project-tasks.md' },
+  { key: 'metadata',        path: 'source/metadata.md' },
+];
 ```
 
 Export every constant.

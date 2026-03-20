@@ -91,9 +91,19 @@ class ChatService {
     private settings: ISettingsService,  // ← interface, not SettingsService
     private agents: IAgentService,
     private db: IDatabaseService,
+    private claude: IClaudeClient,
+    private contextWrangler: IContextWrangler,
+  ) {}
+}
+
+// The ContextWrangler also depends on interfaces
+class ContextWrangler {
+  constructor(
+    private settings: ISettingsService,
+    private agents: IAgentService,
+    private db: IDatabaseService,
     private fs: IFileSystemService,
     private claude: IClaudeClient,
-    private contextBuilder: IContextBuilder,
   ) {}
 }
 ```
@@ -154,7 +164,11 @@ src/
 │       └── index.ts               # Pandoc binary path resolution
 │
 ├── application/                    # LAYER 3: Business logic, depends on interfaces
-│   ├── ContextBuilder.ts          # Per-agent context assembly, token budgeting
+│   ├── ContextWrangler.ts         # AI-powered context planner — orchestrates the two-call pattern
+│   ├── context/
+│   │   ├── TokenEstimator.ts      # Pure token counting utility
+│   │   ├── ManifestBuilder.ts     # Builds WranglerInput from project state
+│   │   └── PlanExecutor.ts        # Executes WranglerPlan — loads, summarizes, compacts
 │   ├── ChatService.ts             # Full send→stream→save orchestration (via CLI)
 │   ├── PipelineService.ts         # Phase detection from file existence
 │   ├── BuildService.ts            # Pandoc execution for DOCX/EPUB/PDF
@@ -269,19 +283,62 @@ After completing the session, provide a summary:
 
 ---
 
-## Context Loading — What Each Agent Needs
+## Context Loading — The Wrangler System
 
-When building the ContextBuilder, these are the per-agent context rules derived from the original novel engine's agent definitions:
+Context is NOT assembled by static rules. The **Context Wrangler** — an 8th agent (`WRANGLER.md`) running on a cheap model (Sonnet) — makes intelligent, per-call decisions about what context to load for each creative agent.
 
-| Agent | Loads | Does NOT Load |
-|-------|-------|---------------|
-| **Spark** | authorProfile | Everything else (works from conversation) |
-| **Verity** | voiceProfile, sceneOutline, storyBible, revisionPrompts, authorProfile, pitch, all chapters (draft + notes) | readerReport, devReport, auditReport |
-| **Ghostlight** | All chapters (draft ONLY) | notes, source docs, outlines, pitch — cold read only |
-| **Lumen** | readerReport, sceneOutline, storyBible, pitch, all chapters (draft + notes) | authorProfile, revisionPrompts |
-| **Sable** | styleSheet, storyBible, all chapters (draft only) | notes, outlines, reports |
-| **Forge** | devReport, readerReport, auditReport, sceneOutline | chapters, authorProfile |
-| **Quill** | authorProfile, storyBible | chapters, reports |
+### The Two-Call Pattern
+
+Every agent interaction is actually two CLI calls:
+
+```
+Call 1: WRANGLER (Sonnet, cheap, ~1-2s)
+   Input: agent name, user message, file manifest with token sizes, conversation stats, budget
+   Output: WranglerPlan (JSON) — what files to include/summarize/exclude, chapter window, conversation compaction
+
+Call 2: AGENT (Opus/Sonnet, the real work)
+   Input: assembled context per the WranglerPlan
+   Output: the agent's actual response (prose, report, plan, etc.)
+```
+
+### Per-Agent File Rules (used by the Wrangler)
+
+These are the baseline rules the Wrangler follows. It can deviate based on the specific task.
+
+| Agent | Required | Relevant | Irrelevant |
+|-------|----------|----------|------------|
+| **Spark** | authorProfile | pitch (if revisiting) | Everything else |
+| **Verity** | voiceProfile | pitch, sceneOutline, storyBible, authorProfile, revisionPrompts | readerReport, devReport, auditReport |
+| **Ghostlight** | (none — cold read) | (none) | ALL source docs, notes, outlines |
+| **Lumen** | readerReport | sceneOutline, storyBible, pitch | authorProfile, revisionPrompts |
+| **Sable** | styleSheet, storyBible | (none) | outlines, reports, authorProfile |
+| **Forge** | devReport | readerReport, auditReport, sceneOutline | chapters, authorProfile |
+| **Quill** | authorProfile | storyBible, pitch | chapters, reports |
+
+### Chapter Strategies
+
+The Wrangler chooses a chapter loading strategy based on the agent and task:
+
+| Strategy | When | What |
+|----------|------|------|
+| `none` | Spark, Forge, Quill | No chapters loaded |
+| `sliding-window` | Verity writing new chapter | Previous 2-3 chapters (draft + notes) |
+| `target-neighbors` | Verity revising a specific chapter | Target + 1-2 neighbors |
+| `full-read` | Ghostlight, Lumen (full assessment), Sable | Entire manuscript (batched if over budget) |
+
+### Conversation Compaction
+
+The Wrangler also manages conversation history to prevent token bloat:
+
+| Strategy | When | What |
+|----------|------|------|
+| `keep-all` | Short conversations (< 40% of budget) | All turns, strip old thinking blocks |
+| `summarize-old` | Medium conversations (40-70%) | Summarize old turns, keep last 4-6 verbatim |
+| `keep-recent-only` | Long conversations (> 70%) | Brief recap + last 3-4 turns only |
+
+### Fallback
+
+If the Wrangler CLI call fails, the system falls back to static rules (hardcoded per-agent file lists, last 3 chapters for Verity, keep all conversation turns if < 20). The app always works.
 
 ---
 

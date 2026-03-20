@@ -22,16 +22,19 @@ Constructor: `constructor(agentsDir: string)` — the path to the directory cont
 3. Read the file contents as the `systemPrompt`
 4. Merge with the registry metadata to produce a full `Agent` object
 5. If a `.md` file doesn't match any registry entry, skip it (allows custom agents later)
-6. Return all loaded agents, sorted by pipeline order (Spark first, Quill last — use `PIPELINE_PHASES` to derive order)
+6. Return all loaded agents **excluding the Wrangler** (it's an infrastructure agent, not a creative agent). Sort by pipeline order (Spark first, Quill last — use `PIPELINE_PHASES` to derive order). Use `CREATIVE_AGENT_NAMES` from constants to filter.
 
 **`load(name)`:**
-Call `loadAll()`, find by name. Throw a descriptive error if not found.
+Call a private `loadAllIncludingWrangler()` method, find by name. Throw a descriptive error if not found. This method MUST be able to load the Wrangler agent — the `ContextWrangler` service calls `agents.load('Wrangler')` before every creative agent call.
 
 **Important:** The `.md` files may have different casings (e.g., `FORGE.MD` vs `FORGE.md`). Do case-insensitive matching against the registry.
+
+**Important:** The `loadAll()` public method returns only creative agents (for the UI). The `load(name)` method can load ANY registered agent including the Wrangler. Internally, implement a `loadAllIncludingWrangler()` that returns all agents, and have `loadAll()` filter it.
 
 ## Verification
 
 - Compiles with `npx tsc --noEmit`
 - Implements `IAgentService`
 - No imports from Electron, application, renderer, or other infrastructure
-- Returns `Agent[]` with all 7 agents when the `.md` files are present
+- `loadAll()` returns `Agent[]` with the 7 creative agents (NOT the Wrangler)
+- `load('Wrangler')` successfully loads the Wrangler agent from `WRANGLER.md`

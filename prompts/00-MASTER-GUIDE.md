@@ -64,8 +64,12 @@ src/
 │   └── pandoc/             # Binary resolution, exec wrapper
 │
 ├── application/            # Business logic / orchestration
+│   ├── ContextWrangler.ts  # AI-powered context planner (two-call pattern)
+│   ├── context/
+│   │   ├── TokenEstimator.ts    # Pure token counting utility
+│   │   ├── ManifestBuilder.ts   # Builds WranglerInput from project state
+│   │   └── PlanExecutor.ts      # Executes WranglerPlan — loads/summarizes/compacts
 │   ├── ChatService.ts      # Agent + context + CLI + history
-│   ├── ContextBuilder.ts   # Per-agent context assembly + token budgeting
 │   ├── PipelineService.ts  # Phase detection, transitions
 │   ├── BuildService.ts     # Manuscript assembly + Pandoc
 │   └── UsageService.ts     # Token tracking + cost estimation
@@ -101,7 +105,7 @@ src/
 | 05 | Agent loader | Reads agent .md files, returns typed data | 10 min |
 | 06 | Filesystem infrastructure | Book CRUD, active-book, file I/O | 15 min |
 | 07 | Claude Code CLI client | CLI wrapper with streaming + extended thinking | 20 min |
-| 08 | Context builder | Per-agent context assembly, token budgeting | 15 min |
+| 08 | Context Wrangler | AI-powered context planner + manifest builder + plan executor | 25 min |
 | 09 | Chat service | Orchestrates the full send→stream→save cycle | 20 min |
 | 10 | Pipeline + Build services | Phase detection, Pandoc wrapper | 15 min |
 | 11 | IPC + Preload wiring | Typed handlers and context bridge | 20 min |
@@ -168,13 +172,28 @@ The following fixes have been applied to the session prompts (2026-03-20):
 28. **SESSION-19:** Changed `AGENT_OUTPUT_TARGETS` from single-target to multi-target per phase: type is now `Partial<Record<PipelinePhaseId, OutputTarget[]>>`. Added `OutputTarget` type. Pitch phase now has one target: `source/pitch.md`. New scaffold phase has two targets: `source/scene-outline.md` ("Save as Scene Outline") and `source/story-bible.md` ("Save as Story Bible"). Updated `FilePersistenceService.saveAgentOutput` to accept `targetPath` param. Updated IPC and preload accordingly. Updated `MessageBubble` to render one save button per target. Scaffold pipeline detection gates on `scene-outline.md` — the story bible is supplementary.
 29. **architect.md:** Updated pipeline detection table and per-agent context loading table
 
-### Errata Round 5 — Voice Profile & Author Profile Conversational Setup (2026-03-20)
+### Errata Round 5 — Context Wrangler (2026-03-20)
 
-30. **SESSION-02:** Added `ConversationPurpose` type (`'pipeline' | 'voice-setup' | 'author-profile'`). Added `purpose: ConversationPurpose` field to `Conversation` type. Added `purpose?: ConversationPurpose` optional param to `IContextBuilder.build()` in `interfaces.ts`.
+The static `ContextBuilder` has been replaced with the **Context Wrangler** — an AI-powered context management system that uses a cheap Sonnet CLI call to make intelligent per-request decisions about what project files, chapters, and conversation history to include. This is the most significant architectural change to the application.
+
+**Files changed:**
+- **SESSION-02 (Domain):** Added `'Wrangler'` to `AgentName` union. Added `CreativeAgentName` type. Added `WranglerInput`, `WranglerPlan`, `AssembledContext`, `ContextDiagnostics`, and all supporting types. Replaced `IContextBuilder` with `IContextWrangler` interface. Added `sendOneShot()` method to `IClaudeClient`. Added Wrangler constants (`WRANGLER_MODEL`, `WRANGLER_MAX_TOKENS`, `AGENT_RESPONSE_BUFFER`, `FILE_MANIFEST_KEYS`, etc.).
+- **SESSION-07 (Claude CLI):** Added `sendOneShot()` method — non-streaming JSON call for Wrangler planning and summarization.
+- **SESSION-08 (Context):** Complete rewrite. `ContextBuilder.ts` → `ContextWrangler.ts` + `context/TokenEstimator.ts` + `context/ManifestBuilder.ts` + `context/PlanExecutor.ts`. Implements the two-call pattern with fallback.
+- **SESSION-09 (Chat Service):** Constructor changed from 6 params to 5 (drops `IFileSystemService`, replaces `IContextBuilder` with `IContextWrangler`). `sendMessage` now calls `contextWrangler.assemble()` instead of manually loading context. Added `getLastDiagnostics()` method.
+- **SESSION-11 (IPC):** Added `context:getLastDiagnostics` channel and `context.getLastDiagnostics()` to preload bridge. Added `ContextDiagnostics` to preload type imports.
+- **SESSION-12 (Composition Root):** Instantiates `ContextWrangler` instead of `ContextBuilder`.
+- **architect.md:** Updated architecture map, dependency injection example, and context loading section.
+- **00-MASTER-GUIDE.md:** Updated directory map and session table.
+- **agents/WRANGLER.md:** New agent system prompt file.
+
+### Errata Round 6 — Voice Profile & Author Profile Conversational Setup (2026-03-20)
+
+30. **SESSION-02:** Added `ConversationPurpose` type (`'pipeline' | 'voice-setup' | 'author-profile'`). Added `purpose: ConversationPurpose` field to `Conversation` type. Added `purpose?: ConversationPurpose` optional param to `IContextWrangler.assemble()` in `interfaces.ts`.
 31. **SESSION-02 (constants):** Added `VOICE_SETUP_INSTRUCTIONS` and `AUTHOR_PROFILE_INSTRUCTIONS` constants — purpose-specific prompt appendices for Verity's voice interview and author profile interview protocols.
 32. **SESSION-04:** Added `purpose TEXT NOT NULL DEFAULT 'pipeline'` column to `conversations` table schema. Added migration check for existing databases (`ALTER TABLE` if column missing). Updated `DatabaseService` CRUD to include `purpose` in all conversation queries.
-33. **SESSION-08:** Added optional `purpose?: ConversationPurpose` param to `ContextBuilder.build()`. When `purpose === 'voice-setup'`, loads only voice profile + author profile. When `purpose === 'author-profile'`, loads only existing author profile. Pipeline purpose uses existing behavior unchanged.
-34. **SESSION-09:** Updated `ChatService.sendMessage` step 6 to append `VOICE_SETUP_INSTRUCTIONS` or `AUTHOR_PROFILE_INSTRUCTIONS` to system prompt based on conversation purpose. Updated `createConversation` to accept and pass `purpose` parameter.
+33. **SESSION-08:** The ContextWrangler handles purpose-based context loading intelligently — voice-setup and author-profile conversations get minimal project context since they're focused interviews, not manuscript work.
+34. **SESSION-09:** Updated `ChatService.sendMessage` to append `VOICE_SETUP_INSTRUCTIONS` or `AUTHOR_PROFILE_INSTRUCTIONS` to system prompt based on conversation purpose. Updated `createConversation` to accept and pass `purpose` parameter.
 35. **SESSION-11:** Updated `chat:createConversation` handler to accept `purpose` param. Updated preload `chat.createConversation` signature to include optional `purpose`. Added `ConversationPurpose` to preload's `import type` list.
 36. **SESSION-13:** Updated `chatStore.createConversation` to accept `purpose: ConversationPurpose = 'pipeline'` as fourth parameter.
 37. **SESSION-14:** Replaced Author Profile textarea in Settings with: markdown preview of current profile, "Set Up with Verity" / "Refine with Verity" button (opens author-profile purpose conversation), and collapsible "Edit Manually" fallback textarea. Simplified onboarding Step 4 to keep textarea for quick entry with "Skip" option and note about Verity refinement later.

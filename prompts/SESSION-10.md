@@ -169,7 +169,7 @@ const chat = new ChatService(settings, agents, db, fs, claudeClient, contextBuil
 ## Task 4: `src/application/index.ts`
 
 ```typescript
-export { ContextBuilder } from './ContextBuilder';
+export { ContextWrangler } from './ContextWrangler';
 export { ChatService } from './ChatService';
 export { PipelineService } from './PipelineService';
 export { BuildService } from './BuildService';
