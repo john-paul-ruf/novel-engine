@@ -1,18 +1,25 @@
 import type { IDatabaseService } from '@domain/interfaces';
 import type { UsageRecord, UsageSummary } from '@domain/types';
+import { MODEL_PRICING } from '@domain/constants';
 
 /**
- * UsageService — Token tracking and cost estimation.
+ * UsageService — Centralizes token tracking and cost estimation.
  *
  * Wraps IDatabaseService usage methods and adds cost calculation
- * so callers (ChatService) don't need to know about pricing.
- *
- * Full implementation in Session 10 — this provides the contract
- * that ChatService depends on.
+ * using MODEL_PRICING from domain constants. Callers (ChatService)
+ * pass raw token counts; this service computes the estimated cost
+ * before persisting.
  */
 export class UsageService {
   constructor(private db: IDatabaseService) {}
 
+  /**
+   * Record a usage event with automatic cost calculation.
+   *
+   * Looks up the model's pricing from MODEL_PRICING. Falls back to
+   * Opus pricing if the model isn't found (safest default — overestimates
+   * rather than underestimates).
+   */
   recordUsage(params: {
     conversationId: string;
     inputTokens: number;
@@ -22,8 +29,8 @@ export class UsageService {
   }): void {
     const { conversationId, inputTokens, outputTokens, thinkingTokens, model } = params;
 
-    // Placeholder cost — Session 10 will implement proper pricing lookup
-    const estimatedCost = 0;
+    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['claude-opus-4-20250514'];
+    const estimatedCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
 
     this.db.recordUsage({
       conversationId,
@@ -35,11 +42,17 @@ export class UsageService {
     });
   }
 
-  getUsageSummary(bookSlug?: string): UsageSummary {
+  /**
+   * Get aggregated usage summary, optionally filtered by book.
+   */
+  getSummary(bookSlug?: string): UsageSummary {
     return this.db.getUsageSummary(bookSlug);
   }
 
-  getUsageByConversation(conversationId: string): UsageRecord[] {
+  /**
+   * Get all usage records for a specific conversation.
+   */
+  getByConversation(conversationId: string): UsageRecord[] {
     return this.db.getUsageByConversation(conversationId);
   }
 }
