@@ -16,6 +16,7 @@ import type {
   AgentName,
   AppSettings,
   BookMeta,
+  ConversationPurpose,
   PipelinePhaseId,
   SendMessageParams,
 } from '@domain/types';
@@ -129,6 +130,7 @@ export function registerIpcHandlers(services: {
     bookSlug: string;
     agentName: AgentName;
     pipelinePhase: PipelinePhaseId | null;
+    purpose?: ConversationPurpose;
   }) => services.chat.createConversation(params));
 
   ipcMain.handle('chat:getConversations', (_, bookSlug: string) =>

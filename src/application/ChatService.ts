@@ -15,6 +15,7 @@ import type {
   StreamEvent,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS } from '@domain/constants';
 import type { UsageService } from './UsageService';
 
 /**
@@ -90,19 +91,30 @@ export class ChatService {
     // Steps 5–9: Context assembly → CLI call → response capture
     // Wrapped in try/catch so errors are always forwarded as events
     try {
-      // Step 5: Assemble context via the Wrangler (two-call pattern)
+      // Step 5: Retrieve conversation to check purpose
+      const conversation = this.db.getConversation(conversationId);
+
+      // Step 5b: Assemble context via the Wrangler (two-call pattern)
       const assembled = await this.contextWrangler.assemble({
         agentName,
         userMessage: message,
         conversationId,
         bookSlug,
+        purpose: conversation?.purpose,
       });
 
       // Step 6: Store diagnostics for later retrieval by the IPC layer
       this.lastDiagnostics = assembled.diagnostics;
 
       // Step 7: Build the full system prompt with project context
-      const systemPrompt = `${agent.systemPrompt}\n\n---\n\n# Current Book Context\n\n${assembled.projectContext}`;
+      let systemPrompt = `${agent.systemPrompt}\n\n---\n\n# Current Book Context\n\n${assembled.projectContext}`;
+
+      // Step 7b: Append purpose-specific instructions
+      if (conversation?.purpose === 'voice-setup') {
+        systemPrompt += VOICE_SETUP_INSTRUCTIONS;
+      } else if (conversation?.purpose === 'author-profile') {
+        systemPrompt += AUTHOR_PROFILE_INSTRUCTIONS;
+      }
 
       // Step 8: Determine thinking budget
       // Use the agent's default thinking budget, but only if thinking is globally enabled

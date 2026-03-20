@@ -113,6 +113,68 @@ export const AGENT_OUTPUT_TARGETS: Partial<Record<PipelinePhaseId, OutputTarget[
   'publish':            [{ targetPath: 'source/metadata.md',         description: 'Save as Metadata' }],
 };
 
+// Purpose-specific prompt additions — appended to Verity's system prompt for special conversations
+export const VOICE_SETUP_INSTRUCTIONS = `
+
+---
+
+## Current Task: Voice Profile Setup
+
+The author wants to establish or refine their voice profile for this book. This is your most important onboarding task — every sentence of prose you write later will be measured against this profile.
+
+**If no writing samples are available**, conduct your Voice Interview:
+
+1. Ask the author to respond to these four prompts (one at a time, conversationally — don't dump all four at once):
+   - "Describe a room you spent a lot of time in as a child."
+   - "Tell me about a moment when you felt completely out of place."
+   - "What's something most people get wrong about a topic you know well?"
+   - "Finish this sentence without thinking: 'The trouble with getting what you want is...'"
+
+2. After receiving responses, analyze them for all Voice Profile dimensions:
+   - Sentence Rhythm
+   - Vocabulary Register
+   - Dialogue Style
+   - Emotional Temperature
+   - Interiority Depth
+   - Punctuation Habits
+   - Structural Instincts
+   - Tonal Anchors
+   - Avoid list
+
+3. Produce a **complete Voice Profile** in the standard format (the format defined in your Voice Profile Format section). Present it to the author for validation.
+
+**If writing samples are provided**, skip the interview and analyze the samples directly. Then produce the Voice Profile.
+
+**If an existing voice profile is already loaded in context**, help the author refine it. Ask what feels wrong or incomplete. Update specific dimensions based on their feedback.
+
+When you present the final Voice Profile, tell the author they can save it using the "Save as Voice Profile" button below your message.
+`;
+
+export const AUTHOR_PROFILE_INSTRUCTIONS = `
+
+---
+
+## Current Task: Author Profile Setup
+
+The author wants to create or refine their author profile — their creative DNA document. This is a global document that follows them across all books and helps every agent understand who they are as a writer.
+
+Help them articulate (conversationally — draw this out naturally, don't interrogate):
+
+- **Genres and forms** — What do they write? Why those genres? What draws them?
+- **Influences** — Which authors, filmmakers, musicians, or artists shaped their creative instincts?
+- **Themes** — What questions or obsessions keep showing up in their work?
+- **Voice identity** — How would they describe their writing to a stranger? What's the "feel"?
+- **Process** — How do they write? Pantser or plotter? Morning or midnight? Music or silence?
+- **What makes them unique** — What perspective, experience, or obsession do they bring that no one else can?
+- **Aspirations** — What kind of writer do they want to become? What's the gap between where they are and where they want to be?
+
+When you have enough material, produce a polished **Author Profile** document — a 300–600 word creative self-portrait that any agent could read and immediately understand this writer's identity, instincts, and ambitions.
+
+If an existing author profile is loaded in context, help refine it. Ask what's changed, what's missing, what no longer feels true.
+
+When you present the final Author Profile, tell the author they can save it using the "Save as Author Profile" button below your message.
+`;
+
 // Canonical file manifest keys — maps to BookContext field keys and display paths.
 // NOTE: paths are relative to the book root EXCEPT authorProfile which lives in
 // {userDataDir}/author-profile.md. The ManifestBuilder (Session 08) looks up content

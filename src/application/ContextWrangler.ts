@@ -10,6 +10,7 @@ import type {
   AgentName,
   AssembledContext,
   ChapterStrategy,
+  ConversationPurpose,
   ConversationStrategy,
   CreativeAgentName,
   WranglerChapterDirective,
@@ -68,8 +69,9 @@ export class ContextWrangler implements IContextWrangler {
     userMessage: string;
     conversationId: string;
     bookSlug: string;
+    purpose?: ConversationPurpose;
   }): Promise<AssembledContext> {
-    const { agentName, userMessage, conversationId, bookSlug } = params;
+    const { agentName, userMessage, conversationId, bookSlug, purpose } = params;
 
     try {
       // 1. Load the agent to get system prompt and thinking budget
@@ -95,7 +97,12 @@ export class ContextWrangler implements IContextWrangler {
         thinkingBudget,
       });
 
-      // 6. Try to load the Wrangler agent prompt and make the planning call
+      // 6. Attach purpose to the wrangler input so the Wrangler sees it
+      if (purpose) {
+        wranglerInput.purpose = purpose;
+      }
+
+      // 6b. Try to load the Wrangler agent prompt and make the planning call
       let plan: WranglerPlan;
       try {
         const wranglerAgent = await this.agents.load('Wrangler');

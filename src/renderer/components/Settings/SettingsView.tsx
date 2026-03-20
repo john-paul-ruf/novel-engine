@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { marked } from 'marked';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useChatStore } from '../../stores/chatStore';
+import { useBookStore } from '../../stores/bookStore';
+import { useViewStore } from '../../stores/viewStore';
 import type { UsageSummary } from '@domain/types';
 
 type ModelOption = { id: string; label: string; description: string };
@@ -307,34 +311,68 @@ function UsageSection(): React.ReactElement {
 function AuthorProfileSection(): React.ReactElement {
   const { settings, update } = useSettingsStore();
   const [authorName, setAuthorName] = useState('');
-  const [profileText, setProfileText] = useState('');
+  const [authorProfile, setAuthorProfile] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showManualEdit, setShowManualEdit] = useState(false);
+  const [editableProfile, setEditableProfile] = useState('');
   const [saving, setSaving] = useState(false);
-  const [editingName, setEditingName] = useState(false);
 
   useEffect(() => {
     setAuthorName(settings?.authorName ?? '');
     window.novelEngine.settings
       .loadAuthorProfile()
-      .then(setProfileText)
+      .then((profile) => {
+        setAuthorProfile(profile);
+        setEditableProfile(profile);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [settings?.authorName]);
 
-  const handleSave = useCallback(async () => {
+  const handleAuthorNameChange = useCallback(
+    async (name: string) => {
+      setAuthorName(name);
+      await update({ authorName: name });
+    },
+    [update],
+  );
+
+  const handleEditWithVerity = useCallback(async () => {
+    const { activeSlug } = useBookStore.getState();
+    const chatStore = useChatStore.getState();
+    const viewStore = useViewStore.getState();
+
+    // Find existing author-profile conversation or create new one
+    const existing = chatStore.conversations.find(
+      (c) => c.purpose === 'author-profile',
+    );
+
+    if (existing) {
+      await chatStore.setActiveConversation(existing.id);
+    } else {
+      await chatStore.createConversation(
+        'Verity',
+        activeSlug || '',
+        null,
+        'author-profile',
+      );
+    }
+
+    viewStore.navigate('chat');
+  }, []);
+
+  const handleSaveManual = useCallback(async () => {
     setSaving(true);
     try {
-      await window.novelEngine.settings.saveAuthorProfile(profileText);
-      if (authorName !== (settings?.authorName ?? '')) {
-        await update({ authorName });
-      }
-      setEditingName(false);
+      await window.novelEngine.settings.saveAuthorProfile(editableProfile);
+      setAuthorProfile(editableProfile);
+      setShowManualEdit(false);
     } catch (error) {
       console.error('Failed to save author profile:', error);
     } finally {
       setSaving(false);
     }
-  }, [profileText, authorName, settings?.authorName, update]);
+  }, [editableProfile]);
 
   if (loading) {
     return (
@@ -349,48 +387,83 @@ function AuthorProfileSection(): React.ReactElement {
     <section className="space-y-4">
       <SectionHeading>Author Profile</SectionHeading>
 
+      {/* Author name */}
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-zinc-300">Author name</label>
-        {editingName ? (
-          <input
-            type="text"
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
-        ) : (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-zinc-200">
-              {settings?.authorName || 'Not set'}
-            </span>
-            <button
-              onClick={() => setEditingName(true)}
-              className="text-xs text-blue-400 transition-colors hover:text-blue-300"
-            >
-              Edit
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-zinc-300">Profile</label>
-        <textarea
-          value={profileText}
-          onChange={(e) => setProfileText(e.target.value)}
-          placeholder="What genres do you write? What's your style? Who are your influences?"
-          rows={6}
-          className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        <label className="block text-sm text-zinc-400">
+          Your name (as it appears on book covers)
+        </label>
+        <input
+          type="text"
+          value={authorName}
+          onChange={(e) => handleAuthorNameChange(e.target.value)}
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
-      >
-        {saving ? 'Saving...' : 'Save'}
-      </button>
+      {/* Profile content preview */}
+      <div className="space-y-1">
+        <label className="block text-sm text-zinc-400">
+          Your creative DNA — loaded by agents to understand your writing identity
+        </label>
+        <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+          {authorProfile ? (
+            <div
+              className="prose prose-invert prose-sm"
+              dangerouslySetInnerHTML={{ __html: String(marked.parse(authorProfile)) }}
+            />
+          ) : (
+            <p className="italic text-zinc-500">No author profile yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-3">
+        <button
+          onClick={handleEditWithVerity}
+          className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white transition-colors hover:bg-purple-700"
+        >
+          <span>🎙</span>
+          {authorProfile ? 'Refine with Verity' : 'Set Up with Verity'}
+        </button>
+        <button
+          onClick={() => {
+            setEditableProfile(authorProfile);
+            setShowManualEdit(true);
+          }}
+          className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-200"
+        >
+          Edit Manually
+        </button>
+      </div>
+
+      {/* Manual edit textarea (hidden by default) */}
+      {showManualEdit && (
+        <div className="mt-4">
+          <textarea
+            value={editableProfile}
+            onChange={(e) => setEditableProfile(e.target.value)}
+            rows={8}
+            className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="What genres do you write? What's your style? Who are your influences?"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={handleSaveManual}
+              disabled={saving}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={() => setShowManualEdit(false)}
+              className="text-sm text-zinc-400 hover:text-zinc-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

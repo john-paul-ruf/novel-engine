@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentName, Conversation, Message, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
+import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
 import { useBookStore } from './bookStore';
 
 type ChatState = {
@@ -13,7 +13,7 @@ type ChatState = {
   conversationUsage: UsageRecord[] | null;
 
   loadConversations: (bookSlug: string) => Promise<void>;
-  createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null) => Promise<void>;
+  createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose?: ConversationPurpose) => Promise<void>;
   setActiveConversation: (conversationId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
@@ -44,12 +44,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  createConversation: async (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null) => {
+  createConversation: async (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose: ConversationPurpose = 'pipeline') => {
     try {
       const conversation = await window.novelEngine.chat.createConversation({
         bookSlug,
         agentName,
         pipelinePhase: phase,
+        purpose,
       });
       set((state) => ({
         activeConversation: conversation,

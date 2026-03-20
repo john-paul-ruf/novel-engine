@@ -102,8 +102,18 @@ export function ConversationList({
                 />
 
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium">
-                    {conv.agentName}: {conv.title || 'New conversation'}
+                  <div className="flex items-center truncate text-xs font-medium">
+                    <span className="truncate">{conv.agentName}: {conv.title || 'New conversation'}</span>
+                    {conv.purpose === 'voice-setup' && (
+                      <span className="ml-2 shrink-0 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300">
+                        Voice Setup
+                      </span>
+                    )}
+                    {conv.purpose === 'author-profile' && (
+                      <span className="ml-2 shrink-0 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300">
+                        Author Profile
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-zinc-600">
                     {formatRelativeTime(conv.updatedAt)}

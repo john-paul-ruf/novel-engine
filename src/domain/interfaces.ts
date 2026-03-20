@@ -8,6 +8,7 @@ import type {
   BookSummary,
   BuildResult,
   Conversation,
+  ConversationPurpose,
   FileEntry,
   Message,
   MessageRole,
@@ -103,6 +104,7 @@ export interface IContextWrangler {
     userMessage: string;
     conversationId: string;
     bookSlug: string;
+    purpose?: ConversationPurpose;
   }): Promise<AssembledContext>;
 
   estimateTokens(text: string): number;

@@ -45,4 +45,10 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_conversations_book_slug
       ON conversations(book_slug);
   `);
+
+  // Safety check: ensure purpose column exists (defensive for early dev builds)
+  const columns = db.pragma('table_info(conversations)') as { name: string }[];
+  if (!columns.some((c) => c.name === 'purpose')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN purpose TEXT NOT NULL DEFAULT 'pipeline'`);
+  }
 }

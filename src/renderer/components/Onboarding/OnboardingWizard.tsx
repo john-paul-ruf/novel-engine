@@ -239,50 +239,55 @@ function AuthorProfileStep({
   const [profileText, setProfileText] = useState('');
 
   return (
-    <div className="flex w-full flex-col items-center">
+    <div className="flex w-full flex-col items-center text-center">
       <h2 className="mb-2 text-2xl font-bold text-zinc-100">Tell Us About Your Writing</h2>
-      <p className="mb-6 text-sm text-zinc-400">
-        This helps the AI agents match your creative voice.
+      <p className="mb-6 text-zinc-400">
+        Your author profile helps every agent understand your creative identity.
+        You can set this up now or come back to it later.
       </p>
 
-      <div className="mb-4 w-full">
-        <label className="mb-1.5 block text-sm font-medium text-zinc-300">
-          Your name (as it appears on book covers)
-        </label>
-        <input
-          type="text"
-          value={authorName}
-          onChange={(e) => setAuthorName(e.target.value)}
-          placeholder="J.K. Author"
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-        />
+      <div className="w-full max-w-md space-y-4">
+        {/* Author Name */}
+        <div className="text-left">
+          <label className="mb-1 block text-sm text-zinc-400">
+            Your name (as it appears on book covers)
+          </label>
+          <input
+            type="text"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="Jane Doe"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+
+        {/* Quick profile textarea */}
+        <div className="text-left">
+          <label className="mb-1 block text-sm text-zinc-400">
+            Quick profile (optional — you can refine this with Verity later)
+          </label>
+          <textarea
+            value={profileText}
+            onChange={(e) => setProfileText(e.target.value)}
+            rows={4}
+            placeholder="What genres do you write? What's your style? Who are your influences?"
+            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
       </div>
 
-      <div className="mb-4 w-full">
-        <label className="mb-1.5 block text-sm font-medium text-zinc-300">
-          Author profile
-        </label>
-        <textarea
-          value={profileText}
-          onChange={(e) => setProfileText(e.target.value)}
-          placeholder="What genres do you write? What's your style? Who are your influences? What makes your voice unique?"
-          rows={6}
-          className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => onNext('', '')}
-          className="text-sm text-zinc-500 transition-colors hover:text-zinc-400"
-        >
-          Skip
-        </button>
+      <div className="mt-6 flex flex-col items-center gap-3">
         <button
           onClick={() => onNext(authorName, profileText)}
-          className="rounded-lg bg-blue-600 px-8 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
+          className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-500"
         >
           Save & Continue
+        </button>
+        <button
+          onClick={() => onNext('', '')}
+          className="text-sm text-zinc-500 hover:text-zinc-400"
+        >
+          Skip — I'll set this up later
         </button>
       </div>
     </div>

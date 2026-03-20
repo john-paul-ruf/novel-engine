@@ -43,37 +43,60 @@ export function MessageBubble({ message }: MessageBubbleProps): React.ReactEleme
     ? Math.round(message.thinking.length / CHARS_PER_TOKEN)
     : undefined;
 
-  // Determine output targets for this message
+  // Determine output targets for this message based on purpose OR pipeline phase
   const pipelinePhase = activeConversation?.pipelinePhase ?? null;
+  const conversationPurpose = activeConversation?.purpose ?? 'pipeline';
   const targets: OutputTarget[] = useMemo(() => {
+    if (conversationPurpose === 'voice-setup') {
+      return [{ targetPath: 'source/voice-profile.md', description: 'Save as Voice Profile' }];
+    }
+    if (conversationPurpose === 'author-profile') {
+      return [{ targetPath: '__author-profile__', description: 'Save as Author Profile' }];
+    }
     if (!pipelinePhase) return [];
     return AGENT_OUTPUT_TARGETS[pipelinePhase] ?? [];
-  }, [pipelinePhase]);
+  }, [pipelinePhase, conversationPurpose]);
 
   const handleSave = useCallback(async (target: OutputTarget, chapterSlug?: string) => {
-    if (!activeSlug || !pipelinePhase) return;
-
     setSaveStates((prev) => ({
       ...prev,
       [target.targetPath]: { saving: true },
     }));
 
     try {
-      const result = await window.novelEngine.chat.saveToFile({
-        bookSlug: activeSlug,
-        pipelinePhase,
-        targetPath: target.targetPath,
-        content: message.content,
-        chapterSlug,
-      });
-
-      setSaveStates((prev) => ({
-        ...prev,
-        [target.targetPath]: { savedPath: result.savedPath },
-      }));
-
-      // Task 6: Refresh pipeline after successful save
-      await loadPipeline(activeSlug);
+      if (target.targetPath === '__author-profile__') {
+        // Author profile saves via settings IPC (global, not per-book)
+        await window.novelEngine.settings.saveAuthorProfile(message.content);
+        setSaveStates((prev) => ({
+          ...prev,
+          [target.targetPath]: { savedPath: 'author-profile.md' },
+        }));
+      } else if (activeSlug) {
+        if (conversationPurpose === 'voice-setup') {
+          // Voice profile saves via file write (per-book)
+          await window.novelEngine.files.write(activeSlug, target.targetPath, message.content);
+          setSaveStates((prev) => ({
+            ...prev,
+            [target.targetPath]: { savedPath: target.targetPath },
+          }));
+          // Refresh pipeline — voice profile may affect detection
+          await loadPipeline(activeSlug);
+        } else if (pipelinePhase) {
+          // Standard pipeline save via FilePersistenceService
+          const result = await window.novelEngine.chat.saveToFile({
+            bookSlug: activeSlug,
+            pipelinePhase,
+            targetPath: target.targetPath,
+            content: message.content,
+            chapterSlug,
+          });
+          setSaveStates((prev) => ({
+            ...prev,
+            [target.targetPath]: { savedPath: result.savedPath },
+          }));
+          await loadPipeline(activeSlug);
+        }
+      }
 
       // Clear chapter input state
       setActiveChapterTarget(null);
@@ -86,7 +109,7 @@ export function MessageBubble({ message }: MessageBubbleProps): React.ReactEleme
         },
       }));
     }
-  }, [activeSlug, pipelinePhase, message.content, loadPipeline]);
+  }, [activeSlug, pipelinePhase, conversationPurpose, message.content, loadPipeline]);
 
   const handleChapterTargetClick = useCallback((target: OutputTarget) => {
     if (activeChapterTarget === target.targetPath) {

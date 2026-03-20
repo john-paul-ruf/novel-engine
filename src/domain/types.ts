@@ -194,6 +194,7 @@ export type WranglerInput = {
   userMessage: string;
   bookStatus: BookStatus;
   pipelinePhase: PipelinePhaseId | null;
+  purpose?: ConversationPurpose;
   fileManifest: FileManifestEntry[];
   chapters: ChapterManifestEntry[];
   conversation: ConversationManifest;

@@ -1,5 +1,6 @@
 import { useViewStore } from '../../stores/viewStore';
 import { BookSelector } from '../Sidebar/BookSelector';
+import { VoiceSetupButton } from '../Sidebar/VoiceSetupButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
 import { FileTree } from '../Sidebar/FileTree';
 
@@ -50,6 +51,9 @@ export function Sidebar(): React.ReactElement {
 
       {/* Book selector */}
       <BookSelector />
+
+      {/* Voice setup — contextual to active book */}
+      <VoiceSetupButton />
 
       {/* Pipeline tracker + File tree — scrollable */}
       <div className="flex-1 overflow-y-auto">

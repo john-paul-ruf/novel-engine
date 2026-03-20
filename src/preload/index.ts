@@ -8,6 +8,7 @@ import type {
   BuildResult,
   ContextDiagnostics,
   Conversation,
+  ConversationPurpose,
   FileEntry,
   Message,
   PipelinePhase,
@@ -73,6 +74,7 @@ const api = {
       bookSlug: string;
       agentName: AgentName;
       pipelinePhase: PipelinePhaseId | null;
+      purpose?: ConversationPurpose;
     }): Promise<Conversation> =>
       ipcRenderer.invoke('chat:createConversation', params),
     getConversations: (bookSlug: string): Promise<Conversation[]> =>
