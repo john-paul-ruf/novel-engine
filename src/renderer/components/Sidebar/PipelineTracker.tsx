@@ -26,6 +26,14 @@ function StatusIcon({ status }: { status: PhaseStatus }): React.ReactElement {
           ✓
         </div>
       );
+    case 'pending-completion':
+      // Amber pulsing dot: "agent finished — awaiting your confirmation"
+      return (
+        <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+          <div className="absolute h-5 w-5 animate-ping rounded-full bg-amber-500 opacity-30" />
+          <div className="h-3 w-3 rounded-full bg-amber-500" />
+        </div>
+      );
     case 'active':
       return (
         <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
@@ -52,6 +60,9 @@ function ConnectingLine({
     color = 'bg-green-600';
   } else if (fromStatus === 'complete' && toStatus === 'active') {
     color = 'bg-blue-500';
+  } else if (fromStatus === 'complete' && toStatus === 'pending-completion') {
+    // Completed work awaiting user sign-off
+    color = 'bg-amber-500';
   }
 
   return <div className={`ml-[9px] h-4 w-0.5 ${color}`} />;
@@ -71,7 +82,7 @@ const REVISION_QUEUE_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
 ]);
 
 export function PipelineTracker(): React.ReactElement {
-  const { phases, markPhaseComplete, completeRevision } = usePipelineStore();
+  const { phases, markPhaseComplete, completeRevision, confirmPhaseAdvancement } = usePipelineStore();
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
@@ -83,6 +94,7 @@ export function PipelineTracker(): React.ReactElement {
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
   const [confirmingRevisionComplete, setConfirmingRevisionComplete] = useState(false);
   const [revisionCompleteError, setRevisionCompleteError] = useState<string | null>(null);
+  const [advancementError, setAdvancementError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSlug) {
@@ -130,6 +142,7 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
+    // Locked phases are not interactive
     if (phase.status === 'locked') return;
 
     // Revision queue phases — clicking them opens the queue, not a bare agent conversation
@@ -144,6 +157,8 @@ export function PipelineTracker(): React.ReactElement {
       if (!ready) return;
     }
 
+    // Both 'active' and 'pending-completion' phases open the agent conversation.
+    // A pending-completion phase is still navigable so the author can review the output.
     await openOrCreateConversation(phase);
   };
 
@@ -245,6 +260,24 @@ export function PipelineTracker(): React.ReactElement {
     }
   };
 
+  /**
+   * Confirm the user is ready to advance the pipeline past a 'pending-completion' phase.
+   *
+   * Single-click — no double-confirmation needed. The "Advance →" button label
+   * already makes the intent clear, and advancing is not destructive (the user
+   * can still open the conversation and iterate after confirming).
+   */
+  const handleConfirmAdvancement = async (phaseId: PipelinePhaseId) => {
+    try {
+      setAdvancementError(null);
+      await confirmPhaseAdvancement(activeSlug, phaseId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setAdvancementError(msg);
+      setTimeout(() => setAdvancementError(null), 6000);
+    }
+  };
+
   return (
     <div className="px-3 py-3">
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -265,6 +298,11 @@ export function PipelineTracker(): React.ReactElement {
           {revisionCompleteError}
         </div>
       )}
+      {advancementError && (
+        <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
+          {advancementError}
+        </div>
+      )}
       <div>
         {phases.map((phase, index) => {
           // Show the revision queue sub-button under both revision queue phases.
@@ -276,11 +314,12 @@ export function PipelineTracker(): React.ReactElement {
             REVISION_QUEUE_PHASES.has(phase.id) &&
             phase.status !== 'locked';
 
-          // Show "Complete Revision" only when the `revision` phase is active and queue isn't running.
+          // Show "Complete Revision" only when the `revision` phase is active or
+          // pending-completion and the queue isn't running.
           // The mechanical-fixes phase does not need this — it uses the queue's own archive step.
           const showCompleteRevision =
             phase.id === 'revision' &&
-            phase.status === 'active' &&
+            (phase.status === 'active' || phase.status === 'pending-completion') &&
             !(revisionRunning && !!revisionActiveSession);
 
           return (
@@ -295,6 +334,8 @@ export function PipelineTracker(): React.ReactElement {
                 isConfirmingComplete={confirmingComplete === phase.id}
                 onMarkComplete={() => handleMarkComplete(phase.id)}
                 isBuildingForQuill={phase.id === 'publish' && isBuildingForQuill}
+                showConfirmAdvancement={phase.status === 'pending-completion'}
+                onConfirmAdvancement={() => handleConfirmAdvancement(phase.id)}
               />
               {showRevisionSub && (
                 <RevisionQueueSubButton
@@ -394,6 +435,8 @@ function PhaseRow({
   isConfirmingComplete,
   onMarkComplete,
   isBuildingForQuill = false,
+  showConfirmAdvancement,
+  onConfirmAdvancement,
 }: {
   phase: PipelinePhase;
   onPhaseClick: () => void;
@@ -402,11 +445,16 @@ function PhaseRow({
   isConfirmingComplete: boolean;
   onMarkComplete: () => void;
   isBuildingForQuill?: boolean;
+  /** Show the "Advance →" button — only true when status is 'pending-completion'. */
+  showConfirmAdvancement: boolean;
+  onConfirmAdvancement: () => void;
 }): React.ReactElement {
   const isBuildPhase = phase.id === 'build';
+  const isPendingCompletion = phase.status === 'pending-completion';
   // Build is always interactive regardless of its locked/active/complete status.
+  // pending-completion phases are also clickable (user can review the agent's output).
   // All other phases follow the normal locked → grayed-out, un-clickable rule.
-  const isClickable = isBuildPhase || (phase.status !== 'locked' && !isBuildingForQuill);
+  const isClickable = isBuildPhase || isPendingCompletion || (phase.status !== 'locked' && !isBuildingForQuill);
   const isActive = phase.status === 'active';
   const dimmed = !isBuildPhase && phase.status === 'locked';
 
@@ -421,6 +469,8 @@ function PhaseRow({
       title={
         phase.status === 'locked' && !isBuildPhase
           ? 'Complete the previous phase first'
+          : isPendingCompletion
+          ? `${phase.label} — agent finished. Click "Advance →" when you're ready to move on.`
           : phase.description
       }
     >
@@ -428,30 +478,45 @@ function PhaseRow({
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs text-zinc-800 dark:text-zinc-200">{phase.label}</div>
         {phase.agent && (
-          <div className="truncate text-[10px] text-zinc-500">
-            {phase.agent}
+          <div className={`truncate text-[10px] ${isPendingCompletion ? 'text-amber-500/80' : 'text-zinc-500'}`}>
+            {isPendingCompletion ? 'ready to advance' : phase.agent}
           </div>
         )}
       </div>
-      {/* Build always shows its action button; other phases only when active */}
-      {(isActive || isBuildPhase) && (
-        <div className="flex shrink-0 items-center gap-1">
-          {showMarkComplete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkComplete();
-              }}
-              className={`no-drag rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                isConfirmingComplete
-                  ? 'bg-green-600 text-white hover:bg-green-500'
-                  : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
-              }`}
-              title={isConfirmingComplete ? 'Click again to confirm' : 'Mark this phase as complete'}
-            >
-              {isConfirmingComplete ? 'Confirm?' : 'Done'}
-            </button>
-          )}
+      {/* Action buttons — shown based on phase status */}
+      <div className="flex shrink-0 items-center gap-1">
+        {/* "Done" manual-completion button — only for active non-gated phases */}
+        {showMarkComplete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkComplete();
+            }}
+            className={`no-drag rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+              isConfirmingComplete
+                ? 'bg-green-600 text-white hover:bg-green-500'
+                : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
+            }`}
+            title={isConfirmingComplete ? 'Click again to confirm' : 'Mark this phase as complete'}
+          >
+            {isConfirmingComplete ? 'Confirm?' : 'Done'}
+          </button>
+        )}
+        {/* "Advance →" confirmation button — only for pending-completion phases */}
+        {showConfirmAdvancement && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onConfirmAdvancement();
+            }}
+            className="no-drag shrink-0 rounded bg-amber-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-amber-500 transition-colors"
+            title="Confirm you're ready to advance the pipeline to the next phase"
+          >
+            Advance →
+          </button>
+        )}
+        {/* "Start" / "Build" action button — only for active phases and the build phase */}
+        {(isActive || isBuildPhase) && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -462,8 +527,8 @@ function PhaseRow({
           >
             {isBuildingForQuill ? 'Building…' : isBuildPhase ? 'Build' : 'Start'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -116,9 +116,22 @@ export interface IPipelineService {
    * Some phases (like `first-draft` and `mechanical-fixes`) depend on the
    * book's status field in about.json, not just file existence. Since nothing
    * auto-advances the status, this method lets the user explicitly signal
-   * that a phase is done.
+   * that a phase is done. Also auto-confirms the phase (no separate
+   * `confirmPhaseAdvancement` call needed).
    */
   markPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<void>;
+
+  /**
+   * Confirm that a phase's work is accepted and the pipeline should advance.
+   *
+   * When an agent writes a pipeline-gating file, the phase transitions to
+   * 'pending-completion' rather than immediately advancing. The next phase
+   * remains locked until the user calls this method, signalling they have
+   * reviewed the output and are ready to proceed.
+   *
+   * Idempotent — calling it on an already-confirmed phase is a no-op.
+   */
+  confirmPhaseAdvancement(bookSlug: string, phaseId: PipelinePhaseId): Promise<void>;
 
   /**
    * Archive the revision reports to signal the revision phase is complete.

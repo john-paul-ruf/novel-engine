@@ -62,7 +62,13 @@ export type PipelinePhaseId =
   | 'revision-plan-1' | 'revision' | 'second-read' | 'second-assessment'
   | 'copy-edit' | 'revision-plan-2' | 'mechanical-fixes' | 'build' | 'publish';
 
-export type PhaseStatus = 'complete' | 'active' | 'locked';
+/**
+ * A phase is 'pending-completion' when all its detection files exist (the AI
+ * finished its work) but the user has not yet explicitly confirmed they are
+ * ready to advance the pipeline. The next phase stays 'locked' until the user
+ * clicks "Advance →" in the sidebar.
+ */
+export type PhaseStatus = 'complete' | 'pending-completion' | 'active' | 'locked';
 
 export type PipelinePhase = {
   id: PipelinePhaseId;

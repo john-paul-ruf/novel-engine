@@ -125,6 +125,13 @@ const api = {
       ipcRenderer.invoke('pipeline:markPhaseComplete', bookSlug, phaseId),
     completeRevision: (bookSlug: string): Promise<void> =>
       ipcRenderer.invoke('pipeline:completeRevision', bookSlug),
+    /**
+     * Confirm that a phase's work is accepted and the pipeline should advance.
+     * Transitions a 'pending-completion' phase to 'complete' and unlocks the
+     * next phase. Idempotent — safe to call on already-confirmed phases.
+     */
+    confirmAdvancement: (bookSlug: string, phaseId: PipelinePhaseId): Promise<void> =>
+      ipcRenderer.invoke('pipeline:confirmAdvancement', bookSlug, phaseId),
   },
 
   // Build

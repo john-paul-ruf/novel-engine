@@ -19,14 +19,37 @@ const MIN_SUBSTANTIVE_WORDS = 50;
  */
 const MIN_SCAFFOLD_WORDS = 200;
 
-// (Phase advancement is handled directly inside markPhaseComplete below.)
+/**
+ * Persisted confirmation state for a single book.
+ *
+ * Stored in `books/{slug}/pipeline-state.json` — a lightweight JSON file
+ * that records which pipeline phases the user has explicitly confirmed.
+ * A phase's completion files may exist (the agent finished) but the phase
+ * is not promoted to 'complete' until it appears in this list.
+ */
+type PipelineState = {
+  confirmedPhases: PipelinePhaseId[];
+};
 
 /**
  * PipelineService — Detects which pipeline phase a book is in.
  *
- * Checks for the existence of key output files to determine which phases
- * are complete, which is active (first incomplete), and which are locked.
- * The pipeline is strictly linear — phases cannot be skipped.
+ * Checks for the existence of key output files AND a user confirmation to
+ * determine which phases are truly complete. The pipeline is strictly linear
+ * — phases cannot be skipped, and the next phase only unlocks after the user
+ * explicitly confirms they are ready (via `confirmPhaseAdvancement`).
+ *
+ * ## Phase statuses
+ * - `complete`           — files exist AND user confirmed advancement
+ * - `pending-completion` — files exist but user has NOT yet confirmed
+ * - `active`             — current work phase (files do not yet exist)
+ * - `locked`             — future phase, not yet reachable
+ *
+ * ## Backward compatibility
+ * When `pipeline-state.json` is absent (existing books, first run after
+ * upgrade), every phase whose detection files already exist is auto-confirmed.
+ * This prevents upgrading users from being asked to re-confirm work they
+ * already finished.
  */
 export class PipelineService implements IPipelineService {
   /** Book statuses that qualify as "copy-edit or later" for mechanical-fixes detection. */
@@ -49,31 +72,64 @@ export class PipelineService implements IPipelineService {
 
   constructor(private fs: IFileSystemService) {}
 
+  // ── Public API ────────────────────────────────────────────────────────────
+
   /**
    * Detect the status of all pipeline phases for a book.
    *
-   * Runs all file-existence checks concurrently, then determines
-   * the first incomplete phase (active) and marks everything after it as locked.
+   * Runs all file-existence checks and loads the stored confirmation state
+   * concurrently. A phase is only 'complete' when BOTH conditions hold:
+   *   1. Its detection files exist (or its status condition is met)
+   *   2. The user has confirmed advancement past it (stored in pipeline-state.json)
+   *
+   * If no pipeline-state.json exists (first run / legacy book), all currently
+   * file-complete phases are auto-confirmed and the state file is created.
    */
   async detectPhases(bookSlug: string): Promise<PipelinePhase[]> {
-    // Run all phase completeness checks concurrently
-    const completionResults = await Promise.all(
-      PIPELINE_PHASES.map((phase) => this.isPhaseComplete(bookSlug, phase.id)),
+    // Run all completeness checks and load stored confirmations concurrently
+    const [completionResults, storedState] = await Promise.all([
+      Promise.all(PIPELINE_PHASES.map((phase) => this.isPhaseComplete(bookSlug, phase.id))),
+      this.loadPipelineState(bookSlug),
+    ]);
+
+    let confirmedPhases: Set<PipelinePhaseId>;
+
+    if (storedState === null) {
+      // First run for this book — auto-confirm all currently file-complete phases
+      // so existing books don't get blocked by the new confirmation requirement.
+      confirmedPhases = new Set(
+        PIPELINE_PHASES.filter((_, i) => completionResults[i]).map((p) => p.id),
+      );
+      // Persist so future runs use the stored state
+      await this.savePipelineState(bookSlug, { confirmedPhases: [...confirmedPhases] });
+    } else {
+      confirmedPhases = new Set(storedState.confirmedPhases);
+    }
+
+    // A phase is "fully complete" only when BOTH file-complete AND confirmed
+    const fullyComplete = completionResults.map(
+      (fileComplete, i) => fileComplete && confirmedPhases.has(PIPELINE_PHASES[i].id),
     );
 
-    // Find the index of the first incomplete phase — that's the active one
-    const firstIncompleteIndex = completionResults.indexOf(false);
+    // The first non-fully-complete phase is the one needing attention
+    const firstIncompleteIndex = fullyComplete.indexOf(false);
 
     return PIPELINE_PHASES.map((phase, index) => {
       let status: PipelinePhase['status'];
 
       if (firstIncompleteIndex === -1) {
-        // All phases complete
+        // All phases fully complete
         status = 'complete';
       } else if (index < firstIncompleteIndex) {
         status = 'complete';
       } else if (index === firstIncompleteIndex) {
-        status = 'active';
+        // Files exist but user hasn't confirmed → pending-completion
+        // Files don't exist yet → active (still working)
+        if (completionResults[index] && !confirmedPhases.has(phase.id)) {
+          status = 'pending-completion';
+        } else {
+          status = 'active';
+        }
       } else {
         status = 'locked';
       }
@@ -89,11 +145,15 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
-   * Get the currently active phase, or null if all phases are complete.
+   * Get the currently active or pending-completion phase, or null if all
+   * phases are complete. Both 'active' and 'pending-completion' represent
+   * the phase the author is currently attending to.
    */
   async getActivePhase(bookSlug: string): Promise<PipelinePhase | null> {
     const phases = await this.detectPhases(bookSlug);
-    return phases.find((p) => p.status === 'active') ?? null;
+    return (
+      phases.find((p) => p.status === 'active' || p.status === 'pending-completion') ?? null
+    );
   }
 
   /**
@@ -103,6 +163,19 @@ export class PipelineService implements IPipelineService {
   getAgentForPhase(phaseId: PipelinePhaseId): AgentName | null {
     const phase = PIPELINE_PHASES.find((p) => p.id === phaseId);
     return phase?.agent ?? null;
+  }
+
+  /**
+   * Confirm that a phase's work is accepted and the pipeline should advance.
+   *
+   * Writes the phase to the confirmed list in pipeline-state.json. The next
+   * call to `detectPhases` will then see this phase as 'complete' and promote
+   * the following phase from 'locked' to 'active'.
+   *
+   * Idempotent — calling on an already-confirmed phase is a safe no-op.
+   */
+  async confirmPhaseAdvancement(bookSlug: string, phaseId: PipelinePhaseId): Promise<void> {
+    await this.addConfirmedPhase(bookSlug, phaseId);
   }
 
   /**
@@ -117,6 +190,9 @@ export class PipelineService implements IPipelineService {
    *   is long enough to pass every word-count threshold used by
    *   `isPhaseComplete`. Agents will overwrite stubs with real content
    *   the next time they run.
+   *
+   * In all cases the phase is also auto-confirmed so the user does not need
+   * a separate "Advance →" click after calling "Done".
    *
    * This enables the author to manually bypass any phase — useful when
    * work was done outside the app, or to skip a phase entirely.
@@ -134,9 +210,11 @@ export class PipelineService implements IPipelineService {
 
       // ── Archive-based phase ──────────────────────────────────────────────
       case 'revision':
-        // Reuse completeRevision which copies the reports to their v1 counterparts
+        // Reuse completeRevision which copies the reports to their v1 counterparts.
+        // completeRevision handles its own auto-confirm, so return early to
+        // avoid double-writing pipeline-state.json.
         await this.completeRevision(bookSlug);
-        break;
+        return;
 
       // ── File-existence phases ────────────────────────────────────────────
       case 'pitch':
@@ -195,6 +273,86 @@ export class PipelineService implements IPipelineService {
         throw new Error(`Unknown pipeline phase: "${String(_exhaustive)}"`);
       }
     }
+
+    // The user explicitly clicked "Done" — that IS their confirmation.
+    // Auto-confirm so the pipeline advances without an additional "Advance →" click.
+    await this.addConfirmedPhase(bookSlug, phaseId);
+  }
+
+  /**
+   * Archive the revision reports to signal the revision phase is complete.
+   *
+   * Copies reader-report.md → reader-report-v1.md so the pipeline detects
+   * the revision phase as done and unlocks second-read. Also copies
+   * dev-report.md → dev-report-v1.md (if present) to pre-satisfy
+   * the second-assessment gate.
+   *
+   * Auto-confirms the 'revision' phase — the user clicked "Complete Revision",
+   * which is their explicit confirmation.
+   */
+  async completeRevision(bookSlug: string): Promise<void> {
+    const readerReport = await this.fs.readFile(bookSlug, 'source/reader-report.md');
+    await this.fs.writeFile(bookSlug, 'source/reader-report-v1.md', readerReport);
+
+    const devReportExists = await this.fs.fileExists(bookSlug, 'source/dev-report.md');
+    if (devReportExists) {
+      const devReport = await this.fs.readFile(bookSlug, 'source/dev-report.md');
+      await this.fs.writeFile(bookSlug, 'source/dev-report-v1.md', devReport);
+    }
+
+    // "Complete Revision" is explicit user confirmation — auto-confirm the phase.
+    await this.addConfirmedPhase(bookSlug, 'revision');
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Load pipeline confirmation state from disk.
+   *
+   * Returns `null` when the file does not exist yet (first run / legacy book).
+   * Returns the parsed state object otherwise. Treats parse errors as
+   * an empty confirmed list rather than crashing.
+   */
+  private async loadPipelineState(bookSlug: string): Promise<PipelineState | null> {
+    try {
+      const raw = await this.fs.readFile(bookSlug, 'pipeline-state.json');
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const confirmedPhases = Array.isArray(parsed.confirmedPhases)
+        ? (parsed.confirmedPhases as PipelinePhaseId[])
+        : [];
+      return { confirmedPhases };
+    } catch (err) {
+      // ENOENT → file doesn't exist → first run. Any other parse error is
+      // treated the same way (safe default: empty confirmations).
+      return null;
+    }
+  }
+
+  /**
+   * Write a pipeline-state.json for the book.
+   */
+  private async savePipelineState(bookSlug: string, state: PipelineState): Promise<void> {
+    await this.fs.writeFile(
+      bookSlug,
+      'pipeline-state.json',
+      JSON.stringify(state, null, 2),
+    );
+  }
+
+  /**
+   * Add a single phase to the confirmed list, persisting atomically.
+   * Idempotent — adding an already-confirmed phase is a no-op on disk.
+   */
+  private async addConfirmedPhase(bookSlug: string, phaseId: PipelinePhaseId): Promise<void> {
+    const stored = await this.loadPipelineState(bookSlug);
+    const existing = stored?.confirmedPhases ?? [];
+
+    if (existing.includes(phaseId)) return; // already confirmed — skip write
+
+    const updated: PipelineState = {
+      confirmedPhases: [...existing, phaseId],
+    };
+    await this.savePipelineState(bookSlug, updated);
   }
 
   /**
@@ -257,25 +415,6 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
-   * Archive the revision reports to signal the revision phase is complete.
-   *
-   * Copies reader-report.md → reader-report-v1.md so the pipeline detects
-   * the revision phase as done and unlocks second-read. Also copies
-   * dev-report.md → dev-report-v1.md (if present) to pre-satisfy
-   * the second-assessment gate.
-   */
-  async completeRevision(bookSlug: string): Promise<void> {
-    const readerReport = await this.fs.readFile(bookSlug, 'source/reader-report.md');
-    await this.fs.writeFile(bookSlug, 'source/reader-report-v1.md', readerReport);
-
-    const devReportExists = await this.fs.fileExists(bookSlug, 'source/dev-report.md');
-    if (devReportExists) {
-      const devReport = await this.fs.readFile(bookSlug, 'source/dev-report.md');
-      await this.fs.writeFile(bookSlug, 'source/dev-report-v1.md', devReport);
-    }
-  }
-
-  /**
    * Check that a file exists AND contains meaningful content (>= MIN_SUBSTANTIVE_WORDS).
    *
    * Old versions of `createBook()` pre-created some pipeline-gating files with
@@ -293,10 +432,10 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
-   * Check whether a specific pipeline phase is complete.
+   * Check whether a specific pipeline phase's detection condition is met.
    *
-   * Each phase has a unique detection rule based on the existence
-   * of key output files in the book's directory structure.
+   * This only checks file/status conditions — it does NOT check the user
+   * confirmation. `detectPhases` combines both to determine the final status.
    */
   private async isPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<boolean> {
     switch (phaseId) {
