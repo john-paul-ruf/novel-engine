@@ -1,8 +1,21 @@
+# Dedication
+
+*To everyone who has an idea for a good book but doesn't know how to craft it, this is for you...*
+
+*For everyones who may be impacted by this work, or whose sensibilities I have offended.*  
+*I am so sorry.  I just wanted to write my memoir and found out it is easier to write fiction than fact. This is the result*
+
+# Questions, comments, or rants?
+[john.paul.ruf@gmail.com](mailto:john.paul.ruf@gmail.com?subject=Novel%20Engine)
+
+
 # Novel Engine
 
 A standalone desktop application for AI-assisted novel writing. Novel Engine orchestrates **seven specialized AI agents** through a structured, editorial publishing pipeline — from first idea to polished manuscript ready for export.
 
 Built with Electron, React, TypeScript, and powered entirely by the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code). No API keys. No cloud backend. Everything runs on your machine.
+
+Requires tech skill to use.  One day there will be installers...
 
 ---
 
@@ -25,8 +38,6 @@ The pipeline takes a book from **blank page → published-ready manuscript** in 
 | **Sable** | Copy Editor | Line-level polish: grammar, style consistency, mechanical errors, prose rhythm |
 | **Forge** | Task Master | Synthesizes all reports into an actionable revision task list and session-by-session execution plan |
 | **Quill** | Publisher | Audits the final manuscript, prepares metadata, and readies the book for publication |
-
-An eighth agent — **Wrangler** — operates invisibly as the context planner. It runs before every agent call and decides what project files, chapters, and conversation history to load, keeping each call within budget and focused on what matters.
 
 ---
 
@@ -240,3 +251,4 @@ See [`prompts/00-MASTER-GUIDE.md`](./prompts/00-MASTER-GUIDE.md) for the full ar
 ## License
 
 [AGPL-3.0-only](LICENSE)
+
