@@ -3,6 +3,7 @@ import type { BookStatus, BookSummary } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useChatStore } from '../../stores/chatStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 const STATUS_COLORS: Record<BookStatus, { bg: string; text: string }> = {
   scaffolded:     { bg: 'bg-zinc-300 dark:bg-zinc-600',    text: 'text-zinc-800 dark:text-zinc-200' },
@@ -131,15 +132,17 @@ export function BookSelector(): React.ReactElement {
   const { books, activeSlug, totalWordCount, loading, loadBooks, setActiveBook, createBook, refreshWordCount, subscribeToDirectoryChanges, uploadCover } = useBookStore();
   const { loadPipeline, setDisplayedBook } = usePipelineStore();
   const { loadConversations } = useChatStore();
+  const revision = useFileChangeStore((s) => s.revision);
 
   const [isOpen, setIsOpen] = useState(false);
   const [showNewBookModal, setShowNewBookModal] = useState(false);
   const [coverTimestamp, setCoverTimestamp] = useState(Date.now());
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const hasInitialized = useRef(false);
 
   // Load data on mount
   useEffect(() => {
-    loadBooks();
+    loadBooks().then(() => { hasInitialized.current = true; });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-scan the books list whenever the main process detects a new directory
@@ -159,6 +162,13 @@ export function BookSelector(): React.ReactElement {
       setCoverTimestamp(Date.now());
     }
   }, [activeSlug]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh word count whenever files change on disk (agent writes, manual edits, etc.)
+  useEffect(() => {
+    if (hasInitialized.current && revision > 0 && activeSlug) {
+      refreshWordCount();
+    }
+  }, [revision]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown on outside click
   useEffect(() => {

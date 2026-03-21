@@ -77,7 +77,7 @@ export const useBookStore = create<BookState>((set, get) => ({
   },
 
   refreshWordCount: async () => {
-    const { activeSlug } = get();
+    const { activeSlug, books } = get();
     if (!activeSlug) {
       set({ totalWordCount: 0 });
       return;
@@ -86,7 +86,13 @@ export const useBookStore = create<BookState>((set, get) => ({
     try {
       const chapters = await window.novelEngine.books.wordCount(activeSlug);
       const total = chapters.reduce((sum, ch) => sum + ch.wordCount, 0);
-      set({ totalWordCount: total });
+
+      // Keep books[] in sync so the dropdown always matches the header
+      const updatedBooks = books.map((b) =>
+        b.slug === activeSlug ? { ...b, wordCount: total } : b
+      );
+
+      set({ totalWordCount: total, books: updatedBooks });
     } catch (error) {
       console.error('Failed to refresh word count:', error);
     }
