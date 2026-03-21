@@ -15,7 +15,6 @@ type FileStatus = {
 type SourcePanelProps = {
   activeSlug: string;
   onFileSelect: (path: string) => void;
-  onFileEdit: (path: string) => void;
 };
 
 function countWords(text: string): number {
@@ -25,7 +24,6 @@ function countWords(text: string): number {
 export function SourcePanel({
   activeSlug,
   onFileSelect,
-  onFileEdit,
 }: SourcePanelProps): React.ReactElement {
   const [statuses, setStatuses] = useState<Record<string, FileStatus>>({});
   const [loading, setLoading] = useState(true);
@@ -97,19 +95,6 @@ export function SourcePanel({
             onClick={() => onFileSelect(file.path)}
             className="group relative cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80"
           >
-            {/* Hover edit action */}
-            {fileExists && file.path.endsWith('.md') && (
-              <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onFileEdit(file.path); }}
-                  className="rounded bg-zinc-700 p-1 text-xs text-zinc-300 hover:bg-zinc-600"
-                  title="Edit"
-                >
-                  ✏️
-                </button>
-              </div>
-            )}
-
             <div className="mb-2 text-2xl">{file.icon}</div>
             <div className="text-sm font-medium text-zinc-200">{file.label}</div>
             <div className="mt-0.5 text-xs text-zinc-500">{file.description}</div>

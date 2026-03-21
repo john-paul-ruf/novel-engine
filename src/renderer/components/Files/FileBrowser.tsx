@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FileEntry } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 
@@ -69,14 +69,12 @@ function FileCardGrid({
   isChaptersDir,
   onNavigate,
   onFileSelect,
-  onEdit,
 }: {
   entries: FileEntry[];
   metadata: Map<string, FileMetadata>;
   isChaptersDir: boolean;
   onNavigate: (path: string) => void;
   onFileSelect: (path: string) => void;
-  onEdit: (path: string) => void;
 }): React.ReactElement {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
@@ -89,7 +87,6 @@ function FileCardGrid({
           onClick={() =>
             entry.isDirectory ? onNavigate(entry.path) : onFileSelect(entry.path)
           }
-          onEdit={onEdit}
           onFileSelect={onFileSelect}
         />
       ))}
@@ -102,19 +99,16 @@ function FileCard({
   metadata,
   isChaptersDir,
   onClick,
-  onEdit,
   onFileSelect,
 }: {
   entry: FileEntry;
   metadata: FileMetadata | null;
   isChaptersDir: boolean;
   onClick: () => void;
-  onEdit: (path: string) => void;
   onFileSelect: (path: string) => void;
 }): React.ReactElement {
   const icon = getFileIcon(entry.name, entry.isDirectory);
   const chapterInfo = isChaptersDir && entry.isDirectory ? parseChapterName(entry.name) : null;
-  const isMarkdown = entry.name.endsWith('.md');
   const isDist = entry.path.startsWith('dist/') || entry.path === 'dist';
 
   const handleOpenExternal = async (e: React.MouseEvent) => {
@@ -137,18 +131,6 @@ function FileCard({
     >
       {/* Quick actions (hover) */}
       <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {isMarkdown && !entry.isDirectory && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(entry.path);
-            }}
-            className="rounded bg-zinc-700 p-1 text-xs text-zinc-300 hover:bg-zinc-600"
-            title="Edit"
-          >
-            ✏️
-          </button>
-        )}
         {isDist && !entry.isDirectory && (
           <button
             onClick={handleOpenExternal}
@@ -234,14 +216,12 @@ function FileListView({
   isChaptersDir,
   onNavigate,
   onFileSelect,
-  onEdit,
 }: {
   entries: FileEntry[];
   metadata: Map<string, FileMetadata>;
   isChaptersDir: boolean;
   onNavigate: (path: string) => void;
   onFileSelect: (path: string) => void;
-  onEdit: (path: string) => void;
 }): React.ReactElement {
   return (
     <div className="w-full">
@@ -251,7 +231,6 @@ function FileListView({
         <div className="flex-1">Name</div>
         <div className="w-24 text-right">Type</div>
         <div className="w-24 text-right">Words</div>
-        <div className="w-16 text-right">Actions</div>
       </div>
 
       {/* Rows */}
@@ -260,7 +239,6 @@ function FileListView({
         const fileType = getFileType(entry.name, entry.isDirectory);
         const meta = metadata.get(entry.path);
         const chapterInfo = isChaptersDir && entry.isDirectory ? parseChapterName(entry.name) : null;
-        const isMarkdown = entry.name.endsWith('.md');
 
         return (
           <div
@@ -285,22 +263,6 @@ function FileListView({
                 : entry.isDirectory
                   ? `${entry.children?.length ?? 0} items`
                   : '—'}
-            </div>
-            <div className="w-16 text-right shrink-0">
-              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {isMarkdown && !entry.isDirectory && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(entry.path);
-                    }}
-                    className="rounded bg-zinc-700 p-1 text-xs text-zinc-300 hover:bg-zinc-600"
-                    title="Edit"
-                  >
-                    ✏️
-                  </button>
-                )}
-              </div>
             </div>
           </div>
         );
@@ -381,13 +343,6 @@ export function FileBrowser({
     };
   }, [activeSlug, currentPath, isChaptersDir]);
 
-  const handleEdit = useCallback(
-    (path: string) => {
-      onFileSelect(path);
-    },
-    [onFileSelect],
-  );
-
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -452,7 +407,6 @@ export function FileBrowser({
             isChaptersDir={isChaptersDir}
             onNavigate={onNavigate}
             onFileSelect={onFileSelect}
-            onEdit={handleEdit}
           />
         ) : (
           <FileListView
@@ -461,7 +415,6 @@ export function FileBrowser({
             isChaptersDir={isChaptersDir}
             onNavigate={onNavigate}
             onFileSelect={onFileSelect}
-            onEdit={handleEdit}
           />
         )}
       </div>

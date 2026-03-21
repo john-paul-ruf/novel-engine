@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net } from 'electron';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -55,7 +55,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#09090b', // zinc-950 — prevents white flash
     webPreferences: {
@@ -63,6 +63,14 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Forward maximize/unmaximize events to renderer for title bar button state
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window:maximized');
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window:unmaximized');
   });
 
   // Vite dev server or production file
@@ -73,6 +81,29 @@ function createWindow(): void {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+}
+
+// ── Window Controls (for custom title bar on Windows/Linux) ───────
+
+function registerWindowControlHandlers(): void {
+  ipcMain.on('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize();
+  });
+
+  ipcMain.on('window:maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      win.isMaximized() ? win.unmaximize() : win.maximize();
+    }
+  });
+
+  ipcMain.on('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+
+  ipcMain.handle('window:isMaximized', (event) => {
+    return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false;
+  });
 }
 
 // ── Composition Root ───────────────────────────────────────────────
@@ -145,7 +176,10 @@ async function initializeApp(): Promise<void> {
     { userDataPath, booksDir },
   );
 
-  // 7. Create the window
+  // 7. Register window control handlers (custom title bar)
+  registerWindowControlHandlers();
+
+  // 8. Create the window
   createWindow();
 }
 

@@ -6,6 +6,7 @@ import type {
   ISettingsService,
 } from '@domain/interfaces';
 import type {
+  ActiveStreamInfo,
   AgentName,
   ContextDiagnostics,
   Conversation,
@@ -15,7 +16,7 @@ import type {
   StreamEvent,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -36,6 +37,7 @@ export class ChatService {
   private lastDiagnostics: ContextDiagnostics | null = null;
   private lastChangedFiles: string[] = [];
   private contextBuilder = new ContextBuilder();
+  private activeStream: ActiveStreamInfo | null = null;
 
   constructor(
     private settings: ISettingsService,
@@ -100,7 +102,7 @@ export class ChatService {
       const conversation = this.db.getConversation(conversationId);
 
       // Step 5b: Build lightweight manifest (fast — just file listing)
-      onEvent({ type: 'status', message: 'Preparing context…' });
+      onEvent({ type: 'status', message: randomPreparingStatus() });
       const manifest = await this.fs.getProjectManifest(bookSlug);
 
       // Step 6: Get conversation messages from DB
@@ -129,11 +131,20 @@ export class ChatService {
       // Step 8b: Determine thinking budget
       const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
-      // Step 8c: Emit callStart metadata so the activity monitor knows what's happening
+      // Step 8c: Track active stream so renderer can recover after refresh
+      this.activeStream = {
+        conversationId,
+        agentName,
+        model: appSettings.model,
+        bookSlug,
+        startedAt: new Date().toISOString(),
+      };
+
+      // Step 8d: Emit callStart metadata so the activity monitor knows what's happening
       onEvent({ type: 'callStart', agentName, model: appSettings.model, bookSlug });
 
       // Step 9: Call the agent — ONE call, no Wrangler pre-call
-      onEvent({ type: 'status', message: 'Waiting for response…' });
+      onEvent({ type: 'status', message: randomWaitingStatus() });
       let responseBuffer = '';
       let thinkingBuffer = '';
 
@@ -170,6 +181,12 @@ export class ChatService {
               thinkingTokens: event.thinkingTokens,
               model: appSettings.model,
             });
+
+            // Clear active stream — the CLI call is complete
+            this.activeStream = null;
+          } else if (event.type === 'error') {
+            // Clear active stream on error as well
+            this.activeStream = null;
           }
 
           // Forward ALL events to the caller (including toolUse and filesChanged)
@@ -177,6 +194,7 @@ export class ChatService {
         },
       });
     } catch (err) {
+      this.activeStream = null;
       const errorMessage = err instanceof Error ? err.message : String(err);
       onEvent({ type: 'error', message: errorMessage });
     }
@@ -226,6 +244,14 @@ export class ChatService {
    */
   async getMessages(conversationId: string): Promise<Message[]> {
     return this.db.getMessages(conversationId);
+  }
+
+  /**
+   * Returns info about the currently active CLI stream, or null if idle.
+   * Used by the renderer to restore streaming UI state after a window refresh.
+   */
+  getActiveStream(): ActiveStreamInfo | null {
+    return this.activeStream;
   }
 
   /**

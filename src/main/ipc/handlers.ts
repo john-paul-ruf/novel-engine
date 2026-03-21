@@ -229,6 +229,10 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('context:getLastDiagnostics', () => services.chat.getLastDiagnostics());
 
+  // === Active Stream (for renderer refresh recovery) ===
+
+  ipcMain.handle('chat:getActiveStream', () => services.chat.getActiveStream());
+
   // === Author Profile ===
 
   ipcMain.handle('settings:saveAuthorProfile', async (_, content: string) => {

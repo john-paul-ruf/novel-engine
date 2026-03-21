@@ -6,13 +6,11 @@ import { ChaptersPanel } from './ChaptersPanel';
 type StructuredBrowserProps = {
   activeSlug: string;
   onFileSelect: (path: string) => void;
-  onFileEdit: (path: string) => void;
 };
 
 export function StructuredBrowser({
   activeSlug,
   onFileSelect,
-  onFileEdit,
 }: StructuredBrowserProps): React.ReactElement {
   return (
     <div className="flex-1 overflow-y-auto px-8 py-6">
@@ -20,7 +18,6 @@ export function StructuredBrowser({
         <SourcePanel
           activeSlug={activeSlug}
           onFileSelect={onFileSelect}
-          onFileEdit={onFileEdit}
         />
       </CollapsibleSection>
 
@@ -28,7 +25,6 @@ export function StructuredBrowser({
         <AgentOutputPanel
           activeSlug={activeSlug}
           onFileSelect={onFileSelect}
-          onFileEdit={onFileEdit}
         />
       </CollapsibleSection>
 
@@ -36,7 +32,6 @@ export function StructuredBrowser({
         <ChaptersPanel
           activeSlug={activeSlug}
           onFileSelect={onFileSelect}
-          onFileEdit={onFileEdit}
         />
       </CollapsibleSection>
     </div>

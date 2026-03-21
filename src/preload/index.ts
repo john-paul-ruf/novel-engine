@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
+  ActiveStreamInfo,
   AgentMeta,
   AgentName,
   AppSettings,
@@ -89,6 +90,8 @@ const api = {
       ipcRenderer.invoke('chat:deleteConversation', conversationId),
     send: (params: SendMessageParams): Promise<void> =>
       ipcRenderer.invoke('chat:send', params),
+    getActiveStream: (): Promise<ActiveStreamInfo | null> =>
+      ipcRenderer.invoke('chat:getActiveStream'),
     onStreamEvent: (callback: (event: StreamEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: StreamEvent) => callback(event);
       ipcRenderer.on('chat:streamEvent', handler);
@@ -173,6 +176,24 @@ const api = {
       ipcRenderer.invoke('shell:openPath', absolutePath),
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke('shell:openExternal', url),
+  },
+
+  // Window controls (custom title bar on Windows/Linux)
+  window: {
+    minimize: (): void => ipcRenderer.send('window:minimize'),
+    maximize: (): void => ipcRenderer.send('window:maximize'),
+    close: (): void => ipcRenderer.send('window:close'),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+    onMaximizeChange: (callback: (isMaximized: boolean) => void) => {
+      const onMaximize = () => callback(true);
+      const onUnmaximize = () => callback(false);
+      ipcRenderer.on('window:maximized', onMaximize);
+      ipcRenderer.on('window:unmaximized', onUnmaximize);
+      return () => {
+        ipcRenderer.removeListener('window:maximized', onMaximize);
+        ipcRenderer.removeListener('window:unmaximized', onUnmaximize);
+      };
+    },
   },
 
   // Models (static data from domain, exposed to renderer via IPC)

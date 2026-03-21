@@ -104,6 +104,82 @@ export const AVAILABLE_MODELS = [
   { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', description: 'Faster and cheaper — good for copy editing' },
 ] as const;
 
+// === Fun Status Messages ===
+// Shown while waiting for AI responses — rotated randomly for variety
+
+const STATUS_PREPARING = [
+  'Preparing context…',
+  'Gathering ingredients…',
+  'Setting the table…',
+  'Warming up the oven…',
+  'Sharpening the quill…',
+  'Brewing the ink…',
+  'Tuning the instruments…',
+  'Unfurling the scrolls…',
+  'Stoking the creative fires…',
+  'Lining up the dominoes…',
+  'Threading the needle…',
+  'Mixing the palette…',
+  'Calibrating the muse…',
+  'Dusting off the manuscript…',
+  'Loading the kiln…',
+] as const;
+
+const STATUS_WAITING = [
+  'Waiting for response…',
+  'Baking your story…',
+  'Simmering the plot…',
+  'Letting the ideas rise…',
+  'Marinating the prose…',
+  'Kneading the narrative…',
+  'Steeping the subtext…',
+  'Whipping up some magic…',
+  'Slow-roasting the drama…',
+  'Folding in the details…',
+  'Reducing the sauce…',
+  'Glazing the final draft…',
+  'Tempering the dialogue…',
+  'Proofing the dough…',
+  'Caramelizing the conflict…',
+] as const;
+
+const STATUS_RESPONDING = [
+  'Responding…',
+  'Plating the words…',
+  'Pouring the first draft…',
+  'Uncorking the story…',
+  'Fresh out of the oven…',
+  'Serving it up…',
+  'Words incoming…',
+  'Ink hitting the page…',
+  'The muse speaks…',
+  'Assembling the prose…',
+  'Composing a reply…',
+  'Setting type…',
+  'Here it comes…',
+  'Spinning the yarn…',
+  'Rolling out the words…',
+] as const;
+
+function pickRandom(pool: readonly string[]): string {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/** Returns a random fun status message for the "preparing context" phase. */
+export function randomPreparingStatus(): string {
+  return pickRandom(STATUS_PREPARING);
+}
+
+/** Returns a random fun status message for the "waiting for response" phase. */
+export function randomWaitingStatus(): string {
+  return pickRandom(STATUS_WAITING);
+}
+
+/** Returns a random fun status message for the "responding" phase (shown in renderer stores). */
+export function randomRespondingStatus(): string {
+  return pickRandom(STATUS_RESPONDING);
+}
+
 // Token estimation: ~4 chars per token for English
 export const CHARS_PER_TOKEN = 4;
 // Opus context window

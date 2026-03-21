@@ -7,7 +7,6 @@ type FilesHeaderProps = {
   onModeChange: (mode: FileViewMode) => void;
   onBrowse: (dirPath: string) => void;
   onBackToBrowser: () => void;
-  onEdit: () => void;
 };
 
 function BreadcrumbSegments({
@@ -39,11 +38,16 @@ function BreadcrumbSegments({
 }
 
 function buildBrowserBreadcrumbs(browserPath: string): { label: string; path: string; clickable: boolean }[] {
-  const segments: { label: string; path: string; clickable: boolean }[] = [
-    { label: '📁', path: '', clickable: true },
-  ];
+  const segments: { label: string; path: string; clickable: boolean }[] = [];
 
-  if (!browserPath) return segments;
+  if (!browserPath) {
+    // At root — show non-clickable root icon (already here)
+    segments.push({ label: '📁', path: '', clickable: false });
+    return segments;
+  }
+
+  // Root is clickable when we're in a subdirectory
+  segments.push({ label: '📁', path: '', clickable: true });
 
   const parts = browserPath.split('/').filter(Boolean);
   for (let i = 0; i < parts.length; i++) {
@@ -77,7 +81,6 @@ export function FilesHeader({
   onModeChange,
   onBrowse,
   onBackToBrowser,
-  onEdit,
 }: FilesHeaderProps): React.ReactElement {
   const breadcrumbs =
     viewMode === 'browser'
@@ -94,7 +97,7 @@ export function FilesHeader({
     <div className="shrink-0 border-b border-zinc-800 px-6 py-2.5 flex items-center justify-between gap-4">
       {/* Left: Breadcrumb */}
       <div className="flex items-center gap-2 min-w-0">
-        {(viewMode === 'reader' || viewMode === 'editor') && (
+        {viewMode === 'reader' && (
           <button
             onClick={onBackToBrowser}
             className="shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
@@ -133,18 +136,6 @@ export function FilesHeader({
           title="Read file"
         >
           👁
-        </button>
-        <button
-          onClick={onEdit}
-          disabled={!filePath || !filePath.endsWith('.md')}
-          className={`rounded px-2.5 py-1 text-xs transition-colors ${
-            viewMode === 'editor'
-              ? 'bg-zinc-700 text-zinc-100'
-              : 'text-zinc-400 hover:text-zinc-200'
-          } disabled:opacity-30 disabled:cursor-not-allowed`}
-          title="Edit file"
-        >
-          ✏️
         </button>
       </div>
     </div>

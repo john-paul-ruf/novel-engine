@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
+import { randomRespondingStatus } from '@domain/constants';
 import { useBookStore } from './bookStore';
 import { streamRouter } from './streamRouter';
 
@@ -40,6 +41,7 @@ type ChatState = {
   _cleanupFilesChanged: (() => void) | null;
   initStreamListener: () => void;
   destroyStreamListener: () => void;
+  recoverActiveStream: () => Promise<void>;
 };
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -65,6 +67,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const conversations = await window.novelEngine.chat.getConversations(bookSlug);
       set({ conversations });
+
+      // Restore previously active conversation from localStorage
+      const savedId = localStorage.getItem('novel-engine-active-conversation');
+      if (savedId && conversations.some((c) => c.id === savedId)) {
+        get().setActiveConversation(savedId);
+      }
     } catch (error) {
       console.error('Failed to load conversations:', error);
     }
@@ -83,6 +91,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         conversations: [conversation, ...state.conversations],
         messages: [],
       }));
+
+      // Persist active conversation so it survives refresh
+      localStorage.setItem('novel-engine-active-conversation', conversation.id);
     } catch (error) {
       console.error('Failed to create conversation:', error);
     }
@@ -97,6 +108,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const { conversations } = get();
       const conversation = conversations.find((c) => c.id === conversationId) ?? null;
       set({ activeConversation: conversation, messages, conversationUsage: usage });
+
+      // Persist active conversation so it survives refresh
+      localStorage.setItem('novel-engine-active-conversation', conversationId);
     } catch (error) {
       console.error('Failed to set active conversation:', error);
     }
@@ -108,6 +122,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const bookSlug = useBookStore.getState().activeSlug;
     const { id: conversationId, agentName } = activeConversation;
+
+    // Ensure stream events are routed to the main chat store
+    streamRouter.target = 'main';
 
     // Optimistic update: add user message immediately
     const tempMessage: Message = {
@@ -124,7 +141,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: true,
       streamBuffer: '',
       thinkingBuffer: '',
-      statusMessage: 'Responding…',
+      statusMessage: randomRespondingStatus(),
       toolActivity: [],
     }));
 
@@ -160,11 +177,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await window.novelEngine.chat.deleteConversation(conversationId);
       const { activeConversation } = get();
+      const wasActive = activeConversation?.id === conversationId;
       set((state) => ({
         conversations: state.conversations.filter((c) => c.id !== conversationId),
-        activeConversation: activeConversation?.id === conversationId ? null : activeConversation,
-        messages: activeConversation?.id === conversationId ? [] : state.messages,
+        activeConversation: wasActive ? null : activeConversation,
+        messages: wasActive ? [] : state.messages,
       }));
+
+      // Clear persisted conversation if we just deleted the active one
+      if (wasActive) {
+        localStorage.removeItem('novel-engine-active-conversation');
+      }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
     }
@@ -208,6 +231,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   switchBook: async (newBookSlug: string) => {
+    // Clear persisted conversation — it belongs to the old book
+    localStorage.removeItem('novel-engine-active-conversation');
+
     // Step 1: Clear all chat state immediately
     set({
       activeConversation: null,
@@ -274,14 +300,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ lastChangedFiles: event.paths });
         break;
 
-      case 'done':
-        if (activeConversation) {
+      case 'done': {
+        const doneConversationId = activeConversation?.id ?? null;
+
+        if (doneConversationId) {
           const currentToolActivity = get().toolActivity;
 
           Promise.all([
-            window.novelEngine.chat.getMessages(activeConversation.id),
-            window.novelEngine.usage.byConversation(activeConversation.id),
+            window.novelEngine.chat.getMessages(doneConversationId),
+            window.novelEngine.usage.byConversation(doneConversationId),
           ]).then(([messages, usage]) => {
+            // Guard: only update if the user hasn't navigated away
+            const stillActive = get().activeConversation?.id === doneConversationId;
+            if (!stillActive) return;
+
             // Associate tool activity with the last assistant message
             const lastAssistantMessage = messages.filter((m) => m.role === 'assistant').pop();
             const updatedToolActivity: Record<string, string[]> = {};
@@ -306,15 +338,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }));
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
-            set({
-              isStreaming: false,
-              isThinking: false,
-              streamBuffer: '',
-              thinkingBuffer: '',
-              statusMessage: '',
-              toolActivity: [],
-              lastChangedFiles: [],
-            });
+            // Only clear streaming state if still on the same conversation
+            if (get().activeConversation?.id === doneConversationId) {
+              set({
+                isStreaming: false,
+                isThinking: false,
+                streamBuffer: '',
+                thinkingBuffer: '',
+                statusMessage: '',
+                toolActivity: [],
+                lastChangedFiles: [],
+              });
+            }
           });
         } else {
           set({
@@ -328,6 +363,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           });
         }
         break;
+      }
 
       case 'error':
         set((state) => {
@@ -389,5 +425,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
       _cleanupFilesChanged();
     }
     set({ _cleanupListener: null, _cleanupFilesChanged: null });
+  },
+
+  /**
+   * Check the main process for an in-flight CLI stream and restore
+   * streaming UI state so the user sees the active request after refresh.
+   */
+  recoverActiveStream: async () => {
+    try {
+      const active = await window.novelEngine.chat.getActiveStream();
+      if (!active) return;
+
+      // The main process has an active stream — restore the streaming UI.
+      // Load the conversation and its messages so the user sees context.
+      const conversations = get().conversations;
+      const conversation = conversations.find((c) => c.id === active.conversationId) ?? null;
+
+      if (conversation) {
+        const messages = await window.novelEngine.chat.getMessages(active.conversationId);
+        set({
+          activeConversation: conversation,
+          messages,
+          isStreaming: true,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: `${active.agentName} is responding…`,
+        });
+      } else {
+        // Conversation not in the loaded list (e.g. different book) — just flag streaming
+        set({
+          isStreaming: true,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: `${active.agentName} is responding…`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to recover active stream:', error);
+    }
   },
 }));

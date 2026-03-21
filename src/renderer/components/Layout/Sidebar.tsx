@@ -46,10 +46,7 @@ export function Sidebar(): React.ReactElement {
   const { currentView, navigate } = useViewStore();
 
   return (
-    <aside className="flex h-screen w-[260px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
-      {/* macOS drag region */}
-      <div className="drag-region h-8 shrink-0" />
-
+    <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
       {/* Book selector */}
       <BookSelector />
 

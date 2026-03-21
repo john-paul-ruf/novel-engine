@@ -6,7 +6,13 @@ import { ThinkingBlock } from './ThinkingBlock';
 marked.setOptions({ breaks: true, gfm: true });
 
 export function StreamingMessage(): React.ReactElement | null {
-  const { isStreaming, isThinking, thinkingBuffer, streamBuffer, statusMessage } = useChatStore();
+  // Granular selectors — only re-render when these specific fields change,
+  // not on unrelated state updates (conversations, toolActivity, etc.)
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const isThinking = useChatStore((s) => s.isThinking);
+  const thinkingBuffer = useChatStore((s) => s.thinkingBuffer);
+  const streamBuffer = useChatStore((s) => s.streamBuffer);
+  const statusMessage = useChatStore((s) => s.statusMessage);
 
   const renderedHtml = useMemo(() => {
     if (!streamBuffer) return '';

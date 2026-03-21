@@ -52,7 +52,6 @@ type FileStatus = {
 type AgentOutputPanelProps = {
   activeSlug: string;
   onFileSelect: (path: string) => void;
-  onFileEdit: (path: string) => void;
 };
 
 function countWords(text: string): number {
@@ -65,14 +64,12 @@ function AgentOutputCard({
   wordCount,
   agentColor,
   onSelect,
-  onEdit,
 }: {
   file: { path: string; label: string; description: string };
   exists: boolean;
   wordCount: number;
   agentColor: string;
   onSelect: () => void;
-  onEdit: () => void;
 }): React.ReactElement {
   if (!exists) {
     return (
@@ -92,17 +89,6 @@ function AgentOutputCard({
       className="group relative cursor-pointer rounded-lg border border-zinc-800 border-l-2 bg-zinc-900 p-3 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80"
       style={{ borderLeftColor: agentColor }}
     >
-      {/* Hover actions */}
-      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="rounded bg-zinc-700 p-1 text-xs text-zinc-300 hover:bg-zinc-600"
-          title="Edit"
-        >
-          ✏️
-        </button>
-      </div>
-
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-zinc-200">{file.label}</span>
         <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-400">
@@ -117,7 +103,6 @@ function AgentOutputCard({
 export function AgentOutputPanel({
   activeSlug,
   onFileSelect,
-  onFileEdit,
 }: AgentOutputPanelProps): React.ReactElement {
   const [fileStatuses, setFileStatuses] = useState<Record<string, FileStatus>>({});
   const [loading, setLoading] = useState(true);
@@ -210,7 +195,6 @@ export function AgentOutputPanel({
                   wordCount={fileStatuses[file.path]?.wordCount ?? 0}
                   agentColor={agentMeta.color}
                   onSelect={() => onFileSelect(file.path)}
-                  onEdit={() => onFileEdit(file.path)}
                 />
               ))}
             </div>

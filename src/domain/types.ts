@@ -121,6 +121,18 @@ export type StreamEvent =
   | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number }
   | { type: 'error'; message: string };
 
+/**
+ * Snapshot of an in-progress CLI stream, exposed via IPC so the renderer
+ * can recover its streaming UI state after a window refresh.
+ */
+export type ActiveStreamInfo = {
+  conversationId: string;
+  agentName: AgentName;
+  model: string;
+  bookSlug: string;
+  startedAt: string;         // ISO date when the stream began
+};
+
 // === Settings ===
 
 export type AppSettings = {

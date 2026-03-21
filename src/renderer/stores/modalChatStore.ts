@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Conversation, ConversationPurpose, Message, StreamEvent } from '@domain/types';
+import { randomRespondingStatus } from '@domain/constants';
 import { streamRouter } from './streamRouter';
 
 type ModalChatState = {
@@ -104,7 +105,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
       isStreaming: true,
       streamBuffer: '',
       thinkingBuffer: '',
-      statusMessage: 'Responding…',
+      statusMessage: randomRespondingStatus(),
     }));
 
     try {

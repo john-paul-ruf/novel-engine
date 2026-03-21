@@ -93,6 +93,7 @@ type CliActivityState = {
   _cleanupListener: (() => void) | null;
   initListener: () => void;
   destroyListener: () => void;
+  recoverActiveStream: () => Promise<void>;
 };
 
 const MAX_ENTRIES = 500;
@@ -392,6 +393,38 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
     const { _cleanupListener } = get();
     if (_cleanupListener) _cleanupListener();
     set({ _cleanupListener: null });
+  },
+
+  /**
+   * Query the main process for an in-flight CLI stream and restore the
+   * activity panel state so the user sees ongoing activity after a refresh.
+   */
+  recoverActiveStream: async () => {
+    try {
+      const active = await window.novelEngine.chat.getActiveStream();
+      if (!active) return;
+
+      const agentInfo = AGENT_REGISTRY[active.agentName];
+      const startedAt = new Date(active.startedAt).getTime();
+
+      set({
+        isActive: true,
+        callMeta: {
+          agentName: active.agentName,
+          agentColor: agentInfo?.color ?? '#71717A',
+          agentRole: agentInfo?.role ?? '',
+          model: active.model,
+          modelLabel: active.model.includes('opus') ? 'Opus 4' : active.model.includes('sonnet') ? 'Sonnet 4' : active.model,
+          bookSlug: active.bookSlug,
+          startedAt,
+        },
+        callElapsedMs: Date.now() - startedAt,
+      });
+
+      get()._push('status', `Reconnected to active ${active.agentName} call (started ${new Date(active.startedAt).toLocaleTimeString()})`);
+    } catch {
+      // Non-critical — recovery is best-effort
+    }
   },
 }));
 

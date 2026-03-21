@@ -4,7 +4,6 @@ import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
 import { FilesHeader } from './FilesHeader';
 import { FileBrowser } from './FileBrowser';
-import { FileEditor } from './FileEditor';
 import { StructuredBrowser } from './StructuredBrowser';
 import type { FileViewMode } from '../../stores/viewStore';
 import type { BookMeta, BookStatus } from '@domain/types';
@@ -274,12 +273,12 @@ export function FilesView(): React.ReactElement {
   const filePath = payload.filePath ?? null;
   const browserPath = payload.fileBrowserPath ?? '';
 
-  // File content state (shared between reader and editor)
+  // File content state (for reader mode)
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load file when filePath changes (for reader/editor modes)
+  // Load file when filePath changes (for reader mode)
   useEffect(() => {
     if (!filePath || !activeSlug) {
       setContent('');
@@ -314,9 +313,13 @@ export function FilesView(): React.ReactElement {
   // View mode handlers
   const handleBrowse = useCallback(
     (dirPath: string) => {
-      navigate('files', { fileBrowserPath: dirPath, fileViewMode: 'browser' });
+      navigate('files', {
+        fileBrowserPath: dirPath,
+        fileViewMode: 'browser',
+        filePath: filePath ?? undefined,
+      });
     },
-    [navigate],
+    [navigate, filePath],
   );
 
   const handleFileSelect = useCallback(
@@ -326,44 +329,30 @@ export function FilesView(): React.ReactElement {
     [navigate],
   );
 
-  const handleEdit = useCallback(() => {
-    navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'editor' });
-  }, [navigate, filePath]);
-
-  const handleCloseEditor = useCallback(() => {
-    navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'reader' });
-  }, [navigate, filePath]);
-
-  const handleSave = useCallback(
-    async (newContent: string) => {
-      if (!activeSlug || !filePath) return;
-      await window.novelEngine.files.write(activeSlug, filePath, newContent);
-      setContent(newContent);
-    },
-    [activeSlug, filePath],
-  );
-
-  const handleFileEdit = useCallback(
-    (path: string) => {
-      navigate('files', { filePath: path, fileViewMode: 'editor' });
-    },
-    [navigate],
-  );
-
   const handleBackToBrowser = useCallback(() => {
     const parentDir = filePath ? filePath.split('/').slice(0, -1).join('/') : '';
-    navigate('files', { fileBrowserPath: parentDir, fileViewMode: 'browser' });
+    navigate('files', {
+      fileBrowserPath: parentDir,
+      fileViewMode: 'browser',
+      filePath: filePath ?? undefined,
+    });
   }, [navigate, filePath]);
 
   const handleModeChange = useCallback(
     (mode: FileViewMode) => {
       if (mode === 'browser') {
         const parentDir = filePath ? filePath.split('/').slice(0, -1).join('/') : browserPath;
-        navigate('files', { fileBrowserPath: parentDir, fileViewMode: 'browser' });
+        navigate('files', {
+          fileBrowserPath: parentDir,
+          fileViewMode: 'browser',
+          filePath: filePath ?? undefined,
+        });
       } else if (mode === 'reader') {
-        navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'reader' });
-      } else if (mode === 'editor') {
-        navigate('files', { filePath: filePath ?? undefined, fileViewMode: 'editor' });
+        navigate('files', {
+          filePath: filePath ?? undefined,
+          fileViewMode: 'reader',
+          fileBrowserPath: browserPath || undefined,
+        });
       }
     },
     [navigate, filePath, browserPath],
@@ -379,7 +368,6 @@ export function FilesView(): React.ReactElement {
         onModeChange={handleModeChange}
         onBrowse={handleBrowse}
         onBackToBrowser={handleBackToBrowser}
-        onEdit={handleEdit}
       />
 
       {/* Content area */}
@@ -394,7 +382,6 @@ export function FilesView(): React.ReactElement {
           <StructuredBrowser
             activeSlug={activeSlug}
             onFileSelect={handleFileSelect}
-            onFileEdit={handleFileEdit}
           />
         )
       )}
@@ -408,15 +395,6 @@ export function FilesView(): React.ReactElement {
           activeSlug={activeSlug}
           onFileSelect={handleFileSelect}
           onClearFile={handleBackToBrowser}
-        />
-      )}
-
-      {viewMode === 'editor' && filePath && (
-        <FileEditor
-          filePath={filePath}
-          initialContent={content}
-          onSave={handleSave}
-          onClose={handleCloseEditor}
         />
       )}
     </div>
@@ -500,4 +478,3 @@ function ReaderContent({
     </>
   );
 }
-

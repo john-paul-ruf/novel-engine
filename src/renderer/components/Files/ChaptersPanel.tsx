@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo } from 'react';
 type ChaptersPanelProps = {
   activeSlug: string;
   onFileSelect: (path: string) => void;
-  onFileEdit: (path: string) => void;
 };
 
 type ChapterInfo = {
@@ -29,7 +28,6 @@ function parseChapterName(folderName: string): { number: number; title: string }
 export function ChaptersPanel({
   activeSlug,
   onFileSelect,
-  onFileEdit,
 }: ChaptersPanelProps): React.ReactElement {
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,17 +194,6 @@ export function ChaptersPanel({
                 title={chapter.hasNotes ? 'Open notes' : 'No notes yet'}
               >
                 Notes
-              </button>
-            </div>
-
-            {/* Hover edit action */}
-            <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              <button
-                onClick={(e) => { e.stopPropagation(); onFileEdit(`chapters/${chapter.slug}/draft.md`); }}
-                className="rounded bg-zinc-700 p-1 text-xs text-zinc-300 hover:bg-zinc-600"
-                title="Edit draft"
-              >
-                ✏️
               </button>
             </div>
           </div>

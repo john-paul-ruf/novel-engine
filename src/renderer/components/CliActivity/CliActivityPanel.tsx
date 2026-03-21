@@ -297,6 +297,7 @@ export function CliActivityPanel(): React.ReactElement | null {
   const clear = useCliActivityStore((s) => s.clear);
   const initListener = useCliActivityStore((s) => s.initListener);
   const destroyListener = useCliActivityStore((s) => s.destroyListener);
+  const recoverActiveStream = useCliActivityStore((s) => s.recoverActiveStream);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -307,11 +308,12 @@ export function CliActivityPanel(): React.ReactElement | null {
     }
   }, [entries.length]);
 
-  // Initialize the CLI activity listener
+  // Initialize the CLI activity listener and recover any in-flight stream
   useEffect(() => {
     initListener();
+    recoverActiveStream();
     return () => destroyListener();
-  }, [initListener, destroyListener]);
+  }, [initListener, destroyListener, recoverActiveStream]);
 
   if (!isOpen) return null;
 
