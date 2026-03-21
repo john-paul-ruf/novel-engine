@@ -7,6 +7,7 @@ type PipelineState = {
   loading: boolean;
   loadPipeline: (bookSlug: string) => Promise<void>;
   markPhaseComplete: (bookSlug: string, phaseId: PipelinePhaseId) => Promise<void>;
+  completeRevision: (bookSlug: string) => Promise<void>;
 };
 
 export const usePipelineStore = create<PipelineState>((set, get) => ({
@@ -36,5 +37,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     } catch (error) {
       console.error('Failed to mark phase complete:', error);
     }
+  },
+
+  completeRevision: async (bookSlug: string) => {
+    await window.novelEngine.pipeline.completeRevision(bookSlug);
+    // Reload the pipeline — revision phase will now show complete, second-read unlocks
+    await get().loadPipeline(bookSlug);
   },
 }));

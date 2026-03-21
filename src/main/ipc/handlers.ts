@@ -219,6 +219,10 @@ export function registerIpcHandlers(services: {
     services.pipeline.markPhaseComplete(bookSlug, phaseId),
   );
 
+  ipcMain.handle('pipeline:completeRevision', (_, bookSlug: string) =>
+    services.pipeline.completeRevision(bookSlug),
+  );
+
   // === Build ===
 
   ipcMain.handle('build:run', async (event, bookSlug: string) => {

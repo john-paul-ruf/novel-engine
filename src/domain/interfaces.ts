@@ -118,6 +118,16 @@ export interface IPipelineService {
    * that a phase is done.
    */
   markPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<void>;
+
+  /**
+   * Archive the revision reports to signal the revision phase is complete.
+   *
+   * Copies source/reader-report.md → source/reader-report-v1.md and
+   * source/dev-report.md → source/dev-report-v1.md (if it exists).
+   * Once these versioned files exist, the pipeline auto-advances:
+   * the `revision` phase completes and `second-read` unlocks.
+   */
+  completeRevision(bookSlug: string): Promise<void>;
 }
 
 export interface IBuildService {

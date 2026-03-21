@@ -61,7 +61,7 @@ function ConnectingLine({
 const REVISION_QUEUE_PARENT: PipelinePhaseId = 'revision';
 
 export function PipelineTracker(): React.ReactElement {
-  const { phases, markPhaseComplete } = usePipelineStore();
+  const { phases, markPhaseComplete, completeRevision } = usePipelineStore();
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
@@ -69,6 +69,8 @@ export function PipelineTracker(): React.ReactElement {
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
+  const [confirmingRevisionComplete, setConfirmingRevisionComplete] = useState(false);
+  const [revisionCompleteError, setRevisionCompleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSlug) {
@@ -168,6 +170,25 @@ export function PipelineTracker(): React.ReactElement {
     }
   };
 
+  const handleCompleteRevision = async () => {
+    if (confirmingRevisionComplete) {
+      // Second click = confirm — archive the reports
+      try {
+        setRevisionCompleteError(null);
+        await completeRevision(activeSlug);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setRevisionCompleteError(msg);
+        setTimeout(() => setRevisionCompleteError(null), 6000);
+      }
+      setConfirmingRevisionComplete(false);
+    } else {
+      // First click = enter confirmation state
+      setConfirmingRevisionComplete(true);
+      setTimeout(() => setConfirmingRevisionComplete(false), 4000);
+    }
+  };
+
   return (
     <div className="px-3 py-3">
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -178,6 +199,11 @@ export function PipelineTracker(): React.ReactElement {
           {publishWarning}
         </div>
       )}
+      {revisionCompleteError && (
+        <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
+          {revisionCompleteError}
+        </div>
+      )}
       <div>
         {phases.map((phase, index) => {
           // Show the revision queue sub-button under the Verity (revision) phase
@@ -185,6 +211,12 @@ export function PipelineTracker(): React.ReactElement {
             hasRevisionPlan &&
             phase.id === REVISION_QUEUE_PARENT &&
             phase.status !== 'locked';
+
+          // Show "Complete Revision" only when the revision phase is active and queue isn't running
+          const showCompleteRevision =
+            phase.id === REVISION_QUEUE_PARENT &&
+            phase.status === 'active' &&
+            !(revisionRunning && !!revisionActiveSession);
 
           return (
             <div key={phase.id}>
@@ -203,6 +235,12 @@ export function PipelineTracker(): React.ReactElement {
                   isActive={currentView === 'revision-queue'}
                   isRunning={revisionLoading || (revisionRunning && !!revisionActiveSession)}
                   onClick={() => navigate('revision-queue')}
+                />
+              )}
+              {showCompleteRevision && (
+                <CompleteRevisionSubButton
+                  isConfirming={confirmingRevisionComplete}
+                  onClick={handleCompleteRevision}
                 />
               )}
               {index < phases.length - 1 && (
@@ -251,6 +289,33 @@ function RevisionQueueSubButton({
           working…
         </span>
       )}
+    </button>
+  );
+}
+
+function CompleteRevisionSubButton({
+  isConfirming,
+  onClick,
+}: {
+  isConfirming: boolean;
+  onClick: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      onClick={onClick}
+      className={`ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+        isConfirming
+          ? 'bg-green-600/20 text-green-400'
+          : 'text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-green-400'
+      }`}
+      title={
+        isConfirming
+          ? 'Click again to archive reports and advance to Second Read'
+          : 'Archive revision reports and advance the pipeline to Second Read'
+      }
+    >
+      <span className="text-green-500 text-xs">✓</span>
+      <span>{isConfirming ? 'Confirm complete?' : 'Complete Revision'}</span>
     </button>
   );
 }

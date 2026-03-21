@@ -140,6 +140,25 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
+   * Archive the revision reports to signal the revision phase is complete.
+   *
+   * Copies reader-report.md → reader-report-v1.md so the pipeline detects
+   * the revision phase as done and unlocks second-read. Also copies
+   * dev-report.md → dev-report-v1.md (if present) to pre-satisfy
+   * the second-assessment gate.
+   */
+  async completeRevision(bookSlug: string): Promise<void> {
+    const readerReport = await this.fs.readFile(bookSlug, 'source/reader-report.md');
+    await this.fs.writeFile(bookSlug, 'source/reader-report-v1.md', readerReport);
+
+    const devReportExists = await this.fs.fileExists(bookSlug, 'source/dev-report.md');
+    if (devReportExists) {
+      const devReport = await this.fs.readFile(bookSlug, 'source/dev-report.md');
+      await this.fs.writeFile(bookSlug, 'source/dev-report-v1.md', devReport);
+    }
+  }
+
+  /**
    * Check that a file exists AND contains meaningful content (>= MIN_SUBSTANTIVE_WORDS).
    *
    * Old versions of `createBook()` pre-created some pipeline-gating files with
