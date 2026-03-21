@@ -32,7 +32,7 @@ import { registerIpcHandlers } from './ipc/handlers';
 import { NotificationManager } from './notifications';
 
 // Bootstrap
-import { bootstrap, needsBootstrap } from './bootstrap';
+import { bootstrap, needsBootstrap, ensureAgents } from './bootstrap';
 
 // Vite globals injected by Electron Forge
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -128,10 +128,25 @@ async function initializeApp(): Promise<void> {
     ? process.resourcesPath
     : path.join(app.getAppPath(), 'resources');
 
-  // 1. Bootstrap (first run)
+  // Agent source directory resolution:
+  //   - Production: `extraResource: ['./agents']` bundles the agents directory
+  //     directly into `process.resourcesPath/agents/`.
+  //   - Dev: the agents directory lives at the project root (`{appPath}/agents/`),
+  //     NOT inside `resources/`. Using `path.join(resourcesPath, 'agents')` in dev
+  //     would look for `resources/agents/` which does not exist.
+  const agentsSourceDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'agents')
+    : path.join(app.getAppPath(), 'agents');
+
+  // 1a. Bootstrap (first run only)
   if (await needsBootstrap(userDataPath)) {
-    await bootstrap(userDataPath, resourcesPath);
+    await bootstrap(userDataPath, agentsSourceDir);
   }
+
+  // 1b. Always ensure agent files are present — recovers installations where
+  //     bootstrap ran before the source directory was correctly populated.
+  //     Idempotent: COPYFILE_EXCL never overwrites user customisations.
+  await ensureAgents(path.join(userDataPath, 'custom-agents'), agentsSourceDir);
 
   // 2. Resolve paths
   booksDir = path.join(userDataPath, 'books');

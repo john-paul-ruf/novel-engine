@@ -24,63 +24,81 @@ export async function needsBootstrap(userDataPath: string): Promise<boolean> {
 }
 
 /**
+ * Copy any missing agent `.md` files from `agentsSourceDir` into the user's
+ * `custom-agents/` directory. Runs on every startup — idempotent and
+ * non-destructive (COPYFILE_EXCL ensures user customisations are never
+ * overwritten).
+ *
+ * This is intentionally separate from the one-time bootstrap so that users
+ * who ran the app before the source directory was properly populated can
+ * recover automatically without manual intervention.
+ */
+export async function ensureAgents(agentsDir: string, agentsSourceDir: string): Promise<void> {
+  // Ensure the destination directory exists (idempotent).
+  await mkdir(agentsDir, { recursive: true });
+
+  let entries: string[];
+  try {
+    entries = await readdir(agentsSourceDir);
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.warn('[bootstrap] Agent source directory not found:', agentsSourceDir);
+      return;
+    }
+    throw err;
+  }
+
+  const mdFiles = entries.filter((f) => f.endsWith('.md') || f.endsWith('.MD'));
+
+  await Promise.all(
+    mdFiles.map(async (filename) => {
+      const src = path.join(agentsSourceDir, filename);
+      const dest = path.join(agentsDir, filename);
+      try {
+        // COPYFILE_EXCL: silently skip files the user already has (preserves customisations).
+        await copyFile(src, dest, fsConstants.COPYFILE_EXCL);
+      } catch (err: unknown) {
+        if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST') {
+          return; // User already has this file — leave it alone.
+        }
+        throw err;
+      }
+    }),
+  );
+}
+
+/**
  * Perform first-run initialization:
  *
  * 1. Create `books/` and `custom-agents/` directories.
- * 2. Copy bundled agent `.md` files into `custom-agents/` (skip if already present).
+ * 2. Copy bundled agent `.md` files into `custom-agents/` via `ensureAgents`.
  * 3. Create a template `author-profile.md` (skip if already present).
  * 4. Create `active-book.json` pointing to no book (skip if already present).
  * 5. Write the `.initialized` flag with the current ISO timestamp.
+ *
+ * `agentsSourceDir` — the directory containing the bundled agent `.md` files.
+ * In production this is `process.resourcesPath/agents`; in dev it is
+ * `{projectRoot}/agents` (the directory tracked in source control).
  */
-export async function bootstrap(userDataPath: string, resourcesPath: string): Promise<void> {
+export async function bootstrap(userDataPath: string, agentsSourceDir: string): Promise<void> {
   const booksDir = path.join(userDataPath, 'books');
   const agentsDir = path.join(userDataPath, 'custom-agents');
 
-  // 1. Create directories (recursive — idempotent)
+  // 1. Create directories (recursive — idempotent).
   await mkdir(booksDir, { recursive: true });
-  await mkdir(agentsDir, { recursive: true });
 
-  // 2. Copy bundled agent .md files (don't overwrite user customizations)
-  const bundledAgentsDir = path.join(resourcesPath, 'agents');
-  try {
-    const entries = await readdir(bundledAgentsDir);
-    const mdFiles = entries.filter((f) => f.endsWith('.md') || f.endsWith('.MD'));
+  // 2. Copy bundled agent .md files (shared logic with the recovery path).
+  await ensureAgents(agentsDir, agentsSourceDir);
 
-    await Promise.all(
-      mdFiles.map(async (filename) => {
-        const src = path.join(bundledAgentsDir, filename);
-        const dest = path.join(agentsDir, filename);
-        try {
-          // COPYFILE_EXCL: fail if destination already exists
-          await copyFile(src, dest, fsConstants.COPYFILE_EXCL);
-        } catch (err: unknown) {
-          // EEXIST means the user already has this file — skip silently
-          if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST') {
-            return;
-          }
-          throw err;
-        }
-      }),
-    );
-  } catch (err: unknown) {
-    // If the bundled agents directory doesn't exist (e.g., dev mode without agents/),
-    // log a warning but don't fail bootstrap — the app can still function.
-    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.warn('[bootstrap] Bundled agents directory not found:', bundledAgentsDir);
-    } else {
-      throw err;
-    }
-  }
-
-  // 3. Create author-profile.md template (if not already present)
+  // 3. Create author-profile.md template (if not already present).
   const authorProfilePath = path.join(userDataPath, 'author-profile.md');
   await writeFileIfMissing(authorProfilePath, AUTHOR_PROFILE_TEMPLATE);
 
-  // 4. Create active-book.json pointing to no book (if not already present)
+  // 4. Create active-book.json pointing to no book (if not already present).
   const activeBookPath = path.join(userDataPath, 'active-book.json');
   await writeFileIfMissing(activeBookPath, JSON.stringify({ book: '' }, null, 2) + '\n');
 
-  // 5. Write the initialization flag
+  // 5. Write the initialization flag.
   const flagPath = path.join(userDataPath, INITIALIZED_FLAG);
   await writeFile(flagPath, new Date().toISOString(), 'utf-8');
 }
@@ -91,7 +109,7 @@ export async function bootstrap(userDataPath: string, resourcesPath: string): Pr
 async function writeFileIfMissing(filePath: string, content: string): Promise<void> {
   try {
     await access(filePath, fsConstants.F_OK);
-    // File exists — leave it alone
+    // File exists — leave it alone.
   } catch {
     await writeFile(filePath, content, 'utf-8');
   }
