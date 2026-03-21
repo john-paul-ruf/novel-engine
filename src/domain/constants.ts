@@ -82,10 +82,10 @@ export const PIPELINE_PHASES: { id: PipelinePhaseId; label: string; agent: Agent
 // Default settings
 export const DEFAULT_SETTINGS: AppSettings = {
   hasClaudeCli: false,
-  model: 'claude-opus-4-20250514',
+  model: 'claude-sonnet-4-20250514',
   maxTokens: 8192,
   enableThinking: false,
-  thinkingBudget: 10000,
+  thinkingBudget: 5000,
   autoCollapseThinking: true,
   enableNotifications: true,
   theme: 'dark',

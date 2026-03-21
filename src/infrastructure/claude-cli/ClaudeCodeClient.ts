@@ -13,15 +13,26 @@ const CLI_NOT_FOUND_MESSAGE =
   'Claude Code CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-code';
 
 export class ClaudeCodeClient implements IClaudeClient {
+  /** Cached availability result — CLI presence doesn't change during a session. */
+  private _available: boolean | null = null;
+
   constructor(private booksDir: string) {}
 
   async isAvailable(): Promise<boolean> {
+    if (this._available !== null) return this._available;
     try {
       await execFileAsync('claude', ['--version']);
+      this._available = true;
       return true;
     } catch {
+      this._available = false;
       return false;
     }
+  }
+
+  /** Force re-check on next isAvailable() call (e.g. after user installs the CLI). */
+  invalidateAvailabilityCache(): void {
+    this._available = null;
   }
 
   async sendMessage(params: {

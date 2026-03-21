@@ -5,7 +5,15 @@ import type { Agent, AgentMeta, AgentName } from '@domain/types';
 import { AGENT_REGISTRY, CREATIVE_AGENT_NAMES, PIPELINE_PHASES } from '@domain/constants';
 
 export class AgentService implements IAgentService {
+  /** Cached agent list — .md files don't change while the app is running. */
+  private _cache: Agent[] | null = null;
+
   constructor(private readonly agentsDir: string) {}
+
+  /** Force a re-read on the next load call (e.g. after the user edits an agent prompt). */
+  invalidateCache(): void {
+    this._cache = null;
+  }
 
   async loadAll(): Promise<Agent[]> {
     const allAgents = await this.loadAllIncludingWrangler();
@@ -47,6 +55,8 @@ export class AgentService implements IAgentService {
   }
 
   private async loadAllIncludingWrangler(): Promise<Agent[]> {
+    if (this._cache !== null) return this._cache;
+
     let files: string[];
     try {
       files = await readdir(this.agentsDir);
@@ -93,6 +103,7 @@ export class AgentService implements IAgentService {
       });
     }
 
+    this._cache = agents;
     return agents;
   }
 }
