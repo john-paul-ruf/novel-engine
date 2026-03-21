@@ -19,6 +19,7 @@ import { resolvePandocPath } from '@infra/pandoc';
 
 // Application
 import { ChatService } from '@app/ChatService';
+import { ChapterValidator } from '@app/ChapterValidator';
 import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
 import { UsageService } from '@app/UsageService';
@@ -142,7 +143,8 @@ async function initializeApp(): Promise<void> {
 
   // 4. Instantiate application services
   const usage = new UsageService(db);
-  const chat = new ChatService(settings, agents, db, claudeClient, fs, usage);
+  const chapterValidator = new ChapterValidator(booksDir);
+  const chat = new ChatService(settings, agents, db, claudeClient, fs, usage, chapterValidator);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);

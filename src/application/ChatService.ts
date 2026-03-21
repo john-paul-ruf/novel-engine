@@ -1,5 +1,6 @@
 import type {
   IAgentService,
+  IChapterValidator,
   IClaudeClient,
   IDatabaseService,
   IFileSystemService,
@@ -46,6 +47,7 @@ export class ChatService {
     private claude: IClaudeClient,
     private fs: IFileSystemService,
     private usage: UsageService,
+    private chapterValidator: IChapterValidator,
   ) {}
 
   /**
@@ -155,7 +157,7 @@ export class ChatService {
         maxTokens: appSettings.maxTokens,
         thinkingBudget,
         bookSlug,
-        onEvent: (event: StreamEvent) => {
+        onEvent: async (event: StreamEvent) => {
           // Accumulate response content
           if (event.type === 'textDelta') {
             responseBuffer += event.text;
@@ -181,6 +183,23 @@ export class ChatService {
               thinkingTokens: event.thinkingTokens,
               model: appSettings.model,
             });
+
+            // Validate and correct chapter file placement (Verity sometimes misplaces files)
+            try {
+              const correctedChapters = await this.chapterValidator.validateAndCorrect(bookSlug);
+              if (correctedChapters.length > 0) {
+                // Log chapter corrections for diagnostics
+                console.log('Corrected chapter placement:', correctedChapters);
+                // Optionally emit a status event to notify the UI of corrections
+                onEvent({
+                  type: 'status',
+                  message: `Fixed ${correctedChapters.length} chapter file placement issue(s)`,
+                });
+              }
+            } catch (err) {
+              // Log validation errors but don't fail the workflow
+              console.error('Chapter validation error:', err);
+            }
 
             // Clear active stream — the CLI call is complete
             this.activeStream = null;

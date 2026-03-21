@@ -159,3 +159,21 @@ export interface IRevisionQueueService {
   // Register event listener
   onEvent(callback: (event: RevisionQueueEvent) => void): () => void;
 }
+
+export interface IChapterValidator {
+  /**
+   * Validate and correct chapter file placement in a book.
+   *
+   * Scans the chapters directory and detects misplaced chapter files (e.g., files
+   * written to the wrong path by agents), then automatically moves them to the
+   * correct `chapters/NN-slug/{draft.md|notes.md}` structure.
+   *
+   * Returns a list of corrected file paths.
+   *
+   * Common patterns detected:
+   * - Files in chapters root instead of chapter subdirectories
+   * - Files with wrong extensions (.md directly instead of in folder)
+   * - Nested chapter directories with incorrect structure
+   */
+  validateAndCorrect(bookSlug: string): Promise<string[]>;
+}
