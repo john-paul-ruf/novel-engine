@@ -19,18 +19,7 @@ const MIN_SUBSTANTIVE_WORDS = 50;
  */
 const MIN_SCAFFOLD_WORDS = 200;
 
-/**
- * Maps pipeline phase IDs to the book status they should advance TO
- * when the user explicitly marks a phase complete.
- *
- * Only phases that depend on book status need entries here.
- * File-existence phases advance automatically when the agent creates
- * the expected output file.
- */
-const PHASE_STATUS_ADVANCEMENT: Partial<Record<PipelinePhaseId, BookStatus>> = {
-  'first-draft': 'revision-1',
-  'mechanical-fixes': 'final',
-};
+// (Phase advancement is handled directly inside markPhaseComplete below.)
 
 /**
  * PipelineService — Detects which pipeline phase a book is in.
@@ -117,26 +106,154 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
-   * Manually mark a pipeline phase as complete by advancing the book status.
+   * Manually mark any pipeline phase as complete.
    *
-   * This is needed for phases whose completion depends on the book's status
-   * field (like `first-draft` and `mechanical-fixes`), since nothing
-   * auto-advances the status. The user explicitly signals "I'm done with
-   * this phase" and the status is updated accordingly.
+   * - **Status-based phases** (`first-draft`, `mechanical-fixes`): advances
+   *   `about.json` to the next book status.
+   * - **Archive-based phase** (`revision`): delegates to `completeRevision()`
+   *   which copies the reader/dev reports to their `v1` counterparts.
+   * - **File-existence phases** (all others): creates the required marker
+   *   file(s) as stubs when they don't already exist. The stub content
+   *   is long enough to pass every word-count threshold used by
+   *   `isPhaseComplete`. Agents will overwrite stubs with real content
+   *   the next time they run.
    *
-   * Throws if the phase doesn't support manual completion (i.e., it's
-   * purely file-existence based and will complete automatically).
+   * This enables the author to manually bypass any phase — useful when
+   * work was done outside the app, or to skip a phase entirely.
    */
   async markPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<void> {
-    const targetStatus = PHASE_STATUS_ADVANCEMENT[phaseId];
-    if (!targetStatus) {
-      throw new Error(
-        `Phase "${phaseId}" does not support manual completion — ` +
-        `it completes automatically when the expected output file is created.`,
-      );
-    }
+    switch (phaseId) {
+      // ── Status-based phases ─────────────────────────────────────────────
+      case 'first-draft':
+        await this.fs.updateBookMeta(bookSlug, { status: 'revision-1' });
+        break;
 
-    await this.fs.updateBookMeta(bookSlug, { status: targetStatus });
+      case 'mechanical-fixes':
+        await this.fs.updateBookMeta(bookSlug, { status: 'final' });
+        break;
+
+      // ── Archive-based phase ──────────────────────────────────────────────
+      case 'revision':
+        // Reuse completeRevision which copies the reports to their v1 counterparts
+        await this.completeRevision(bookSlug);
+        break;
+
+      // ── File-existence phases ────────────────────────────────────────────
+      case 'pitch':
+        await this.ensureStubFile(bookSlug, 'source/pitch.md', 'Story Pitch');
+        break;
+
+      case 'scaffold':
+        await this.ensureStubFile(bookSlug, 'source/scene-outline.md', 'Scene Outline');
+        break;
+
+      case 'first-read':
+        await this.ensureStubFile(bookSlug, 'source/reader-report.md', 'First Reader Report');
+        break;
+
+      case 'first-assessment':
+        await this.ensureStubFile(bookSlug, 'source/dev-report.md', 'Developmental Assessment');
+        break;
+
+      case 'revision-plan-1':
+        await this.ensureStubFile(bookSlug, 'source/project-tasks.md', 'Revision Task Plan');
+        break;
+
+      case 'second-read':
+        // Needs a fresh reader-report.md AND the archived reader-report-v1.md
+        await this.ensureStubFile(bookSlug, 'source/reader-report.md', 'Second Reader Report');
+        await this.ensureStubFile(bookSlug, 'source/reader-report-v1.md', 'First Reader Report (Archived)');
+        break;
+
+      case 'second-assessment':
+        // Detection key: dev-report-v1.md exists (the archived first assessment)
+        await this.ensureStubFile(bookSlug, 'source/dev-report-v1.md', 'First Developmental Assessment (Archived)');
+        break;
+
+      case 'copy-edit':
+        await this.ensureStubFile(bookSlug, 'source/audit-report.md', 'Copy Edit Audit Report');
+        break;
+
+      case 'revision-plan-2':
+        // Requires all three: revision-prompts.md, audit-report.md, project-tasks-v1.md
+        await this.ensureStubFile(bookSlug, 'source/revision-prompts.md', 'Mechanical Fix Prompts');
+        await this.ensureStubFile(bookSlug, 'source/audit-report.md', 'Copy Edit Audit Report');
+        await this.ensureStubFile(bookSlug, 'source/project-tasks-v1.md', 'First Revision Tasks (Archived)');
+        break;
+
+      case 'build':
+        await this.ensureStubFile(bookSlug, 'dist/output.md', 'Manuscript Output');
+        break;
+
+      case 'publish':
+        await this.ensureStubFile(bookSlug, 'source/metadata.md', 'Publication Metadata');
+        break;
+
+      default: {
+        // Exhaustiveness guard — TypeScript will error here if a new phase is added
+        const _exhaustive: never = phaseId;
+        throw new Error(`Unknown pipeline phase: "${String(_exhaustive)}"`);
+      }
+    }
+  }
+
+  /**
+   * Create a stub file at `relativePath` only when it doesn't already exist.
+   *
+   * The stub is long enough (>200 words) to pass both `MIN_SUBSTANTIVE_WORDS`
+   * (50) and `MIN_SCAFFOLD_WORDS` (200) thresholds used by `isPhaseComplete`.
+   */
+  private async ensureStubFile(bookSlug: string, relativePath: string, title: string): Promise<void> {
+    const exists = await this.fs.fileExists(bookSlug, relativePath);
+    if (!exists) {
+      await this.fs.writeFile(bookSlug, relativePath, this.buildStubContent(title));
+    }
+  }
+
+  /**
+   * Build a stub file that satisfies every pipeline word-count threshold.
+   *
+   * The stub clearly labels itself as a manual advancement marker so authors
+   * know it was not AI-generated. Agents will overwrite it when they next run.
+   */
+  private buildStubContent(title: string): string {
+    const timestamp = new Date().toISOString();
+    return [
+      `# ${title}`,
+      '',
+      '*This file was created as a manual pipeline advancement marker.*',
+      '',
+      '## Manual Advancement Notice',
+      '',
+      'The author manually advanced past this phase using the Novel Engine interface.',
+      'This stub file was created to satisfy the pipeline phase completion check.',
+      'No AI-generated content is present in this file. If you need real content for',
+      'this phase, open the appropriate agent conversation and send your first message.',
+      'The agent will write its output to this file, replacing this stub entirely.',
+      '',
+      '## What This Means',
+      '',
+      'By advancing manually, you are signaling to the Novel Engine that this phase',
+      'is considered complete for your workflow. The pipeline will now show the next',
+      'phase as active and available to work on.',
+      '',
+      'Manual advancement is useful when:',
+      '- You completed this phase using external tools or a separate workflow',
+      '- You want to bypass this phase for a particular project',
+      '- You are testing the pipeline progression behaviour',
+      '- The phase was completed in a previous session outside the application',
+      '',
+      '## How to Add Real Content',
+      '',
+      'To replace this stub with actual content, open the appropriate agent conversation',
+      'for this phase and start a conversation. When the agent produces its output',
+      'document it will write the real content to this file, overwriting this placeholder.',
+      'You do not need to delete this file manually before running the agent.',
+      '',
+      '---',
+      '',
+      `*Manually advanced: ${timestamp}*`,
+    ].join('\n');
   }
 
   /**

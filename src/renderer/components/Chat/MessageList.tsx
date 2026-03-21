@@ -39,22 +39,27 @@ export function MessageList(): React.ReactElement {
     }
   }, [messages]);
 
-  // Always scroll when streaming starts
+  // Scroll when streaming starts — only if the user is already at the bottom.
+  // Skipping this when the user has scrolled up prevents yanking them away
+  // from old messages they are re-reading mid-conversation.
   useEffect(() => {
-    if (isStreaming && bottomRef.current) {
+    if (isStreaming && isAtBottomRef.current && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [isStreaming]);
 
   // During streaming, use a MutationObserver on the container to auto-scroll
   // as StreamingMessage appends content — without subscribing to store updates.
+  // Use scrollTop (instant) instead of scrollIntoView({ behavior: 'smooth' }) here:
+  // smooth scroll fires on every character mutation and each call cancels + restarts
+  // the previous animation, producing visible "jumps up" during fast streaming.
   useEffect(() => {
     if (!isStreaming || !containerRef.current) return;
 
     const container = containerRef.current;
     const observer = new MutationObserver(() => {
-      if (isAtBottomRef.current && bottomRef.current) {
-        bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      if (isAtBottomRef.current) {
+        container.scrollTop = container.scrollHeight;
       }
     });
 

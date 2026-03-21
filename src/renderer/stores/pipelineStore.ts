@@ -30,13 +30,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   },
 
   markPhaseComplete: async (bookSlug: string, phaseId: PipelinePhaseId) => {
-    try {
-      await window.novelEngine.pipeline.markPhaseComplete(bookSlug, phaseId);
-      // Reload the pipeline to reflect the new state
-      await get().loadPipeline(bookSlug);
-    } catch (error) {
-      console.error('Failed to mark phase complete:', error);
-    }
+    // Let errors propagate — callers (PipelineTracker) display them to the user
+    await window.novelEngine.pipeline.markPhaseComplete(bookSlug, phaseId);
+    // Reload the pipeline to reflect the new state
+    await get().loadPipeline(bookSlug);
   },
 
   completeRevision: async (bookSlug: string) => {

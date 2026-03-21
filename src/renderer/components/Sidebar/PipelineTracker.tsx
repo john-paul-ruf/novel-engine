@@ -7,15 +7,15 @@ import { useViewStore } from '../../stores/viewStore';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 
 /**
- * Phases that require the user to manually signal completion.
+ * Phases that have dedicated completion controls — the generic "Done" button
+ * is hidden for these to avoid duplicating the specialised UX.
  *
- * These phases depend on the book's `status` field in `about.json`
- * (not just file existence), and nothing auto-advances that status.
- * The user must click "Done" when they're finished with the phase.
+ * - `build`    → has its own Build view triggered by the "Build" action button
+ * - `revision` → has the "Complete Revision" sub-button which archives reports
  */
-const MANUAL_COMPLETION_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
-  'first-draft',
-  'mechanical-fixes',
+const SKIP_DONE_BUTTON_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
+  'build',
+  'revision',
 ]);
 
 function StatusIcon({ status }: { status: PhaseStatus }): React.ReactElement {
@@ -76,8 +76,10 @@ export function PipelineTracker(): React.ReactElement {
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
   const { isLoading: revisionLoading, isRunning: revisionRunning, activeSessionId: revisionActiveSession } = useRevisionQueueStore();
-  const [publishWarning, setPublishWarning] = useState<string | null>(null);
+  const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
+  const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
+  const [markCompleteError, setMarkCompleteError] = useState<string | null>(null);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
   const [confirmingRevisionComplete, setConfirmingRevisionComplete] = useState(false);
   const [revisionCompleteError, setRevisionCompleteError] = useState<string | null>(null);
@@ -121,12 +123,14 @@ export function PipelineTracker(): React.ReactElement {
   };
 
   const handlePhaseClick = async (phase: PipelinePhase) => {
-    if (phase.status === 'locked') return;
-
+    // Build is always navigable — you can preview the manuscript at any writing
+    // stage, not just when the formal build phase is unlocked.
     if (phase.id === 'build') {
       navigate('build');
       return;
     }
+
+    if (phase.status === 'locked') return;
 
     // Revision queue phases — clicking them opens the queue, not a bare agent conversation
     if (REVISION_QUEUE_PHASES.has(phase.id) && hasRevisionPlan) {
@@ -134,7 +138,50 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
+    // Quill (publish) — auto-run build if artifacts are missing
+    if (phase.id === 'publish') {
+      const ready = await ensureBuildForQuill();
+      if (!ready) return;
+    }
+
     await openOrCreateConversation(phase);
+  };
+
+  /**
+   * Ensure build artifacts exist before opening a Quill conversation.
+   *
+   * This is the ONLY place in the app where a build is automatically forced.
+   * If `dist/output.md` doesn't exist, the build runs inline before Quill opens.
+   * Returns true if we can proceed to Quill, false if build failed.
+   */
+  const ensureBuildForQuill = async (): Promise<boolean> => {
+    try {
+      const exists = await window.novelEngine.files.exists(activeSlug, 'dist/output.md');
+      if (exists) return true;
+    } catch {
+      // If the existence check fails, proceed — the build will surface any real error
+    }
+
+    // Build artifacts don't exist — auto-run the build
+    setIsBuildingForQuill(true);
+    setBuildForQuillError(null);
+    try {
+      const result = await window.novelEngine.build.run(activeSlug);
+      const allFailed = result.formats.length > 0 && result.formats.every((f) => !!f.error);
+      if (allFailed) {
+        setBuildForQuillError('Build failed — check the Build view for details.');
+        setTimeout(() => setBuildForQuillError(null), 6000);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Build failed';
+      setBuildForQuillError(msg);
+      setTimeout(() => setBuildForQuillError(null), 6000);
+      return false;
+    } finally {
+      setIsBuildingForQuill(false);
+    }
   };
 
   const handleStartClick = async (phase: PipelinePhase) => {
@@ -149,28 +196,27 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
-    // Safety net: publish requires build artifacts
+    // Quill (publish) — the only agent that requires build artifacts.
+    // Auto-run the build if needed before opening the conversation.
     if (phase.id === 'publish') {
-      try {
-        const exists = await window.novelEngine.files.exists(activeSlug, 'dist/output.md');
-        if (!exists) {
-          setPublishWarning('Run the Build step first to generate output files.');
-          setTimeout(() => setPublishWarning(null), 5000);
-          return;
-        }
-      } catch {
-        // If check fails, proceed anyway — pipeline status should prevent this
-      }
+      const ready = await ensureBuildForQuill();
+      if (!ready) return;
     }
 
-    setPublishWarning(null);
     await openOrCreateConversation(phase);
   };
 
   const handleMarkComplete = async (phaseId: PipelinePhaseId) => {
     if (confirmingComplete === phaseId) {
       // Second click = confirm
-      await markPhaseComplete(activeSlug, phaseId);
+      try {
+        setMarkCompleteError(null);
+        await markPhaseComplete(activeSlug, phaseId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setMarkCompleteError(msg);
+        setTimeout(() => setMarkCompleteError(null), 6000);
+      }
       setConfirmingComplete(null);
     } else {
       // First click = enter confirmation state
@@ -204,9 +250,14 @@ export function PipelineTracker(): React.ReactElement {
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
         Pipeline
       </div>
-      {publishWarning && (
-        <div className="mb-2 rounded bg-amber-950 px-2 py-1.5 text-[10px] text-amber-300">
-          {publishWarning}
+      {buildForQuillError && (
+        <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
+          {buildForQuillError}
+        </div>
+      )}
+      {markCompleteError && (
+        <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
+          {markCompleteError}
         </div>
       )}
       {revisionCompleteError && (
@@ -239,10 +290,11 @@ export function PipelineTracker(): React.ReactElement {
                 onPhaseClick={() => handlePhaseClick(phase)}
                 onStartClick={() => handleStartClick(phase)}
                 showMarkComplete={
-                  phase.status === 'active' && MANUAL_COMPLETION_PHASES.has(phase.id)
+                  phase.status === 'active' && !SKIP_DONE_BUTTON_PHASES.has(phase.id)
                 }
                 isConfirmingComplete={confirmingComplete === phase.id}
                 onMarkComplete={() => handleMarkComplete(phase.id)}
+                isBuildingForQuill={phase.id === 'publish' && isBuildingForQuill}
               />
               {showRevisionSub && (
                 <RevisionQueueSubButton
@@ -341,6 +393,7 @@ function PhaseRow({
   showMarkComplete,
   isConfirmingComplete,
   onMarkComplete,
+  isBuildingForQuill = false,
 }: {
   phase: PipelinePhase;
   onPhaseClick: () => void;
@@ -348,18 +401,28 @@ function PhaseRow({
   showMarkComplete: boolean;
   isConfirmingComplete: boolean;
   onMarkComplete: () => void;
+  isBuildingForQuill?: boolean;
 }): React.ReactElement {
-  const isClickable = phase.status !== 'locked';
-  const isActive = phase.status === 'active';
   const isBuildPhase = phase.id === 'build';
+  // Build is always interactive regardless of its locked/active/complete status.
+  // All other phases follow the normal locked → grayed-out, un-clickable rule.
+  const isClickable = isBuildPhase || (phase.status !== 'locked' && !isBuildingForQuill);
+  const isActive = phase.status === 'active';
+  const dimmed = !isBuildPhase && phase.status === 'locked';
 
   return (
     <div
       className={`flex items-center gap-2 rounded-md px-1 py-1 ${
-        isClickable ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50' : 'cursor-default opacity-60'
-      }`}
+        isClickable
+          ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+          : 'cursor-default'
+      } ${dimmed ? 'opacity-60' : ''}`}
       onClick={onPhaseClick}
-      title={phase.status === 'locked' ? 'Complete the previous phase first' : phase.description}
+      title={
+        phase.status === 'locked' && !isBuildPhase
+          ? 'Complete the previous phase first'
+          : phase.description
+      }
     >
       <StatusIcon status={phase.status} />
       <div className="min-w-0 flex-1">
@@ -370,7 +433,8 @@ function PhaseRow({
           </div>
         )}
       </div>
-      {isActive && (
+      {/* Build always shows its action button; other phases only when active */}
+      {(isActive || isBuildPhase) && (
         <div className="flex shrink-0 items-center gap-1">
           {showMarkComplete && (
             <button
@@ -391,11 +455,12 @@ function PhaseRow({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onStartClick();
+              if (!isBuildingForQuill) onStartClick();
             }}
-            className="no-drag shrink-0 rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500"
+            disabled={isBuildingForQuill}
+            className="no-drag shrink-0 rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isBuildPhase ? 'Build' : 'Start'}
+            {isBuildingForQuill ? 'Building…' : isBuildPhase ? 'Build' : 'Start'}
           </button>
         </div>
       )}

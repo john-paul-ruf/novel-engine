@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import type { BuildFormat, BuildResult } from '@domain/types';
 
@@ -15,6 +15,14 @@ const FORMAT_ICONS: Record<BuildFormat, string> = {
   epub: '📚',
   pdf: '📕',
 };
+
+/** Formats produced by BuildService, in display order. */
+const KNOWN_OUTPUT_FILES: { filename: string; format: BuildFormat }[] = [
+  { filename: 'output.md',   format: 'md'   },
+  { filename: 'output.docx', format: 'docx' },
+  { filename: 'output.epub', format: 'epub' },
+  { filename: 'output.pdf',  format: 'pdf'  },
+];
 
 function ProgressLog({
   logs,
@@ -88,9 +96,27 @@ function OutputFiles({
     }
   };
 
+  const handleOpenFolder = async () => {
+    try {
+      const absPath = await window.novelEngine.books.getAbsolutePath(activeSlug, 'dist');
+      await window.novelEngine.shell.openPath(absPath);
+    } catch (error) {
+      console.error('Failed to open dist folder:', error);
+    }
+  };
+
   return (
     <div className="mt-6">
-      <h3 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Output Files</h3>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Output Files</h3>
+        <button
+          onClick={handleOpenFolder}
+          className="rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-100"
+          title="Open the dist folder in your file manager"
+        >
+          Open Folder
+        </button>
+      </div>
       <div className="space-y-2">
         {buildResult.formats.map((entry) => (
           <div
@@ -136,11 +162,46 @@ export function BuildView(): React.ReactElement {
   const [pandocAvailable, setPandocAvailable] = useState(true);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
 
+  /**
+   * Scan the dist/ directory for previously-built output files and populate
+   * buildResult from disk so the Output Files panel is visible immediately
+   * on any visit to this view — not just after running a fresh build.
+   */
+  const loadExistingOutputs = useCallback(async (slug: string) => {
+    try {
+      const entries = await window.novelEngine.files.listDir(slug, 'dist');
+      const formats: BuildResult['formats'] = [];
+
+      for (const { filename, format } of KNOWN_OUTPUT_FILES) {
+        const found = entries.find((e) => !e.isDirectory && e.name === filename);
+        if (found) {
+          formats.push({ format, path: found.path });
+        }
+      }
+
+      if (formats.length > 0) {
+        setBuildResult({ success: true, formats, wordCount: 0 });
+      }
+    } catch {
+      // dist/ does not exist yet — normal for new books, ignore
+    }
+  }, []);
+
+  // Check Pandoc availability once on mount
   useEffect(() => {
     window.novelEngine.build.isPandocAvailable().then(setPandocAvailable).catch(() => {
       setPandocAvailable(false);
     });
   }, []);
+
+  // Whenever the active book changes, scan for existing build artifacts
+  useEffect(() => {
+    if (!activeSlug) return;
+    // Only pre-populate if we don't already have a fresh in-session build result
+    setBuildResult(null);
+    setLogs([]);
+    void loadExistingOutputs(activeSlug);
+  }, [activeSlug, loadExistingOutputs]);
 
   useEffect(() => {
     const cleanup = window.novelEngine.build.onProgress((msg: string) => {

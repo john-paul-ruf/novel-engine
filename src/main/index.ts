@@ -120,9 +120,13 @@ async function initializeApp(): Promise<void> {
   // In dev mode with Electron Forge + Vite, `__dirname` resolves to the Vite
   // output directory (`.vite/build/`), not the project root. `app.getAppPath()`
   // is more reliable as Forge sets this to the project root during `electron-forge start`.
+  //
+  // In production, `process.resourcesPath` already points to the `resources/` folder
+  // inside the app bundle. In development, the binary lives in `{projectRoot}/resources/`,
+  // so we append that segment manually to match what `resolvePandocPath` expects.
   const resourcesPath = app.isPackaged
     ? process.resourcesPath
-    : app.getAppPath();
+    : path.join(app.getAppPath(), 'resources');
 
   // 1. Bootstrap (first run)
   if (await needsBootstrap(userDataPath)) {
