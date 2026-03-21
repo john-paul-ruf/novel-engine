@@ -314,11 +314,10 @@ export class FileSystemService implements IFileSystemService {
       // No chapters directory yet — that's fine for a new book
     }
 
-    // Add source file word counts to total
-    totalWordCount += files
-      .filter((f) => f.path.startsWith('source/'))
-      .reduce((sum, f) => sum + f.wordCount, 0);
-
+    // totalWordCount is manuscript prose only (chapter drafts).
+    // Source documents (pitch, story-bible, reports, etc.) are listed
+    // in the manifest for agents to read, but are NOT part of the
+    // manuscript word count — they're planning/analysis artifacts.
     return { meta, files, chapterCount, totalWordCount };
   }
 
@@ -395,6 +394,10 @@ export class FileSystemService implements IFileSystemService {
 
     let total = 0;
     for (const entry of entries) {
+      // Skip front-matter chapters (00-0-copyright, 00-1-dedication, etc.)
+      // to match the manuscript word count reported by agents via getProjectManifest()
+      if (/^00-\d+-/.test(entry)) continue;
+
       const draftPath = path.join(chaptersDir, entry, 'draft.md');
       const content = await this.safeRead(draftPath);
       total += this.countWordsInText(content);
@@ -420,9 +423,17 @@ export class FileSystemService implements IFileSystemService {
       const stat = await fs.stat(path.join(chaptersDir, entry)).catch(() => null);
       if (!stat || !stat.isDirectory()) continue;
 
+      // Front-matter chapters (00-0-copyright, 00-1-dedication) are included
+      // in the list so BuildService can assemble them, but report 0 words
+      // so manuscript word counts match what agents report via getProjectManifest().
+      const isFrontMatter = /^00-\d+-/.test(entry);
+
       const draftPath = path.join(chaptersDir, entry, 'draft.md');
       const content = await this.safeRead(draftPath);
-      results.push({ slug: entry, wordCount: this.countWordsInText(content) });
+      results.push({
+        slug: entry,
+        wordCount: isFrontMatter ? 0 : this.countWordsInText(content),
+      });
     }
 
     return results;
