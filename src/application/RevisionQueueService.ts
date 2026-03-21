@@ -59,10 +59,18 @@ type SessionStateFile = {
     status: RevisionSessionStatus;
     conversationId: string | null;
   }>;
+  /** Embedded parsed data — redundant backup of the cache file so the
+   *  Wrangler is never re-called just because a dotfile got lost during
+   *  a directory copy or reinstall. */
+  parsed?: ParsedWranglerOutput;
 };
 
-const CACHE_PATH = 'source/.revision-plan-cache.json';
-const STATE_PATH = 'source/.revision-queue-state.json';
+// Non-dotfile names so they survive Finder copy, drag-drop, etc.
+// Legacy dotfile paths are checked on read for migration.
+const CACHE_PATH = 'source/revision-plan-cache.json';
+const STATE_PATH = 'source/revision-queue-state.json';
+const LEGACY_CACHE_PATH = 'source/.revision-plan-cache.json';
+const LEGACY_STATE_PATH = 'source/.revision-queue-state.json';
 
 export class RevisionQueueService implements IRevisionQueueService {
   private plans: Map<string, RevisionPlan> = new Map();
@@ -70,6 +78,9 @@ export class RevisionQueueService implements IRevisionQueueService {
   private plansByBook: Map<string, string> = new Map();
   /** Cached content hash per book — avoids re-reading files on every persistState call. */
   private hashByBook: Map<string, string> = new Map();
+  /** In-memory copy of the parsed Wrangler output per book — ensures writeState
+   *  can always embed parsed data even if the cache file is missing on disk. */
+  private parsedByBook: Map<string, ParsedWranglerOutput> = new Map();
   private listeners: Set<(event: RevisionQueueEvent) => void> = new Set();
   private paused: boolean = false;
   private gateResolvers: Map<string, (decision: { action: ApprovalAction; message?: string }) => void> = new Map();
@@ -114,12 +125,22 @@ export class RevisionQueueService implements IRevisionQueueService {
   }
 
   private async readCache(bookSlug: string): Promise<PlanCache | null> {
-    try {
-      const raw = await this.fs.readFile(bookSlug, CACHE_PATH);
-      return JSON.parse(raw) as PlanCache;
-    } catch {
-      return null;
+    // Try current path first, then legacy dotfile path
+    for (const p of [CACHE_PATH, LEGACY_CACHE_PATH]) {
+      try {
+        const raw = await this.fs.readFile(bookSlug, p);
+        const cache = JSON.parse(raw) as PlanCache;
+        // Migrate legacy file to new path
+        if (p === LEGACY_CACHE_PATH) {
+          await this.writeCache(bookSlug, cache);
+          try { await this.fs.deleteFile(bookSlug, LEGACY_CACHE_PATH); } catch { /* best-effort */ }
+        }
+        return cache;
+      } catch {
+        continue;
+      }
     }
+    return null;
   }
 
   private async writeCache(bookSlug: string, cache: PlanCache): Promise<void> {
@@ -131,12 +152,24 @@ export class RevisionQueueService implements IRevisionQueueService {
   }
 
   private async readState(bookSlug: string): Promise<SessionStateFile | null> {
-    try {
-      const raw = await this.fs.readFile(bookSlug, STATE_PATH);
-      return JSON.parse(raw) as SessionStateFile;
-    } catch {
-      return null;
+    // Try current path first, then legacy dotfile path
+    for (const p of [STATE_PATH, LEGACY_STATE_PATH]) {
+      try {
+        const raw = await this.fs.readFile(bookSlug, p);
+        const state = JSON.parse(raw) as SessionStateFile;
+        // Migrate legacy file to new path
+        if (p === LEGACY_STATE_PATH) {
+          try {
+            await this.fs.writeFile(bookSlug, STATE_PATH, JSON.stringify(state, null, 2));
+            await this.fs.deleteFile(bookSlug, LEGACY_STATE_PATH);
+          } catch { /* best-effort */ }
+        }
+        return state;
+      } catch {
+        continue;
+      }
     }
+    return null;
   }
 
   /**
@@ -170,10 +203,15 @@ export class RevisionQueueService implements IRevisionQueueService {
   }
 
   private async writeState(bookSlug: string, plan: RevisionPlan, contentHash: string): Promise<void> {
+    // Use the in-memory parsed data directly — never depend on the cache file
+    // existing on disk, since writeCache is best-effort and can silently fail.
+    const parsed = this.parsedByBook.get(bookSlug);
+
     const state: SessionStateFile = {
       planHash: contentHash,
       mode: plan.mode,
       sessions: {},
+      parsed,
     };
     for (const s of plan.sessions) {
       state.sessions[s.index] = {
@@ -240,9 +278,13 @@ export class RevisionQueueService implements IRevisionQueueService {
     const combinedContent = (revisionPromptsContent ?? '') + '\0' + (projectTasksContent ?? '');
     const contentHash = this.computeHash(combinedContent);
 
-    // 3. Check disk cache — if hash matches, skip the CLI call entirely
+    // 3. Check disk cache — if hash matches, skip the CLI call entirely.
+    //    Fallback chain: cache file → state file (embedded parsed) → Wrangler CLI.
+    //    A cache with 0 sessions is treated as invalid (Wrangler returned garbage).
     let parsed: ParsedWranglerOutput;
-    const cache = await this.readCache(bookSlug);
+    const rawCache = await this.readCache(bookSlug);
+    const cache = rawCache?.parsed?.sessions?.length ? rawCache : null;
+    const savedState = await this.readState(bookSlug);
 
     if (cache && cache.contentHash === contentHash) {
       this.emit({ type: 'plan:loading-step', step: 'Loaded from cache (files unchanged)' });
@@ -258,13 +300,21 @@ export class RevisionQueueService implements IRevisionQueueService {
       );
       parsed = cache.parsed;
       await this.writeCache(bookSlug, { contentHash, parsed, cachedAt: new Date().toISOString() });
+    } else if (savedState?.parsed?.sessions?.length) {
+      // No cache file, but the state file has embedded parsed data.
+      // This happens after a reinstall or directory copy where the cache
+      // file was lost. Recover from the state file.
+      console.log('[RevisionQueue] Cache file missing — recovering parsed data from state file.');
+      parsed = savedState.parsed;
+      // Re-create the cache file for next time
+      await this.writeCache(bookSlug, { contentHash, parsed, cachedAt: new Date().toISOString() });
     } else {
       if (cache) {
         console.log(
           `[RevisionQueue] Cache hash mismatch and no valid parsed data — cached: ${cache.contentHash}, computed: ${contentHash}. Re-parsing with Wrangler.`,
         );
       } else {
-        console.log('[RevisionQueue] No cache found. Parsing with Wrangler.');
+        console.log('[RevisionQueue] No cache or state file found. Parsing with Wrangler.');
       }
 
       const promptSize = (revisionPromptsContent?.length ?? 0);
@@ -329,6 +379,14 @@ export class RevisionQueueService implements IRevisionQueueService {
         );
       }
 
+      // Validate: don't cache garbage — the Wrangler must produce at least one session
+      if (!parsed.sessions?.length) {
+        throw new Error(
+          `Wrangler returned 0 sessions. This likely means the revision-prompts.md format was not recognized. ` +
+          `Response keys: ${Object.keys(parsed).join(', ')}`,
+        );
+      }
+
       // Write cache for next time
       await this.writeCache(bookSlug, {
         contentHash,
@@ -337,7 +395,10 @@ export class RevisionQueueService implements IRevisionQueueService {
       });
     }
 
-    // 4. Build plan from parsed data
+    // 4. Store parsed in memory so writeState can always embed it
+    this.parsedByBook.set(bookSlug, parsed);
+
+    // 5. Build plan from parsed data
     this.emit({
       type: 'plan:loading-step',
       step: `Building ${parsed.sessions.length} sessions (${parsed.totalTasks} tasks)…`,
@@ -361,9 +422,11 @@ export class RevisionQueueService implements IRevisionQueueService {
       response: '',
     }));
 
-    // 5. Merge saved session state (if hash matches — same plan)
-    const savedState = await this.readState(bookSlug);
-    if (savedState && savedState.planHash === contentHash) {
+    // 5. Merge saved session state.
+    //    Always merge if the state file has matching session indices — the hash
+    //    check is intentionally relaxed because reinstalls / normalization upgrades
+    //    can change the hash without changing the actual plan structure.
+    if (savedState?.sessions) {
       this.emit({ type: 'plan:loading-step', step: 'Restoring session progress…' });
       for (const session of sessions) {
         const saved = savedState.sessions[session.index];
@@ -396,7 +459,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       totalTasks: parsed.totalTasks,
       completedTaskNumbers: [...reconciledCompleted],
       phases: parsed.phases,
-      mode: savedState?.planHash === contentHash ? savedState.mode : 'manual',
+      mode: savedState?.mode ?? 'manual',
       createdAt: new Date().toISOString(),
     };
 
@@ -421,6 +484,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       this.plansByBook.delete(bookSlug);
     }
     this.hashByBook.delete(bookSlug);
+    this.parsedByBook.delete(bookSlug);
   }
 
   async completeQueue(planId: string): Promise<void> {
@@ -474,6 +538,7 @@ export class RevisionQueueService implements IRevisionQueueService {
     this.plans.delete(planId);
     this.plansByBook.delete(plan.bookSlug);
     this.hashByBook.delete(plan.bookSlug);
+    this.parsedByBook.delete(plan.bookSlug);
 
     this.emit({ type: 'queue:archived' });
   }
