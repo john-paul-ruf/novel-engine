@@ -50,8 +50,9 @@ export class ClaudeCodeClient implements IClaudeClient {
     const conversationPrompt = this.buildConversationPrompt(messages);
 
     const args = [
+      '--print',
       '--output-format', 'stream-json',
-      '--include-partial-messages',
+      '--verbose',
       '--model', model,
       '--max-turns', '15',
       '--system-prompt', systemPrompt,
