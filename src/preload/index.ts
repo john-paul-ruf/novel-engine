@@ -59,6 +59,17 @@ const api = {
       ipcRenderer.invoke('books:getCoverImagePath', bookSlug),
     getAbsolutePath: (bookSlug: string, relativePath: string): Promise<string> =>
       ipcRenderer.invoke('books:getAbsolutePath', bookSlug, relativePath),
+
+    /**
+     * Subscribe to `books:changed` — fired by the main process when a new
+     * book directory is detected in (or removed from) the books folder at runtime.
+     * Returns a cleanup function; call it in useEffect's return to unsubscribe.
+     */
+    onChanged: (callback: () => void): (() => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('books:changed', handler);
+      return () => ipcRenderer.removeListener('books:changed', handler);
+    },
   },
 
   // Files

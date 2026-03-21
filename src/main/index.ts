@@ -13,7 +13,7 @@ if (squirrelStartup) {
 import { SettingsService } from '@infra/settings';
 import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
-import { FileSystemService, BookWatcher } from '@infra/filesystem';
+import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
 import { resolvePandocPath } from '@infra/pandoc';
 
@@ -41,6 +41,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // Module-level references for lifecycle cleanup
 let db: DatabaseService;
 let bookWatcher: BookWatcher | null = null;
+let booksDirWatcher: BooksDirWatcher | null = null;
 let mainWindow: BrowserWindow | null = null;
 
 // Variable captured by the protocol handler (assigned during initializeApp)
@@ -181,7 +182,8 @@ async function initializeApp(): Promise<void> {
     return new Response('Not found', { status: 404 });
   });
 
-  // 7. Set up file system watcher — notifies the renderer when book files change on disk
+  // 7. Set up file system watchers
+  //    a) Active-book watcher — notifies renderer when files change inside the open book
   bookWatcher = new BookWatcher(booksDir, (changedPaths) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chat:filesChanged', changedPaths);
@@ -196,6 +198,15 @@ async function initializeApp(): Promise<void> {
   }).catch(() => {
     // No active book yet — watcher will start when user selects one
   });
+
+  //    b) Books-dir watcher — notifies renderer when a new book directory is
+  //       added or removed while the app is running (e.g. manual folder copy)
+  booksDirWatcher = new BooksDirWatcher(booksDir, () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('books:changed');
+    }
+  });
+  await booksDirWatcher.start();
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
@@ -231,10 +242,13 @@ app.on('activate', () => {
   }
 });
 
-// Clean up database connection and file watcher on quit
+// Clean up database connection and file watchers on quit
 app.on('before-quit', () => {
   if (bookWatcher) {
     bookWatcher.stop();
+  }
+  if (booksDirWatcher) {
+    booksDirWatcher.stop();
   }
   if (db) {
     db.close();

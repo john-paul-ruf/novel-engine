@@ -76,16 +76,18 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
 
     try {
       set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });
-      const [loaded, isArchived] = await Promise.all([
-        window.novelEngine.revision.loadPlan(bookSlug),
-        window.novelEngine.files.exists(bookSlug, 'source/project-tasks-v1.md'),
-      ]);
+      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        isQueueArchived: isArchived,
+        // A freshly-loaded plan is never archived — isQueueArchived only becomes true
+        // via the queue:archived IPC event after the user explicitly completes the queue.
+        // Using project-tasks-v1.md presence was wrong: that file persists from the
+        // first queue archival for the entire rest of the project, causing the second
+        // revision queue (mechanical fixes) to always appear pre-archived.
+        isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
@@ -99,16 +101,13 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     set({ plan: null, planId: null, error: null });
     try {
       set({ isLoading: true, loadingStep: 'Reloading\u2026' });
-      const [loaded, isArchived] = await Promise.all([
-        window.novelEngine.revision.loadPlan(bookSlug),
-        window.novelEngine.files.exists(bookSlug, 'source/project-tasks-v1.md'),
-      ]);
+      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        isQueueArchived: isArchived,
+        isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
@@ -121,16 +120,13 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       set({ isLoading: true, loadingStep: 'Clearing cache\u2026' });
       await window.novelEngine.revision.clearCache(bookSlug);
       // Reload the plan after clearing cache to get fresh parse
-      const [loaded, isArchived] = await Promise.all([
-        window.novelEngine.revision.loadPlan(bookSlug),
-        window.novelEngine.files.exists(bookSlug, 'source/project-tasks-v1.md'),
-      ]);
+      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        isQueueArchived: isArchived,
+        isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
         error: null,
       });

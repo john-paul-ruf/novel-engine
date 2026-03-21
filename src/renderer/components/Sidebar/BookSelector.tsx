@@ -128,7 +128,7 @@ function NewBookModal({
 }
 
 export function BookSelector(): React.ReactElement {
-  const { books, activeSlug, totalWordCount, loading, loadBooks, setActiveBook, createBook, refreshWordCount } = useBookStore();
+  const { books, activeSlug, totalWordCount, loading, loadBooks, setActiveBook, createBook, refreshWordCount, subscribeToDirectoryChanges } = useBookStore();
   const { loadPipeline } = usePipelineStore();
   const { loadConversations } = useChatStore();
 
@@ -141,6 +141,12 @@ export function BookSelector(): React.ReactElement {
   useEffect(() => {
     loadBooks();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-scan the books list whenever the main process detects a new directory
+  // (e.g. the user manually copies a book folder into the books directory)
+  useEffect(() => {
+    return subscribeToDirectoryChanges();
+  }, [subscribeToDirectoryChanges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // React to active book changes: refresh word count, pipeline, conversations
   useEffect(() => {

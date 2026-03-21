@@ -11,6 +11,14 @@ type BookState = {
   setActiveBook: (slug: string) => Promise<void>;
   createBook: (title: string) => Promise<string>;
   refreshWordCount: () => Promise<void>;
+  /**
+   * Subscribe to `books:changed` push events from the main process.
+   * Automatically calls `loadBooks()` whenever the books directory
+   * gains or loses a subdirectory (e.g. a book was manually copied in).
+   *
+   * Returns a cleanup function — pass it to `useEffect`'s return.
+   */
+  subscribeToDirectoryChanges: () => () => void;
 };
 
 export const useBookStore = create<BookState>((set, get) => ({
@@ -76,5 +84,11 @@ export const useBookStore = create<BookState>((set, get) => ({
     } catch (error) {
       console.error('Failed to refresh word count:', error);
     }
+  },
+
+  subscribeToDirectoryChanges: () => {
+    return window.novelEngine.books.onChanged(() => {
+      get().loadBooks();
+    });
   },
 }));

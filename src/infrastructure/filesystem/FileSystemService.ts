@@ -42,18 +42,20 @@ export class FileSystemService implements IFileSystemService {
     const summaries: BookSummary[] = [];
 
     for (const entry of entries) {
-      if (entry.startsWith('_')) continue;
+      if (entry.startsWith('_') || entry.startsWith('.')) continue;
 
       const entryPath = path.join(this.booksDir, entry);
       const stat = await fs.stat(entryPath).catch(() => null);
       if (!stat || !stat.isDirectory()) continue;
 
       const aboutPath = path.join(entryPath, 'about.json');
+
+      let meta: BookMeta;
       try {
         const raw = await fs.readFile(aboutPath, 'utf-8');
         const parsed = JSON.parse(raw) as Record<string, unknown>;
 
-        const meta: BookMeta = {
+        meta = {
           slug: entry,
           title: String(parsed.title ?? ''),
           author: String(parsed.author ?? ''),
@@ -61,18 +63,23 @@ export class FileSystemService implements IFileSystemService {
           created: String(parsed.created ?? ''),
           coverImage: String(parsed.coverImage ?? ''),
         };
-
-        const wordCount = await this.countWords(entry);
-
-        summaries.push({
-          ...meta,
-          wordCount,
-          isActive: entry === activeSlug,
-        });
-      } catch {
-        // Malformed or missing about.json — skip this directory
-        continue;
+      } catch (err) {
+        const isNotFound = (err as NodeJS.ErrnoException).code === 'ENOENT';
+        if (!isNotFound) {
+          // about.json exists but is malformed — skip to avoid clobbering user data
+          continue;
+        }
+        // about.json is absent — auto-import this directory as a new book
+        meta = await this.importExternalBookDirectory(entry, entryPath, aboutPath);
       }
+
+      const wordCount = await this.countWords(entry);
+
+      summaries.push({
+        ...meta,
+        wordCount,
+        isActive: entry === activeSlug,
+      });
     }
 
     summaries.sort((a, b) => a.title.localeCompare(b.title));
@@ -457,6 +464,67 @@ export class FileSystemService implements IFileSystemService {
     } catch {
       return '';
     }
+  }
+
+  /**
+   * Auto-import a directory that exists in booksDir but has no about.json.
+   *
+   * Creates a minimal about.json from the directory name and ensures the
+   * required subdirectories (source/, chapters/, dist/, assets/) exist.
+   * This is idempotent: subsequent calls to listBooks() will read the
+   * newly-created about.json normally.
+   */
+  private async importExternalBookDirectory(
+    slug: string,
+    dirPath: string,
+    aboutPath: string,
+  ): Promise<BookMeta> {
+    // Humanize the slug into a presentable title: "my-great-novel" → "My Great Novel"
+    const title = slug
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const meta: BookMeta = {
+      slug,
+      title,
+      author: '',
+      status: 'scaffolded',
+      created: new Date().toISOString(),
+      coverImage: '',
+    };
+
+    // Write the stub about.json (best-effort — non-fatal if the dir is read-only)
+    await fs
+      .writeFile(
+        aboutPath,
+        JSON.stringify(
+          {
+            title: meta.title,
+            author: meta.author,
+            status: meta.status,
+            created: meta.created,
+            coverImage: meta.coverImage,
+          },
+          null,
+          2,
+        ),
+        'utf-8',
+      )
+      .catch((err: unknown) => {
+        console.warn(`[FileSystemService] Could not write stub about.json for "${slug}":`, err);
+      });
+
+    // Ensure the standard subdirectories exist (best-effort)
+    await Promise.all([
+      fs.mkdir(path.join(dirPath, 'source'), { recursive: true }),
+      fs.mkdir(path.join(dirPath, 'chapters'), { recursive: true }),
+      fs.mkdir(path.join(dirPath, 'dist'), { recursive: true }),
+      fs.mkdir(path.join(dirPath, 'assets'), { recursive: true }),
+    ]).catch((err: unknown) => {
+      console.warn(`[FileSystemService] Could not create subdirectories for "${slug}":`, err);
+    });
+
+    return meta;
   }
 
   private slugify(title: string): string {

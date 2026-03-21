@@ -57,8 +57,18 @@ function ConnectingLine({
   return <div className={`ml-[9px] h-4 w-0.5 ${color}`} />;
 }
 
-/** The phase under which the "Revision Queue" sub-button appears (Verity). */
-const REVISION_QUEUE_PARENT: PipelinePhaseId = 'revision';
+/**
+ * Phases that own the revision queue UI.
+ *
+ * The `revision` phase uses the first revision queue (structural fixes).
+ * The `mechanical-fixes` phase uses the second revision queue (copy-level fixes).
+ * Both phases show the "Revision Queue" sub-button and route clicks to
+ * the revision queue view rather than opening a bare agent conversation.
+ */
+const REVISION_QUEUE_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
+  'revision',
+  'mechanical-fixes',
+]);
 
 export function PipelineTracker(): React.ReactElement {
   const { phases, markPhaseComplete, completeRevision } = usePipelineStore();
@@ -118,8 +128,8 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
-    // Revision phase owns the revision queue — clicking it opens the queue
-    if (phase.id === REVISION_QUEUE_PARENT && hasRevisionPlan) {
+    // Revision queue phases — clicking them opens the queue, not a bare agent conversation
+    if (REVISION_QUEUE_PHASES.has(phase.id) && hasRevisionPlan) {
       navigate('revision-queue');
       return;
     }
@@ -133,8 +143,8 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
-    // Revision phase owns the revision queue
-    if (phase.id === REVISION_QUEUE_PARENT && hasRevisionPlan) {
+    // Revision queue phases — Start button opens the queue
+    if (REVISION_QUEUE_PHASES.has(phase.id) && hasRevisionPlan) {
       navigate('revision-queue');
       return;
     }
@@ -206,15 +216,19 @@ export function PipelineTracker(): React.ReactElement {
       )}
       <div>
         {phases.map((phase, index) => {
-          // Show the revision queue sub-button under the Verity (revision) phase
+          // Show the revision queue sub-button under both revision queue phases.
+          // This covers:
+          //   - `revision`        → first revision queue (structural fixes)
+          //   - `mechanical-fixes` → second revision queue (copy-level fixes)
           const showRevisionSub =
             hasRevisionPlan &&
-            phase.id === REVISION_QUEUE_PARENT &&
+            REVISION_QUEUE_PHASES.has(phase.id) &&
             phase.status !== 'locked';
 
-          // Show "Complete Revision" only when the revision phase is active and queue isn't running
+          // Show "Complete Revision" only when the `revision` phase is active and queue isn't running.
+          // The mechanical-fixes phase does not need this — it uses the queue's own archive step.
           const showCompleteRevision =
-            phase.id === REVISION_QUEUE_PARENT &&
+            phase.id === 'revision' &&
             phase.status === 'active' &&
             !(revisionRunning && !!revisionActiveSession);
 
