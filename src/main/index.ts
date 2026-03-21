@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, protocol, net } from 'electron';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -62,7 +62,7 @@ function createWindow(): void {
     minHeight: 600,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     trafficLightPosition: { x: 16, y: 16 },
-    backgroundColor: '#09090b', // zinc-950 — prevents white flash
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#09090b' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -150,7 +150,11 @@ async function initializeApp(): Promise<void> {
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
   const notifications = new NotificationManager(settings);
 
-  // 5. Register custom protocol handler for serving local assets to renderer
+  // 5. Sync Electron native theme with user preference (affects window frame color)
+  const initialSettings = await settings.load();
+  nativeTheme.themeSource = initialSettings.theme === 'system' ? 'system' : initialSettings.theme;
+
+  // 6. Register custom protocol handler for serving local assets to renderer
   protocol.handle('novel-asset', (request) => {
     const url = new URL(request.url);
 
@@ -177,7 +181,7 @@ async function initializeApp(): Promise<void> {
     return new Response('Not found', { status: 404 });
   });
 
-  // 6. Set up file system watcher — notifies the renderer when book files change on disk
+  // 7. Set up file system watcher — notifies the renderer when book files change on disk
   bookWatcher = new BookWatcher(booksDir, (changedPaths) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chat:filesChanged', changedPaths);
@@ -193,7 +197,7 @@ async function initializeApp(): Promise<void> {
     // No active book yet — watcher will start when user selects one
   });
 
-  // 7. Register IPC handlers (with hook to switch watcher on book change)
+  // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
     { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, notifications },
     { userDataPath, booksDir },
@@ -204,10 +208,10 @@ async function initializeApp(): Promise<void> {
     },
   );
 
-  // 8. Register window control handlers (custom title bar)
+  // 9. Register window control handlers (custom title bar)
   registerWindowControlHandlers();
 
-  // 9. Create the window
+  // 10. Create the window
   createWindow();
 }
 

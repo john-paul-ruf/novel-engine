@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import { ipcMain, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
 import * as fsPromises from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import * as path from 'node:path';
@@ -52,9 +52,14 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('settings:detectClaudeCli', () => services.settings.detectClaudeCli());
 
-  ipcMain.handle('settings:update', (_, partial: Partial<AppSettings>) =>
-    services.settings.update(partial),
-  );
+  ipcMain.handle('settings:update', async (_, partial: Partial<AppSettings>) => {
+    await services.settings.update(partial);
+
+    // Sync Electron's native theme when the user changes the appearance setting
+    if (partial.theme !== undefined) {
+      nativeTheme.themeSource = partial.theme === 'system' ? 'system' : partial.theme;
+    }
+  });
 
   ipcMain.handle('settings:getAvailableModels', () => AVAILABLE_MODELS);
 
