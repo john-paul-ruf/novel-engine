@@ -5,6 +5,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
+import { useAutoDraftStore } from '../../stores/autoDraftStore';
 
 /**
  * Phases that have dedicated completion controls — the generic "Done" button
@@ -87,6 +88,7 @@ export function PipelineTracker(): React.ReactElement {
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
   const { isLoading: revisionLoading, isRunning: revisionRunning, activeSessionId: revisionActiveSession } = useRevisionQueueStore();
+  const { isRunning: autoDraftRunning, chaptersWritten: autoDraftChapters, error: autoDraftError, start: autoDraftStart, stop: autoDraftStop, reset: autoDraftReset } = useAutoDraftStore();
   const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
   const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
@@ -303,6 +305,17 @@ export function PipelineTracker(): React.ReactElement {
           {advancementError}
         </div>
       )}
+      {autoDraftError && (
+        <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300 flex items-start gap-1">
+          <span className="shrink-0">Auto Draft:</span>
+          <span className="flex-1">{autoDraftError}</span>
+          <button
+            onClick={autoDraftReset}
+            className="ml-1 shrink-0 text-red-400 hover:text-red-200"
+            title="Dismiss error"
+          >✕</button>
+        </div>
+      )}
       <div>
         {phases.map((phase, index) => {
           // Show the revision queue sub-button under both revision queue phases.
@@ -321,6 +334,13 @@ export function PipelineTracker(): React.ReactElement {
             phase.id === 'revision' &&
             (phase.status === 'active' || phase.status === 'pending-completion') &&
             !(revisionRunning && !!revisionActiveSession);
+
+          // Show the Auto Draft sub-button on the first-draft phase when active.
+          // Also show it while running even if the phase is pending-completion (the
+          // loop may still be finishing a chapter).
+          const showAutoDraft =
+            phase.id === 'first-draft' &&
+            (phase.status === 'active' || phase.status === 'pending-completion' || autoDraftRunning);
 
           return (
             <div key={phase.id}>
@@ -348,6 +368,14 @@ export function PipelineTracker(): React.ReactElement {
                 <CompleteRevisionSubButton
                   isConfirming={confirmingRevisionComplete}
                   onClick={handleCompleteRevision}
+                />
+              )}
+              {showAutoDraft && (
+                <AutoDraftSubButton
+                  isRunning={autoDraftRunning}
+                  chaptersWritten={autoDraftChapters}
+                  onStart={() => autoDraftStart(activeSlug)}
+                  onStop={autoDraftStop}
                 />
               )}
               {index < phases.length - 1 && (
@@ -423,6 +451,53 @@ function CompleteRevisionSubButton({
     >
       <span className="text-green-500 text-xs">✓</span>
       <span>{isConfirming ? 'Confirm complete?' : 'Complete Revision'}</span>
+    </button>
+  );
+}
+
+function AutoDraftSubButton({
+  isRunning,
+  chaptersWritten,
+  onStart,
+  onStop,
+}: {
+  isRunning: boolean;
+  chaptersWritten: number;
+  onStart: () => void;
+  onStop: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      onClick={isRunning ? onStop : onStart}
+      className={`ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+        isRunning
+          ? 'bg-purple-500/15 text-purple-400 hover:bg-red-500/10 hover:text-red-400'
+          : 'text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-purple-400'
+      }`}
+      title={
+        isRunning
+          ? `Auto Draft running — click to stop after current chapter (${chaptersWritten} chapter${chaptersWritten !== 1 ? 's' : ''} written)`
+          : 'Automatically write all remaining chapters one by one'
+      }
+    >
+      {isRunning ? (
+        <>
+          <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+            <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
+            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+          </span>
+          <span>Auto Draft</span>
+          <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
+            {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
+          </span>
+          <span className="text-[9px] text-red-400/70 ml-1">■ stop</span>
+        </>
+      ) : (
+        <>
+          <span className="text-purple-500 text-xs">▶</span>
+          <span>Auto Draft</span>
+        </>
+      )}
     </button>
   );
 }
