@@ -57,6 +57,9 @@ type AutoDraftState = {
   /** The conversation ID used for the whole run — constant across iterations. */
   conversationId: string | null;
 
+  /** The book slug the auto-draft loop is running against. Null when idle. */
+  bookSlug: string | null;
+
   /**
    * Hard error that aborted the loop via an uncaught exception (not a CLI error).
    * CLI errors are surfaced through isPaused/pauseReason instead.
@@ -146,6 +149,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
   pauseReason: null,
   chaptersWritten: 0,
   conversationId: null,
+  bookSlug: null,
   error: null,
   stopRequested: false,
   _resumeResolve: null,
@@ -161,6 +165,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       chaptersWritten: 0,
       error: null,
       conversationId: null,
+      bookSlug,
       _resumeResolve: null,
     });
 
@@ -305,6 +310,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       stopRequested: false,
       chaptersWritten: 0,
       conversationId: null,
+      bookSlug: null,
       error: null,
       _resumeResolve: null,
     });

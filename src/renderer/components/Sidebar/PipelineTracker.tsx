@@ -87,18 +87,29 @@ export function PipelineTracker(): React.ReactElement {
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
-  const { isLoading: revisionLoading, isRunning: revisionRunning, activeSessionId: revisionActiveSession } = useRevisionQueueStore();
+  const { isLoading: revisionLoadingGlobal, isRunning: revisionRunningGlobal, activeSessionId: revisionActiveSession, plan: revisionPlan } = useRevisionQueueStore();
+
+  // Only show revision queue state for the currently displayed book
+  const revisionIsForCurrentBook = revisionPlan?.bookSlug === activeSlug;
+  const revisionLoading = revisionLoadingGlobal && revisionIsForCurrentBook;
+  const revisionRunning = revisionRunningGlobal && revisionIsForCurrentBook;
   const {
-    isRunning: autoDraftRunning,
-    isPaused: autoDraftPaused,
+    isRunning: autoDraftRunningGlobal,
+    isPaused: autoDraftPausedGlobal,
     pauseReason: autoDraftPauseReason,
     chaptersWritten: autoDraftChapters,
-    error: autoDraftError,
+    error: autoDraftErrorGlobal,
+    bookSlug: autoDraftBookSlug,
     start: autoDraftStart,
     stop: autoDraftStop,
     resume: autoDraftResume,
     reset: autoDraftReset,
   } = useAutoDraftStore();
+
+  // Only show auto-draft state for the currently displayed book
+  const autoDraftRunning = autoDraftRunningGlobal && autoDraftBookSlug === activeSlug;
+  const autoDraftPaused = autoDraftPausedGlobal && autoDraftBookSlug === activeSlug;
+  const autoDraftError = autoDraftErrorGlobal && autoDraftBookSlug === activeSlug ? autoDraftErrorGlobal : null;
   const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
   const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
