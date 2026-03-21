@@ -219,7 +219,7 @@ function CoverImageSection({
     return (
       <button
         onClick={onUpload}
-        className="flex h-[220px] w-[160px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-300 dark:border-zinc-600 hover:text-zinc-500 dark:text-zinc-400"
+        className="flex h-[220px] w-[160px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-500 dark:text-zinc-400"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

@@ -95,7 +95,7 @@ function ModelSelectionSection(): React.ReactElement {
             className={`w-full rounded-lg border p-3 text-left transition-colors ${
               selected === model.id
                 ? 'border-blue-500 bg-blue-500/10'
-                : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-300 dark:border-zinc-600'
+                : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-600'
             }`}
           >
             <div className="flex items-center gap-2">
