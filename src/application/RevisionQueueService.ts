@@ -205,13 +205,23 @@ export class RevisionQueueService implements IRevisionQueueService {
       this.emit({ type: 'plan:loading-step', step: 'Loaded from cache (files unchanged)' });
       parsed = cache.parsed;
     } else {
-      // Cache miss — call wrangler CLI
       const promptSize = (revisionPromptsContent?.length ?? 0);
       const taskSize = (projectTasksContent?.length ?? 0);
       const totalChars = promptSize + taskSize;
       this.emit({
         type: 'plan:loading-step',
         step: `Sending ${Math.round(totalChars / 1000)}k chars to Wrangler (${WRANGLER_MODEL})…`,
+      });
+
+      this.emit({
+        type: 'session:streamEvent',
+        sessionId: '__plan-load__',
+        event: { type: 'callStart', agentName: 'Wrangler' as AgentName, model: WRANGLER_MODEL, bookSlug },
+      });
+      this.emit({
+        type: 'session:streamEvent',
+        sessionId: '__plan-load__',
+        event: { type: 'status', message: `Parsing revision plan (${Math.round(totalChars / 1000)}k chars)…` },
       });
 
       const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
@@ -221,6 +231,12 @@ export class RevisionQueueService implements IRevisionQueueService {
         systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
         userMessage,
         maxTokens: 8192,
+      });
+
+      this.emit({
+        type: 'session:streamEvent',
+        sessionId: '__plan-load__',
+        event: { type: 'done', inputTokens: 0, outputTokens: 0, thinkingTokens: 0 },
       });
 
       this.emit({ type: 'plan:loading-step', step: 'Parsing Wrangler response…' });
