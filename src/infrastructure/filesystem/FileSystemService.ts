@@ -8,6 +8,8 @@ import type {
   FileEntry,
   FileManifestItem,
   ProjectManifest,
+  ShelvedPitch,
+  ShelvedPitchMeta,
 } from '@domain/types';
 
 const VALID_COVER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
@@ -553,6 +555,119 @@ export class FileSystemService implements IFileSystemService {
     }
   }
 
+  // ── Shelved Pitches ──────────────────────────────────────────────
+
+  async listShelvedPitches(): Promise<ShelvedPitchMeta[]> {
+    const pitchesDir = path.join(this.booksDir, '_pitches');
+    let entries: string[];
+    try {
+      entries = await fs.readdir(pitchesDir);
+    } catch {
+      return []; // Directory doesn't exist yet — no pitches
+    }
+
+    const pitches: ShelvedPitchMeta[] = [];
+    for (const entry of entries) {
+      if (!entry.endsWith('.md')) continue;
+      const slug = entry.replace(/\.md$/, '');
+      try {
+        const filePath = path.join(pitchesDir, entry);
+        const raw = await fs.readFile(filePath, 'utf-8');
+        const meta = this.parsePitchFrontMatter(slug, raw);
+        pitches.push(meta);
+      } catch {
+        // Skip unreadable files
+      }
+    }
+
+    // Sort by shelvedAt descending (newest first)
+    pitches.sort((a, b) => b.shelvedAt.localeCompare(a.shelvedAt));
+    return pitches;
+  }
+
+  async readShelvedPitch(slug: string): Promise<ShelvedPitch> {
+    const filePath = path.join(this.booksDir, '_pitches', `${slug}.md`);
+    let raw: string;
+    try {
+      raw = await fs.readFile(filePath, 'utf-8');
+    } catch {
+      throw new Error(`Shelved pitch "${slug}" not found`);
+    }
+
+    const meta = this.parsePitchFrontMatter(slug, raw);
+    const content = this.stripFrontMatter(raw);
+    return { ...meta, content };
+  }
+
+  async deleteShelvedPitch(slug: string): Promise<void> {
+    const filePath = path.join(this.booksDir, '_pitches', `${slug}.md`);
+    try {
+      await fs.unlink(filePath);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
+  async shelvePitch(bookSlug: string, logline?: string): Promise<ShelvedPitchMeta> {
+    // Read the book's pitch
+    const pitchContent = await this.readFile(bookSlug, 'source/pitch.md');
+    if (!pitchContent.trim()) {
+      throw new Error(`Book "${bookSlug}" has no pitch to shelve`);
+    }
+
+    const meta = await this.getBookMeta(bookSlug);
+    const slug = this.slugify(meta.title);
+    const now = new Date().toISOString();
+
+    // Extract logline from first non-heading paragraph if not provided
+    const resolvedLogline = logline || this.extractLogline(pitchContent);
+
+    // Build the shelved pitch file with front matter
+    const frontMatter = [
+      '---',
+      `title: ${meta.title}`,
+      `shelvedAt: ${now}`,
+      `shelvedFrom: ${bookSlug}`,
+      `logline: ${resolvedLogline}`,
+      '---',
+      '',
+    ].join('\n');
+
+    const fileContent = frontMatter + pitchContent;
+
+    // Ensure _pitches directory exists
+    const pitchesDir = path.join(this.booksDir, '_pitches');
+    await fs.mkdir(pitchesDir, { recursive: true });
+
+    // Write the pitch file (overwrites if same slug exists)
+    await fs.writeFile(path.join(pitchesDir, `${slug}.md`), fileContent, 'utf-8');
+
+    return {
+      slug,
+      title: meta.title,
+      logline: resolvedLogline,
+      shelvedAt: now,
+      shelvedFrom: bookSlug,
+    };
+  }
+
+  async restorePitch(pitchSlug: string): Promise<BookMeta> {
+    const pitch = await this.readShelvedPitch(pitchSlug);
+
+    // Create a new book with the pitch title
+    const bookMeta = await this.createBook(pitch.title);
+
+    // Write the pitch content to the new book's source/pitch.md
+    await this.writeFile(bookMeta.slug, 'source/pitch.md', pitch.content);
+
+    // Remove from shelf
+    await this.deleteShelvedPitch(pitchSlug);
+
+    return bookMeta;
+  }
+
   // ── Private Helpers ───────────────────────────────────────────────
 
   /**
@@ -676,6 +791,53 @@ export class FileSystemService implements IFileSystemService {
 
   private countWordsInText(text: string): number {
     return text.split(/\s+/).filter(Boolean).length;
+  }
+
+  private parsePitchFrontMatter(slug: string, raw: string): ShelvedPitchMeta {
+    const fmMatch = raw.match(/^---\n([\s\S]*?)\n---/);
+    if (!fmMatch) {
+      // No front matter — extract title from first heading
+      const titleMatch = raw.match(/^#\s+(.+)$/m);
+      return {
+        slug,
+        title: titleMatch?.[1]?.trim() || slug,
+        logline: '',
+        shelvedAt: '',
+        shelvedFrom: '',
+      };
+    }
+
+    const fm = fmMatch[1];
+    const getValue = (key: string): string => {
+      const match = fm.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
+      return match?.[1]?.trim() || '';
+    };
+
+    return {
+      slug,
+      title: getValue('title') || slug,
+      logline: getValue('logline'),
+      shelvedAt: getValue('shelvedAt'),
+      shelvedFrom: getValue('shelvedFrom'),
+    };
+  }
+
+  private stripFrontMatter(raw: string): string {
+    return raw.replace(/^---\n[\s\S]*?\n---\n*/, '');
+  }
+
+  private extractLogline(pitchContent: string): string {
+    // Find the first non-empty, non-heading line
+    const lines = pitchContent.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (trimmed.startsWith('#')) continue;
+      if (trimmed.startsWith('---')) continue;
+      // Return first 200 chars of the first content line
+      return trimmed.length > 200 ? trimmed.slice(0, 197) + '...' : trimmed;
+    }
+    return '';
   }
 
   private async buildFileTree(

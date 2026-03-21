@@ -16,6 +16,8 @@ import type {
   QueueMode,
   RevisionPlan,
   RevisionQueueEvent,
+  ShelvedPitch,
+  ShelvedPitchMeta,
   StreamEvent,
   UsageRecord,
   UsageSummary,
@@ -87,6 +89,13 @@ export interface IFileSystemService {
   // slugified title stored in about.json. Returns every migration performed
   // so callers can update the database accordingly.
   reconcileBookSlugs(): Promise<Array<{ oldSlug: string; newSlug: string }>>;
+
+  // Shelved pitches
+  listShelvedPitches(): Promise<ShelvedPitchMeta[]>;
+  readShelvedPitch(slug: string): Promise<ShelvedPitch>;
+  deleteShelvedPitch(slug: string): Promise<void>;
+  shelvePitch(bookSlug: string, logline?: string): Promise<ShelvedPitchMeta>;
+  restorePitch(pitchSlug: string): Promise<BookMeta>;
 }
 
 export interface IClaudeClient {

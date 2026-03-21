@@ -327,6 +327,24 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('shell:openPath', (_, absolutePath: string) => shell.openPath(absolutePath));
 
+  // === Shelved Pitches ===
+
+  ipcMain.handle('pitches:list', () => services.fs.listShelvedPitches());
+
+  ipcMain.handle('pitches:read', (_, slug: string) => services.fs.readShelvedPitch(slug));
+
+  ipcMain.handle('pitches:delete', (_, slug: string) => services.fs.deleteShelvedPitch(slug));
+
+  ipcMain.handle('pitches:shelve', (_, bookSlug: string, logline?: string) =>
+    services.fs.shelvePitch(bookSlug, logline),
+  );
+
+  ipcMain.handle('pitches:restore', async (_, pitchSlug: string) => {
+    const meta = await services.fs.restorePitch(pitchSlug);
+    hooks?.onActiveBookChanged?.(meta.slug);
+    return meta;
+  });
+
   // === Revision Queue ===
 
   ipcMain.handle('revision:loadPlan', async (_, bookSlug: string) => {

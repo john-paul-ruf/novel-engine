@@ -35,6 +35,20 @@ export type BookSummary = BookMeta & {
   isActive: boolean;
 };
 
+// === Shelved Pitches ===
+
+export type ShelvedPitchMeta = {
+  slug: string;              // filename without .md extension
+  title: string;             // extracted from front matter or first heading
+  logline: string;           // one-line description from front matter
+  shelvedAt: string;         // ISO date when the pitch was shelved
+  shelvedFrom: string;       // book slug it was shelved from (empty if created directly)
+};
+
+export type ShelvedPitch = ShelvedPitchMeta & {
+  content: string;           // full markdown content (without front matter)
+};
+
 export type ChapterData = {
   slug: string;            // e.g. "01-the-beginning"
   draft: string;           // contents of draft.md

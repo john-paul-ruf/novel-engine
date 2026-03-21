@@ -19,6 +19,8 @@ import type {
   RevisionPlan,
   RevisionQueueEvent,
   SendMessageParams,
+  ShelvedPitch,
+  ShelvedPitchMeta,
   StreamEvent,
   UsageRecord,
   UsageSummary,
@@ -154,6 +156,17 @@ const api = {
     },
     exportZip: (bookSlug: string): Promise<string | null> =>
       ipcRenderer.invoke('build:exportZip', bookSlug),
+  },
+
+  // Shelved Pitches
+  pitches: {
+    list: (): Promise<ShelvedPitchMeta[]> => ipcRenderer.invoke('pitches:list'),
+    read: (slug: string): Promise<ShelvedPitch> => ipcRenderer.invoke('pitches:read', slug),
+    delete: (slug: string): Promise<void> => ipcRenderer.invoke('pitches:delete', slug),
+    shelve: (bookSlug: string, logline?: string): Promise<ShelvedPitchMeta> =>
+      ipcRenderer.invoke('pitches:shelve', bookSlug, logline),
+    restore: (pitchSlug: string): Promise<BookMeta> =>
+      ipcRenderer.invoke('pitches:restore', pitchSlug),
   },
 
   // Usage
