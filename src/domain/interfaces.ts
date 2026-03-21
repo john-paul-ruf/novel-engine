@@ -87,6 +87,11 @@ export interface IFileSystemService {
   saveCoverImage(bookSlug: string, sourcePath: string): Promise<string>;
   getCoverImageAbsolutePath(bookSlug: string): Promise<string | null>;
 
+  // Book archiving — moves books to/from _archived/ directory
+  archiveBook(slug: string): Promise<void>;
+  unarchiveBook(slug: string): Promise<BookMeta>;
+  listArchivedBooks(): Promise<BookSummary[]>;
+
   // Slug reconciliation — renames folders whose name no longer matches the
   // slugified title stored in about.json. Returns every migration performed
   // so callers can update the database accordingly.

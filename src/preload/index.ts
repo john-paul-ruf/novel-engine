@@ -64,6 +64,13 @@ const api = {
     getAbsolutePath: (bookSlug: string, relativePath: string): Promise<string> =>
       ipcRenderer.invoke('books:getAbsolutePath', bookSlug, relativePath),
 
+    archive: (slug: string): Promise<void> =>
+      ipcRenderer.invoke('books:archive', slug),
+    unarchive: (slug: string): Promise<BookMeta> =>
+      ipcRenderer.invoke('books:unarchive', slug),
+    listArchived: (): Promise<BookSummary[]> =>
+      ipcRenderer.invoke('books:listArchived'),
+
     /**
      * Subscribe to `books:changed` — fired by the main process when a new
      * book directory is detected in (or removed from) the books folder at runtime.

@@ -480,6 +480,113 @@ export class FileSystemService implements IFileSystemService {
     return destFilename;
   }
 
+  // ── Book Archiving ──────────────────────────────────────────────
+
+  async archiveBook(slug: string): Promise<void> {
+    const bookDir = path.join(this.booksDir, slug);
+    const archivedDir = path.join(this.booksDir, '_archived');
+    const destDir = path.join(archivedDir, slug);
+
+    // Verify the book exists
+    try {
+      await fs.access(bookDir);
+    } catch {
+      throw new Error(`Book "${slug}" not found — cannot archive`);
+    }
+
+    // Ensure _archived directory exists
+    await fs.mkdir(archivedDir, { recursive: true });
+
+    // Check destination doesn't already exist
+    try {
+      await fs.access(destDir);
+      throw new Error(`An archived book with slug "${slug}" already exists`);
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('An archived book')) throw err;
+      // Doesn't exist — safe to move
+    }
+
+    await fs.rename(bookDir, destDir);
+
+    // If the archived book was the active book, clear active selection
+    const activeSlug = await this.getActiveBookSlug();
+    if (activeSlug === slug) {
+      await this.setActiveBook('');
+    }
+  }
+
+  async unarchiveBook(slug: string): Promise<BookMeta> {
+    const archivedDir = path.join(this.booksDir, '_archived', slug);
+    const destDir = path.join(this.booksDir, slug);
+
+    // Verify the archived book exists
+    try {
+      await fs.access(archivedDir);
+    } catch {
+      throw new Error(`Archived book "${slug}" not found — cannot unarchive`);
+    }
+
+    // Check destination doesn't already exist (name collision with an active book)
+    try {
+      await fs.access(destDir);
+      throw new Error(`A book with slug "${slug}" already exists — cannot unarchive`);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('already exists')) throw err;
+      // Doesn't exist — safe to move
+    }
+
+    await fs.rename(archivedDir, destDir);
+
+    // Read and return the meta
+    return this.getBookMeta(slug);
+  }
+
+  async listArchivedBooks(): Promise<BookSummary[]> {
+    const archivedDir = path.join(this.booksDir, '_archived');
+    let entries: string[];
+    try {
+      entries = await fs.readdir(archivedDir);
+    } catch {
+      return [];
+    }
+
+    const summaries: BookSummary[] = [];
+
+    for (const entry of entries) {
+      if (entry.startsWith('.')) continue;
+
+      const entryPath = path.join(archivedDir, entry);
+      const stat = await fs.stat(entryPath).catch(() => null);
+      if (!stat || !stat.isDirectory()) continue;
+
+      const aboutPath = path.join(entryPath, 'about.json');
+      try {
+        const raw = await fs.readFile(aboutPath, 'utf-8');
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+        const meta: BookMeta = {
+          slug: entry,
+          title: String(parsed.title ?? ''),
+          author: String(parsed.author ?? ''),
+          status: String(parsed.status ?? 'scaffolded') as BookStatus,
+          created: String(parsed.created ?? ''),
+          coverImage: String(parsed.coverImage ?? ''),
+        };
+
+        summaries.push({
+          ...meta,
+          wordCount: 0, // Don't scan chapters for archived books — keep it lightweight
+          isActive: false,
+        });
+      } catch {
+        // Skip unreadable entries
+      }
+    }
+
+    summaries.sort((a, b) => a.title.localeCompare(b.title));
+    return summaries;
+  }
+
   // ── Slug Reconciliation ───────────────────────────────────────────
 
   /**

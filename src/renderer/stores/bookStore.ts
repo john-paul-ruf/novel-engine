@@ -4,6 +4,7 @@ import { useChatStore } from './chatStore';
 
 type BookState = {
   books: BookSummary[];
+  archivedBooks: BookSummary[];
   activeSlug: string;
   totalWordCount: number;
   loading: boolean;
@@ -18,6 +19,19 @@ type BookState = {
    */
   uploadCover: (bookSlug: string) => Promise<string | null>;
   /**
+   * Archive a book — moves it out of the active list.
+   * If the archived book was active, clears the active selection.
+   */
+  archiveBook: (slug: string) => Promise<void>;
+  /**
+   * Unarchive a book — restores it to the active list and selects it.
+   */
+  unarchiveBook: (slug: string) => Promise<void>;
+  /**
+   * Load the list of archived books from the main process.
+   */
+  loadArchivedBooks: () => Promise<void>;
+  /**
    * Subscribe to `books:changed` push events from the main process.
    * Automatically calls `loadBooks()` whenever the books directory
    * gains or loses a subdirectory (e.g. a book was manually copied in).
@@ -29,6 +43,7 @@ type BookState = {
 
 export const useBookStore = create<BookState>((set, get) => ({
   books: [],
+  archivedBooks: [],
   activeSlug: '',
   totalWordCount: 0,
   loading: false,
@@ -109,6 +124,43 @@ export const useBookStore = create<BookState>((set, get) => ({
     } catch (error) {
       console.error('Failed to upload cover:', error);
       return null;
+    }
+  },
+
+  archiveBook: async (slug: string) => {
+    try {
+      await window.novelEngine.books.archive(slug);
+      // Refresh the book list — the archived book will no longer appear
+      await get().loadBooks();
+      // If the archived book was active, activeSlug is now '' — load a different book
+      const { activeSlug, books } = get();
+      if (!activeSlug && books.length > 0) {
+        await get().setActiveBook(books[0].slug);
+      }
+    } catch (error) {
+      console.error('Failed to archive book:', error);
+      throw error;
+    }
+  },
+
+  unarchiveBook: async (slug: string) => {
+    try {
+      const meta = await window.novelEngine.books.unarchive(slug);
+      await get().loadBooks();
+      await get().loadArchivedBooks();
+      await get().setActiveBook(meta.slug);
+    } catch (error) {
+      console.error('Failed to unarchive book:', error);
+      throw error;
+    }
+  },
+
+  loadArchivedBooks: async () => {
+    try {
+      const archivedBooks = await window.novelEngine.books.listArchived();
+      set({ archivedBooks });
+    } catch (error) {
+      console.error('Failed to load archived books:', error);
     }
   },
 

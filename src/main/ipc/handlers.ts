@@ -128,6 +128,18 @@ export function registerIpcHandlers(services: {
     path.join(paths.booksDir, bookSlug, relativePath),
   );
 
+  ipcMain.handle('books:archive', async (_, slug: string) => {
+    await services.fs.archiveBook(slug);
+  });
+
+  ipcMain.handle('books:unarchive', async (_, slug: string) => {
+    const meta = await services.fs.unarchiveBook(slug);
+    hooks?.onActiveBookChanged?.(meta.slug);
+    return meta;
+  });
+
+  ipcMain.handle('books:listArchived', () => services.fs.listArchivedBooks());
+
   // === Files ===
 
   ipcMain.handle('files:read', (_, bookSlug: string, path: string) =>
