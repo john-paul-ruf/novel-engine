@@ -176,8 +176,9 @@ export class ClaudeCodeClient implements IClaudeClient {
     const { model, systemPrompt, userMessage } = params;
 
     const args = [
-      '--print',
-      '--output-format', 'json',
+      '--verbose',
+      '--output-format', 'stream-json',
+      '--include-partial-messages',
       '--model', model,
       '--system-prompt', systemPrompt,
     ];
@@ -190,6 +191,7 @@ export class ClaudeCodeClient implements IClaudeClient {
 
       let stdoutBuffer = '';
       let stderrBuffer = '';
+      let textBuffer = '';
       let settled = false;
 
       const settle = (fn: () => void) => {
@@ -206,6 +208,34 @@ export class ClaudeCodeClient implements IClaudeClient {
 
       child.stdout.on('data', (chunk: Buffer) => {
         stdoutBuffer += chunk.toString();
+        const lines = stdoutBuffer.split('\n');
+        stdoutBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line) as Record<string, unknown>;
+            const eventType = event.type as string;
+
+            if (eventType === 'content_block_delta') {
+              const delta = event.delta as Record<string, unknown> | undefined;
+              if (!delta) continue;
+              const deltaType = delta.type as string | undefined;
+              if (deltaType === 'text_delta' || deltaType === 'text') {
+                textBuffer += (delta.text as string) ?? '';
+              }
+            }
+
+            if (eventType === 'result') {
+              if (!textBuffer) {
+                const resultText = event.result as string | undefined;
+                if (resultText) textBuffer = resultText;
+              }
+            }
+          } catch {
+            // Skip unparseable lines
+          }
+        }
       });
 
       child.stderr.on('data', (chunk: Buffer) => {
@@ -213,24 +243,40 @@ export class ClaudeCodeClient implements IClaudeClient {
       });
 
       child.on('close', (code) => {
+        if (stdoutBuffer.trim()) {
+          try {
+            const event = JSON.parse(stdoutBuffer.trim()) as Record<string, unknown>;
+            const eventType = event.type as string;
+            if (eventType === 'content_block_delta') {
+              const delta = event.delta as Record<string, unknown> | undefined;
+              const deltaType = delta?.type as string | undefined;
+              if (deltaType === 'text_delta' || deltaType === 'text') {
+                textBuffer += (delta?.text as string) ?? '';
+              }
+            }
+            if (eventType === 'result' && !textBuffer) {
+              const resultText = event.result as string | undefined;
+              if (resultText) textBuffer = resultText;
+            }
+          } catch {
+            // Skip unparseable remainder
+          }
+        }
+
         if (code !== 0) {
           const message = stderrBuffer.trim() || `Claude CLI exited with code ${code}`;
           settle(() => reject(new Error(message)));
           return;
         }
 
-        try {
-          const response = JSON.parse(stdoutBuffer.trim());
-          const text = this.extractOneShotText(response);
-          settle(() => resolve(text));
-        } catch (err) {
-          settle(() => reject(new Error(
-            `Failed to parse Claude CLI JSON response: ${err instanceof Error ? err.message : String(err)}`
-          )));
+        if (!textBuffer) {
+          settle(() => reject(new Error('No text received from Claude CLI')));
+          return;
         }
+
+        settle(() => resolve(textBuffer));
       });
 
-      // Write user message to stdin and close
       child.stdin.write(userMessage);
       child.stdin.end();
     });
@@ -412,31 +458,5 @@ export class ClaudeCodeClient implements IClaudeClient {
     }
   }
 
-  /**
-   * Extract text from the one-shot JSON response.
-   * The `json` output format returns a single JSON object with a `result` field.
-   */
-  private extractOneShotText(response: Record<string, unknown>): string {
-    // The response may have a `result` field containing the text
-    if (typeof response.result === 'string') {
-      return response.result;
-    }
 
-    // Or it may be a content array with text blocks
-    if (Array.isArray(response.content)) {
-      const textBlocks = (response.content as Array<Record<string, unknown>>)
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text as string);
-      if (textBlocks.length > 0) {
-        return textBlocks.join('');
-      }
-    }
-
-    // Fallback: if the response itself is a string-like structure
-    if (typeof response.text === 'string') {
-      return response.text;
-    }
-
-    throw new Error('Unable to extract text from Claude CLI response');
-  }
 }
