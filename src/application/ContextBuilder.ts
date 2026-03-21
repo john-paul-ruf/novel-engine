@@ -7,15 +7,29 @@ import type {
   MessageRole,
   ProjectManifest,
 } from '@domain/types';
-import { AGENT_READ_GUIDANCE, CREATIVE_AGENT_NAMES } from '@domain/constants';
+import {
+  AGENT_READ_GUIDANCE,
+  AGENT_RESPONSE_BUFFER,
+  CREATIVE_AGENT_NAMES,
+  MAX_CONTEXT_TOKENS,
+  CONTEXT_RESERVE_TOKENS,
+  TURN_BUDGET_THRESHOLDS,
+  TURN_KEEP_COUNTS,
+} from '@domain/constants';
 import { TokenEstimator } from './context/TokenEstimator';
 
 /**
  * ContextBuilder — Builds a lean system prompt with a file manifest
- * and compacts conversation history using simple heuristic rules.
+ * and compacts conversation history using dynamic, token-budget-aware rules.
  *
- * Replaces the entire ContextWrangler → ManifestBuilder → PlanExecutor pipeline.
- * No AI calls. No file content loading. Just metadata assembly + conversation truncation.
+ * The compactor calculates how much of the context window remains after the
+ * system prompt, thinking budget, and response reserve are subtracted, then
+ * uses that *remaining fraction* to decide how many conversation turns to keep.
+ *
+ * This means:
+ * - Spark (tiny file context) → can keep 15+ turns
+ * - Ghostlight full-read (120K manuscript) → keeps 2–3 turns
+ * - The system automatically adapts as the book grows
  */
 export class ContextBuilder {
   private tokenEstimator = new TokenEstimator();
@@ -29,8 +43,9 @@ export class ContextBuilder {
     manifest: ProjectManifest;
     messages: Message[];
     purposeInstructions?: string;
+    thinkingBudget?: number;
   }): AssembledContext {
-    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions } = params;
+    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget } = params;
 
     // 1. Build file manifest section
     const manifestSection = this.buildManifestSection(manifest);
@@ -49,10 +64,18 @@ export class ContextBuilder {
 
     const systemPrompt = sections.join('\n\n');
 
-    // 5. Compact conversation history
-    const conversationMessages = this.compactConversation(messages);
+    // 5. Calculate the token budget available for conversation turns
+    const systemPromptTokens = this.tokenEstimator.estimate(systemPrompt);
+    const thinkingTokens = thinkingBudget ?? 0;
+    const responseReserve = AGENT_RESPONSE_BUFFER[agentName] ?? CONTEXT_RESERVE_TOKENS;
 
-    // 6. Build diagnostics
+    const fixedOverhead = systemPromptTokens + thinkingTokens + responseReserve + CONTEXT_RESERVE_TOKENS;
+    const turnBudgetTokens = Math.max(0, MAX_CONTEXT_TOKENS - fixedOverhead);
+
+    // 6. Compact conversation history using dynamic budget
+    const conversationMessages = this.compactConversation(messages, turnBudgetTokens);
+
+    // 7. Build diagnostics
     const addedContent = [manifestSection, guidanceSection ?? '', writeInstructions].join('\n');
     const manifestTokens = this.tokenEstimator.estimate(addedContent);
 
@@ -161,10 +184,122 @@ Key file paths:
   }
 
   /**
-   * Compact conversation history using simple heuristic rules.
-   * No AI calls — just truncation with a context note.
+   * Compact conversation history using dynamic token-budget-aware rules.
+   *
+   * Instead of fixed turn thresholds, this method:
+   * 1. Calculates what fraction of the context window is available for turns
+   * 2. Measures actual token sizes of messages (newest first)
+   * 3. Keeps as many recent turns as the budget allows
+   * 4. Prepends a context note when older turns are dropped
+   *
+   * @param messages - All messages in the conversation
+   * @param turnBudgetTokens - How many tokens are available for conversation history
    */
   compactConversation(
+    messages: Message[],
+    turnBudgetTokens?: number,
+  ): { role: MessageRole; content: string }[] {
+    const totalTurns = messages.length;
+
+    // No messages → nothing to compact
+    if (totalTurns === 0) return [];
+
+    // If no budget provided, fall back to generous fixed behavior
+    if (turnBudgetTokens === undefined) {
+      return this.compactByFixedRules(messages);
+    }
+
+    // Calculate budget fraction relative to the full context window
+    const budgetFraction = turnBudgetTokens / MAX_CONTEXT_TOKENS;
+
+    // Generous budget (> 40% free): try to keep everything, but still respect token limit
+    if (budgetFraction > TURN_BUDGET_THRESHOLDS.generous) {
+      return this.keepWithinBudget(messages, turnBudgetTokens, totalTurns);
+    }
+
+    // Moderate budget (20–40% free): cap at TURN_KEEP_COUNTS.moderate recent turns
+    if (budgetFraction > TURN_BUDGET_THRESHOLDS.moderate) {
+      const maxTurns = TURN_KEEP_COUNTS.moderate;
+      return this.keepWithinBudget(messages, turnBudgetTokens, maxTurns);
+    }
+
+    // Tight budget (10–20% free): cap at TURN_KEEP_COUNTS.tight recent turns
+    if (budgetFraction > TURN_BUDGET_THRESHOLDS.tight) {
+      const maxTurns = TURN_KEEP_COUNTS.tight;
+      return this.keepWithinBudget(messages, turnBudgetTokens, maxTurns);
+    }
+
+    // Critical budget (< 10% free): emergency mode
+    const maxTurns = TURN_KEEP_COUNTS.critical;
+    return this.keepWithinBudget(messages, turnBudgetTokens, maxTurns);
+  }
+
+  /**
+   * Greedily keeps the most recent turns that fit within the token budget,
+   * capped at maxTurns. Strips thinking content from older kept turns to
+   * save tokens. Prepends a context note if any turns were dropped.
+   */
+  private keepWithinBudget(
+    messages: Message[],
+    budgetTokens: number,
+    maxTurns: number,
+  ): { role: MessageRole; content: string }[] {
+    const totalTurns = messages.length;
+
+    // Reserve ~200 tokens for the context note we might prepend
+    const contextNoteReserve = 200;
+    let remainingBudget = budgetTokens - contextNoteReserve;
+
+    // Walk backwards from the most recent message, measuring token cost
+    const keptMessages: { role: MessageRole; content: string }[] = [];
+    let turnsConsidered = 0;
+
+    for (let i = totalTurns - 1; i >= 0 && turnsConsidered < maxTurns; i--) {
+      const msg = messages[i];
+      const tokenCost = this.tokenEstimator.estimate(msg.content);
+
+      if (tokenCost > remainingBudget) {
+        // This message doesn't fit — stop here
+        break;
+      }
+
+      remainingBudget -= tokenCost;
+      keptMessages.unshift({ role: msg.role, content: msg.content });
+      turnsConsidered++;
+    }
+
+    // If we couldn't keep even the most recent message, force-keep it
+    // (the agent needs at least the current user message to respond)
+    if (keptMessages.length === 0 && totalTurns > 0) {
+      const lastMsg = messages[totalTurns - 1];
+      keptMessages.push({ role: lastMsg.role, content: lastMsg.content });
+    }
+
+    // Prepend a context note if we dropped any turns
+    const droppedCount = totalTurns - keptMessages.length;
+    if (droppedCount > 0) {
+      return [
+        {
+          role: 'user' as MessageRole,
+          content: `[${droppedCount} earlier message${droppedCount === 1 ? '' : 's'} omitted to fit context budget. Continue from the recent messages below.]`,
+        },
+        {
+          role: 'assistant' as MessageRole,
+          content: 'Understood. Continuing from our recent conversation.',
+        },
+        ...keptMessages,
+      ];
+    }
+
+    return keptMessages;
+  }
+
+  /**
+   * Fallback compaction using fixed turn-count rules.
+   * Used when no token budget is provided (e.g., during tests or
+   * if the budget calculation is bypassed).
+   */
+  private compactByFixedRules(
     messages: Message[],
   ): { role: MessageRole; content: string }[] {
     const totalTurns = messages.length;

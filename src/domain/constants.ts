@@ -278,6 +278,41 @@ export const MAX_CONTEXT_TOKENS = 200_000;
 // Reserve for response + system prompt overhead
 export const CONTEXT_RESERVE_TOKENS = 14_000;
 
+// === Dynamic Turn Budget ===
+
+/**
+ * Turn budget thresholds — expressed as fractions of the total context window.
+ * The compactor uses the *remaining* token budget (after system prompt, thinking,
+ * and response reserve are subtracted) to decide how many turns to keep.
+ *
+ * - GENEROUS: > 40% of window is free → keep all turns (strip old thinking)
+ * - MODERATE: 20–40% free → keep last 6–8 turns, prepend a summary note
+ * - TIGHT:    10–20% free → keep last 3–4 turns, prepend a summary note
+ * - CRITICAL: < 10% free → keep only current turn + brief recap
+ */
+export const TURN_BUDGET_THRESHOLDS = {
+  /** Above this fraction → keep all turns */
+  generous: 0.40,
+  /** Above this fraction → keep 6–8 recent turns */
+  moderate: 0.20,
+  /** Above this fraction → keep 3–4 recent turns */
+  tight: 0.10,
+  /** Below tight → emergency mode, 1 turn + recap */
+} as const;
+
+/**
+ * How many recent turns to keep at each compaction level.
+ * "turns" means individual messages (both user and assistant).
+ */
+export const TURN_KEEP_COUNTS = {
+  /** Moderate budget — keep this many recent turns */
+  moderate: 8,
+  /** Tight budget — keep this many recent turns */
+  tight: 4,
+  /** Critical budget — keep only this many (the current exchange) */
+  critical: 2,
+} as const;
+
 // === Wrangler Model (used by RevisionQueueService for parsing Forge output) ===
 
 // The model used for parsing revision plans (cheap and fast)

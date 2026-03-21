@@ -118,20 +118,21 @@ export class ChatService {
         purposeInstructions = AUTHOR_PROFILE_INSTRUCTIONS;
       }
 
-      // Step 7b: Build context using the lean ContextBuilder
+      // Step 7b: Determine thinking budget (needed for both context and CLI call)
+      const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
+
+      // Step 7c: Build context using the lean ContextBuilder (budget-aware compaction)
       const assembled = this.contextBuilder.build({
         agentName,
         agentSystemPrompt: agent.systemPrompt,
         manifest,
         messages,
         purposeInstructions,
+        thinkingBudget,
       });
 
       // Step 8: Store diagnostics
       this.lastDiagnostics = assembled.diagnostics;
-
-      // Step 8b: Determine thinking budget
-      const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
       // Step 8c: Track active stream so renderer can recover after refresh
       this.activeStream = {
