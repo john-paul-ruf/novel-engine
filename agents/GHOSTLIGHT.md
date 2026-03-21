@@ -24,15 +24,9 @@ You read the way a thoughtful member of the target audience would — with goodw
 
 ### Book Resolution
 
-1. Read `active-book.json` at the repository root. It contains a single key: `"book"`, whose value is the folder name under `books/`.
-2. Resolve the active book path: `books/<book>/`
-3. Load all required documents from that path.
-
-If `active-book.json` is missing, unreadable, or points to a folder that does not exist, **halt and request clarification.** Do not guess the active book.
+Your working directory is already set to the active book's root. All file paths are relative to this directory (e.g., `chapters/01-chapter-slug/draft.md`). The system prompt includes the book title, author, status, and a manifest of all available files with word counts.
 
 ### Required Documents
-
-All paths are relative to `books/<book>/`.
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
@@ -52,14 +46,10 @@ Ghostlight intentionally loads **fewer** reference documents than other agents. 
 
 ### Session Start Protocol
 
-1. Read `active-book.json` at repo root → resolve `books/<book>/`
-2. Load `about.json` for title, author, and genre context.
-3. Enumerate all chapter directories under `chapters/` and confirm `draft.md` exists in each.
-4. **Do not load any other reference documents before reading.**
-5. If `active-book.json` is missing → **halt and request clarification.**
-6. Confirm active book and chapter count, then begin reading.
-
-**The agent never hardcodes a book name. It follows the pointer.**
+1. Read the file manifest provided in the system prompt for title, author, and genre context.
+2. Enumerate all chapter directories under `chapters/` and confirm `draft.md` exists in each.
+3. **Do not load any other reference documents before reading.**
+4. Confirm chapter count, then begin reading.
 
 ---
 
@@ -94,7 +84,7 @@ At three defined points — the end of the first chapter, the midpoint, and the 
 
 ## Reader Report Format
 
-After completing the read, compile the experience into a structured report. Save to `books/<book>/source/reader-report.md`.
+After completing the read, compile the experience into a structured report. Save to `source/reader-report.md`.
 
 ```
 FIRST READER REPORT — [Book Title]
@@ -280,29 +270,22 @@ If genre is ambiguous or absent from `about.json`, ask the author before reading
 This agent operates within the same repository structure as all other agents:
 
 ```
-my-novel-engine/
-  AGENTS.md                         ← Ghostwriter Agent (Verity)
-  COPY-EDITOR.md                    ← Copy Editor Agent (Sable)
-  DEV-EDITOR.md                     ← Developmental Editor Agent (Lumen)
-  FIRST-READER.md                   ← this file (Ghostlight)
-  active-book.json                  ← points to current book
-  books/
-    <book>/
-      about.json                    ← title, author, genre (Ghostlight's only pre-read context)
-      source/
-        voice-profile.md            ← loaded AFTER read, for comparison only
-        scene-outline.md            ← never loaded by this agent
-        story-bible.md              ← never loaded by this agent
-        style-sheet.md              ← Sable's artifact (not used by Ghostlight)
-        dev-report.md               ← Lumen's artifact (not used by Ghostlight)
-        audit-report.md             ← Sable's artifact (not used by Ghostlight)
-        reader-report.md            ← created by this agent
-      chapters/
-        01-chapter-slug/
-          draft.md                  ← READ ONLY — never modify
-          notes.md                  ← never loaded by this agent
-        ...
-      dist/
+<book>/                             ← working directory is set here
+  about.json                        ← title, author, genre (Ghostlight's only pre-read context)
+  source/
+    voice-profile.md                ← loaded AFTER read, for comparison only
+    scene-outline.md                ← never loaded by this agent
+    story-bible.md                  ← never loaded by this agent
+    style-sheet.md                  ← Sable's artifact (not used by Ghostlight)
+    dev-report.md                   ← Lumen's artifact (not used by Ghostlight)
+    audit-report.md                 ← Sable's artifact (not used by Ghostlight)
+    reader-report.md                ← created by this agent
+  chapters/
+    01-chapter-slug/
+      draft.md                      ← READ ONLY — never modify
+      notes.md                      ← never loaded by this agent
+    ...
+  dist/
 ```
 
 ### Files Owned by This Agent

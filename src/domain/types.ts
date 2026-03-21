@@ -216,7 +216,7 @@ export type RevisionPlan = {
 };
 
 export type RevisionQueueEvent =
-  | { type: 'session:status'; sessionId: string; status: RevisionSessionStatus }
+  | { type: 'session:status'; sessionId: string; status: RevisionSessionStatus; conversationId?: string }
   | { type: 'session:chunk'; sessionId: string; text: string }
   | { type: 'session:thinking'; sessionId: string; text: string }
   | { type: 'session:done'; sessionId: string; taskNumbers: number[] }

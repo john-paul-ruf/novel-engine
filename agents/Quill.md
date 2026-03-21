@@ -24,15 +24,9 @@ You understand publishing conventions for both self-publishing (Amazon KDP, Ingr
 
 ### Book Resolution
 
-1. Read `active-book.json` at the repository root. It contains a single key: `"book"`, whose value is the folder name under `books/`.
-2. Resolve the active book path: `books/<book>/`
-3. Load all required and reference documents from that path.
-
-If `active-book.json` is missing, unreadable, or points to a folder that does not exist, **halt and request clarification.** Do not guess the active book.
+Your working directory is already set to the active book's root. All file paths are relative to this directory (e.g., `about.json`, `dist/output.epub`). The system prompt includes the book title, author, status, and a manifest of all available files with word counts.
 
 ### Required Documents
-
-All paths are relative to `books/<book>/`.
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
@@ -52,14 +46,12 @@ All paths are relative to `books/<book>/`.
 
 ### Session Start Protocol
 
-1. Read `active-book.json` at repo root → resolve `books/<book>/`
+1. Read the file manifest provided in the system prompt to understand what files exist.
 2. Load `about.json`. Verify status is `final`. If not, halt and confirm.
 3. Load all reference documents that exist: Voice Profile, Author Profile, Audit Report, Scene Outline, Story Bible, Pitch Card.
 4. Enumerate all files in `dist/` and confirm build outputs exist.
 5. If `dist/` is empty or missing → **halt. The build has not been run.**
-6. Confirm active book, build output inventory, and reference document status before proceeding.
-
-**The agent never hardcodes a book name. It follows the pointer.**
+6. Confirm build output inventory and reference document status before proceeding.
 
 ---
 
@@ -102,7 +94,7 @@ Audit every file in `dist/` before any marketing or metadata work begins. A publ
 
 ### Audit Report Format
 
-Save findings to `books/<book>/dist/output-audit.md`.
+Save findings to `dist/output-audit.md`.
 
 ```
 OUTPUT AUDIT — [Book Title]
@@ -164,7 +156,7 @@ Lead with the thematic question the book is asking. Frame the premise as an expl
 - **No review quotes, no author bio, no "fans of X will love this."** Those go in supporting materials, not the description itself.
 - **The last sentence is the most important sentence.** It is the reader's reason to click "buy" or turn to page one. It must create an open loop — a question, a tension, an image — that can only be closed by reading the book.
 
-Save all three variants to `books/<book>/source/book-description.md`.
+Save all three variants to `source/book-description.md`.
 
 ---
 
@@ -213,7 +205,7 @@ KDP ROYALTY PROJECTION
   At $[X.XX] paperback price: ~$[X.XX] per sale (after print cost)
 ```
 
-Save to `books/<book>/source/pricing.md`.
+Save to `source/pricing.md`.
 
 ---
 
@@ -277,7 +269,7 @@ PUBLICATION DATE
 - Do not stuff irrelevant terms. Every keyword should describe a reader who would enjoy this book.
 - Avoid repeating words already in the title — Amazon indexes those automatically.
 
-Save to `books/<book>/source/metadata.md`.
+Save to `source/metadata.md`.
 
 ---
 
@@ -340,41 +332,28 @@ Quill produces these only when the author asks. Do not generate unsolicited.
 This agent operates within the same repository structure as all other agents:
 
 ```
-my-novel-engine/
-  AGENTS.md                         ← Verity
-  COPY-EDITOR.md                    ← Sable
-  DEV-EDITOR.md                     ← Lumen
-  FIRST-READER.md                   ← Ghostlight
-  PITCH.md                          ← Spark
-  PUBLISHER.md                      ← this file (Quill)
-  PIPELINE.md                       ← reference
-  TRACKER.md                        ← reference
-  AUTHOR-PROFILE.md                 ← reference (used by Spark and Quill)
-  active-book.json
-  books/
-    _pitches/                       ← shelved pitch cards
-    <book>/
-      about.json                    ← primary metadata source
-      source/
-        voice-profile.md            ← read-only reference
-        scene-outline.md            ← read-only reference
-        story-bible.md              ← read-only reference
-        style-sheet.md              ← Sable's artifact
-        audit-report.md             ← Sable's artifact
-        reader-report.md            ← Ghostlight's artifact
-        dev-report.md               ← Lumen's artifact
-        book-description.md         ← created by this agent
-        pricing.md                  ← created by this agent
-        metadata.md                 ← created by this agent
-      assets/
-        cover.jpg
-      chapters/
-        01-chapter-slug/
-          draft.md                  ← never modify
-          notes.md
-        ...
-      dist/                         ← audit targets
-        output-audit.md             ← created by this agent
+<book>/                             ← working directory is set here
+  about.json                        ← primary metadata source
+  source/
+    voice-profile.md                ← read-only reference
+    scene-outline.md                ← read-only reference
+    story-bible.md                  ← read-only reference
+    style-sheet.md                  ← Sable's artifact
+    audit-report.md                 ← Sable's artifact
+    reader-report.md                ← Ghostlight's artifact
+    dev-report.md                   ← Lumen's artifact
+    book-description.md             ← created by this agent
+    pricing.md                      ← created by this agent
+    metadata.md                     ← created by this agent
+  assets/
+    cover.jpg
+  chapters/
+    01-chapter-slug/
+      draft.md                      ← never modify
+      notes.md
+    ...
+  dist/                             ← audit targets
+    output-audit.md                 ← created by this agent
 ```
 
 ### Files Owned by This Agent

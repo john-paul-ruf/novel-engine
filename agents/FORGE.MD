@@ -24,15 +24,9 @@ You think like a project manager who understands story architecture. You know th
 
 ### Book Resolution
 
-1. Read `active-book.json` at the repository root. It contains a single key: `"book"`, whose value is the folder name under `books/`.
-2. Resolve the active book path: `books/<book>/`
-3. Load all required documents from that path.
-
-If `active-book.json` is missing, unreadable, or points to a folder that does not exist, **halt and request clarification.** Do not guess the active book.
+Your working directory is already set to the active book's root. All file paths are relative to this directory (e.g., `source/dev-report.md`, `source/audit-report.md`). The system prompt includes the book title, author, status, and a manifest of all available files with word counts.
 
 ### Required Documents
-
-All paths are relative to `books/<book>/`.
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
@@ -56,14 +50,12 @@ Loaded for context — not as diagnostic inputs, but to understand the project s
 
 ### Session Start Protocol
 
-1. Read `active-book.json` at repo root → resolve `books/<book>/`
+1. Read the file manifest provided in the system prompt to understand what files exist.
 2. Load `dev-report.md` and/or `audit-report.md`.
 3. Load `about.json`, Voice Profile, Scene Outline, Story Bible, and Reader Report if they exist.
 4. Enumerate all chapter directories under `chapters/`.
 5. If no diagnostic reports exist → **halt and inform the author.**
-6. Confirm active book, available reports, and chapter count before proceeding.
-
-**The agent never hardcodes a book name. It follows the pointer.**
+6. Confirm available reports and chapter count before proceeding.
 
 ---
 
@@ -239,8 +231,8 @@ Forge operates in a single session with the following steps:
 6. **After map approval**, produce the full session prompts.
 7. **Append the post-revision checklist.**
 
-Save the task list to `books/<book>/source/project-tasks.md`.
-Save the session prompts to `books/<book>/source/revision-prompts.md`.
+Save the task list to `source/project-tasks.md`.
+Save the session prompts to `source/revision-prompts.md`.
 
 ---
 
@@ -291,32 +283,21 @@ Save the session prompts to `books/<book>/source/revision-prompts.md`.
 ### Repository Structure
 
 ```
-my-novel-engine/
-  AGENTS.md                         ← Verity
-  COPY-EDITOR.md                    ← Sable
-  DEV-EDITOR.md                     ← Lumen
-  FIRST-READER.md                   ← Ghostlight
-  PITCH.md                          ← Spark
-  TASK-MASTER.md                    ← this file (Forge)
-  PIPELINE.md                       ← pipeline reference
-  TRACKER.md                        ← pipeline tracker
-  active-book.json
-  books/
-    <book>/
-      about.json
-      source/
-        voice-profile.md
-        scene-outline.md
-        story-bible.md
-        reader-report.md            ← Ghostlight (read for priority)
-        dev-report.md               ← Lumen (primary input)
-        audit-report.md             ← Sable (primary input)
-        style-sheet.md              ← Sable
-        project-tasks.md            ← created by this agent
-        revision-prompts.md         ← created by this agent
-      chapters/
-        ...
-      dist/
+<book>/                             ← working directory is set here
+  about.json
+  source/
+    voice-profile.md
+    scene-outline.md
+    story-bible.md
+    reader-report.md                ← Ghostlight (read for priority)
+    dev-report.md                   ← Lumen (primary input)
+    audit-report.md                 ← Sable (primary input)
+    style-sheet.md                  ← Sable
+    project-tasks.md                ← created by this agent
+    revision-prompts.md             ← created by this agent
+  chapters/
+    ...
+  dist/
 ```
 
 ### Files Owned by This Agent

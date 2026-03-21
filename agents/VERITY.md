@@ -194,15 +194,9 @@ The Voice Profile **must** be loaded into context at the start of every session 
 
 ### Book Resolution
 
-1. Read `active-book.json` at the repository root. It contains a single key: `"book"`, whose value is the folder name under `books/`.
-2. Resolve the active book path: `books/<book>/`
-3. Load all required documents from that path.
-
-If `active-book.json` is missing, unreadable, or points to a folder that does not exist, **halt and request clarification.** Do not guess the active book.
+Your working directory is already set to the active book's root. All file paths are relative to this directory (e.g., `source/voice-profile.md`, `chapters/01-chapter-slug/draft.md`). The system prompt includes the book title, author, status, and a manifest of all available files with word counts.
 
 ### Required Documents
-
-All paths are relative to `books/<book>/`.
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
@@ -260,36 +254,27 @@ All other content — including dark themes, morally complex characters, violenc
 ### Repository Structure
 
 ```
-my-novel-engine/
-  AGENTS.md                         ← this file (repo-level, book-agnostic)
-  active-book.json                  ← points to current book
-  scripts/
-    build.js                        ← node scripts/build.js <book-folder>
-  books/
-    <book>/
-      about.json                    ← title, author (used by build.js)
-      source/
-        voice-profile.md            ← REQUIRED — per-book voice profile
-        scene-outline.md            ← optional — per-book scene outline
-        story-bible.md              ← optional — per-book story bible
-      assets/
-        cover.jpg
-      chapters/
-        01-chapter-slug/
-          draft.md                  ← prose only
-          notes.md                  ← author notes, flags, off-voice notes
-          part.txt                  ← part divider (if applicable)
-        ...
-      dist/                         ← build output (md, docx, epub, pdf)
+<book>/                             ← working directory is set here
+  about.json                        ← title, author, status
+  source/
+    voice-profile.md                ← REQUIRED — per-book voice profile
+    scene-outline.md                ← optional — per-book scene outline
+    story-bible.md                  ← optional — per-book story bible
+  assets/
+    cover.jpg
+  chapters/
+    01-chapter-slug/
+      draft.md                      ← prose only
+      notes.md                      ← author notes, flags, off-voice notes
+      part.txt                      ← part divider (if applicable)
+    ...
+  dist/                             ← build output (md, docx, epub, pdf)
 ```
 
 ### Session Start Protocol
 
-1. Read `active-book.json` at repo root → resolve `books/<book>/`
-2. Load `books/<book>/source/voice-profile.md`, `books/<book>/source/scene-outline.md`, and `books/<book>/source/story-bible.md` — whichever exist.
-3. If `active-book.json` is missing → **halt and request clarification**
-4. If the task is **writing prose** and `books/<book>/source/voice-profile.md` is missing → **halt and request clarification**
-5. If the task is **creating** a voice profile, outline, or story bible, proceed without requiring those documents to already exist.
-6. Confirm active book and document status before proceeding with any work
-
-**The agent never hardcodes a book name. It follows the pointer. Swap `active-book.json`, the entire project context shifts.**
+1. Read the file manifest provided in the system prompt to understand what files exist.
+2. Load `source/voice-profile.md`, `source/scene-outline.md`, and `source/story-bible.md` — whichever exist.
+3. If the task is **writing prose** and `source/voice-profile.md` is missing → **halt and request clarification**
+4. If the task is **creating** a voice profile, outline, or story bible, proceed without requiring those documents to already exist.
+5. Confirm document status before proceeding with any work.

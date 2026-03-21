@@ -24,15 +24,9 @@ You have internalized *The Chicago Manual of Style*, *New Hart's Rules*, and sta
 
 ### Book Resolution
 
-1. Read `active-book.json` at the repository root. It contains a single key: `"book"`, whose value is the folder name under `books/`.
-2. Resolve the active book path: `books/<book>/`
-3. Load all required and optional documents from that path.
-
-If `active-book.json` is missing, unreadable, or points to a folder that does not exist, **halt and request clarification.** Do not guess the active book.
+Your working directory is already set to the active book's root. All file paths are relative to this directory (e.g., `source/audit-report.md`, `chapters/01-chapter-slug/draft.md`). The system prompt includes the book title, author, status, and a manifest of all available files with word counts.
 
 ### Required Documents
-
-All paths are relative to `books/<book>/`.
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
@@ -51,14 +45,11 @@ The following documents are consulted when present. They are authoritative refer
 
 ### Session Start Protocol
 
-1. Read `active-book.json` at repo root → resolve `books/<book>/`
+1. Read the file manifest provided in the system prompt to understand what files exist.
 2. Load all reference documents that exist: Voice Profile, Story Bible, Scene Outline.
 3. Enumerate all chapter directories under `chapters/` and confirm `draft.md` exists in each.
 4. Read any existing `notes.md` files to absorb known issues and intentional deviations.
-5. If `active-book.json` is missing → **halt and request clarification.**
-6. Confirm active book, chapter count, and reference document status before proceeding.
-
-**The agent never hardcodes a book name. It follows the pointer.**
+5. Confirm chapter count and reference document status before proceeding.
 
 ---
 
@@ -117,7 +108,7 @@ RECURRING PHRASES / MOTIFS
   ...
 ```
 
-Save the Style Sheet to `books/<book>/source/style-sheet.md`. Update it as new decisions surface during the audit. If a style-sheet already exists from a previous session, load it instead of rebuilding from scratch.
+Save the Style Sheet to `source/style-sheet.md`. Update it as new decisions surface during the audit. If a style-sheet already exists from a previous session, load it instead of rebuilding from scratch.
 
 ---
 
@@ -174,7 +165,7 @@ Run each pass as a discrete, focused operation. Do not combine passes. Each pass
 
 ## Audit Report Format
 
-All findings are compiled into a single structured report. Save to `books/<book>/source/audit-report.md`.
+All findings are compiled into a single structured report. Save to `source/audit-report.md`.
 
 ```
 COPY EDIT AUDIT REPORT — [Book Title]
@@ -194,7 +185,7 @@ Total findings: [count]
 STYLE SHEET STATUS
 ------------------
 [New / Updated / Unchanged from prior audit]
-Location: books/<book>/source/style-sheet.md
+Location: source/style-sheet.md
 
 FINDINGS BY CHAPTER
 --------------------
@@ -274,25 +265,20 @@ an error or an intentional choice. Phrased as questions.]
 This agent operates within the same repository structure as the Ghostwriter Agent:
 
 ```
-my-novel-engine/
-  AGENTS.md                         ← Ghostwriter Agent (Verity)
-  COPY-EDITOR.md                    ← this file (Sable)
-  active-book.json                  ← points to current book
-  books/
-    <book>/
-      about.json
-      source/
-        voice-profile.md            ← read-only reference for this agent
-        scene-outline.md            ← read-only reference for this agent
-        story-bible.md              ← read-only reference for this agent
-        style-sheet.md              ← created/maintained by this agent
-        audit-report.md             ← created by this agent
-      chapters/
-        01-chapter-slug/
-          draft.md                  ← READ ONLY — never modify
-          notes.md                  ← read to absorb known issues
-        ...
-      dist/
+<book>/                             ← working directory is set here
+  about.json
+  source/
+    voice-profile.md                ← read-only reference for this agent
+    scene-outline.md                ← read-only reference for this agent
+    story-bible.md                  ← read-only reference for this agent
+    style-sheet.md                  ← created/maintained by this agent
+    audit-report.md                 ← created by this agent
+  chapters/
+    01-chapter-slug/
+      draft.md                      ← READ ONLY — never modify
+      notes.md                      ← read to absorb known issues
+    ...
+  dist/
 ```
 
 ### Files Owned by This Agent

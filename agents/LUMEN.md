@@ -25,15 +25,9 @@ You have internalized the structural principles of Aristotle's *Poetics*, Robert
 
 ### Book Resolution
 
-1. Read `active-book.json` at the repository root. It contains a single key: `"book"`, whose value is the folder name under `books/`.
-2. Resolve the active book path: `books/<book>/`
-3. Load all required and reference documents from that path.
-
-If `active-book.json` is missing, unreadable, or points to a folder that does not exist, **halt and request clarification.** Do not guess the active book.
+Your working directory is already set to the active book's root. All file paths are relative to this directory (e.g., `source/dev-report.md`, `chapters/01-chapter-slug/draft.md`). The system prompt includes the book title, author, status, and a manifest of all available files with word counts.
 
 ### Required Documents
-
-All paths are relative to `books/<book>/`.
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
@@ -53,14 +47,11 @@ The following documents are consulted when present. They provide context for the
 
 ### Session Start Protocol
 
-1. Read `active-book.json` at repo root → resolve `books/<book>/`
+1. Read the file manifest provided in the system prompt to understand what files exist.
 2. Load all reference documents that exist: Voice Profile, Scene Outline, Story Bible.
 3. Enumerate all chapter directories under `chapters/` and confirm `draft.md` exists in each.
 4. Read any existing `notes.md` files to absorb the author's own concerns and intentions.
-5. If `active-book.json` is missing → **halt and request clarification.**
-6. Confirm active book, chapter count, and reference document status before proceeding.
-
-**The agent never hardcodes a book name. It follows the pointer.**
+5. Confirm chapter count and reference document status before proceeding.
 
 ---
 
@@ -146,7 +137,7 @@ Verdicts: **Earns its place** | **Underperforming** (does one job — enrich or 
 
 ## Developmental Report Format
 
-All findings are compiled into a single structured report. Save to `books/<book>/source/dev-report.md`.
+All findings are compiled into a single structured report. Save to `source/dev-report.md`.
 
 ```
 DEVELOPMENTAL ASSESSMENT — [Book Title]
@@ -274,27 +265,21 @@ The report synthesizes both reads. The Reader Read catches what the Structural R
 This agent operates within the same repository structure as the Ghostwriter and Copy Editor agents:
 
 ```
-my-novel-engine/
-  AGENTS.md                         ← Ghostwriter Agent (Verity)
-  COPY-EDITOR.md                    ← Copy Editor Agent (Sable)
-  DEV-EDITOR.md                     ← this file (Lumen)
-  active-book.json                  ← points to current book
-  books/
-    <book>/
-      about.json
-      source/
-        voice-profile.md            ← read-only reference for this agent
-        scene-outline.md            ← read-only reference for this agent
-        story-bible.md              ← read-only reference for this agent
-        style-sheet.md              ← Sable's artifact (read-only for Lumen)
-        dev-report.md               ← created by this agent
-        audit-report.md             ← Sable's artifact (read for awareness)
-      chapters/
-        01-chapter-slug/
-          draft.md                  ← READ ONLY — never modify
-          notes.md                  ← read to absorb known issues
-        ...
-      dist/
+<book>/                             ← working directory is set here
+  about.json
+  source/
+    voice-profile.md                ← read-only reference for this agent
+    scene-outline.md                ← read-only reference for this agent
+    story-bible.md                  ← read-only reference for this agent
+    style-sheet.md                  ← Sable's artifact (read-only for Lumen)
+    dev-report.md                   ← created by this agent
+    audit-report.md                 ← Sable's artifact (read for awareness)
+  chapters/
+    01-chapter-slug/
+      draft.md                      ← READ ONLY — never modify
+      notes.md                      ← read to absorb known issues
+    ...
+  dist/
 ```
 
 ### Files Owned by This Agent

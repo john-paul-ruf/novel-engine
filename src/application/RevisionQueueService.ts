@@ -430,7 +430,6 @@ export class RevisionQueueService implements IRevisionQueueService {
     }
 
     session.status = 'running';
-    this.emit({ type: 'session:status', sessionId: session.id, status: 'running' });
 
     const verity = await this.agents.load('Verity' as AgentName);
     const appSettings = await this.settings.load();
@@ -449,6 +448,9 @@ export class RevisionQueueService implements IRevisionQueueService {
     });
 
     session.conversationId = conversation.id;
+
+    // Emit running status AFTER conversation creation so the frontend gets the conversationId
+    this.emit({ type: 'session:status', sessionId: session.id, status: 'running', conversationId: conversation.id });
     await this.persistState(plan);
 
     this.db.saveMessage({

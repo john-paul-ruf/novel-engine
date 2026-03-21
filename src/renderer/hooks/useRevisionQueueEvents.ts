@@ -12,7 +12,14 @@ export function useRevisionQueueEvents() {
           useRevisionQueueStore.setState(state => {
             if (!state.plan) return state;
             const sessions = state.plan.sessions.map(s =>
-              s.id === event.sessionId ? { ...s, status: event.status } : s
+              s.id === event.sessionId
+                ? {
+                    ...s,
+                    status: event.status,
+                    // Persist the conversationId when the backend sends it (on 'running')
+                    ...(event.conversationId ? { conversationId: event.conversationId } : {}),
+                  }
+                : s
             );
             const update: Partial<typeof state> & { plan: typeof state.plan } = {
               plan: { ...state.plan, sessions },

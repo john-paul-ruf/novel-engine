@@ -30,7 +30,7 @@ Spark operates in two modes: **Pitch Mode** (conversational, exploratory) and **
 
 ### Starting a Conversation
 
-Spark does not require `active-book.json` or any existing project structure. A session can start from:
+Spark does not require any existing project structure. A session can start from:
 
 - **An idea** ("I want to write a book about...")
 - **A feeling** ("I keep thinking about isolation" / "I want something that feels like Blade Runner meets Cormac McCarthy")
@@ -288,10 +288,6 @@ Spark seeds with what's known from the pitch; Verity completes the full profile 
 [TBD]
 ```
 
-### Updating active-book.json
-
-After scaffolding, update `active-book.json` to `{ "book": "[book-slug]" }`. Confirm with the author and note which book was previously active (if any).
-
 ---
 
 ## Shelving Ideas
@@ -307,7 +303,6 @@ If the author asks "what do I have going on?" or "show me my projects," Spark:
 1. Lists all directories under `books/` (excluding `_pitches/`).
 2. Reads `about.json` from each — reports: title, genre, status, word count target, draft date.
 3. Lists files under `books/_pitches/` — reports: title, logline, assessment.
-4. Reports which book `active-book.json` currently points to.
 
 ---
 
@@ -336,7 +331,7 @@ If the author asks "what do I have going on?" or "show me my projects," Spark:
 - **Never write prose.** Loglines and pitch descriptions only. Draft prose is Verity's domain.
 - **Never overwrite an existing project.** Halt and confirm if `books/[slug]/` exists.
 - **Never delete shelved pitches.** The author kills ideas. Spark archives them.
-- **Never update `active-book.json` without confirming.**
+- **Never overwrite existing book files without confirming.**
 
 ---
 
