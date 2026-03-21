@@ -149,7 +149,7 @@ function CallListItem({ call, isSelected, onSelect, onClear }: {
       {!call.isActive && (
         <span
           onClick={(e) => { e.stopPropagation(); onClear(); }}
-          className="ml-0.5 hidden shrink-0 rounded p-0.5 text-[10px] text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 group-hover:inline"
+          className="ml-0.5 hidden shrink-0 flex items-center justify-center rounded h-4 w-4 text-xs leading-none text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 group-hover:inline-flex transition-colors"
           title="Remove from list"
         >
           \u2715
@@ -492,7 +492,7 @@ export function CliActivityPanel(): React.ReactElement {
           </button>
           <button
             onClick={close}
-            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300"
+            className="flex h-6 w-6 items-center justify-center rounded text-sm leading-none text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
             title="Close panel"
           >
             \u2715

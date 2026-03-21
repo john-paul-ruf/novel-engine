@@ -96,8 +96,16 @@ export class RevisionQueueService implements IRevisionQueueService {
 
   // ── Hashing & cache helpers ──────────────────────────────────────
 
+  /**
+   * Compute a structural hash of the plan content.
+   * Normalizes checkbox state (`[x]` → `[ ]`) before hashing so that
+   * approving sessions (which ticks checkboxes in project-tasks.md)
+   * does NOT invalidate the cache. Checkbox progress is tracked
+   * separately via the session state file.
+   */
   private computeHash(content: string): string {
-    return createHash('sha256').update(content).digest('hex').slice(0, 16);
+    const normalized = content.replace(/- \[x\]/g, '- [ ]');
+    return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
   }
 
   private async readCache(bookSlug: string): Promise<PlanCache | null> {
@@ -142,35 +150,6 @@ export class RevisionQueueService implements IRevisionQueueService {
       await this.fs.writeFile(bookSlug, STATE_PATH, JSON.stringify(state, null, 2));
     } catch {
       // Best-effort
-    }
-  }
-
-  /**
-   * Re-read the source files, recompute their content hash, and update
-   * the on-disk cache so it reflects the current file state. This avoids
-   * a stale hash causing an unnecessary Wrangler CLI call on restart
-   * after approveSession modifies project-tasks.md.
-   */
-  private async refreshCacheHash(bookSlug: string): Promise<void> {
-    try {
-      let revisionPromptsContent = '';
-      let projectTasksContent = '';
-      try { revisionPromptsContent = await this.fs.readFile(bookSlug, 'source/revision-prompts.md'); } catch { /* may not exist */ }
-      try { projectTasksContent = await this.fs.readFile(bookSlug, 'source/project-tasks.md'); } catch { /* may not exist */ }
-
-      const combinedContent = revisionPromptsContent + '\0' + projectTasksContent;
-      const newHash = this.computeHash(combinedContent);
-
-      const cache = await this.readCache(bookSlug);
-      if (cache) {
-        cache.contentHash = newHash;
-        await this.writeCache(bookSlug, cache);
-      }
-
-      // Also update the in-memory hash so persistState stays consistent
-      this.hashByBook.set(bookSlug, newHash);
-    } catch {
-      // Best-effort — don't fail the approval flow
     }
   }
 
@@ -722,11 +701,6 @@ export class RevisionQueueService implements IRevisionQueueService {
       ...plan.completedTaskNumbers,
       ...session.taskNumbers.filter((n) => !plan.completedTaskNumbers.includes(n)),
     ];
-
-    // Refresh the cache hash so it matches the modified project-tasks.md.
-    // Without this, restarting the app would see a hash mismatch and
-    // unnecessarily re-call the Wrangler CLI to re-parse the plan.
-    await this.refreshCacheHash(plan.bookSlug);
 
     // Update phase counts (per-phase calculation)
     for (const phase of plan.phases) {
