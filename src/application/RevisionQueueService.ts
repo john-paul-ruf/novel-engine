@@ -82,7 +82,10 @@ export class RevisionQueueService implements IRevisionQueueService {
    *  can always embed parsed data even if the cache file is missing on disk. */
   private parsedByBook: Map<string, ParsedWranglerOutput> = new Map();
   private listeners: Set<(event: RevisionQueueEvent) => void> = new Set();
-  private paused: boolean = false;
+  /** Per-plan paused flags — keyed by planId. */
+  private pausedPlans: Set<string> = new Set();
+  /** Plans currently being executed by runAll — prevents concurrent runs. */
+  private runningPlans: Set<string> = new Set();
   private gateResolvers: Map<string, (decision: { action: ApprovalAction; message?: string }) => void> = new Map();
   private autoApproveSessionIds: Set<string> = new Set();
 
@@ -542,6 +545,8 @@ export class RevisionQueueService implements IRevisionQueueService {
     this.plansByBook.delete(plan.bookSlug);
     this.hashByBook.delete(plan.bookSlug);
     this.parsedByBook.delete(plan.bookSlug);
+    this.runningPlans.delete(planId);
+    this.pausedPlans.delete(planId);
 
     this.emit({ type: 'queue:archived', planId });
   }
@@ -769,27 +774,37 @@ export class RevisionQueueService implements IRevisionQueueService {
     const plan = this.plans.get(planId);
     if (!plan) throw new Error('Plan not found');
 
-    this.paused = false;
-
-    let pendingSessions = plan.sessions
-      .filter((s) => s.status === 'pending')
-      .sort((a, b) => a.index - b.index);
-
-    // In selective mode, only run sessions the user selected
-    if (selectedSessionIds && selectedSessionIds.length > 0) {
-      const selectedSet = new Set(selectedSessionIds);
-      pendingSessions = pendingSessions.filter((s) => selectedSet.has(s.id));
+    // Prevent concurrent runAll calls on the same plan
+    if (this.runningPlans.has(planId)) {
+      throw new Error('This revision queue is already running. Wait for it to finish or pause it first.');
     }
 
-    for (const session of pendingSessions) {
-      if (this.paused) {
-        this.emit({ type: 'queue:done', planId });
-        return;
+    this.runningPlans.add(planId);
+    this.pausedPlans.delete(planId);
+
+    try {
+      let pendingSessions = plan.sessions
+        .filter((s) => s.status === 'pending')
+        .sort((a, b) => a.index - b.index);
+
+      // In selective mode, only run sessions the user selected
+      if (selectedSessionIds && selectedSessionIds.length > 0) {
+        const selectedSet = new Set(selectedSessionIds);
+        pendingSessions = pendingSessions.filter((s) => selectedSet.has(s.id));
       }
-      await this.runSession(planId, session.id);
-    }
 
-    this.emit({ type: 'queue:done', planId });
+      for (const session of pendingSessions) {
+        if (this.pausedPlans.has(planId)) {
+          this.emit({ type: 'queue:done', planId });
+          return;
+        }
+        await this.runSession(planId, session.id);
+      }
+
+      this.emit({ type: 'queue:done', planId });
+    } finally {
+      this.runningPlans.delete(planId);
+    }
   }
 
   async approveSession(planId: string, sessionId: string): Promise<void> {
@@ -882,7 +897,7 @@ export class RevisionQueueService implements IRevisionQueueService {
   }
 
   pause(planId: string): void {
-    this.paused = true;
+    this.pausedPlans.add(planId);
   }
 
   setMode(planId: string, mode: QueueMode): void {

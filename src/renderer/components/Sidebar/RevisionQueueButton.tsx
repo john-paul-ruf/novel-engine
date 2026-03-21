@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 export function RevisionQueueButton() {
   const { activeSlug } = useBookStore();
   const { navigate, currentView } = useViewStore();
+  const fileRevision = useFileChangeStore((s) => s.revision);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
 
   useEffect(() => {
@@ -22,13 +24,16 @@ export function RevisionQueueButton() {
     // First revision cycle:  button visible while project-tasks.md / revision-prompts.md exist
     // Gap (second-read → copy-edit): button hidden (live files were archived)
     // Second revision cycle: button visible once Forge regenerates both files for revision-plan-2
+    //
+    // Re-checks on file changes (fileRevision) so the button appears/disappears
+    // after Forge generates new files or after queue archival deletes them.
     Promise.all([
       window.novelEngine.files.exists(activeSlug, 'source/project-tasks.md'),
       window.novelEngine.files.exists(activeSlug, 'source/revision-prompts.md'),
     ]).then(([hasTasks, hasPrompts]) => {
       setHasRevisionPlan(hasTasks || hasPrompts);
     });
-  }, [activeSlug]);
+  }, [activeSlug, fileRevision]);
 
   if (!hasRevisionPlan) return null;
 

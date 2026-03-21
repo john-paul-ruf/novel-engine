@@ -75,7 +75,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (plan && plan.bookSlug === bookSlug && plan.sessions.length > 0) return;
 
     try {
-      set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });
+      // Clear stale archived state from a previous cycle before loading
+      set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026', isQueueArchived: false });
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
         plan: loaded,
@@ -136,8 +137,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   },
 
   runNext: async () => {
-    const { plan, planId } = get();
-    if (!plan || !planId) return;
+    const { plan, planId, isRunning } = get();
+    if (!plan || !planId || isRunning) return;
     const next = plan.sessions.find(s => s.status === 'pending');
     if (!next) return;
     const startedPlanId = planId;
@@ -168,8 +169,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   },
 
   runAll: async () => {
-    const { planId, plan, selectedSessionIds } = get();
-    if (!planId) return;
+    const { planId, plan, selectedSessionIds, isRunning } = get();
+    if (!planId || isRunning) return;
     const startedPlanId = planId;
     set({ isRunning: true });
     try {
@@ -191,8 +192,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   },
 
   runSession: async (sessionId: string) => {
-    const { planId } = get();
-    if (!planId) return;
+    const { planId, isRunning } = get();
+    if (!planId || isRunning) return;
     const startedPlanId = planId;
     set({
       isRunning: true,
