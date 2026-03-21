@@ -9,6 +9,17 @@ import { PIPELINE_PHASES } from '@domain/constants';
 const MIN_SUBSTANTIVE_WORDS = 50;
 
 /**
+ * Higher threshold for the scene outline specifically.
+ *
+ * Spark's Build Mode may create a seeded scene-outline.md template (~30-60
+ * words). A real scene outline populated by Verity during the scaffold phase
+ * will be significantly longer (multiple chapter entries with beats, POV,
+ * timeline). This threshold prevents Spark's template from falsely marking
+ * the scaffold phase as complete.
+ */
+const MIN_SCAFFOLD_WORDS = 200;
+
+/**
  * Maps pipeline phase IDs to the book status they should advance TO
  * when the user explicitly marks a phase complete.
  *
@@ -135,11 +146,11 @@ export class PipelineService implements IPipelineService {
    * placeholder content (~10 words).  Using this instead of bare `fileExists()`
    * prevents those stubs from falsely marking a phase as complete.
    */
-  private async hasSubstantiveFile(bookSlug: string, relativePath: string): Promise<boolean> {
+  private async hasSubstantiveFile(bookSlug: string, relativePath: string, minWords = MIN_SUBSTANTIVE_WORDS): Promise<boolean> {
     try {
       const content = await this.fs.readFile(bookSlug, relativePath);
       const wordCount = content.split(/\s+/).filter(Boolean).length;
-      return wordCount >= MIN_SUBSTANTIVE_WORDS;
+      return wordCount >= minWords;
     } catch {
       return false;
     }
@@ -157,7 +168,7 @@ export class PipelineService implements IPipelineService {
         return this.hasSubstantiveFile(bookSlug, 'source/pitch.md');
 
       case 'scaffold':
-        return this.hasSubstantiveFile(bookSlug, 'source/scene-outline.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/scene-outline.md', MIN_SCAFFOLD_WORDS);
 
       case 'first-draft': {
         // The first draft is complete when chapters exist with meaningful content

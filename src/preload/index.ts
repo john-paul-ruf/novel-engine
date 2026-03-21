@@ -49,7 +49,7 @@ const api = {
     setActive: (slug: string): Promise<void> => ipcRenderer.invoke('books:setActive', slug),
     create: (title: string): Promise<BookMeta> => ipcRenderer.invoke('books:create', title),
     getMeta: (slug: string): Promise<BookMeta> => ipcRenderer.invoke('books:getMeta', slug),
-    updateMeta: (slug: string, partial: Partial<BookMeta>): Promise<void> =>
+    updateMeta: (slug: string, partial: Partial<BookMeta>): Promise<BookMeta> =>
       ipcRenderer.invoke('books:updateMeta', slug, partial),
     wordCount: (slug: string): Promise<{ slug: string; wordCount: number }[]> =>
       ipcRenderer.invoke('books:wordCount', slug),

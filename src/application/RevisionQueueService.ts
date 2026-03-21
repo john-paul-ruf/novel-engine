@@ -264,12 +264,21 @@ export class RevisionQueueService implements IRevisionQueueService {
       }
     }
 
+    const reconciledCompleted = new Set(parsed.completedTaskNumbers);
+    for (const session of sessions) {
+      if (session.status === 'approved') {
+        for (const tn of session.taskNumbers) {
+          reconciledCompleted.add(tn);
+        }
+      }
+    }
+
     const plan: RevisionPlan = {
       id: nanoid(),
       bookSlug,
       sessions,
       totalTasks: parsed.totalTasks,
-      completedTaskNumbers: parsed.completedTaskNumbers,
+      completedTaskNumbers: [...reconciledCompleted],
       phases: parsed.phases,
       mode: savedState?.planHash === contentHash ? savedState.mode : 'manual',
       createdAt: new Date().toISOString(),

@@ -48,6 +48,9 @@ export interface IDatabaseService {
   getUsageSummary(bookSlug?: string): UsageSummary;
   getUsageByConversation(conversationId: string): UsageRecord[];
 
+  // Book slug migration
+  updateBookSlug(oldSlug: string, newSlug: string): void;
+
   // Lifecycle
   close(): void;
 }
@@ -59,7 +62,7 @@ export interface IFileSystemService {
   setActiveBook(slug: string): Promise<void>;
   createBook(title: string, author?: string): Promise<BookMeta>;
   getBookMeta(slug: string): Promise<BookMeta>;
-  updateBookMeta(slug: string, partial: Partial<BookMeta>): Promise<void>;
+  updateBookMeta(slug: string, partial: Partial<BookMeta>): Promise<BookMeta>;
 
   // Project manifest (lightweight file listing with word counts)
   getProjectManifest(slug: string): Promise<ProjectManifest>;

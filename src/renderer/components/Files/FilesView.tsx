@@ -117,7 +117,11 @@ function AboutJsonCard({
   const handleSaveField = async (field: 'title' | 'author', value: string) => {
     setIsSaving(true);
     try {
-      await window.novelEngine.books.updateMeta(activeSlug, { [field]: value });
+      const updated = await window.novelEngine.books.updateMeta(activeSlug, { [field]: value });
+      if (updated.slug !== activeSlug) {
+        const { setActiveBook } = useBookStore.getState();
+        await setActiveBook(updated.slug);
+      }
       await loadBooks();
     } catch (error) {
       console.error(`Failed to save ${field}:`, error);
@@ -139,11 +143,14 @@ function AboutJsonCard({
   };
 
   const statusClass = STATUS_COLORS[meta.status] ?? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200';
-  const createdDate = new Date(meta.created).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const parsedDate = meta.created ? new Date(meta.created) : null;
+  const createdDate = parsedDate && !isNaN(parsedDate.getTime())
+    ? parsedDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
 
   const coverSrc = `novel-asset://cover/${activeSlug}?t=${coverTimestamp}`;
 
@@ -187,7 +194,7 @@ function AboutJsonCard({
         <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
           {meta.status}
         </span>
-        <span className="text-sm text-zinc-500">Created {createdDate}</span>
+        {createdDate && <span className="text-sm text-zinc-500">Created {createdDate}</span>}
       </div>
     </div>
   );
@@ -259,6 +266,14 @@ function MarkdownViewer({ content }: { content: string }): React.ReactElement {
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
+}
+
+function formatJson(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
 }
 
 function countWords(text: string): number {
@@ -453,17 +468,17 @@ function ReaderContent({
     );
   }
 
-  const isAboutJson = filePath === 'about.json';
   const isMarkdown = filePath.endsWith('.md');
+  const isJson = filePath.endsWith('.json');
 
   return (
     <>
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        {isAboutJson ? (
-          <AboutJsonCard content={content} activeSlug={activeSlug} />
-        ) : isMarkdown ? (
+        {isMarkdown ? (
           <MarkdownViewer content={content} />
+        ) : isJson ? (
+          <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{formatJson(content)}</pre>
         ) : (
           <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{content}</pre>
         )}

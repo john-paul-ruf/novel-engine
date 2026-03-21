@@ -208,6 +208,12 @@ export class DatabaseService implements IDatabaseService {
     return rows.map(mapUsageRow);
   }
 
+  // === Book slug migration ===
+
+  updateBookSlug(oldSlug: string, newSlug: string): void {
+    this.db.prepare('UPDATE conversations SET book_slug = ? WHERE book_slug = ?').run(newSlug, oldSlug);
+  }
+
   // === Lifecycle ===
 
   close(): void {

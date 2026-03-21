@@ -133,7 +133,6 @@ You have direct access to the book directory via the Write tool. When the author
 2. Write `source/pitch.md` with the full pitch document
 3. Write `source/voice-profile.md` with the seeded template
 4. Write `source/story-bible.md` with the seeded characters
-5. Write `source/scene-outline.md` with the empty template
 
 Always confirm each file as you write it. The author can see file activity in real-time.
 
@@ -145,12 +144,13 @@ books/[book-slug]/
   source/
     pitch.md              ← full pitch document with prose overview + structured details
     voice-profile.md      ← template seeded from pitch; Verity completes
-    scene-outline.md      ← empty template; Verity populates
     story-bible.md        ← seeded with protagonist + key characters from pitch
   assets/
   chapters/
   dist/
 ```
+
+**Do NOT create `source/scene-outline.md`.** The scene outline is Verity's deliverable during the Scaffold phase. Creating it here would falsely mark that phase as complete.
 
 ### about.json
 
@@ -286,24 +286,6 @@ Spark seeds with what's known from the pitch; Verity completes the full profile 
 
 ## Continuity Flags
 [TBD]
-```
-
-### Seeded Scene Outline (`source/scene-outline.md`)
-
-```markdown
-# Scene Outline — [BOOK_TITLE]
-
-> Empty template by Spark. Verity populates during Structure phase.
-
-## Part One
-
-### Chapter 01 — [chapter-slug]
-**Beat:**
-**POV:**
-**Timeline:**
-**Notes:**
-
----
 ```
 
 ### Updating active-book.json

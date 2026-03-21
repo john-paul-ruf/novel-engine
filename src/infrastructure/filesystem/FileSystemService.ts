@@ -162,17 +162,40 @@ export class FileSystemService implements IFileSystemService {
     };
   }
 
-  async updateBookMeta(slug: string, partial: Partial<BookMeta>): Promise<void> {
+  async updateBookMeta(slug: string, partial: Partial<BookMeta>): Promise<BookMeta> {
     const existing = await this.getBookMeta(slug);
 
-    // Only merge known BookMeta fields
+    const newSlug = partial.title ? this.slugify(partial.title) : slug;
+    let currentSlug = slug;
+
     for (const key of Object.keys(partial) as (keyof BookMeta)[]) {
       if (KNOWN_BOOK_META_KEYS.has(key) && partial[key] !== undefined) {
         (existing as Record<string, unknown>)[key] = partial[key];
       }
     }
 
-    const aboutPath = path.join(this.booksDir, slug, 'about.json');
+    if (newSlug && newSlug !== slug) {
+      const oldDir = path.join(this.booksDir, slug);
+      const newDir = path.join(this.booksDir, newSlug);
+
+      try {
+        await fs.access(newDir);
+        throw new Error(`Cannot rename book: a book with slug "${newSlug}" already exists`);
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith('Cannot rename book')) throw err;
+      }
+
+      await fs.rename(oldDir, newDir);
+      currentSlug = newSlug;
+      existing.slug = newSlug;
+
+      const activeSlug = await this.getActiveBookSlug();
+      if (activeSlug === slug) {
+        await this.setActiveBook(newSlug);
+      }
+    }
+
+    const aboutPath = path.join(this.booksDir, currentSlug, 'about.json');
     await fs.writeFile(
       aboutPath,
       JSON.stringify(
@@ -182,6 +205,8 @@ export class FileSystemService implements IFileSystemService {
       ),
       'utf-8',
     );
+
+    return existing;
   }
 
   // ── Project Manifest ─────────────────────────────────────────────

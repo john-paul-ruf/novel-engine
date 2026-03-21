@@ -15,8 +15,10 @@ const STATUS_COLORS: Record<BookStatus, { bg: string; text: string }> = {
   published:      { bg: 'bg-emerald-600', text: 'text-emerald-100' },
 };
 
+const FALLBACK_COLORS = { bg: 'bg-zinc-300 dark:bg-zinc-600', text: 'text-zinc-800 dark:text-zinc-200' };
+
 function StatusBadge({ status }: { status: BookStatus }): React.ReactElement {
-  const colors = STATUS_COLORS[status];
+  const colors = STATUS_COLORS[status] ?? FALLBACK_COLORS;
   return (
     <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${colors.bg} ${colors.text}`}>
       {status}

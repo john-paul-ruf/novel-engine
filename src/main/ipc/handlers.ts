@@ -91,9 +91,14 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('books:getMeta', (_, slug: string) => services.fs.getBookMeta(slug));
 
-  ipcMain.handle('books:updateMeta', (_, slug: string, partial: Partial<BookMeta>) =>
-    services.fs.updateBookMeta(slug, partial),
-  );
+  ipcMain.handle('books:updateMeta', async (_, slug: string, partial: Partial<BookMeta>) => {
+    const updated = await services.fs.updateBookMeta(slug, partial);
+    if (updated.slug !== slug) {
+      services.db.updateBookSlug(slug, updated.slug);
+      hooks?.onActiveBookChanged?.(updated.slug);
+    }
+    return updated;
+  });
 
   ipcMain.handle('books:wordCount', (_, slug: string) => services.fs.countWordsPerChapter(slug));
 
