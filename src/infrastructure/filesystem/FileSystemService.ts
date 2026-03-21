@@ -312,6 +312,18 @@ export class FileSystemService implements IFileSystemService {
     await fs.writeFile(filePath, content, 'utf-8');
   }
 
+  async deleteFile(bookSlug: string, relativePath: string): Promise<void> {
+    const filePath = path.join(this.booksDir, bookSlug, relativePath);
+    try {
+      await fs.unlink(filePath);
+    } catch (err: unknown) {
+      // Ignore "file not found" — treat as already deleted
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
   async renameFile(bookSlug: string, oldPath: string, newPath: string): Promise<void> {
     const sourcePath = path.join(this.booksDir, bookSlug, oldPath);
     const destPath = path.join(this.booksDir, bookSlug, newPath);

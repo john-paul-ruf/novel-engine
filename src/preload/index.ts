@@ -143,6 +143,8 @@ const api = {
   revision: {
     loadPlan: (bookSlug: string): Promise<RevisionPlan> =>
       ipcRenderer.invoke('revision:loadPlan', bookSlug),
+    clearCache: (bookSlug: string): Promise<void> =>
+      ipcRenderer.invoke('revision:clearCache', bookSlug),
     runSession: (planId: string, sessionId: string): Promise<void> =>
       ipcRenderer.invoke('revision:runSession', planId, sessionId),
     runAll: (planId: string, selectedSessionIds?: string[]): Promise<void> =>
@@ -161,6 +163,8 @@ const api = {
       ipcRenderer.invoke('revision:setMode', planId, mode),
     getPlan: (planId: string): Promise<RevisionPlan | null> =>
       ipcRenderer.invoke('revision:getPlan', planId),
+    completeQueue: (planId: string): Promise<void> =>
+      ipcRenderer.invoke('revision:completeQueue', planId),
     onEvent: (callback: (event: RevisionQueueEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: RevisionQueueEvent) => callback(event);
       ipcRenderer.on('revision:event', handler);

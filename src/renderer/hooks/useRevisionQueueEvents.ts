@@ -105,6 +105,18 @@ export function useRevisionQueueEvents() {
           break;
         }
 
+        case 'queue:archived': {
+          useRevisionQueueStore.setState({
+            isArchiving: false,
+            isQueueArchived: true,
+            // Clear the in-memory plan — source files are archived, pipeline will advance.
+            // The user will see the pipeline move forward when they navigate away.
+            plan: null,
+            planId: null,
+          });
+          break;
+        }
+
         case 'error': {
           useRevisionQueueStore.setState({
             error: event.message,

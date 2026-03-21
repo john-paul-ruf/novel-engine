@@ -296,7 +296,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       await this.fs.deleteFile(bookSlug, CACHE_PATH);
       this.emit({ type: 'plan:loading-step', step: 'Cache cleared' });
     } catch {
-      // Cache file may not exist, which is fine
+      // Cache file may not exist — that's fine
     }
     // Clear in-memory caches
     const planId = this.plansByBook.get(bookSlug);
@@ -305,6 +305,61 @@ export class RevisionQueueService implements IRevisionQueueService {
       this.plansByBook.delete(bookSlug);
     }
     this.hashByBook.delete(bookSlug);
+  }
+
+  async completeQueue(planId: string): Promise<void> {
+    const plan = this.plans.get(planId);
+    if (!plan) throw new Error('Plan not found');
+
+    // Guard: all sessions must be in a terminal state
+    const blocked = plan.sessions.filter(
+      (s) => s.status === 'pending' || s.status === 'running' || s.status === 'awaiting-approval',
+    );
+    if (blocked.length > 0) {
+      throw new Error(
+        `Cannot archive: ${blocked.length} session(s) are still pending, running, or awaiting approval.`,
+      );
+    }
+
+    // Move project-tasks.md → project-tasks-v1.md (overwrite if re-archiving)
+    const tasksExists = await this.fs.fileExists(plan.bookSlug, 'source/project-tasks.md');
+    if (tasksExists) {
+      try {
+        // Read then write to handle potential rename collision across file-system boundaries
+        const content = await this.fs.readFile(plan.bookSlug, 'source/project-tasks.md');
+        await this.fs.writeFile(plan.bookSlug, 'source/project-tasks-v1.md', content);
+        await this.fs.deleteFile(plan.bookSlug, 'source/project-tasks.md');
+      } catch (err) {
+        console.error('Failed to archive project-tasks.md:', err);
+      }
+    }
+
+    // Move revision-prompts.md → revision-prompts-v1.md
+    const promptsExists = await this.fs.fileExists(plan.bookSlug, 'source/revision-prompts.md');
+    if (promptsExists) {
+      try {
+        const content = await this.fs.readFile(plan.bookSlug, 'source/revision-prompts.md');
+        await this.fs.writeFile(plan.bookSlug, 'source/revision-prompts-v1.md', content);
+        await this.fs.deleteFile(plan.bookSlug, 'source/revision-prompts.md');
+      } catch (err) {
+        console.error('Failed to archive revision-prompts.md:', err);
+      }
+    }
+
+    // Also clear the plan cache so the next loadPlan starts fresh
+    try {
+      await this.fs.deleteFile(plan.bookSlug, CACHE_PATH);
+      await this.fs.deleteFile(plan.bookSlug, STATE_PATH);
+    } catch {
+      // Best-effort
+    }
+
+    // Remove from in-memory maps
+    this.plans.delete(planId);
+    this.plansByBook.delete(plan.bookSlug);
+    this.hashByBook.delete(plan.bookSlug);
+
+    this.emit({ type: 'queue:archived' });
   }
 
   // ── Session execution ────────────────────────────────────────────

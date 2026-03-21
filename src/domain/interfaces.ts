@@ -70,6 +70,7 @@ export interface IFileSystemService {
   // File operations
   readFile(bookSlug: string, relativePath: string): Promise<string>;
   writeFile(bookSlug: string, relativePath: string, content: string): Promise<void>;
+  deleteFile(bookSlug: string, relativePath: string): Promise<void>;
   renameFile(bookSlug: string, oldPath: string, newPath: string): Promise<void>;
   fileExists(bookSlug: string, relativePath: string): Promise<boolean>;
   listDirectory(bookSlug: string, relativePath?: string): Promise<FileEntry[]>;
@@ -139,6 +140,9 @@ export interface IRevisionQueueService {
   // Parse Forge's output into a structured plan using Wrangler CLI
   loadPlan(bookSlug: string): Promise<RevisionPlan>;
 
+  // Clear the on-disk parse cache for a book (forces re-parse on next loadPlan)
+  clearCache(bookSlug: string): Promise<void>;
+
   // Execute a single session — sends prompt to Verity, streams response
   runSession(planId: string, sessionId: string): Promise<void>;
 
@@ -165,6 +169,19 @@ export interface IRevisionQueueService {
 
   // Get the current plan (in-memory)
   getPlan(planId: string): RevisionPlan | null;
+
+  /**
+   * Archive the revision plan files to signal the queue is fully done.
+   *
+   * Moves source/project-tasks.md → source/project-tasks-v1.md and
+   * source/revision-prompts.md → source/revision-prompts-v1.md.
+   * This clears the way for Forge to generate new revision files for
+   * the mechanical-fixes phase (revision-plan-2).
+   *
+   * Emits 'queue:archived' on completion.
+   * Throws if any sessions are still pending, running, or awaiting approval.
+   */
+  completeQueue(planId: string): Promise<void>;
 
   // Register event listener
   onEvent(callback: (event: RevisionQueueEvent) => void): () => void;

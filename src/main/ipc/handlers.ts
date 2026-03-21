@@ -358,6 +358,10 @@ export function registerIpcHandlers(services: {
     return services.revisionQueue.getPlan(planId);
   });
 
+  ipcMain.handle('revision:completeQueue', async (_, planId: string) => {
+    return services.revisionQueue.completeQueue(planId);
+  });
+
   // Forward revision queue events to all renderer windows + fire OS notifications
   services.revisionQueue.onEvent((event) => {
     const wins = BrowserWindow.getAllWindows();

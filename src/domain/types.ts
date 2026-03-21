@@ -195,6 +195,7 @@ export type RevisionPlanPhase = {
   name: string;
   taskCount: number;
   completedCount: number;
+  taskNumbers?: number[];  // task numbers belonging to this phase (used for progress recalculation)
 };
 
 export type RevisionPlan = {
@@ -217,6 +218,7 @@ export type RevisionQueueEvent =
   | { type: 'plan:progress'; completedTasks: number; totalTasks: number }
   | { type: 'plan:loading-step'; step: string }
   | { type: 'queue:done' }
+  | { type: 'queue:archived' }
   | { type: 'error'; sessionId: string; message: string };
 
 // === Build ===

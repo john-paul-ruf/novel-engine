@@ -13,6 +13,8 @@ type RevisionQueueState = {
   loadingStep: string;
   isRunning: boolean;
   isPaused: boolean;
+  isArchiving: boolean;
+  isQueueArchived: boolean;
   activeSessionId: string | null;
   viewingSessionId: string | null;
   streamingResponse: string;
@@ -43,6 +45,7 @@ type RevisionQueueState = {
   deselectAllSessions: () => void;
   setViewingSession: (sessionId: string | null) => void;
   loadPanelMessages: (conversationId: string) => Promise<void>;
+  completeQueue: () => Promise<void>;
   reset: () => void;
 };
 
@@ -53,6 +56,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   loadingStep: '',
   isRunning: false,
   isPaused: false,
+  isArchiving: false,
+  isQueueArchived: false,
   activeSessionId: null,
   viewingSessionId: null,
   streamingResponse: '',
@@ -71,12 +76,16 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
 
     try {
       set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });
-      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
+      const [loaded, isArchived] = await Promise.all([
+        window.novelEngine.revision.loadPlan(bookSlug),
+        window.novelEngine.files.exists(bookSlug, 'source/project-tasks-v1.md'),
+      ]);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
+        isQueueArchived: isArchived,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
@@ -90,12 +99,16 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     set({ plan: null, planId: null, error: null });
     try {
       set({ isLoading: true, loadingStep: 'Reloading\u2026' });
-      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
+      const [loaded, isArchived] = await Promise.all([
+        window.novelEngine.revision.loadPlan(bookSlug),
+        window.novelEngine.files.exists(bookSlug, 'source/project-tasks-v1.md'),
+      ]);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
+        isQueueArchived: isArchived,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
@@ -108,12 +121,16 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       set({ isLoading: true, loadingStep: 'Clearing cache\u2026' });
       await window.novelEngine.revision.clearCache(bookSlug);
       // Reload the plan after clearing cache to get fresh parse
-      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
+      const [loaded, isArchived] = await Promise.all([
+        window.novelEngine.revision.loadPlan(bookSlug),
+        window.novelEngine.files.exists(bookSlug, 'source/project-tasks-v1.md'),
+      ]);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
+        isQueueArchived: isArchived,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
         error: null,
       });
@@ -298,6 +315,18 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     }
   },
 
+  completeQueue: async () => {
+    const { planId } = get();
+    if (!planId) return;
+    set({ isArchiving: true, error: null });
+    try {
+      await window.novelEngine.revision.completeQueue(planId);
+      // isQueueArchived will be set to true via the queue:archived event handler
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : String(err), isArchiving: false });
+    }
+  },
+
   reset: () => {
     set({
       plan: null,
@@ -306,6 +335,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       loadingStep: '',
       isRunning: false,
       isPaused: false,
+      isArchiving: false,
+      isQueueArchived: false,
       activeSessionId: null,
       viewingSessionId: null,
       streamingResponse: '',

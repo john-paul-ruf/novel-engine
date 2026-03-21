@@ -13,11 +13,15 @@ export function RevisionQueueButton() {
       return;
     }
 
+    // Show the button if any revision plan files exist — including the archived
+    // project-tasks-v1.md, which is present after the first queue is completed and
+    // during the mechanical-fixes cycle (revision-plan-2).
     Promise.all([
       window.novelEngine.files.exists(activeSlug, 'source/project-tasks.md'),
       window.novelEngine.files.exists(activeSlug, 'source/revision-prompts.md'),
-    ]).then(([hasTasks, hasPrompts]) => {
-      setHasRevisionPlan(hasTasks || hasPrompts);
+      window.novelEngine.files.exists(activeSlug, 'source/project-tasks-v1.md'),
+    ]).then(([hasTasks, hasPrompts, hasArchivedTasks]) => {
+      setHasRevisionPlan(hasTasks || hasPrompts || hasArchivedTasks);
     });
   }, [activeSlug]);
 
