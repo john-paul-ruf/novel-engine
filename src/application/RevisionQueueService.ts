@@ -41,7 +41,7 @@ type ParsedWranglerOutput = {
   }[];
   totalTasks: number;
   completedTaskNumbers: number[];
-  phases: { number: number; name: string; taskCount: number; completedCount: number }[];
+  phases: { number: number; name: string; taskCount: number; completedCount: number; taskNumbers?: number[] }[];
 };
 
 /** On-disk wrangler parse cache (avoids re-calling CLI when files haven't changed). */
@@ -558,9 +558,13 @@ export class RevisionQueueService implements IRevisionQueueService {
       ...session.taskNumbers.filter((n) => !plan.completedTaskNumbers.includes(n)),
     ];
 
-    // Update phase counts
+    // Update phase counts (per-phase calculation)
     for (const phase of plan.phases) {
-      phase.completedCount = plan.completedTaskNumbers.length; // simplified — could be per-phase
+      if (phase.taskNumbers) {
+        phase.completedCount = phase.taskNumbers.filter(
+          tn => plan.completedTaskNumbers.includes(tn)
+        ).length;
+      }
     }
 
     this.emit({

@@ -269,8 +269,8 @@ Parse both documents and return a single JSON object. No markdown. No explanatio
   "totalTasks": 47,
   "completedTaskNumbers": [3, 7, 12],
   "phases": [
-    { "number": 0, "name": "Author Decisions", "taskCount": 4, "completedCount": 2 },
-    { "number": 1, "name": "Structural Revision", "taskCount": 8, "completedCount": 0 }
+    { "number": 0, "name": "Author Decisions", "taskCount": 4, "completedCount": 2, "taskNumbers": [1, 2, 3, 4] },
+    { "number": 1, "name": "Structural Revision", "taskCount": 8, "completedCount": 0, "taskNumbers": [5, 6, 7, 8, 9, 10, 11, 12] }
   ]
 }
 
@@ -281,9 +281,13 @@ Parse both documents and return a single JSON object. No markdown. No explanatio
 3. Identify the model from Forge's assignment. Look for "Model: Opus", "Sonnet", "(analytical — Sonnet)", etc. Default to "opus" if unclear.
 4. Extract chapter references from @chapter paths or "Ch 5-6" patterns.
 5. For completedTaskNumbers, find all tasks in project-tasks.md marked with "- [x]".
-6. Count phases by their Phase headers in project-tasks.md.
-7. Session order must match the order in revision-prompts.md.
-8. If no revision-prompts.md content is provided, return { "sessions": [], "totalTasks": N, "completedTaskNumbers": [...], "phases": [...] } with just the project-tasks.md data.
+6. For phases:
+   - Extract phase structure from "## Phase N:" headers in project-tasks.md
+   - Include taskNumbers array for each phase (all numbered tasks under that phase header)
+   - Count completedCount as the number of tasks in taskNumbers that appear in completedTaskNumbers
+7. Session headers can appear in these formats in revision-prompts.md: "## SESSION 1:", "## Session 1:", "### SESSION 1:", "### Session 1:". Match case-insensitively and extract everything between the session header and the next session header (or end of file) as the prompt text.
+8. Session order must match the order in revision-prompts.md.
+9. If no revision-prompts.md content is provided, return { "sessions": [], "totalTasks": N, "completedTaskNumbers": [...], "phases": [...] } with just the project-tasks.md data.
 `;
 
 export const AUTHOR_PROFILE_INSTRUCTIONS = `
