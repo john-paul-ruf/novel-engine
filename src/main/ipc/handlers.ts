@@ -234,6 +234,10 @@ export function registerIpcHandlers(services: {
     services.pipeline.confirmPhaseAdvancement(bookSlug, phaseId),
   );
 
+  ipcMain.handle('pipeline:revertPhase', (_, bookSlug: string, phaseId: PipelinePhaseId) =>
+    services.pipeline.revertPhase(bookSlug, phaseId),
+  );
+
   // === Build ===
 
   ipcMain.handle('build:run', async (event, bookSlug: string) => {

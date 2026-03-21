@@ -83,7 +83,7 @@ const REVISION_QUEUE_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
 ]);
 
 export function PipelineTracker(): React.ReactElement {
-  const { phases, markPhaseComplete, completeRevision, confirmPhaseAdvancement } = usePipelineStore();
+  const { phases, markPhaseComplete, completeRevision, confirmPhaseAdvancement, revertPhase } = usePipelineStore();
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
@@ -118,6 +118,8 @@ export function PipelineTracker(): React.ReactElement {
   const [confirmingRevisionComplete, setConfirmingRevisionComplete] = useState(false);
   const [revisionCompleteError, setRevisionCompleteError] = useState<string | null>(null);
   const [advancementError, setAdvancementError] = useState<string | null>(null);
+  const [confirmingRevert, setConfirmingRevert] = useState<PipelinePhaseId | null>(null);
+  const [revertError, setRevertError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSlug) {
@@ -305,6 +307,32 @@ export function PipelineTracker(): React.ReactElement {
     }
   };
 
+  /**
+   * Revert a completed phase — double-click confirmation to prevent accidents.
+   *
+   * First click enters confirmation state (button turns red with "Revert?").
+   * Second click within 4 seconds performs the revert.
+   */
+  const handleRevertPhase = async (phaseId: PipelinePhaseId) => {
+    if (confirmingRevert === phaseId) {
+      // Second click = confirm
+      try {
+        setRevertError(null);
+        await revertPhase(activeSlug, phaseId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setRevertError(msg);
+        setTimeout(() => setRevertError(null), 6000);
+      }
+      setConfirmingRevert(null);
+    } else {
+      // First click = enter confirmation state
+      setConfirmingRevert(phaseId);
+      // Auto-cancel after 4 seconds
+      setTimeout(() => setConfirmingRevert((prev) => (prev === phaseId ? null : prev)), 4000);
+    }
+  };
+
   return (
     <div className="px-3 py-3">
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -328,6 +356,11 @@ export function PipelineTracker(): React.ReactElement {
       {advancementError && (
         <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
           {advancementError}
+        </div>
+      )}
+      {revertError && (
+        <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
+          {revertError}
         </div>
       )}
       {autoDraftError && (
@@ -381,6 +414,9 @@ export function PipelineTracker(): React.ReactElement {
                 isBuildingForQuill={phase.id === 'publish' && isBuildingForQuill}
                 showConfirmAdvancement={phase.status === 'pending-completion'}
                 onConfirmAdvancement={() => handleConfirmAdvancement(phase.id)}
+                showRevert={phase.status === 'complete' || phase.status === 'pending-completion'}
+                isConfirmingRevert={confirmingRevert === phase.id}
+                onRevert={() => handleRevertPhase(phase.id)}
               />
               {showRevisionSub && (
                 <RevisionQueueSubButton
@@ -589,6 +625,9 @@ function PhaseRow({
   isBuildingForQuill = false,
   showConfirmAdvancement,
   onConfirmAdvancement,
+  showRevert = false,
+  isConfirmingRevert = false,
+  onRevert,
 }: {
   phase: PipelinePhase;
   onPhaseClick: () => void;
@@ -600,6 +639,10 @@ function PhaseRow({
   /** Show the "Advance →" button — only true when status is 'pending-completion'. */
   showConfirmAdvancement: boolean;
   onConfirmAdvancement: () => void;
+  /** Show the "← Back" revert button — true for completed and pending-completion phases. */
+  showRevert?: boolean;
+  isConfirmingRevert?: boolean;
+  onRevert?: () => void;
 }): React.ReactElement {
   const isBuildPhase = phase.id === 'build';
   const isPendingCompletion = phase.status === 'pending-completion';
@@ -612,7 +655,7 @@ function PhaseRow({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-md px-1 py-1 ${
+      className={`group flex items-center gap-2 rounded-md px-1 py-1 ${
         isClickable
           ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
           : 'cursor-default'
@@ -637,6 +680,27 @@ function PhaseRow({
       </div>
       {/* Action buttons — shown based on phase status */}
       <div className="flex shrink-0 items-center gap-1">
+        {/* "← Back" revert button — shown on hover for completed/pending phases */}
+        {showRevert && onRevert && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRevert();
+            }}
+            className={`no-drag rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${
+              isConfirmingRevert
+                ? 'bg-red-600 text-white hover:bg-red-500'
+                : 'text-zinc-500 opacity-0 group-hover:opacity-100 hover:bg-zinc-300 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-300'
+            }`}
+            title={
+              isConfirmingRevert
+                ? 'Click again to confirm — reverts this phase and all subsequent phases'
+                : 'Revert this phase (go back)'
+            }
+          >
+            {isConfirmingRevert ? 'Revert?' : '←'}
+          </button>
+        )}
         {/* "Done" manual-completion button — only for active non-gated phases */}
         {showMarkComplete && (
           <button

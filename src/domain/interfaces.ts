@@ -140,6 +140,26 @@ export interface IPipelineService {
    * the `revision` phase completes and `second-read` unlocks.
    */
   completeRevision(bookSlug: string): Promise<void>;
+
+  /**
+   * Revert a pipeline phase, moving it back to an un-confirmed state.
+   *
+   * Removes the phase (and all subsequent phases) from the confirmed list
+   * in `pipeline-state.json`. This makes the target phase the new "current"
+   * phase — it will show as 'pending-completion' if its detection files
+   * still exist, or 'active' if they don't.
+   *
+   * For phases that depend on book status or archived files, the revert
+   * also undoes those side-effects:
+   * - `first-draft`: reverts book status to 'first-draft'
+   * - `mechanical-fixes`: reverts book status to 'copy-edit'
+   * - `revision`: removes the archived v1 report files
+   *
+   * This is a non-destructive operation for file-existence phases — the
+   * agent's output files remain on disk. The user can re-confirm them
+   * with "Advance →" or delete them manually to redo the phase.
+   */
+  revertPhase(bookSlug: string, phaseId: PipelinePhaseId): Promise<void>;
 }
 
 export interface IBuildService {

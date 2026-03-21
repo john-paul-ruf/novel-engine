@@ -304,7 +304,92 @@ export class PipelineService implements IPipelineService {
     await this.addConfirmedPhase(bookSlug, 'revision');
   }
 
+  /**
+   * Revert a pipeline phase and all subsequent phases.
+   *
+   * Removes the target phase and every phase that comes after it from
+   * the confirmed list. For status-dependent or archive-dependent phases,
+   * also undoes the side-effects that made the phase detectable as complete.
+   */
+  async revertPhase(bookSlug: string, phaseId: PipelinePhaseId): Promise<void> {
+    const targetIndex = PIPELINE_PHASES.findIndex((p) => p.id === phaseId);
+    if (targetIndex === -1) {
+      throw new Error(`Unknown pipeline phase: "${phaseId}"`);
+    }
+
+    // Collect all phase IDs at and after the target — they all lose confirmation
+    const phasesToRevert = new Set(
+      PIPELINE_PHASES.slice(targetIndex).map((p) => p.id),
+    );
+
+    // Remove confirmations for the target and all subsequent phases
+    const stored = await this.loadPipelineState(bookSlug);
+    const existing = stored?.confirmedPhases ?? [];
+    const filtered = existing.filter((id) => !phasesToRevert.has(id));
+    await this.savePipelineState(bookSlug, { confirmedPhases: filtered });
+
+    // Undo phase-specific side-effects so the detection check also fails,
+    // making the phase truly 'active' rather than 'pending-completion'.
+    await this.undoPhaseSideEffects(bookSlug, phaseId);
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Undo the side-effects that make a phase detectable as complete.
+   *
+   * For most phases this is a no-op — the files stay on disk and the phase
+   * will show as 'pending-completion' (ready to re-confirm). For phases
+   * whose completion depends on book status or archived files, we actively
+   * revert those conditions so the phase returns to 'active'.
+   */
+  private async undoPhaseSideEffects(bookSlug: string, phaseId: PipelinePhaseId): Promise<void> {
+    switch (phaseId) {
+      // ── Status-based phases — revert book status ────────────────────────
+      case 'first-draft': {
+        const meta = await this.fs.getBookMeta(bookSlug);
+        if (!PipelineService.FIRST_DRAFT_IN_PROGRESS.has(meta.status)) {
+          await this.fs.updateBookMeta(bookSlug, { status: 'first-draft' });
+        }
+        break;
+      }
+
+      case 'mechanical-fixes': {
+        const meta = await this.fs.getBookMeta(bookSlug);
+        if (PipelineService.COPY_EDIT_OR_LATER.has(meta.status) && meta.status !== 'copy-edit') {
+          await this.fs.updateBookMeta(bookSlug, { status: 'copy-edit' });
+        }
+        break;
+      }
+
+      // ── Archive-based phase — remove archived v1 files ──────────────────
+      case 'revision': {
+        // Delete the v1 archive files so the phase detection sees revision
+        // as incomplete. The live report files are left intact.
+        await this.safeDelete(bookSlug, 'source/reader-report-v1.md');
+        await this.safeDelete(bookSlug, 'source/dev-report-v1.md');
+        break;
+      }
+
+      // ── All other phases: no side-effects to undo ───────────────────────
+      // The detection files stay on disk. The phase will show as
+      // 'pending-completion' (files exist, not confirmed). The user can
+      // either re-confirm with "Advance →" or manually delete files.
+      default:
+        break;
+    }
+  }
+
+  /**
+   * Delete a file, silently ignoring ENOENT (file does not exist).
+   */
+  private async safeDelete(bookSlug: string, relativePath: string): Promise<void> {
+    try {
+      await this.fs.deleteFile(bookSlug, relativePath);
+    } catch {
+      // File doesn't exist — that's fine
+    }
+  }
 
   /**
    * Load pipeline confirmation state from disk.

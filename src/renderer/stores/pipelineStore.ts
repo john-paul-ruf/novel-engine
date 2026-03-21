@@ -31,6 +31,11 @@ type PipelineState = {
    */
   confirmPhaseAdvancement: (bookSlug: string, phaseId: PipelinePhaseId) => Promise<void>;
   /**
+   * Revert a completed phase back to pending-completion or active.
+   * All subsequent phases revert to locked. Reloads the pipeline after writing.
+   */
+  revertPhase: (bookSlug: string, phaseId: PipelinePhaseId) => Promise<void>;
+  /**
    * Switch which book's pipeline is displayed.
    * If a cached entry exists it's shown instantly; a background refresh follows.
    */
@@ -105,6 +110,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   confirmPhaseAdvancement: async (bookSlug: string, phaseId: PipelinePhaseId) => {
     await window.novelEngine.pipeline.confirmAdvancement(bookSlug, phaseId);
+    await get().loadPipeline(bookSlug);
+  },
+
+  revertPhase: async (bookSlug: string, phaseId: PipelinePhaseId) => {
+    await window.novelEngine.pipeline.revertPhase(bookSlug, phaseId);
     await get().loadPipeline(bookSlug);
   },
 

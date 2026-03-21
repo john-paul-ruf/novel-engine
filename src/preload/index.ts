@@ -132,6 +132,13 @@ const api = {
      */
     confirmAdvancement: (bookSlug: string, phaseId: PipelinePhaseId): Promise<void> =>
       ipcRenderer.invoke('pipeline:confirmAdvancement', bookSlug, phaseId),
+    /**
+     * Revert a completed phase, moving it back to pending-completion or active.
+     * Also reverts all subsequent phases to locked. Non-destructive for
+     * file-existence phases — agent output files remain on disk.
+     */
+    revertPhase: (bookSlug: string, phaseId: PipelinePhaseId): Promise<void> =>
+      ipcRenderer.invoke('pipeline:revertPhase', bookSlug, phaseId),
   },
 
   // Build
