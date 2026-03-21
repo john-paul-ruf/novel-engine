@@ -82,6 +82,11 @@ export interface IFileSystemService {
   // Cover image
   saveCoverImage(bookSlug: string, sourcePath: string): Promise<string>;
   getCoverImageAbsolutePath(bookSlug: string): Promise<string | null>;
+
+  // Slug reconciliation — renames folders whose name no longer matches the
+  // slugified title stored in about.json. Returns every migration performed
+  // so callers can update the database accordingly.
+  reconcileBookSlugs(): Promise<Array<{ oldSlug: string; newSlug: string }>>;
 }
 
 export interface IClaudeClient {

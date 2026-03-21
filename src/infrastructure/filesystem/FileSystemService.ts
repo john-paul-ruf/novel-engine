@@ -443,6 +443,76 @@ export class FileSystemService implements IFileSystemService {
     return destFilename;
   }
 
+  // ── Slug Reconciliation ───────────────────────────────────────────
+
+  /**
+   * Scans every book folder and renames any whose directory name no longer
+   * matches the slug derived from the title stored in about.json.
+   *
+   * This handles the case where the user (or an agent) edits about.json on
+   * disk without going through the updateBookMeta UI path.
+   *
+   * Returns an array of { oldSlug, newSlug } pairs for every rename performed
+   * so the caller can migrate database records accordingly.
+   */
+  async reconcileBookSlugs(): Promise<Array<{ oldSlug: string; newSlug: string }>> {
+    const migrations: Array<{ oldSlug: string; newSlug: string }> = [];
+
+    let entries: string[];
+    try {
+      entries = await fs.readdir(this.booksDir);
+    } catch {
+      return migrations;
+    }
+
+    for (const entry of entries) {
+      if (entry.startsWith('_') || entry.startsWith('.')) continue;
+
+      const entryPath = path.join(this.booksDir, entry);
+      const stat = await fs.stat(entryPath).catch(() => null);
+      if (!stat || !stat.isDirectory()) continue;
+
+      const aboutPath = path.join(entryPath, 'about.json');
+      try {
+        const raw = await fs.readFile(aboutPath, 'utf-8');
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        const title = String(parsed.title ?? '').trim();
+        if (!title) continue;
+
+        const expectedSlug = this.slugify(title);
+        if (!expectedSlug || expectedSlug === entry) continue;
+
+        // Slug mismatch — check the target directory doesn't already exist
+        const newDir = path.join(this.booksDir, expectedSlug);
+        try {
+          await fs.access(newDir);
+          // Target already exists — skip to avoid clobbering another book
+          console.warn(
+            `[FileSystemService] Cannot auto-rename "${entry}" → "${expectedSlug}": target already exists`,
+          );
+          continue;
+        } catch {
+          // Target doesn't exist — safe to rename
+        }
+
+        await fs.rename(entryPath, newDir);
+
+        // Keep active-book.json in sync
+        const activeSlug = await this.getActiveBookSlug();
+        if (activeSlug === entry) {
+          await this.setActiveBook(expectedSlug);
+        }
+
+        console.log(`[FileSystemService] Auto-renamed book folder: "${entry}" → "${expectedSlug}"`);
+        migrations.push({ oldSlug: entry, newSlug: expectedSlug });
+      } catch (err) {
+        console.warn(`[FileSystemService] reconcileBookSlugs: skipping "${entry}":`, err);
+      }
+    }
+
+    return migrations;
+  }
+
   async getCoverImageAbsolutePath(bookSlug: string): Promise<string | null> {
     const meta = await this.getBookMeta(bookSlug);
     if (!meta.coverImage) return null;

@@ -146,6 +146,19 @@ async function initializeApp(): Promise<void> {
   const fs = new FileSystemService(booksDir, userDataPath);
   const claudeClient = new ClaudeCodeClient(booksDir);
 
+  // 3.5 Auto-reconcile any book folders whose name diverged from the
+  //      title stored in about.json (e.g. after a direct on-disk edit).
+  //      This runs once at startup before the window opens, so it is
+  //      transparent to the user.
+  try {
+    const slugMigrations = await fs.reconcileBookSlugs();
+    for (const { oldSlug, newSlug } of slugMigrations) {
+      db.updateBookSlug(oldSlug, newSlug);
+    }
+  } catch (err) {
+    console.warn('[startup] reconcileBookSlugs failed:', err);
+  }
+
   // 4. Instantiate application services
   const usage = new UsageService(db);
   const chapterValidator = new ChapterValidator(booksDir);
