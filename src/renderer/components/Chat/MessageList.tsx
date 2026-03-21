@@ -10,10 +10,12 @@ export function MessageList({ hideStreaming = false }: { hideStreaming?: boolean
   const messages = useChatStore((s) => s.messages);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const messageToolActivity = useChatStore((s) => s.messageToolActivity);
+  const activeConversationId = useChatStore((s) => s.activeConversation?.id ?? null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const prevConversationIdRef = useRef<string | null>(null);
 
   // Track if user is at the bottom using IntersectionObserver.
   // Use a ref instead of state to avoid re-renders on scroll.
@@ -32,7 +34,19 @@ export function MessageList({ hideStreaming = false }: { hideStreaming?: boolean
     return () => observer.disconnect();
   }, []);
 
-  // Scroll to bottom when messages change (new message added or conversation switched)
+  // Force scroll to bottom when switching conversations (e.g. book switch).
+  // Reset isAtBottomRef so subsequent message effects also scroll.
+  useEffect(() => {
+    if (activeConversationId !== prevConversationIdRef.current) {
+      prevConversationIdRef.current = activeConversationId;
+      isAtBottomRef.current = true;
+      if (bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: 'instant' });
+      }
+    }
+  }, [activeConversationId]);
+
+  // Scroll to bottom when messages change (new message added)
   useEffect(() => {
     if (isAtBottomRef.current && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });

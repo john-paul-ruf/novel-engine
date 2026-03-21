@@ -4,6 +4,7 @@ import { randomRespondingStatus } from '@domain/constants';
 import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
 import { usePipelineStore } from './pipelineStore';
+import { useViewStore } from './viewStore';
 import { streamRouter } from './streamRouter';
 
 type ChatState = {
@@ -236,7 +237,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Clear persisted conversation — it belongs to the old book
     localStorage.removeItem('novel-engine-active-conversation');
 
-    // Step 1: Clear all chat state immediately
+    // Step 1: Navigate to the chat view so the user lands on the conversation
+    // regardless of which view they were on (wrangler loading, files, build, etc.)
+    useViewStore.getState().navigate('chat');
+
+    // Step 2: Clear all chat state immediately
     set({
       activeConversation: null,
       conversations: [],
@@ -251,7 +256,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messageToolActivity: {},
     });
 
-    // Step 2: Load conversations for the new book and activate the latest one
+    // Step 3: Load conversations for the new book and activate the latest one
     try {
       const conversations = await window.novelEngine.chat.getConversations(newBookSlug);
       set({ conversations });

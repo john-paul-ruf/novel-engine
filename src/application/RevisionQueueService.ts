@@ -145,9 +145,12 @@ export class RevisionQueueService implements IRevisionQueueService {
 
   private async writeCache(bookSlug: string, cache: PlanCache): Promise<void> {
     try {
-      await this.fs.writeFile(bookSlug, CACHE_PATH, JSON.stringify(cache, null, 2));
-    } catch {
-      // Best-effort — don't fail the plan load
+      const json = JSON.stringify(cache, null, 2);
+      console.log(`[RevisionQueue] writeCache: writing ${json.length} bytes to ${CACHE_PATH} for "${bookSlug}"`);
+      await this.fs.writeFile(bookSlug, CACHE_PATH, json);
+      console.log(`[RevisionQueue] writeCache: success`);
+    } catch (err) {
+      console.error(`[RevisionQueue] writeCache FAILED for "${bookSlug}":`, err);
     }
   }
 
