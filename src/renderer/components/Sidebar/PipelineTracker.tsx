@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PhaseStatus, PipelinePhase, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -56,13 +56,34 @@ function ConnectingLine({
   return <div className={`ml-[9px] h-4 w-0.5 ${color}`} />;
 }
 
+/** Phase IDs after which the "Revision Queue" sub-button may appear. */
+const REVISION_PARENT_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
+  'revision-plan-1',
+  'revision',
+  'revision-plan-2',
+]);
+
 export function PipelineTracker(): React.ReactElement {
   const { phases, markPhaseComplete } = usePipelineStore();
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
-  const { navigate } = useViewStore();
+  const { navigate, currentView } = useViewStore();
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
+  const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
+
+  useEffect(() => {
+    if (!activeSlug) {
+      setHasRevisionPlan(false);
+      return;
+    }
+    Promise.all([
+      window.novelEngine.files.exists(activeSlug, 'source/project-tasks.md'),
+      window.novelEngine.files.exists(activeSlug, 'source/revision-prompts.md'),
+    ]).then(([hasTasks, hasPrompts]) => {
+      setHasRevisionPlan(hasTasks || hasPrompts);
+    });
+  }, [activeSlug, phases]);
 
   if (!activeSlug || phases.length === 0) {
     return (
@@ -148,28 +169,68 @@ export function PipelineTracker(): React.ReactElement {
         </div>
       )}
       <div>
-        {phases.map((phase, index) => (
-          <div key={phase.id}>
-            <PhaseRow
-              phase={phase}
-              onPhaseClick={() => handlePhaseClick(phase)}
-              onStartClick={() => handleStartClick(phase)}
-              showMarkComplete={
-                phase.status === 'active' && MANUAL_COMPLETION_PHASES.has(phase.id)
-              }
-              isConfirmingComplete={confirmingComplete === phase.id}
-              onMarkComplete={() => handleMarkComplete(phase.id)}
-            />
-            {index < phases.length - 1 && (
-              <ConnectingLine
-                fromStatus={phase.status}
-                toStatus={phases[index + 1].status}
+        {phases.map((phase, index) => {
+          // Show the revision queue sub-button after the first non-locked revision phase
+          const showRevisionSub =
+            hasRevisionPlan &&
+            REVISION_PARENT_PHASES.has(phase.id) &&
+            phase.status !== 'locked' &&
+            // Only show once — on the first matching phase
+            !phases.slice(0, index).some(
+              (p) => REVISION_PARENT_PHASES.has(p.id) && p.status !== 'locked'
+            );
+
+          return (
+            <div key={phase.id}>
+              <PhaseRow
+                phase={phase}
+                onPhaseClick={() => handlePhaseClick(phase)}
+                onStartClick={() => handleStartClick(phase)}
+                showMarkComplete={
+                  phase.status === 'active' && MANUAL_COMPLETION_PHASES.has(phase.id)
+                }
+                isConfirmingComplete={confirmingComplete === phase.id}
+                onMarkComplete={() => handleMarkComplete(phase.id)}
               />
-            )}
-          </div>
-        ))}
+              {showRevisionSub && (
+                <RevisionQueueSubButton
+                  isActive={currentView === 'revision-queue'}
+                  onClick={() => navigate('revision-queue')}
+                />
+              )}
+              {index < phases.length - 1 && (
+                <ConnectingLine
+                  fromStatus={phase.status}
+                  toStatus={phases[index + 1].status}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+function RevisionQueueSubButton({
+  isActive,
+  onClick,
+}: {
+  isActive: boolean;
+  onClick: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      onClick={onClick}
+      className={`ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+        isActive
+          ? 'bg-orange-500/15 text-orange-400'
+          : 'text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-orange-400'
+      }`}
+    >
+      <span className="text-orange-500 text-xs">⚙</span>
+      <span>Revision Queue</span>
+    </button>
   );
 }
 

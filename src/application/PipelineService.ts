@@ -3,6 +3,12 @@ import type { AgentName, BookStatus, PipelinePhase, PipelinePhaseId } from '@dom
 import { PIPELINE_PHASES } from '@domain/constants';
 
 /**
+ * Minimum word count for a file to be considered "substantive" content
+ * rather than a placeholder stub left over from old scaffolding.
+ */
+const MIN_SUBSTANTIVE_WORDS = 50;
+
+/**
  * Maps pipeline phase IDs to the book status they should advance TO
  * when the user explicitly marks a phase complete.
  *
@@ -123,6 +129,23 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
+   * Check that a file exists AND contains meaningful content (>= MIN_SUBSTANTIVE_WORDS).
+   *
+   * Old versions of `createBook()` pre-created some pipeline-gating files with
+   * placeholder content (~10 words).  Using this instead of bare `fileExists()`
+   * prevents those stubs from falsely marking a phase as complete.
+   */
+  private async hasSubstantiveFile(bookSlug: string, relativePath: string): Promise<boolean> {
+    try {
+      const content = await this.fs.readFile(bookSlug, relativePath);
+      const wordCount = content.split(/\s+/).filter(Boolean).length;
+      return wordCount >= MIN_SUBSTANTIVE_WORDS;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Check whether a specific pipeline phase is complete.
    *
    * Each phase has a unique detection rule based on the existence
@@ -131,10 +154,10 @@ export class PipelineService implements IPipelineService {
   private async isPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<boolean> {
     switch (phaseId) {
       case 'pitch':
-        return this.fs.fileExists(bookSlug, 'source/pitch.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/pitch.md');
 
       case 'scaffold':
-        return this.fs.fileExists(bookSlug, 'source/scene-outline.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/scene-outline.md');
 
       case 'first-draft': {
         // The first draft is complete when chapters exist with meaningful content
@@ -151,13 +174,13 @@ export class PipelineService implements IPipelineService {
       }
 
       case 'first-read':
-        return this.fs.fileExists(bookSlug, 'source/reader-report.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/reader-report.md');
 
       case 'first-assessment':
-        return this.fs.fileExists(bookSlug, 'source/dev-report.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/dev-report.md');
 
       case 'revision-plan-1':
-        return this.fs.fileExists(bookSlug, 'source/project-tasks.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/project-tasks.md');
 
       case 'revision':
         return this.fs.fileExists(bookSlug, 'source/reader-report-v1.md');
@@ -174,11 +197,11 @@ export class PipelineService implements IPipelineService {
         return this.fs.fileExists(bookSlug, 'source/dev-report-v1.md');
 
       case 'copy-edit':
-        return this.fs.fileExists(bookSlug, 'source/audit-report.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/audit-report.md');
 
       case 'revision-plan-2': {
         const [hasPrompts, hasAudit] = await Promise.all([
-          this.fs.fileExists(bookSlug, 'source/revision-prompts.md'),
+          this.hasSubstantiveFile(bookSlug, 'source/revision-prompts.md'),
           this.fs.fileExists(bookSlug, 'source/audit-report.md'),
         ]);
         return hasPrompts && hasAudit;
@@ -195,7 +218,7 @@ export class PipelineService implements IPipelineService {
         return this.fs.fileExists(bookSlug, 'dist/output.md');
 
       case 'publish':
-        return this.fs.fileExists(bookSlug, 'source/metadata.md');
+        return this.hasSubstantiveFile(bookSlug, 'source/metadata.md');
 
       default:
         return false;
