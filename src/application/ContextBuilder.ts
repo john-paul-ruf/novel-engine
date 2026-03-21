@@ -44,14 +44,19 @@ export class ContextBuilder {
     messages: Message[];
     purposeInstructions?: string;
     thinkingBudget?: number;
+    authorProfilePath?: string;
   }): AssembledContext {
-    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget } = params;
+    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget, authorProfilePath } = params;
 
     // 1. Build file manifest section
     const manifestSection = this.buildManifestSection(manifest);
 
     // 2. Build read guidance section (only for creative agents)
-    const guidanceSection = this.buildReadGuidance(agentName);
+    // Replace bare 'author-profile.md' with absolute path so the agent can find it
+    let guidanceSection = this.buildReadGuidance(agentName);
+    if (guidanceSection && authorProfilePath) {
+      guidanceSection = guidanceSection.replace(/`author-profile\.md`/g, `\`${authorProfilePath}\``);
+    }
 
     // 3. Build file-writing instructions
     const writeInstructions = this.buildFileWriteInstructions();

@@ -29,6 +29,10 @@ export class FileSystemService implements IFileSystemService {
     private userDataDir: string,
   ) {}
 
+  getAuthorProfilePath(): string {
+    return path.join(this.userDataDir, 'author-profile.md');
+  }
+
   // ── Books ─────────────────────────────────────────────────────────
 
   async listBooks(): Promise<BookSummary[]> {
@@ -268,12 +272,13 @@ export class FileSystemService implements IFileSystemService {
     }
 
     // Check author-profile.md (lives in userData root, not book dir)
+    // Use the absolute path so the CLI agent can Read it from the book's cwd
     try {
       const authorProfilePath = path.join(this.userDataDir, 'author-profile.md');
       const content = await fs.readFile(authorProfilePath, 'utf-8');
       if (content.trim()) {
         const wordCount = content.split(/\s+/).filter(Boolean).length;
-        files.push({ path: 'author-profile.md', wordCount });
+        files.push({ path: authorProfilePath, wordCount });
       }
     } catch {
       // No author profile yet — that's fine

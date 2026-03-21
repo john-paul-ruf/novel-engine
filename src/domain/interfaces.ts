@@ -90,6 +90,9 @@ export interface IFileSystemService {
   // so callers can update the database accordingly.
   reconcileBookSlugs(): Promise<Array<{ oldSlug: string; newSlug: string }>>;
 
+  // Author profile path — absolute path for the global author-profile.md
+  getAuthorProfilePath(): string;
+
   // Shelved pitches
   listShelvedPitches(): Promise<ShelvedPitchMeta[]>;
   readShelvedPitch(slug: string): Promise<ShelvedPitch>;

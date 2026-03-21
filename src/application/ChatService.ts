@@ -115,19 +115,26 @@ export class ChatService {
       if (conversation?.purpose === 'voice-setup') {
         purposeInstructions = VOICE_SETUP_INSTRUCTIONS;
       } else if (conversation?.purpose === 'author-profile') {
-        purposeInstructions = AUTHOR_PROFILE_INSTRUCTIONS;
+        // Inject the absolute author profile path so the agent writes to the correct location
+        const authorProfilePath = this.fs.getAuthorProfilePath();
+        purposeInstructions = AUTHOR_PROFILE_INSTRUCTIONS.replace(
+          'author-profile.md',
+          authorProfilePath,
+        );
       }
 
       // Step 7b: Determine thinking budget (needed for both context and CLI call)
       const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
 
       // Step 7c: Build context using the lean ContextBuilder (budget-aware compaction)
+      const authorProfileAbsPath = this.fs.getAuthorProfilePath();
       const assembled = this.contextBuilder.build({
         agentName,
         agentSystemPrompt: agent.systemPrompt,
         manifest,
         messages,
         purposeInstructions,
+        authorProfilePath: authorProfileAbsPath,
         thinkingBudget,
       });
 
