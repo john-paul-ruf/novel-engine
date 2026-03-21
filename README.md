@@ -1,3 +1,8 @@
+# Heads up
+
+This is a work in progress...
+
+
 # Dedication
 
 *To everyone who has an idea for a good book but doesn't know how to craft it, this is for you...*
