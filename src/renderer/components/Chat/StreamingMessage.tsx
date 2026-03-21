@@ -32,9 +32,35 @@ export function StreamingMessage(): React.ReactElement | null {
     <div className="px-6 py-2">
       <div className="max-w-3xl">
         {showStatus && (
-          <div className="flex items-center gap-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-            {rotatingStatus}
+          <div className="flex items-center gap-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+            {/* Three bouncing dots — staggered for a lively wave effect */}
+            <span className="flex items-center gap-0.5">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce"
+                style={{ animationDelay: '0ms', animationDuration: '900ms' }}
+              />
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400 animate-bounce"
+                style={{ animationDelay: '150ms', animationDuration: '900ms' }}
+              />
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full bg-blue-300 animate-bounce"
+                style={{ animationDelay: '300ms', animationDuration: '900ms' }}
+              />
+            </span>
+            {/* key forces re-mount so the fade-in fires on every new phrase.
+                Each character gets its own wave delay, creating a ripple effect. */}
+            <span key={rotatingStatus} className="status-fade-in inline-flex flex-wrap">
+              {rotatingStatus.split('').map((char, i) => (
+                <span
+                  key={i}
+                  className="wave-char"
+                  style={{ animationDelay: `${i * 80}ms` }}
+                >
+                  {char === ' ' ? '\u00A0' : char}
+                </span>
+              ))}
+            </span>
           </div>
         )}
 

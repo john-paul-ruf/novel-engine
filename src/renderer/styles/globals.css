@@ -17,3 +17,22 @@
 /* Drag region for macOS title bar */
 .drag-region { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
+
+/* Status text — fade + slide-up on each new phrase */
+@keyframes statusFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.status-fade-in {
+  animation: statusFadeIn 0.35s ease-out both;
+}
+
+/* Wavy character animation — each letter bobs independently */
+@keyframes waveChar {
+  0%, 60%, 100% { transform: translateY(0px); }
+  30%            { transform: translateY(-3px); }
+}
+.wave-char {
+  display: inline-block;
+  animation: waveChar 2s ease-in-out infinite;
+}

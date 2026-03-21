@@ -23,7 +23,7 @@ export function useRotatingStatus(active: boolean): string {
     let timer: ReturnType<typeof setTimeout>;
 
     const scheduleNext = (): void => {
-      const delay = 15_000 + Math.random() * 15_000; // 15 000–30 000 ms
+      const delay = 3_000 + Math.random() * 5_000; // 3 000–8 000 ms — lively rotation
       timer = setTimeout(() => {
         setText(randomRespondingStatus());
         scheduleNext();
