@@ -345,6 +345,33 @@ export function registerIpcHandlers(services: {
     return meta;
   });
 
+  // === Pitch Room ===
+
+  ipcMain.handle('pitchRoom:listDrafts', () => services.fs.listPitchDrafts());
+
+  ipcMain.handle('pitchRoom:getDraft', (_, convId: string) =>
+    services.fs.getPitchDraft(convId),
+  );
+
+  ipcMain.handle('pitchRoom:readContent', (_, convId: string) =>
+    services.fs.readPitchDraftContent(convId),
+  );
+
+  ipcMain.handle('pitchRoom:promote', async (_, convId: string) => {
+    const meta = await services.fs.promotePitchToBook(convId);
+    hooks?.onActiveBookChanged?.(meta.slug);
+    return meta;
+  });
+
+  ipcMain.handle('pitchRoom:shelve', (_, convId: string, logline?: string) =>
+    services.fs.shelvePitchDraft(convId, logline),
+  );
+
+  ipcMain.handle('pitchRoom:discard', async (_, convId: string) => {
+    await services.fs.deletePitchDraft(convId);
+    services.db.deleteConversation(convId);
+  });
+
   // === Revision Queue ===
 
   ipcMain.handle('revision:loadPlan', async (_, bookSlug: string) => {

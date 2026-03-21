@@ -15,6 +15,7 @@ import type {
   Message,
   PipelinePhase,
   PipelinePhaseId,
+  PitchDraft,
   QueueMode,
   RevisionPlan,
   RevisionQueueEvent,
@@ -167,6 +168,22 @@ const api = {
       ipcRenderer.invoke('pitches:shelve', bookSlug, logline),
     restore: (pitchSlug: string): Promise<BookMeta> =>
       ipcRenderer.invoke('pitches:restore', pitchSlug),
+  },
+
+  // Pitch Room
+  pitchRoom: {
+    listDrafts: (): Promise<PitchDraft[]> =>
+      ipcRenderer.invoke('pitchRoom:listDrafts'),
+    getDraft: (conversationId: string): Promise<PitchDraft | null> =>
+      ipcRenderer.invoke('pitchRoom:getDraft', conversationId),
+    readContent: (conversationId: string): Promise<string> =>
+      ipcRenderer.invoke('pitchRoom:readContent', conversationId),
+    promote: (conversationId: string): Promise<BookMeta> =>
+      ipcRenderer.invoke('pitchRoom:promote', conversationId),
+    shelve: (conversationId: string, logline?: string): Promise<ShelvedPitchMeta> =>
+      ipcRenderer.invoke('pitchRoom:shelve', conversationId, logline),
+    discard: (conversationId: string): Promise<void> =>
+      ipcRenderer.invoke('pitchRoom:discard', conversationId),
   },
 
   // Usage

@@ -105,7 +105,19 @@ export type Message = {
   timestamp: string;       // ISO date
 };
 
-export type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile';
+export type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile' | 'pitch-room';
+
+// === Pitch Room ===
+
+export type PitchDraft = {
+  conversationId: string;     // the pitch room conversation this belongs to
+  title: string;              // extracted from pitch content, or "Untitled Draft"
+  hasPitch: boolean;          // true if pitch.md exists in the draft folder
+  createdAt: string;          // ISO date (from conversation creation)
+  updatedAt: string;          // ISO date (last message timestamp)
+};
+
+export type PitchOutcome = 'make-book' | 'shelve' | 'discard';
 
 export type Conversation = {
   id: string;

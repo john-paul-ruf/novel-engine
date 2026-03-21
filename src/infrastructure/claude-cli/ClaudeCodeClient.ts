@@ -42,9 +42,10 @@ export class ClaudeCodeClient implements IClaudeClient {
     maxTokens: number;
     thinkingBudget?: number;
     bookSlug?: string;
+    workingDir?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const { model, systemPrompt, messages, thinkingBudget, bookSlug, onEvent } = params;
+    const { model, systemPrompt, messages, thinkingBudget, bookSlug, workingDir, onEvent } = params;
 
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
@@ -63,10 +64,12 @@ export class ClaudeCodeClient implements IClaudeClient {
       args.push('--thinking-budget', String(thinkingBudget));
     }
 
-    // Set working directory to book root if bookSlug is provided
-    const cwd = bookSlug
-      ? path.join(this.booksDir, bookSlug)
-      : undefined;
+    // Set working directory: explicit workingDir takes priority, then bookSlug-derived path
+    const cwd = workingDir
+      ? workingDir
+      : bookSlug
+        ? path.join(this.booksDir, bookSlug)
+        : undefined;
 
     return new Promise<void>((resolve, reject) => {
       const child = spawn('claude', args, {

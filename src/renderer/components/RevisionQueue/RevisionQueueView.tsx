@@ -17,6 +17,24 @@ export function RevisionQueueView() {
 
   useEffect(() => {
     if (activeSlug) {
+      // When switching books, the plan.bookSlug will differ from activeSlug.
+      // Reset UI running state so the new book isn't "frozen" showing only
+      // Pause — the backend tracks running state per-plan, but the store's
+      // isRunning is a single global flag that bleeds across book switches.
+      const current = useRevisionQueueStore.getState();
+      if (current.plan && current.plan.bookSlug !== activeSlug) {
+        useRevisionQueueStore.setState({
+          isRunning: false,
+          isPaused: false,
+          activeSessionId: null,
+          streamingResponse: '',
+          streamingThinking: '',
+          gateSessionId: null,
+          gateText: '',
+          plan: null,
+          planId: null,
+        });
+      }
       loadPlan(activeSlug);
     }
   }, [activeSlug, loadPlan]);

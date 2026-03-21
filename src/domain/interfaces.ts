@@ -12,6 +12,7 @@ import type {
   MessageRole,
   PipelinePhase,
   PipelinePhaseId,
+  PitchDraft,
   ProjectManifest,
   QueueMode,
   RevisionPlan,
@@ -99,6 +100,21 @@ export interface IFileSystemService {
   deleteShelvedPitch(slug: string): Promise<void>;
   shelvePitch(bookSlug: string, logline?: string): Promise<ShelvedPitchMeta>;
   restorePitch(pitchSlug: string): Promise<BookMeta>;
+
+  // Pitch Room drafts
+  listPitchDrafts(): Promise<PitchDraft[]>;
+  getPitchDraft(conversationId: string): Promise<PitchDraft | null>;
+  readPitchDraftContent(conversationId: string): Promise<string>;
+  deletePitchDraft(conversationId: string): Promise<void>;
+  promotePitchToBook(conversationId: string): Promise<BookMeta>;
+  shelvePitchDraft(conversationId: string, logline?: string): Promise<ShelvedPitchMeta>;
+
+  /**
+   * Returns the absolute path to the pitch room drafts directory for a given
+   * conversation. Used by ChatService to set the working directory for Spark
+   * when running in pitch-room mode. Creates the directory structure if needed.
+   */
+  getPitchDraftPath(conversationId: string): string;
 }
 
 export interface IClaudeClient {
@@ -109,6 +125,7 @@ export interface IClaudeClient {
     maxTokens: number;
     thinkingBudget?: number;
     bookSlug?: string;
+    workingDir?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
 

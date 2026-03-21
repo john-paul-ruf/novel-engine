@@ -1,4 +1,5 @@
 import { useViewStore } from '../../stores/viewStore';
+import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { BookSelector } from '../Sidebar/BookSelector';
 import { VoiceSetupButton } from '../Sidebar/VoiceSetupButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
@@ -43,6 +44,30 @@ function NavButton({
   );
 }
 
+function PitchRoomButton(): React.ReactElement {
+  const { currentView, navigate } = useViewStore();
+  const draftCount = usePitchRoomStore((s) => s.drafts.length);
+
+  return (
+    <button
+      onClick={() => navigate('pitch-room')}
+      className={`no-drag flex w-full items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm transition-colors ${
+        currentView === 'pitch-room'
+          ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400'
+          : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+      }`}
+    >
+      <span>💡</span>
+      <span>Pitch Room</span>
+      {draftCount > 0 && (
+        <span className="ml-auto rounded-full bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+          {draftCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function Sidebar(): React.ReactElement {
   const { currentView, navigate } = useViewStore();
 
@@ -53,6 +78,9 @@ export function Sidebar(): React.ReactElement {
 
       {/* Voice setup — contextual to active book */}
       <VoiceSetupButton />
+
+      {/* Pitch Room — always accessible */}
+      <PitchRoomButton />
 
       {/* Pipeline tracker + File tree — scrollable */}
       <div className="flex-1 overflow-y-auto">

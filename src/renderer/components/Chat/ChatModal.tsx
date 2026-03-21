@@ -26,6 +26,11 @@ const PURPOSE_LABELS: Record<ConversationPurpose, { title: string; subtitle: str
     subtitle: '',
     badge: 'Pipeline',
   },
+  'pitch-room': {
+    title: 'Pitch Room',
+    subtitle: 'Brainstorm with Spark',
+    badge: 'Pitch Room',
+  },
 };
 
 function ModalHeader(): React.ReactElement {

@@ -11,6 +11,12 @@ export function useRevisionQueueEvents() {
         case 'session:status': {
           useRevisionQueueStore.setState(state => {
             if (!state.plan) return state;
+            // Ignore events for sessions that don't belong to the currently-loaded plan.
+            // This prevents a running queue for Book A from setting isRunning=true
+            // when the user has switched to Book B's queue.
+            const belongsToCurrentPlan = state.plan.sessions.some(s => s.id === event.sessionId);
+            if (!belongsToCurrentPlan) return state;
+
             const sessions = state.plan.sessions.map(s =>
               s.id === event.sessionId
                 ? {

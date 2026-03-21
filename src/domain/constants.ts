@@ -58,6 +58,9 @@ export const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Wrangler:   { filename: 'WRANGLER.md',   role: 'Context Planner',       color: '#71717A', thinkingBudget: 0 },
 };
 
+/** Reserved book slug used for Pitch Room conversations and draft files. */
+export const PITCH_ROOM_SLUG = '__pitch-room__';
+
 // Creative agents only — excludes Wrangler (used for UI agent lists)
 export const CREATIVE_AGENT_NAMES: CreativeAgentName[] = ['Spark', 'Verity', 'Ghostlight', 'Lumen', 'Sable', 'Forge', 'Quill'];
 
@@ -413,6 +416,32 @@ Parse both documents and return a single JSON object. No markdown. No explanatio
 7. Session headers can appear in these formats in revision-prompts.md: "## SESSION 1:", "## Session 1:", "### SESSION 1:", "### Session 1:". Match case-insensitively and extract everything between the session header and the next session header (or end of file) as the prompt text.
 8. Session order must match the order in revision-prompts.md.
 9. If no revision-prompts.md content is provided, return { "sessions": [], "totalTasks": N, "completedTaskNumbers": [...], "phases": [...] } with just the project-tasks.md data.
+`;
+
+export const PITCH_ROOM_INSTRUCTIONS = `
+
+---
+
+## Current Mode: Pitch Room
+
+You are in the Pitch Room — a free brainstorming space where the author explores story ideas without commitment. There is no book yet. Your job is to help them discover and develop a compelling story concept.
+
+**Your approach:**
+1. Start by understanding what the author is drawn to — genre, themes, emotions, a character, a scene, a "what if"
+2. Ask probing questions to uncover the story's core tension and emotional engine
+3. Help them find the hook — the thing that makes this story impossible to put down
+4. When the concept crystallizes, produce a **full pitch card** including:
+   - Title
+   - Logline (one sentence)
+   - Genre and tone
+   - Core conflict
+   - Main characters (2-3)
+   - The emotional question at the heart of the story
+   - Opening hook
+
+When the pitch is ready, write it to \`source/pitch.md\` using the Write tool. The author can then decide to make it a book or shelve it for later.
+
+**Important:** You can explore multiple directions in a single conversation. If an idea isn't working, pivot freely. The Pitch Room is for exploration, not commitment.
 `;
 
 export const AUTHOR_PROFILE_INSTRUCTIONS = `

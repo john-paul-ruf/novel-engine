@@ -7,10 +7,12 @@ import type {
   BookSummary,
   FileEntry,
   FileManifestItem,
+  PitchDraft,
   ProjectManifest,
   ShelvedPitch,
   ShelvedPitchMeta,
 } from '@domain/types';
+import { PITCH_ROOM_SLUG } from '@domain/constants';
 
 const VALID_COVER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
@@ -49,6 +51,7 @@ export class FileSystemService implements IFileSystemService {
 
     for (const entry of entries) {
       if (entry.startsWith('_') || entry.startsWith('.')) continue;
+      if (entry === PITCH_ROOM_SLUG) continue;
 
       const entryPath = path.join(this.booksDir, entry);
       const stat = await fs.stat(entryPath).catch(() => null);
@@ -671,6 +674,162 @@ export class FileSystemService implements IFileSystemService {
     await this.deleteShelvedPitch(pitchSlug);
 
     return bookMeta;
+  }
+
+  // ── Pitch Room Drafts ────────────────────────────────────────────
+
+  getPitchDraftPath(conversationId: string): string {
+    const draftDir = path.join(this.booksDir, PITCH_ROOM_SLUG, 'drafts', conversationId);
+    // Synchronous path resolution — directory creation happens lazily when the CLI runs
+    return draftDir;
+  }
+
+  async listPitchDrafts(): Promise<PitchDraft[]> {
+    const draftsDir = path.join(this.booksDir, PITCH_ROOM_SLUG, 'drafts');
+    let entries: string[];
+    try {
+      entries = await fs.readdir(draftsDir);
+    } catch {
+      return [];
+    }
+
+    const drafts: PitchDraft[] = [];
+    for (const entry of entries) {
+      const entryPath = path.join(draftsDir, entry);
+      const stat = await fs.stat(entryPath).catch(() => null);
+      if (!stat || !stat.isDirectory()) continue;
+
+      const draft = await this.buildPitchDraft(entry, entryPath, stat);
+      drafts.push(draft);
+    }
+
+    // Sort by updatedAt descending (newest first)
+    drafts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return drafts;
+  }
+
+  async getPitchDraft(conversationId: string): Promise<PitchDraft | null> {
+    const draftDir = path.join(this.booksDir, PITCH_ROOM_SLUG, 'drafts', conversationId);
+    const stat = await fs.stat(draftDir).catch(() => null);
+    if (!stat || !stat.isDirectory()) return null;
+
+    return this.buildPitchDraft(conversationId, draftDir, stat);
+  }
+
+  async readPitchDraftContent(conversationId: string): Promise<string> {
+    const pitchPath = path.join(
+      this.booksDir, PITCH_ROOM_SLUG, 'drafts', conversationId, 'source', 'pitch.md',
+    );
+    try {
+      return await fs.readFile(pitchPath, 'utf-8');
+    } catch {
+      throw new Error(`No pitch.md found for draft conversation "${conversationId}"`);
+    }
+  }
+
+  async deletePitchDraft(conversationId: string): Promise<void> {
+    const draftDir = path.join(this.booksDir, PITCH_ROOM_SLUG, 'drafts', conversationId);
+    try {
+      await fs.rm(draftDir, { recursive: true, force: true });
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
+  async promotePitchToBook(conversationId: string): Promise<BookMeta> {
+    const pitchContent = await this.readPitchDraftContent(conversationId);
+
+    // Extract title from first heading
+    const titleMatch = pitchContent.match(/^#\s+(.+)$/m);
+    const title = titleMatch?.[1]?.trim() || 'Untitled Book';
+
+    // Create a real book
+    const bookMeta = await this.createBook(title);
+
+    // Copy pitch content to the new book
+    await this.writeFile(bookMeta.slug, 'source/pitch.md', pitchContent);
+
+    // Delete the draft folder
+    await this.deletePitchDraft(conversationId);
+
+    return bookMeta;
+  }
+
+  async shelvePitchDraft(conversationId: string, logline?: string): Promise<ShelvedPitchMeta> {
+    const pitchContent = await this.readPitchDraftContent(conversationId);
+
+    // Extract title from first heading
+    const titleMatch = pitchContent.match(/^#\s+(.+)$/m);
+    const title = titleMatch?.[1]?.trim() || 'Untitled Pitch';
+    const slug = this.slugify(title);
+    const now = new Date().toISOString();
+
+    // Extract logline from first non-heading paragraph if not provided
+    const resolvedLogline = logline || this.extractLogline(pitchContent);
+
+    // Build the shelved pitch file with front matter
+    const frontMatter = [
+      '---',
+      `title: ${title}`,
+      `shelvedAt: ${now}`,
+      `shelvedFrom: `,
+      `logline: ${resolvedLogline}`,
+      '---',
+      '',
+    ].join('\n');
+
+    const fileContent = frontMatter + pitchContent;
+
+    // Ensure _pitches directory exists
+    const pitchesDir = path.join(this.booksDir, '_pitches');
+    await fs.mkdir(pitchesDir, { recursive: true });
+
+    // Write the pitch file
+    await fs.writeFile(path.join(pitchesDir, `${slug}.md`), fileContent, 'utf-8');
+
+    // Delete the draft folder
+    await this.deletePitchDraft(conversationId);
+
+    return {
+      slug,
+      title,
+      logline: resolvedLogline,
+      shelvedAt: now,
+      shelvedFrom: '',
+    };
+  }
+
+  private async buildPitchDraft(
+    conversationId: string,
+    draftDir: string,
+    stat: { mtime: Date; birthtime: Date },
+  ): Promise<PitchDraft> {
+    const pitchPath = path.join(draftDir, 'source', 'pitch.md');
+    let hasPitch = false;
+    let title = 'Untitled Draft';
+
+    try {
+      const content = await fs.readFile(pitchPath, 'utf-8');
+      hasPitch = content.trim().length > 0;
+      if (hasPitch) {
+        const titleMatch = content.match(/^#\s+(.+)$/m);
+        if (titleMatch?.[1]) {
+          title = titleMatch[1].trim();
+        }
+      }
+    } catch {
+      // No pitch.md yet — that's fine
+    }
+
+    return {
+      conversationId,
+      title,
+      hasPitch,
+      createdAt: stat.birthtime.toISOString(),
+      updatedAt: stat.mtime.toISOString(),
+    };
   }
 
   // ── Private Helpers ───────────────────────────────────────────────

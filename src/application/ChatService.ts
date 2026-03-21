@@ -17,7 +17,7 @@ import type {
   StreamEvent,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -102,6 +102,14 @@ export class ChatService {
     try {
       // Step 5: Retrieve conversation to check purpose
       const conversation = this.db.getConversation(conversationId);
+
+      // Pitch Room branch — skip wrangler, minimal context, custom working dir
+      if (conversation?.purpose === 'pitch-room') {
+        await this.handlePitchRoomMessage({
+          conversationId, agentName, bookSlug, appSettings, agent, onEvent,
+        });
+        return;
+      }
 
       // Step 5b: Build lightweight manifest (fast — just file listing)
       onEvent({ type: 'status', message: randomPreparingStatus() });
@@ -289,5 +297,108 @@ export class ChatService {
    */
   getLastDiagnostics(): ContextDiagnostics | null {
     return this.lastDiagnostics;
+  }
+
+  /**
+   * Handle a pitch-room conversation: skip wrangler, load minimal context,
+   * route file writes to the draft directory.
+   */
+  private async handlePitchRoomMessage(params: {
+    conversationId: string;
+    agentName: AgentName;
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean };
+    agent: { systemPrompt: string; thinkingBudget: number };
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<void> {
+    const { conversationId, agentName, bookSlug, appSettings, agent, onEvent } = params;
+
+    onEvent({ type: 'status', message: randomPreparingStatus() });
+
+    // Load author profile if it exists (minimal context)
+    let authorProfile = '';
+    try {
+      const profilePath = this.fs.getAuthorProfilePath();
+      const { readFile } = await import('node:fs/promises');
+      authorProfile = await readFile(profilePath, 'utf-8');
+    } catch {
+      // No author profile yet — that's fine
+    }
+
+    // Build the system prompt with Pitch Room instructions
+    let systemPrompt = agent.systemPrompt + PITCH_ROOM_INSTRUCTIONS;
+    if (authorProfile.trim()) {
+      systemPrompt += `\n\n---\n\n## Author Profile\n\n${authorProfile}`;
+    }
+
+    // Get conversation messages from DB
+    const messages = this.db.getMessages(conversationId);
+    const conversationMessages = messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+
+    const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
+
+    // Get the draft directory path — this is where Spark will write files
+    const workingDir = this.fs.getPitchDraftPath(conversationId);
+
+    // Ensure the draft directory exists before spawning the CLI
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(workingDir, { recursive: true });
+
+    // Track active stream
+    this.activeStream = {
+      conversationId,
+      agentName,
+      model: appSettings.model,
+      bookSlug,
+      startedAt: new Date().toISOString(),
+    };
+
+    onEvent({ type: 'callStart', agentName, model: appSettings.model, bookSlug });
+    onEvent({ type: 'status', message: randomWaitingStatus() });
+
+    let responseBuffer = '';
+    let thinkingBuffer = '';
+
+    await this.claude.sendMessage({
+      model: appSettings.model,
+      systemPrompt,
+      messages: conversationMessages,
+      maxTokens: appSettings.maxTokens,
+      thinkingBudget,
+      workingDir,
+      onEvent: (event: StreamEvent) => {
+        if (event.type === 'textDelta') {
+          responseBuffer += event.text;
+        } else if (event.type === 'thinkingDelta') {
+          thinkingBuffer += event.text;
+        } else if (event.type === 'filesChanged') {
+          this.lastChangedFiles = event.paths;
+        } else if (event.type === 'done') {
+          this.db.saveMessage({
+            conversationId,
+            role: 'assistant',
+            content: responseBuffer,
+            thinking: thinkingBuffer,
+          });
+
+          this.usage.recordUsage({
+            conversationId,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            model: appSettings.model,
+          });
+
+          this.activeStream = null;
+        } else if (event.type === 'error') {
+          this.activeStream = null;
+        }
+
+        onEvent(event);
+      },
+    });
   }
 }

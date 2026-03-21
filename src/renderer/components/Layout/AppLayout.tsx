@@ -8,6 +8,7 @@ import { FilesView } from '../Files/FilesView';
 import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
 import { RevisionQueueView } from '../RevisionQueue';
+import { PitchRoomView } from '../PitchRoom/PitchRoomView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
 import { Sidebar } from './Sidebar';
@@ -53,6 +54,9 @@ function ViewContent(): React.ReactElement {
       </div>
       <div className={`h-full ${currentView === 'revision-queue' ? '' : 'hidden'}`}>
         <RevisionQueueView />
+      </div>
+      <div className={`h-full ${currentView === 'pitch-room' ? '' : 'hidden'}`}>
+        <PitchRoomView />
       </div>
     </>
   );
