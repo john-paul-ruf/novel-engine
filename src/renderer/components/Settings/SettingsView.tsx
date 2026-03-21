@@ -130,7 +130,7 @@ function ModelSelectionSection(): React.ReactElement {
 function ThinkingSection(): React.ReactElement {
   const { settings, update } = useSettingsStore();
 
-  const enableThinking = settings?.enableThinking ?? true;
+  const enableThinking = settings?.enableThinking ?? false;
   const thinkingBudget = settings?.thinkingBudget ?? 10000;
   const autoCollapse = settings?.autoCollapseThinking ?? true;
 

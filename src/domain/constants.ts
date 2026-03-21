@@ -84,7 +84,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hasClaudeCli: false,
   model: 'claude-opus-4-20250514',
   maxTokens: 8192,
-  enableThinking: true,
+  enableThinking: false,
   thinkingBudget: 10000,
   autoCollapseThinking: true,
   enableNotifications: true,
