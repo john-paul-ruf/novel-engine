@@ -543,7 +543,7 @@ export class RevisionQueueService implements IRevisionQueueService {
     this.hashByBook.delete(plan.bookSlug);
     this.parsedByBook.delete(plan.bookSlug);
 
-    this.emit({ type: 'queue:archived' });
+    this.emit({ type: 'queue:archived', planId });
   }
 
   // ── Session execution ────────────────────────────────────────────
@@ -783,13 +783,13 @@ export class RevisionQueueService implements IRevisionQueueService {
 
     for (const session of pendingSessions) {
       if (this.paused) {
-        this.emit({ type: 'queue:done' });
+        this.emit({ type: 'queue:done', planId });
         return;
       }
       await this.runSession(planId, session.id);
     }
 
-    this.emit({ type: 'queue:done' });
+    this.emit({ type: 'queue:done', planId });
   }
 
   async approveSession(planId: string, sessionId: string): Promise<void> {
@@ -844,6 +844,7 @@ export class RevisionQueueService implements IRevisionQueueService {
 
     this.emit({
       type: 'plan:progress',
+      planId: plan.id,
       completedTasks: plan.completedTaskNumbers.length,
       totalTasks: plan.totalTasks,
     });

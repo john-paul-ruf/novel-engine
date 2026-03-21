@@ -248,10 +248,10 @@ export type RevisionQueueEvent =
   | { type: 'session:done'; sessionId: string; taskNumbers: number[] }
   | { type: 'session:gate'; sessionId: string; gateText: string }
   | { type: 'session:streamEvent'; sessionId: string; event: StreamEvent }
-  | { type: 'plan:progress'; completedTasks: number; totalTasks: number }
+  | { type: 'plan:progress'; planId: string; completedTasks: number; totalTasks: number }
   | { type: 'plan:loading-step'; step: string }
-  | { type: 'queue:done' }
-  | { type: 'queue:archived' }
+  | { type: 'queue:done'; planId: string }
+  | { type: 'queue:archived'; planId: string }
   | { type: 'error'; sessionId: string; message: string };
 
 // === Build ===

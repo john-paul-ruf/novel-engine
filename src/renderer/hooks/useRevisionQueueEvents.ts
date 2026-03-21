@@ -111,30 +111,43 @@ export function useRevisionQueueEvents() {
         }
 
         case 'queue:done': {
-          useRevisionQueueStore.setState({
-            isRunning: false,
-            isPaused: false,
-          });
+          // Only reset running state if this event belongs to the currently-loaded plan.
+          // Without this check, Book A finishing would stomp Book B's isRunning flag.
+          const doneState = useRevisionQueueStore.getState();
+          if (doneState.planId === event.planId) {
+            useRevisionQueueStore.setState({
+              isRunning: false,
+              isPaused: false,
+            });
+          }
           break;
         }
 
         case 'queue:archived': {
-          useRevisionQueueStore.setState({
-            isArchiving: false,
-            isQueueArchived: true,
-            // Clear the in-memory plan — source files are archived, pipeline will advance.
-            // The user will see the pipeline move forward when they navigate away.
-            plan: null,
-            planId: null,
-          });
+          const archiveState = useRevisionQueueStore.getState();
+          if (archiveState.planId === event.planId) {
+            useRevisionQueueStore.setState({
+              isArchiving: false,
+              isQueueArchived: true,
+              // Clear the in-memory plan — source files are archived, pipeline will advance.
+              // The user will see the pipeline move forward when they navigate away.
+              plan: null,
+              planId: null,
+            });
+          }
           break;
         }
 
         case 'error': {
-          useRevisionQueueStore.setState({
-            error: event.message,
-            isRunning: false,
-          });
+          // Only update if the erroring session belongs to the current plan
+          const errState = useRevisionQueueStore.getState();
+          const errorBelongs = errState.plan?.sessions.some(s => s.id === event.sessionId);
+          if (errorBelongs) {
+            useRevisionQueueStore.setState({
+              error: event.message,
+              isRunning: false,
+            });
+          }
           break;
         }
       }

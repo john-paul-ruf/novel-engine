@@ -140,6 +140,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (!plan || !planId) return;
     const next = plan.sessions.find(s => s.status === 'pending');
     if (!next) return;
+    const startedPlanId = planId;
     set({
       isRunning: true,
       activeSessionId: next.id,
@@ -152,15 +153,24 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     try {
       await window.novelEngine.revision.runSession(planId, next.id);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err) });
+      // Only set error if this plan is still the active one
+      if (get().planId === startedPlanId) {
+        set({ error: err instanceof Error ? err.message : String(err) });
+      }
     } finally {
-      set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
+      // Only reset running state if the store still holds the same plan.
+      // If the user switched books mid-run, the store now has a different planId
+      // and we must NOT stomp it with isRunning: false.
+      if (get().planId === startedPlanId) {
+        set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
+      }
     }
   },
 
   runAll: async () => {
     const { planId, plan, selectedSessionIds } = get();
     if (!planId) return;
+    const startedPlanId = planId;
     set({ isRunning: true });
     try {
       const sessionIds = plan?.mode === 'selective'
@@ -168,15 +178,22 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
         : undefined;
       await window.novelEngine.revision.runAll(planId, sessionIds);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err) });
+      if (get().planId === startedPlanId) {
+        set({ error: err instanceof Error ? err.message : String(err) });
+      }
     } finally {
-      set({ isRunning: false });
+      // Only reset if we're still on the same plan — prevents stale finally
+      // from a Book A run stomping Book B's isRunning flag.
+      if (get().planId === startedPlanId) {
+        set({ isRunning: false });
+      }
     }
   },
 
   runSession: async (sessionId: string) => {
     const { planId } = get();
     if (!planId) return;
+    const startedPlanId = planId;
     set({
       isRunning: true,
       activeSessionId: sessionId,
@@ -189,9 +206,13 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     try {
       await window.novelEngine.revision.runSession(planId, sessionId);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err) });
+      if (get().planId === startedPlanId) {
+        set({ error: err instanceof Error ? err.message : String(err) });
+      }
     } finally {
-      set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
+      if (get().planId === startedPlanId) {
+        set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
+      }
     }
   },
 
