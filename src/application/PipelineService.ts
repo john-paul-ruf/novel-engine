@@ -415,6 +415,37 @@ export class PipelineService implements IPipelineService {
   }
 
   /**
+   * Compare the word counts of two files within a book.
+   *
+   * Returns `true` when the files have **different** word counts, indicating
+   * the live file has been rewritten since it was archived. Returns `false`
+   * when the counts match (content is still the archive copy) or when either
+   * file cannot be read.
+   *
+   * This is used by the `second-read` and `second-assessment` phase checks to
+   * prevent the pipeline from advancing when `completeRevision()` has copied
+   * a report to its v1 counterpart but no new report has been generated yet.
+   */
+  private async filesHaveDifferentWordCount(
+    bookSlug: string,
+    pathA: string,
+    pathB: string,
+  ): Promise<boolean> {
+    try {
+      const [contentA, contentB] = await Promise.all([
+        this.fs.readFile(bookSlug, pathA),
+        this.fs.readFile(bookSlug, pathB),
+      ]);
+      const wordsA = contentA.split(/\s+/).filter(Boolean).length;
+      const wordsB = contentB.split(/\s+/).filter(Boolean).length;
+      return wordsA !== wordsB;
+    } catch {
+      // If either file can't be read, treat as not-ready
+      return false;
+    }
+  }
+
+  /**
    * Check that a file exists AND contains meaningful content (>= MIN_SUBSTANTIVE_WORDS).
    *
    * Old versions of `createBook()` pre-created some pipeline-gating files with
@@ -479,15 +510,38 @@ export class PipelineService implements IPipelineService {
         return this.fs.fileExists(bookSlug, 'source/reader-report-v1.md');
 
       case 'second-read': {
+        // Both the live reader report AND its archived v1 copy must exist.
+        // Additionally, the live report must differ from the archive — if the
+        // word counts match, the archive was just copied and no new report has
+        // been generated yet (Ghostlight hasn't done a second read).
         const [hasReport, hasArchived] = await Promise.all([
           this.fs.fileExists(bookSlug, 'source/reader-report.md'),
           this.fs.fileExists(bookSlug, 'source/reader-report-v1.md'),
         ]);
-        return hasReport && hasArchived;
+        if (!hasReport || !hasArchived) return false;
+        return this.filesHaveDifferentWordCount(
+          bookSlug,
+          'source/reader-report.md',
+          'source/reader-report-v1.md',
+        );
       }
 
-      case 'second-assessment':
-        return this.fs.fileExists(bookSlug, 'source/dev-report-v1.md');
+      case 'second-assessment': {
+        // The archived dev-report-v1.md must exist AND the live dev-report.md
+        // must have a different word count — proving Lumen actually wrote a new
+        // assessment after revision rather than the pipeline seeing the archive
+        // copy that completeRevision() created.
+        const [hasDevReport, hasArchivedDev] = await Promise.all([
+          this.fs.fileExists(bookSlug, 'source/dev-report.md'),
+          this.fs.fileExists(bookSlug, 'source/dev-report-v1.md'),
+        ]);
+        if (!hasDevReport || !hasArchivedDev) return false;
+        return this.filesHaveDifferentWordCount(
+          bookSlug,
+          'source/dev-report.md',
+          'source/dev-report-v1.md',
+        );
+      }
 
       case 'copy-edit':
         return this.hasSubstantiveFile(bookSlug, 'source/audit-report.md');
