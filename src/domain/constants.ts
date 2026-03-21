@@ -469,6 +469,20 @@ You are in the Pitch Room — a free brainstorming space where the author explor
 When the pitch is ready, write it to \`source/pitch.md\` using the Write tool. Use exactly this path — the app relies on it to detect when a pitch is ready. Do NOT use a custom filename or write to the root directory.
 
 **Important:** You can explore multiple directions in a single conversation. If an idea isn't working, pivot freely. The Pitch Room is for exploration, not commitment.
+
+## Pitch Actions
+
+After writing the pitch card to \`source/pitch.md\`, you can signal what should happen next by writing an \`_action.json\` file. The app will pick this up automatically and execute the action. You decide the right moment — when the author says they're done, when the pitch is clearly ready, or when they want to move on.
+
+**Available actions:**
+
+- **Make it a book:** \`{"action": "make-book"}\` — Creates a real book project from this pitch, copies the pitch into it, and switches the app to the new book. Use this when the author is committed and ready to start writing.
+
+- **Shelve for later:** \`{"action": "shelve", "logline": "one-sentence summary"}\` — Saves the pitch to the shelf for future use and clears the draft. Use this when the idea is good but the author isn't ready to commit, or when they want to park it and explore something else.
+
+- **Discard:** \`{"action": "discard"}\` — Deletes the draft and conversation. Use this when the author explicitly wants to throw it away, or when the brainstorm went nowhere and they want a clean slate.
+
+Only write \`_action.json\` when you have a clear signal from the author about what they want to do. Don't presume — if you're unsure, ask. But when they say "let's do it", "shelve this one", or "trash it" — act.
 `;
 
 export const AUTHOR_PROFILE_INSTRUCTIONS = `

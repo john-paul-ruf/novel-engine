@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Conversation, Message, StreamEvent } from '@domain/types';
+import type { Conversation, Message, StreamEvent, PitchOutcome } from '@domain/types';
 import { PITCH_ROOM_SLUG, randomRespondingStatus } from '@domain/constants';
 import { streamRouter } from './streamRouter';
 
@@ -13,9 +13,13 @@ type PitchRoomState = {
   statusMessage: string;
   loading: boolean;
 
+  // Outcome state — set when Spark signals a pitch action
+  lastOutcome: { action: PitchOutcome; bookSlug?: string; title?: string } | null;
+
   // Actions
   ensureConversation: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
+  clearOutcome: () => void;
 
   _handleStreamEvent: (event: StreamEvent) => void;
 };
@@ -29,6 +33,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   thinkingBuffer: '',
   statusMessage: '',
   loading: false,
+  lastOutcome: null,
 
   ensureConversation: async () => {
     // If already loaded, skip
@@ -113,6 +118,10 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
     }
   },
 
+  clearOutcome: () => {
+    set({ lastOutcome: null });
+  },
+
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'pitch-room') return;
 
@@ -179,6 +188,22 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
             statusMessage: '',
           });
         }
+        break;
+      }
+
+      case 'pitchOutcome': {
+        // Spark signaled a pitch action — the backend already executed it.
+        // Store the outcome so the PitchRoomView can react (navigate, toast, etc.)
+        set({
+          lastOutcome: {
+            action: event.action,
+            bookSlug: event.bookSlug,
+            title: event.title,
+          },
+          // Clear the conversation state — the draft/conversation was cleaned up
+          activeConversation: null,
+          messages: [],
+        });
         break;
       }
 

@@ -151,6 +151,7 @@ export type StreamEvent =
   | { type: 'toolUse'; tool: ToolUseInfo }
   | { type: 'filesChanged'; paths: string[] }
   | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number }
+  | { type: 'pitchOutcome'; action: PitchOutcome; bookSlug?: string; pitchSlug?: string; title?: string }
   | { type: 'error'; message: string };
 
 /**
