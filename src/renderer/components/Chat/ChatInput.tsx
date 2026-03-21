@@ -52,11 +52,6 @@ export function ChatInput({ onSend, disabled, lockedAgentName }: ChatInputProps)
 
   return (
     <div className="border-t border-zinc-800 px-6 py-4">
-      {disabled && (
-        <div className="mb-2 text-xs text-zinc-500">
-          Agent is responding...
-        </div>
-      )}
       <div className="flex items-end gap-3">
         <textarea
           ref={textareaRef}

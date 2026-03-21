@@ -449,7 +449,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isStreaming: true,
           streamBuffer: '',
           thinkingBuffer: '',
-          statusMessage: `${active.agentName} is responding…`,
+          statusMessage: randomRespondingStatus(),
         });
       } else {
         // Conversation not in the loaded list (e.g. different book) — just flag streaming
@@ -457,7 +457,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           isStreaming: true,
           streamBuffer: '',
           thinkingBuffer: '',
-          statusMessage: `${active.agentName} is responding…`,
+          statusMessage: randomRespondingStatus(),
         });
       }
     } catch (error) {

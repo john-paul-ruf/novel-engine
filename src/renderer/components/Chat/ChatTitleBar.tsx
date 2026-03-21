@@ -5,7 +5,7 @@ import { useCliActivityStore } from '../../stores/cliActivityStore';
 
 export function ChatTitleBar(): React.ReactElement {
   const { activeSlug, books } = useBookStore();
-  const { activeConversation, isStreaming } = useChatStore();
+  const { activeConversation } = useChatStore();
   const { isOpen: cliPanelOpen, isActive: cliActive, toggle: toggleCliPanel, entries } = useCliActivityStore();
 
   const activeBook = books.find((b) => b.slug === activeSlug);
@@ -28,12 +28,6 @@ export function ChatTitleBar(): React.ReactElement {
 
       {/* Right: active agent indicator + streaming status + CLI activity button */}
       <div className="no-drag flex items-center gap-2">
-        {isStreaming && (
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-            <span>Streaming</span>
-          </div>
-        )}
         {agentMeta && activeConversation && (
           <div className="flex items-center gap-1.5 text-xs text-zinc-500">
             <div
