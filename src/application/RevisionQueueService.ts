@@ -145,6 +145,35 @@ export class RevisionQueueService implements IRevisionQueueService {
     }
   }
 
+  /**
+   * Re-read the source files, recompute their content hash, and update
+   * the on-disk cache so it reflects the current file state. This avoids
+   * a stale hash causing an unnecessary Wrangler CLI call on restart
+   * after approveSession modifies project-tasks.md.
+   */
+  private async refreshCacheHash(bookSlug: string): Promise<void> {
+    try {
+      let revisionPromptsContent = '';
+      let projectTasksContent = '';
+      try { revisionPromptsContent = await this.fs.readFile(bookSlug, 'source/revision-prompts.md'); } catch { /* may not exist */ }
+      try { projectTasksContent = await this.fs.readFile(bookSlug, 'source/project-tasks.md'); } catch { /* may not exist */ }
+
+      const combinedContent = revisionPromptsContent + '\0' + projectTasksContent;
+      const newHash = this.computeHash(combinedContent);
+
+      const cache = await this.readCache(bookSlug);
+      if (cache) {
+        cache.contentHash = newHash;
+        await this.writeCache(bookSlug, cache);
+      }
+
+      // Also update the in-memory hash so persistState stays consistent
+      this.hashByBook.set(bookSlug, newHash);
+    } catch {
+      // Best-effort — don't fail the approval flow
+    }
+  }
+
   // ── Plan loading with cache ──────────────────────────────────────
 
   async loadPlan(bookSlug: string): Promise<RevisionPlan> {
@@ -693,6 +722,11 @@ export class RevisionQueueService implements IRevisionQueueService {
       ...plan.completedTaskNumbers,
       ...session.taskNumbers.filter((n) => !plan.completedTaskNumbers.includes(n)),
     ];
+
+    // Refresh the cache hash so it matches the modified project-tasks.md.
+    // Without this, restarting the app would see a hash mismatch and
+    // unnecessarily re-call the Wrangler CLI to re-parse the plan.
+    await this.refreshCacheHash(plan.bookSlug);
 
     // Update phase counts (per-phase calculation)
     for (const phase of plan.phases) {
