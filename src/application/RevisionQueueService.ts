@@ -226,11 +226,17 @@ export class RevisionQueueService implements IRevisionQueueService {
 
       const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
 
-      const rawResponse = await this.claude.sendOneShot({
+      let rawResponse = '';
+      await this.claude.sendMessage({
         model: WRANGLER_MODEL,
         systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
-        userMessage,
+        messages: [{ role: 'user' as const, content: userMessage }],
         maxTokens: 8192,
+        onEvent: (event) => {
+          if (event.type === 'textDelta') {
+            rawResponse += event.text;
+          }
+        },
       });
 
       this.emit({

@@ -49,12 +49,11 @@ export class ClaudeCodeClient implements IClaudeClient {
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
 
-    // Build CLI args — full agent mode (no --print) with tool restrictions
     const args = [
-      '--verbose',
       '--output-format', 'stream-json',
       '--include-partial-messages',
       '--model', model,
+      '--max-turns', '15',
       '--system-prompt', systemPrompt,
       '--allowedTools', 'Read,Write,Edit,LS',
     ];
@@ -163,121 +162,6 @@ export class ClaudeCodeClient implements IClaudeClient {
 
       // Write conversation prompt to stdin and close
       child.stdin.write(conversationPrompt);
-      child.stdin.end();
-    });
-  }
-
-  async sendOneShot(params: {
-    model: string;
-    systemPrompt: string;
-    userMessage: string;
-    maxTokens: number;
-  }): Promise<string> {
-    const { model, systemPrompt, userMessage } = params;
-
-    const args = [
-      '--verbose',
-      '--output-format', 'stream-json',
-      '--include-partial-messages',
-      '--model', model,
-      '--system-prompt', systemPrompt,
-    ];
-
-    return new Promise<string>((resolve, reject) => {
-      const child = spawn('claude', args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env },
-      });
-
-      let stdoutBuffer = '';
-      let stderrBuffer = '';
-      let textBuffer = '';
-      let settled = false;
-
-      const settle = (fn: () => void) => {
-        if (!settled) {
-          settled = true;
-          fn();
-        }
-      };
-
-      child.on('error', (err: NodeJS.ErrnoException) => {
-        const message = err.code === 'ENOENT' ? CLI_NOT_FOUND_MESSAGE : err.message;
-        settle(() => reject(new Error(message)));
-      });
-
-      child.stdout.on('data', (chunk: Buffer) => {
-        stdoutBuffer += chunk.toString();
-        const lines = stdoutBuffer.split('\n');
-        stdoutBuffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const event = JSON.parse(line) as Record<string, unknown>;
-            const eventType = event.type as string;
-
-            if (eventType === 'content_block_delta') {
-              const delta = event.delta as Record<string, unknown> | undefined;
-              if (!delta) continue;
-              const deltaType = delta.type as string | undefined;
-              if (deltaType === 'text_delta' || deltaType === 'text') {
-                textBuffer += (delta.text as string) ?? '';
-              }
-            }
-
-            if (eventType === 'result') {
-              if (!textBuffer) {
-                const resultText = event.result as string | undefined;
-                if (resultText) textBuffer = resultText;
-              }
-            }
-          } catch {
-            // Skip unparseable lines
-          }
-        }
-      });
-
-      child.stderr.on('data', (chunk: Buffer) => {
-        stderrBuffer += chunk.toString();
-      });
-
-      child.on('close', (code) => {
-        if (stdoutBuffer.trim()) {
-          try {
-            const event = JSON.parse(stdoutBuffer.trim()) as Record<string, unknown>;
-            const eventType = event.type as string;
-            if (eventType === 'content_block_delta') {
-              const delta = event.delta as Record<string, unknown> | undefined;
-              const deltaType = delta?.type as string | undefined;
-              if (deltaType === 'text_delta' || deltaType === 'text') {
-                textBuffer += (delta?.text as string) ?? '';
-              }
-            }
-            if (eventType === 'result' && !textBuffer) {
-              const resultText = event.result as string | undefined;
-              if (resultText) textBuffer = resultText;
-            }
-          } catch {
-            // Skip unparseable remainder
-          }
-        }
-
-        if (code !== 0) {
-          const message = stderrBuffer.trim() || `Claude CLI exited with code ${code}`;
-          settle(() => reject(new Error(message)));
-          return;
-        }
-
-        if (!textBuffer) {
-          settle(() => reject(new Error('No text received from Claude CLI')));
-          return;
-        }
-
-        settle(() => resolve(textBuffer));
-      });
-
-      child.stdin.write(userMessage);
       child.stdin.end();
     });
   }

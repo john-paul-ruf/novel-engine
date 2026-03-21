@@ -100,13 +100,6 @@ export interface IClaudeClient {
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
 
-  sendOneShot(params: {
-    model: string;
-    systemPrompt: string;
-    userMessage: string;
-    maxTokens: number;
-  }): Promise<string>;
-
   isAvailable(): Promise<boolean>;
 }
 
