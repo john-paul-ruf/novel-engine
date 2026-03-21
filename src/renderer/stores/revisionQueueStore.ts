@@ -72,7 +72,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   loadPlan: async (bookSlug: string) => {
     const { plan, isLoading } = get();
     if (isLoading) return;
-    if (plan && plan.bookSlug === bookSlug) return;
+    if (plan && plan.bookSlug === bookSlug && plan.sessions.length > 0) return;
 
     try {
       set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });

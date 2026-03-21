@@ -137,19 +137,16 @@ export class FileSystemService implements IFileSystemService {
     // phase — creating it here would mark scaffold as immediately "complete"
     // before the user has actually done any work with Verity.
 
-    // Create front matter chapters:
-    //   00-copyright — auto-generated, not manually editable via the UI
-    //   01-dedication — author-editable, must always have title "Dedication"
-    await fs.mkdir(path.join(bookRoot, 'chapters', '00-copyright'), { recursive: true });
+    await fs.mkdir(path.join(bookRoot, 'chapters', '00-0-copyright'), { recursive: true });
     await fs.writeFile(
-      path.join(bookRoot, 'chapters', '00-copyright', 'draft.md'),
+      path.join(bookRoot, 'chapters', '00-0-copyright', 'draft.md'),
       this.generateCopyrightContent(meta.title, meta.author),
       'utf-8',
     );
 
-    await fs.mkdir(path.join(bookRoot, 'chapters', '01-dedication'), { recursive: true });
+    await fs.mkdir(path.join(bookRoot, 'chapters', '00-1-dedication'), { recursive: true });
     await fs.writeFile(
-      path.join(bookRoot, 'chapters', '01-dedication', 'draft.md'),
+      path.join(bookRoot, 'chapters', '00-1-dedication', 'draft.md'),
       '# Dedication\n\n',
       'utf-8',
     );
@@ -294,7 +291,7 @@ export class FileSystemService implements IFileSystemService {
         // Skip front-matter chapters — these are publishing artifacts
         // (auto-generated copyright page, author-written dedication).
         // They are concatenated by BuildService/Pandoc, not read by agents.
-        if (entry.name === '00-copyright' || entry.name === '01-dedication') continue;
+        if (/^00-\d+-/.test(entry.name)) continue;
 
         chapterCount++;
 
@@ -549,8 +546,8 @@ export class FileSystemService implements IFileSystemService {
 
   /**
    * Sort key for chapter folder names that correctly orders:
-   *   00-copyright, 01-dedication  → front matter (0–1)
-   *   02-chapter … 99-chapter      → body (2–99)
+   *   00-0-copyright, 00-1-dedication → front matter (sub-indexed under 00)
+   *   02-chapter … 99-chapter         → body (2–99)
    *   z0-notes, z1-afterword …     → back matter (10000+)
    *
    * Without this, `parseInt('z0-...', 10)` returns NaN → 0, wrongly
@@ -561,12 +558,16 @@ export class FileSystemService implements IFileSystemService {
       const n = parseInt(name.slice(1), 10);
       return 10000 + (isNaN(n) ? 0 : n);
     }
+    const fmMatch = name.match(/^00-(\d+)-/);
+    if (fmMatch) {
+      return parseInt(fmMatch[1], 10) * 0.01;
+    }
     const n = parseInt(name, 10);
     return isNaN(n) ? 5000 : n;
   }
 
   /**
-   * Generate the auto-populated content for the 00-copyright chapter.
+   * Generate the auto-populated content for the 00-0-copyright chapter.
    * This is written at book-creation time and regenerated during build
    * if the draft is empty.
    */

@@ -460,6 +460,12 @@ export class RevisionQueueService implements IRevisionQueueService {
     let responseBuffer = '';
     let thinkingBuffer = '';
 
+    this.emit({
+      type: 'session:streamEvent',
+      sessionId: session.id,
+      event: { type: 'callStart', agentName: 'Verity' as AgentName, model, bookSlug: plan.bookSlug },
+    });
+
     try {
       await this.claude.sendMessage({
         model,
@@ -468,6 +474,8 @@ export class RevisionQueueService implements IRevisionQueueService {
         maxTokens: settings.maxTokens,
         thinkingBudget: settings.enableThinking ? verity.thinkingBudget : undefined,
         onEvent: (event: StreamEvent) => {
+          this.emit({ type: 'session:streamEvent', sessionId: session.id, event });
+
           switch (event.type) {
             case 'textDelta':
               responseBuffer += event.text;

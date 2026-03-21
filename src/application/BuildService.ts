@@ -26,7 +26,7 @@ export class BuildService implements IBuildService {
   /**
    * Generate copyright page content from book metadata.
    *
-   * Used when the 00-copyright/draft.md is missing or empty at build time.
+   * Used when the 00-0-copyright/draft.md is missing or empty at build time.
    * Mirrors the content written by FileSystemService.generateCopyrightContent()
    * at book-creation time.
    */
@@ -91,7 +91,7 @@ export class BuildService implements IBuildService {
 
     // Step 3: Assemble chapters
     // countWordsPerChapter returns chapters in correct order:
-    //   00-copyright (front matter) → 01-dedication → body chapters → z0/z1/… (back matter)
+    //   00-0-copyright → 00-1-dedication → body chapters → z0/z1/… (back matter)
     onProgress('Assembling chapters...');
     const chapterStats = await this.fs.countWordsPerChapter(bookSlug);
 
@@ -123,7 +123,7 @@ export class BuildService implements IBuildService {
       } catch {
         // draft.md missing — for the copyright chapter regenerate from metadata;
         // for all others skip so a missing draft doesn't abort the whole build.
-        if (chapter.slug.startsWith('00-')) {
+        if (chapter.slug.startsWith('00-0-')) {
           draft = this.generateCopyrightContent(meta.title, meta.author);
           onProgress(`  Regenerated copyright page from metadata`);
         } else {
@@ -134,7 +134,7 @@ export class BuildService implements IBuildService {
 
       // Copyright chapter with an empty draft — regenerate so the book always
       // ships with a proper copyright page even if the file was cleared.
-      if (chapter.slug.startsWith('00-') && !draft.trim()) {
+      if (chapter.slug.startsWith('00-0-') && !draft.trim()) {
         draft = this.generateCopyrightContent(meta.title, meta.author);
         onProgress(`  Regenerated copyright page from metadata`);
       }

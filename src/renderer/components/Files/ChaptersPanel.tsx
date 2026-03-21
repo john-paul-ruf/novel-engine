@@ -32,13 +32,12 @@ type ChaptersPanelProps = {
  * Parse a chapter folder name into its kind, numeric position, and display title.
  *
  * Supported patterns:
- *   00-copyright-page  → kind: 'copyright',  title: 'Copyright',   number: 0
- *   01-dedication      → kind: 'dedication', title: 'Dedication',  number: 1
+ *   00-0-copyright     → kind: 'copyright',  title: 'Copyright',   number: 0
+ *   00-1-dedication    → kind: 'dedication', title: 'Dedication',  number: 1
  *   02-the-beginning   → kind: 'body',       title: 'The Beginning', number: 2
  *   z0-acknowledgments → kind: 'backmatter', title: 'Acknowledgments', number: 0
  */
 function parseChapterName(folderName: string): { number: number; title: string; kind: ChapterKind } {
-  // Back matter: z0-title, z1-title, … (case-insensitive)
   const zMatch = folderName.match(/^z(\d+)-(.+)$/i);
   if (zMatch) {
     return {
@@ -48,15 +47,18 @@ function parseChapterName(folderName: string): { number: number; title: string; 
     };
   }
 
-  // Numbered chapters: 00-..., 01-..., 02-..., etc.
+  const fmMatch = folderName.match(/^00-(\d+)-(.+)$/);
+  if (fmMatch) {
+    const subIndex = parseInt(fmMatch[1], 10);
+    if (subIndex === 0) return { number: 0, title: 'Copyright', kind: 'copyright' };
+    if (subIndex === 1) return { number: 1, title: 'Dedication', kind: 'dedication' };
+    return { number: subIndex, title: humanize(fmMatch[2]), kind: 'copyright' };
+  }
+
   const match = folderName.match(/^(\d+)-(.+)$/);
   if (!match) return { number: 0, title: folderName, kind: 'body' };
 
-  const num = parseInt(match[1], 10);
-  // Enforce fixed titles for front matter chapters regardless of folder slug
-  if (num === 0) return { number: 0, title: 'Copyright', kind: 'copyright' };
-  if (num === 1) return { number: 1, title: 'Dedication', kind: 'dedication' };
-  return { number: num, title: humanize(match[2]), kind: 'body' };
+  return { number: parseInt(match[1], 10), title: humanize(match[2]), kind: 'body' };
 }
 
 /** Convert a kebab-case slug to Title Case words. */

@@ -371,6 +371,10 @@ export function registerIpcHandlers(services: {
     const wins = BrowserWindow.getAllWindows();
     for (const win of wins) {
       win.webContents.send('revision:event', event);
+
+      if (event.type === 'session:streamEvent') {
+        win.webContents.send('chat:streamEvent', event.event);
+      }
     }
 
     // Fire notifications for key revision events

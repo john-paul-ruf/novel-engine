@@ -217,8 +217,12 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
-    // Revision queue phases — Start button opens the queue
+    // Revision queue phases — Start button opens the queue with a fresh load
     if (REVISION_QUEUE_PHASES.has(phase.id) && hasRevisionPlan) {
+      const { isRunning } = useRevisionQueueStore.getState();
+      if (!isRunning) {
+        useRevisionQueueStore.setState({ plan: null, planId: null, error: null });
+      }
       navigate('revision-queue');
       return;
     }

@@ -221,6 +221,7 @@ export type RevisionQueueEvent =
   | { type: 'session:thinking'; sessionId: string; text: string }
   | { type: 'session:done'; sessionId: string; taskNumbers: number[] }
   | { type: 'session:gate'; sessionId: string; gateText: string }
+  | { type: 'session:streamEvent'; sessionId: string; event: StreamEvent }
   | { type: 'plan:progress'; completedTasks: number; totalTasks: number }
   | { type: 'plan:loading-step'; step: string }
   | { type: 'queue:done' }
