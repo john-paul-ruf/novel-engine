@@ -149,10 +149,12 @@ function CallListItem({ call, isSelected, onSelect, onClear }: {
       {!call.isActive && (
         <span
           onClick={(e) => { e.stopPropagation(); onClear(); }}
-          className="ml-0.5 hidden shrink-0 flex items-center justify-center rounded h-4 w-4 text-xs leading-none text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 group-hover:inline-flex transition-colors"
+          className="ml-0.5 hidden shrink-0 items-center justify-center rounded h-4 w-4 text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 group-hover:inline-flex transition-colors"
           title="Remove from list"
         >
-          \u2715
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+          </svg>
         </span>
       )}
     </button>
@@ -492,10 +494,12 @@ export function CliActivityPanel(): React.ReactElement {
           </button>
           <button
             onClick={close}
-            className="flex h-6 w-6 items-center justify-center rounded text-sm leading-none text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
             title="Close panel"
           >
-            \u2715
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+              <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+            </svg>
           </button>
         </div>
       </div>
