@@ -17,6 +17,7 @@ import type {
   PipelinePhaseId,
   PitchDraft,
   QueueMode,
+  QueueStatus,
   RevisionPlan,
   RevisionQueueEvent,
   SendMessageParams,
@@ -220,6 +221,8 @@ const api = {
       ipcRenderer.invoke('revision:getPlan', planId),
     completeQueue: (planId: string): Promise<void> =>
       ipcRenderer.invoke('revision:completeQueue', planId),
+    getQueueStatus: (bookSlug: string): Promise<QueueStatus> =>
+      ipcRenderer.invoke('revision:getQueueStatus', bookSlug),
     onEvent: (callback: (event: RevisionQueueEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: RevisionQueueEvent) => callback(event);
       ipcRenderer.on('revision:event', handler);

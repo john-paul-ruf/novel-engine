@@ -208,6 +208,14 @@ export type ApprovalAction = 'approve' | 'approve-all' | 'reject' | 'skip' | 're
 
 export type QueueMode = 'manual' | 'auto-approve' | 'auto-skip' | 'selective';
 
+/** Snapshot of a running queue's status — returned by getQueueStatus so the
+ *  frontend can re-derive running state after a book switch without caching. */
+export type QueueStatus = {
+  planId: string | null;
+  isRunning: boolean;
+  activeSessionId: string | null;
+};
+
 export type RevisionSession = {
   id: string;
   index: number;                   // 1-based session order

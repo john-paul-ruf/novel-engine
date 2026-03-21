@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { AGENT_REGISTRY } from '@domain/constants';
+import { AGENT_REGISTRY, randomPitchRoomFlavor } from '@domain/constants';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
@@ -78,6 +78,65 @@ function PitchRoomStreamingMessage(): React.ReactElement | null {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Bouncy, rotating flavor text shown when the Pitch Room has no messages yet.
+ * Cycles through playful prompts every 6–10 seconds with the wave-char animation.
+ */
+function PitchRoomEmptyState(): React.ReactElement {
+  const [flavor, setFlavor] = useState(() => randomPitchRoomFlavor());
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const scheduleNext = (): void => {
+      const delay = 6_000 + Math.random() * 4_000; // 6–10s
+      timer = setTimeout(() => {
+        setFlavor(randomPitchRoomFlavor());
+        scheduleNext();
+      }, delay);
+    };
+
+    scheduleNext();
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4">
+      <div className="flex items-center gap-1">
+        <span
+          className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-bounce"
+          style={{ animationDelay: '0ms', animationDuration: '1200ms' }}
+        />
+        <span
+          className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-bounce"
+          style={{ animationDelay: '200ms', animationDuration: '1200ms' }}
+        />
+        <span
+          className="inline-block h-2 w-2 rounded-full bg-amber-300 animate-bounce"
+          style={{ animationDelay: '400ms', animationDuration: '1200ms' }}
+        />
+      </div>
+      <span
+        key={flavor}
+        className="status-fade-in inline-flex max-w-md flex-wrap justify-center text-sm text-zinc-400 dark:text-zinc-500"
+      >
+        {flavor.split('').map((char, i) => (
+          <span
+            key={i}
+            className="wave-char"
+            style={{ animationDelay: `${i * 60}ms` }}
+          >
+            {char === ' ' ? '\u00A0' : char}
+          </span>
+        ))}
+      </span>
+      <p className="mt-2 max-w-xs text-center text-xs text-zinc-400/60 dark:text-zinc-600">
+        Brainstorm with Spark. Shelve ideas, or turn them into books.
+      </p>
     </div>
   );
 }
@@ -174,11 +233,7 @@ export function PitchRoomView(): React.ReactElement {
       {/* Messages */}
       <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
         {messages.length === 0 && !isStreaming && (
-          <div className="flex h-full items-center justify-center">
-            <p className="max-w-sm text-center text-sm text-zinc-400 dark:text-zinc-500">
-              Brainstorm story ideas with Spark. When you find a concept you love, just tell Spark to shelve it or make it a book.
-            </p>
-          </div>
+          <PitchRoomEmptyState />
         )}
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />

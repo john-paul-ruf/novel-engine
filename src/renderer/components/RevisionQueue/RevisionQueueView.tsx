@@ -12,7 +12,7 @@ export function RevisionQueueView() {
   const { activeSlug } = useBookStore();
   const currentView = useViewStore((s) => s.currentView);
   const {
-    plan, isLoading, loadingStep, isRunning, error, viewingSessionId, loadPlan, activeSessionId,
+    plan, isLoading, loadingStep, isRunning, error, viewingSessionId, activeSessionId,
   } = useRevisionQueueStore();
 
   useRevisionQueueEvents();
@@ -20,31 +20,18 @@ export function RevisionQueueView() {
   useEffect(() => {
     if (!activeSlug) return;
     // Only load when the revision queue view is visible (or first mount).
-    // This prevents unnecessary loads when navigating between other views,
-    // and ensures we re-check when the user navigates TO the revision queue
-    // (e.g. after archiving cycle 1 and Forge generating cycle 2 files).
     if (currentView !== 'revision-queue') return;
 
-    // When switching books, the plan.bookSlug will differ from activeSlug.
-    // Reset UI running state so the new book isn't "frozen" showing only
-    // Pause — the backend tracks running state per-plan, but the store's
-    // isRunning is a single global flag that bleeds across book switches.
+    // Use switchToBook which handles:
+    // 1. Saving current book's state to cache
+    // 2. Restoring cached state for the target book (if any)
+    // 3. Verifying running state against the backend
+    // 4. Loading plan from disk if no cache exists
     const current = useRevisionQueueStore.getState();
-    if (current.plan && current.plan.bookSlug !== activeSlug) {
-      useRevisionQueueStore.setState({
-        isRunning: false,
-        isPaused: false,
-        activeSessionId: null,
-        streamingResponse: '',
-        streamingThinking: '',
-        gateSessionId: null,
-        gateText: '',
-        plan: null,
-        planId: null,
-      });
+    if (!current.plan || current.plan.bookSlug !== activeSlug) {
+      useRevisionQueueStore.getState().switchToBook(activeSlug);
     }
-    loadPlan(activeSlug);
-  }, [activeSlug, loadPlan, currentView]);
+  }, [activeSlug, currentView]);
 
   if (error && !plan) {
     return (

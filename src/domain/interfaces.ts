@@ -15,6 +15,7 @@ import type {
   PitchDraft,
   ProjectManifest,
   QueueMode,
+  QueueStatus,
   RevisionPlan,
   RevisionQueueEvent,
   ShelvedPitch,
@@ -242,6 +243,13 @@ export interface IRevisionQueueService {
    * Throws if any sessions are still pending, running, or awaiting approval.
    */
   completeQueue(planId: string): Promise<void>;
+
+  /**
+   * Return the live running status for a book's queue.
+   * Used by the frontend to re-derive isRunning / activeSessionId after a
+   * book switch, since the singleton store loses that state when swapping plans.
+   */
+  getQueueStatus(bookSlug: string): QueueStatus;
 
   // Register event listener
   onEvent(callback: (event: RevisionQueueEvent) => void): () => void;

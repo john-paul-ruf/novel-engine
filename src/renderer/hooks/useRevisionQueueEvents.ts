@@ -4,25 +4,31 @@ import { useFileChangeStore } from '../stores/fileChangeStore';
 import { useBookStore } from '../stores/bookStore';
 import type { RevisionQueueEvent } from '@domain/types';
 
+/**
+ * Helper: check whether a sessionId belongs to the currently-loaded plan.
+ * Used to prevent events from Book A's queue from leaking into Book B's UI
+ * when both queues are running concurrently.
+ */
+function sessionBelongsToCurrentPlan(sessionId: string): boolean {
+  const { plan } = useRevisionQueueStore.getState();
+  if (!plan) return false;
+  return plan.sessions.some(s => s.id === sessionId);
+}
+
 export function useRevisionQueueEvents() {
   useEffect(() => {
     const cleanup = window.novelEngine.revision.onEvent((event: RevisionQueueEvent) => {
       switch (event.type) {
         case 'session:status': {
+          if (!sessionBelongsToCurrentPlan(event.sessionId)) return;
+
           useRevisionQueueStore.setState(state => {
             if (!state.plan) return state;
-            // Ignore events for sessions that don't belong to the currently-loaded plan.
-            // This prevents a running queue for Book A from setting isRunning=true
-            // when the user has switched to Book B's queue.
-            const belongsToCurrentPlan = state.plan.sessions.some(s => s.id === event.sessionId);
-            if (!belongsToCurrentPlan) return state;
-
             const sessions = state.plan.sessions.map(s =>
               s.id === event.sessionId
                 ? {
                     ...s,
                     status: event.status,
-                    // Persist the conversationId when the backend sends it (on 'running')
                     ...(event.conversationId ? { conversationId: event.conversationId } : {}),
                   }
                 : s
@@ -43,6 +49,7 @@ export function useRevisionQueueEvents() {
         }
 
         case 'session:chunk': {
+          if (!sessionBelongsToCurrentPlan(event.sessionId)) return;
           useRevisionQueueStore.setState(state => ({
             streamingResponse: state.streamingResponse + event.text,
           }));
@@ -50,6 +57,7 @@ export function useRevisionQueueEvents() {
         }
 
         case 'session:thinking': {
+          if (!sessionBelongsToCurrentPlan(event.sessionId)) return;
           useRevisionQueueStore.setState(state => ({
             streamingThinking: state.streamingThinking + event.text,
           }));
@@ -57,6 +65,8 @@ export function useRevisionQueueEvents() {
         }
 
         case 'session:gate': {
+          if (!sessionBelongsToCurrentPlan(event.sessionId)) return;
+
           const state = useRevisionQueueStore.getState();
           const session = state.plan?.sessions.find(s => s.id === event.sessionId);
           const convId = session?.conversationId;
@@ -74,6 +84,12 @@ export function useRevisionQueueEvents() {
         }
 
         case 'session:done': {
+          if (!sessionBelongsToCurrentPlan(event.sessionId)) {
+            // Still trigger file-change notifications even for other books
+            useFileChangeStore.getState().notifyChange();
+            return;
+          }
+
           const state = useRevisionQueueStore.getState();
           const session = state.plan?.sessions.find(s => s.id === event.sessionId);
           const convId = session?.conversationId;
@@ -111,8 +127,6 @@ export function useRevisionQueueEvents() {
         }
 
         case 'queue:done': {
-          // Only reset running state if this event belongs to the currently-loaded plan.
-          // Without this check, Book A finishing would stomp Book B's isRunning flag.
           const doneState = useRevisionQueueStore.getState();
           if (doneState.planId === event.planId) {
             useRevisionQueueStore.setState({
@@ -129,8 +143,6 @@ export function useRevisionQueueEvents() {
             useRevisionQueueStore.setState({
               isArchiving: false,
               isQueueArchived: true,
-              // Clear the in-memory plan — source files are archived, pipeline will advance.
-              // The user will see the pipeline move forward when they navigate away.
               plan: null,
               planId: null,
             });
@@ -139,15 +151,11 @@ export function useRevisionQueueEvents() {
         }
 
         case 'error': {
-          // Only update if the erroring session belongs to the current plan
-          const errState = useRevisionQueueStore.getState();
-          const errorBelongs = errState.plan?.sessions.some(s => s.id === event.sessionId);
-          if (errorBelongs) {
-            useRevisionQueueStore.setState({
-              error: event.message,
-              isRunning: false,
-            });
-          }
+          if (!sessionBelongsToCurrentPlan(event.sessionId)) return;
+          useRevisionQueueStore.setState({
+            error: event.message,
+            isRunning: false,
+          });
           break;
         }
       }

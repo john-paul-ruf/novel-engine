@@ -717,14 +717,11 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async readPitchDraftContent(conversationId: string): Promise<string> {
-    const pitchPath = path.join(
-      this.booksDir, PITCH_ROOM_SLUG, 'drafts', conversationId, 'source', 'pitch.md',
-    );
-    try {
-      return await fs.readFile(pitchPath, 'utf-8');
-    } catch {
+    const resolved = await this.resolvePitchFile(conversationId);
+    if (!resolved) {
       throw new Error(`No pitch.md found for draft conversation "${conversationId}"`);
     }
+    return fs.readFile(resolved, 'utf-8');
   }
 
   async deletePitchDraft(conversationId: string): Promise<void> {
@@ -806,21 +803,23 @@ export class FileSystemService implements IFileSystemService {
     draftDir: string,
     stat: { mtime: Date; birthtime: Date },
   ): Promise<PitchDraft> {
-    const pitchPath = path.join(draftDir, 'source', 'pitch.md');
     let hasPitch = false;
     let title = 'Untitled Draft';
 
-    try {
-      const content = await fs.readFile(pitchPath, 'utf-8');
-      hasPitch = content.trim().length > 0;
-      if (hasPitch) {
-        const titleMatch = content.match(/^#\s+(.+)$/m);
-        if (titleMatch?.[1]) {
-          title = titleMatch[1].trim();
+    const resolved = await this.resolvePitchFile(conversationId);
+    if (resolved) {
+      try {
+        const content = await fs.readFile(resolved, 'utf-8');
+        hasPitch = content.trim().length > 0;
+        if (hasPitch) {
+          const titleMatch = content.match(/^#\s+(.+)$/m);
+          if (titleMatch?.[1]) {
+            title = titleMatch[1].trim();
+          }
         }
+      } catch {
+        // File resolved but couldn't be read — treat as no pitch
       }
-    } catch {
-      // No pitch.md yet — that's fine
     }
 
     return {
@@ -830,6 +829,53 @@ export class FileSystemService implements IFileSystemService {
       createdAt: stat.birthtime.toISOString(),
       updatedAt: stat.mtime.toISOString(),
     };
+  }
+
+  /**
+   * Resolve the pitch file for a draft conversation.
+   *
+   * Checks the canonical path first (`source/pitch.md`), then falls back to
+   * scanning the draft directory for any `.md` file. Agents sometimes write
+   * the pitch with a custom filename or to the root instead of `source/`.
+   *
+   * Returns the absolute path to the pitch file, or null if none found.
+   */
+  private async resolvePitchFile(conversationId: string): Promise<string | null> {
+    const draftDir = path.join(this.booksDir, PITCH_ROOM_SLUG, 'drafts', conversationId);
+
+    // 1. Check canonical path
+    const canonicalPath = path.join(draftDir, 'source', 'pitch.md');
+    try {
+      await fs.access(canonicalPath);
+      return canonicalPath;
+    } catch {
+      // Not at canonical path — try fallbacks
+    }
+
+    // 2. Check source/ directory for any .md file
+    try {
+      const sourceDir = path.join(draftDir, 'source');
+      const sourceEntries = await fs.readdir(sourceDir);
+      const mdFile = sourceEntries.find((f) => f.endsWith('.md'));
+      if (mdFile) {
+        return path.join(sourceDir, mdFile);
+      }
+    } catch {
+      // source/ doesn't exist — try root
+    }
+
+    // 3. Check draft root for any .md file (agent wrote to root instead of source/)
+    try {
+      const rootEntries = await fs.readdir(draftDir);
+      const mdFile = rootEntries.find((f) => f.endsWith('.md'));
+      if (mdFile) {
+        return path.join(draftDir, mdFile);
+      }
+    } catch {
+      // Draft directory doesn't exist
+    }
+
+    return null;
   }
 
   // ── Private Helpers ───────────────────────────────────────────────

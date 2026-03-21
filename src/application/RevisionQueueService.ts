@@ -6,6 +6,7 @@ import type {
   RevisionSessionStatus,
   RevisionQueueEvent,
   QueueMode,
+  QueueStatus,
   ApprovalAction,
   AgentName,
   StreamEvent,
@@ -910,6 +911,17 @@ export class RevisionQueueService implements IRevisionQueueService {
 
   getPlan(planId: string): RevisionPlan | null {
     return this.plans.get(planId) ?? null;
+  }
+
+  getQueueStatus(bookSlug: string): QueueStatus {
+    const planId = this.plansByBook.get(bookSlug) ?? null;
+    if (!planId) return { planId: null, isRunning: false, activeSessionId: null };
+
+    const plan = this.plans.get(planId);
+    const isRunning = this.runningPlans.has(planId);
+    const activeSessionId = plan?.sessions.find(s => s.status === 'running')?.id ?? null;
+
+    return { planId, isRunning, activeSessionId };
   }
 
   // ── State persistence ────────────────────────────────────────────

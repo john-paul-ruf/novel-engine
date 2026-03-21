@@ -30,6 +30,7 @@ type RevisionQueueState = {
   loadPlan: (bookSlug: string) => Promise<void>;
   reloadPlan: (bookSlug: string) => Promise<void>;
   clearCache: (bookSlug: string) => Promise<void>;
+  switchToBook: (bookSlug: string) => Promise<void>;
   runNext: () => Promise<void>;
   runAll: () => Promise<void>;
   runSession: (sessionId: string) => Promise<void>;
@@ -48,6 +49,52 @@ type RevisionQueueState = {
   completeQueue: () => Promise<void>;
   reset: () => void;
 };
+
+// ── Per-book state cache ──────────────────────────────────────────────
+// Survives book switches so we don't lose running state when the user
+// navigates to a different book and back. Keyed by bookSlug.
+
+type CachedBookState = {
+  plan: RevisionPlan | null;
+  planId: string | null;
+  isRunning: boolean;
+  isPaused: boolean;
+  isArchiving: boolean;
+  isQueueArchived: boolean;
+  activeSessionId: string | null;
+  viewingSessionId: string | null;
+  streamingResponse: string;
+  streamingThinking: string;
+  gateSessionId: string | null;
+  gateText: string;
+  error: string | null;
+  selectedSessionIds: Set<string>;
+  panelMessages: Message[];
+  panelMessagesConvId: string | null;
+};
+
+const bookStateCache = new Map<string, CachedBookState>();
+
+function snapshotState(state: RevisionQueueState): CachedBookState {
+  return {
+    plan: state.plan,
+    planId: state.planId,
+    isRunning: state.isRunning,
+    isPaused: state.isPaused,
+    isArchiving: state.isArchiving,
+    isQueueArchived: state.isQueueArchived,
+    activeSessionId: state.activeSessionId,
+    viewingSessionId: state.viewingSessionId,
+    streamingResponse: state.streamingResponse,
+    streamingThinking: state.streamingThinking,
+    gateSessionId: state.gateSessionId,
+    gateText: state.gateText,
+    error: state.error,
+    selectedSessionIds: new Set(state.selectedSessionIds),
+    panelMessages: state.panelMessages,
+    panelMessagesConvId: state.panelMessagesConvId,
+  };
+}
 
 export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   plan: null,
@@ -69,13 +116,93 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   panelMessages: [],
   panelMessagesConvId: null,
 
+  switchToBook: async (bookSlug: string) => {
+    const current = get();
+    const currentSlug = current.plan?.bookSlug;
+
+    // Same book — nothing to do
+    if (currentSlug === bookSlug) return;
+
+    // Save current state to cache (if we have a plan loaded)
+    if (currentSlug) {
+      bookStateCache.set(currentSlug, snapshotState(current));
+    }
+
+    // Check if we have cached state for the target book
+    const cached = bookStateCache.get(bookSlug);
+    if (cached) {
+      // Restore cached state
+      set({
+        ...cached,
+        isLoading: false,
+        loadingStep: '',
+      });
+
+      // Verify against backend — the queue may have finished while we were away
+      try {
+        const status = await window.novelEngine.revision.getQueueStatus(bookSlug);
+        if (cached.isRunning && !status.isRunning) {
+          // Queue finished while we were on another book — reload plan from disk
+          // to get the final session statuses
+          set({ isRunning: false, isPaused: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
+          const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
+          set({
+            plan: loaded,
+            planId: loaded.id,
+            selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
+          });
+          bookStateCache.set(bookSlug, snapshotState(get()));
+        } else if (!cached.isRunning && status.isRunning) {
+          // Queue started running (e.g. via another window) — pick up the state
+          set({ isRunning: true, activeSessionId: status.activeSessionId });
+        }
+      } catch {
+        // Best-effort — cached state is still better than nothing
+      }
+      return;
+    }
+
+    // No cached state — reset and load fresh
+    set({
+      plan: null,
+      planId: null,
+      isLoading: false,
+      loadingStep: '',
+      isRunning: false,
+      isPaused: false,
+      isArchiving: false,
+      isQueueArchived: false,
+      activeSessionId: null,
+      viewingSessionId: null,
+      streamingResponse: '',
+      streamingThinking: '',
+      gateSessionId: null,
+      gateText: '',
+      error: null,
+      selectedSessionIds: new Set(),
+      panelMessages: [],
+      panelMessagesConvId: null,
+    });
+
+    // Load plan + check running status from backend
+    await get().loadPlan(bookSlug);
+
+    try {
+      const status = await window.novelEngine.revision.getQueueStatus(bookSlug);
+      if (status.isRunning) {
+        set({ isRunning: true, activeSessionId: status.activeSessionId });
+      }
+    } catch {
+      // Best-effort
+    }
+  },
+
   loadPlan: async (bookSlug: string) => {
     const { plan, isLoading } = get();
     if (isLoading) return;
     if (plan && plan.bookSlug === bookSlug && plan.sessions.length > 0) return;
 
     try {
-      // Clear stale archived state from a previous cycle before loading
       set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026', isQueueArchived: false });
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
@@ -83,11 +210,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        // A freshly-loaded plan is never archived — isQueueArchived only becomes true
-        // via the queue:archived IPC event after the user explicitly completes the queue.
-        // Using project-tasks-v1.md presence was wrong: that file persists from the
-        // first queue archival for the entire rest of the project, causing the second
-        // revision queue (mechanical fixes) to always appear pre-archived.
         isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
@@ -120,7 +242,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     try {
       set({ isLoading: true, loadingStep: 'Clearing cache\u2026' });
       await window.novelEngine.revision.clearCache(bookSlug);
-      // Reload the plan after clearing cache to get fresh parse
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
         plan: loaded,
@@ -154,14 +275,10 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     try {
       await window.novelEngine.revision.runSession(planId, next.id);
     } catch (err) {
-      // Only set error if this plan is still the active one
       if (get().planId === startedPlanId) {
         set({ error: err instanceof Error ? err.message : String(err) });
       }
     } finally {
-      // Only reset running state if the store still holds the same plan.
-      // If the user switched books mid-run, the store now has a different planId
-      // and we must NOT stomp it with isRunning: false.
       if (get().planId === startedPlanId) {
         set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
       }
@@ -183,8 +300,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
         set({ error: err instanceof Error ? err.message : String(err) });
       }
     } finally {
-      // Only reset if we're still on the same plan — prevents stale finally
-      // from a Book A run stomping Book B's isRunning flag.
       if (get().planId === startedPlanId) {
         set({ isRunning: false });
       }
@@ -334,12 +449,16 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   },
 
   completeQueue: async () => {
-    const { planId } = get();
+    const { planId, plan } = get();
     if (!planId) return;
     set({ isArchiving: true, error: null });
     try {
       await window.novelEngine.revision.completeQueue(planId);
       // isQueueArchived will be set to true via the queue:archived event handler
+      // Also clear the book cache so a fresh load happens next time
+      if (plan?.bookSlug) {
+        bookStateCache.delete(plan.bookSlug);
+      }
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), isArchiving: false });
     }

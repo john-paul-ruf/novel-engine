@@ -274,6 +274,33 @@ export function randomRespondingStatus(): string {
   return pickRandom(STATUS_RESPONDING);
 }
 
+// === Pitch Room Flavor Text ===
+// Shown in the empty state of the Pitch Room — rotated for personality
+
+const PITCH_ROOM_FLAVOR = [
+  'Every great novel starts with a "what if…"',
+  'Spark is ready. Got a story itching to be told?',
+  'The blank page isn\'t empty — it\'s full of possibility.',
+  'What world are we building today?',
+  'A character walks into a room. What happens next?',
+  'The best ideas sound a little crazy at first.',
+  'Tell me about the book only you can write.',
+  'Genre? Mood? A single image? Start anywhere.',
+  'No commitment, no pressure — just ideas.',
+  'Every bestseller was once a weird thought at 2 AM.',
+  'Let\'s find the story that won\'t leave you alone.',
+  'The muse is in. Take a seat.',
+  'What story has been keeping you up at night?',
+  'Pitch me something wild.',
+  'First thought, best thought. What have you got?',
+  'The Pitch Room is open. Spark is listening.',
+] as const;
+
+/** Returns a random Pitch Room flavor line for the empty state. */
+export function randomPitchRoomFlavor(): string {
+  return pickRandom(PITCH_ROOM_FLAVOR);
+}
+
 // Token estimation: ~4 chars per token for English
 export const CHARS_PER_TOKEN = 4;
 // Opus context window
@@ -439,7 +466,7 @@ You are in the Pitch Room — a free brainstorming space where the author explor
    - The emotional question at the heart of the story
    - Opening hook
 
-When the pitch is ready, write it to \`source/pitch.md\` using the Write tool. The author can then decide to make it a book or shelve it for later.
+When the pitch is ready, write it to \`source/pitch.md\` using the Write tool. Use exactly this path — the app relies on it to detect when a pitch is ready. Do NOT use a custom filename or write to the root directory.
 
 **Important:** You can explore multiple directions in a single conversation. If an idea isn't working, pivot freely. The Pitch Room is for exploration, not commitment.
 `;

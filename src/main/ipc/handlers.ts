@@ -422,6 +422,10 @@ export function registerIpcHandlers(services: {
     return services.revisionQueue.completeQueue(planId);
   });
 
+  ipcMain.handle('revision:getQueueStatus', (_, bookSlug: string) => {
+    return services.revisionQueue.getQueueStatus(bookSlug);
+  });
+
   // Forward revision queue events to all renderer windows + fire OS notifications
   services.revisionQueue.onEvent((event) => {
     const wins = BrowserWindow.getAllWindows();
