@@ -2,6 +2,36 @@ import { app, BrowserWindow, ipcMain, nativeTheme, protocol, net } from 'electro
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { execFile as execFileCb } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFileCb);
+
+/**
+ * On macOS (and Linux), GUI apps launched from the Dock or Finder don't
+ * inherit the user's shell PATH. This means binaries installed via npm,
+ * nvm, homebrew, etc. are invisible to child_process.spawn/execFile.
+ *
+ * Fix: run the user's login shell with `-l` to source ~/.bash_profile /
+ * ~/.zprofile / etc., grab the resulting PATH, and inject it into
+ * process.env before any services try to locate `claude`.
+ */
+async function fixShellPath(): Promise<void> {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') return;
+  try {
+    const shell = process.env.SHELL ?? '/bin/bash';
+    const { stdout } = await execFileAsync(shell, ['-l', '-c', 'echo $PATH'], {
+      timeout: 5_000,
+    });
+    const shellPath = stdout.trim();
+    if (shellPath) {
+      process.env.PATH = shellPath;
+    }
+  } catch {
+    // Cannot resolve login shell PATH — keep existing process.env.PATH.
+    // The app will still work if `claude` is discoverable via the current PATH.
+  }
+}
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 import squirrelStartup from 'electron-squirrel-startup';
@@ -115,6 +145,10 @@ function registerWindowControlHandlers(): void {
 // ── Composition Root ───────────────────────────────────────────────
 
 async function initializeApp(): Promise<void> {
+  // Expand PATH before anything else so child processes can find `claude`
+  // and other user-installed binaries (nvm node, homebrew tools, etc.)
+  await fixShellPath();
+
   const userDataPath = app.getPath('userData');
 
   // In dev mode with Electron Forge + Vite, `__dirname` resolves to the Vite
