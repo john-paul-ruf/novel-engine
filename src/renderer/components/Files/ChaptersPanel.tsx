@@ -211,7 +211,10 @@ export function ChaptersPanel({
 
   // ── Render helpers ───────────────────────────────────────────────────────
 
-  /** Standard editable row — used for body and back matter chapters. */
+  /**
+   * Row for back matter chapters — author-written, fully editable.
+   * Shared shape with body rows but without the lock treatment on the Draft badge.
+   */
   const renderEditableRow = (chapter: ChapterInfo) => (
     <div
       key={chapter.slug}
@@ -256,6 +259,81 @@ export function ChaptersPanel({
         >
           Draft
         </button>
+        <button
+          onClick={() => onFileSelect(`chapters/${chapter.slug}/notes.md`)}
+          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            chapter.hasNotes
+              ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'
+          }`}
+          title={chapter.hasNotes ? 'Open notes' : 'No notes yet'}
+        >
+          Notes
+        </button>
+      </div>
+    </div>
+  );
+
+  /**
+   * Row for Verity-authored story chapters (body, numbers 02+).
+   * The draft is read-only — clicking opens it for reading only, with a lock badge.
+   * The notes file remains author-editable.
+   */
+  const renderBodyChapterRow = (chapter: ChapterInfo) => (
+    <div
+      key={chapter.slug}
+      className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+    >
+      {/* Position label */}
+      <div className="w-10 shrink-0 text-right font-mono text-sm text-zinc-500">
+        {chapter.number}
+      </div>
+
+      {/* Title — click opens draft for reading */}
+      <button
+        onClick={() => onFileSelect(`chapters/${chapter.slug}/draft.md`)}
+        className="flex-1 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:text-white"
+      >
+        {chapter.title}
+      </button>
+
+      {/* Word count bar */}
+      <div className="flex w-32 items-center gap-2">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div
+            className="h-full rounded-full bg-blue-500/60"
+            style={{ width: `${Math.min(100, (chapter.wordCount / maxWordCount) * 100)}%` }}
+          />
+        </div>
+        <span className="w-14 text-right text-xs tabular-nums text-zinc-500">
+          {chapter.wordCount > 0 ? `${chapter.wordCount.toLocaleString()}w` : '—'}
+        </span>
+      </div>
+
+      {/* Draft badge (locked) + Notes badge (editable) */}
+      <div className="flex shrink-0 items-center gap-2">
+        {/*
+         * Draft is Verity-authored — display a lock badge that opens the file for reading.
+         * The 🔒 icon communicates that it can't be directly edited.
+         */}
+        <button
+          onClick={() => onFileSelect(`chapters/${chapter.slug}/draft.md`)}
+          className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            chapter.hasDraft
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'
+          }`}
+          title={
+            chapter.hasDraft
+              ? 'Read Verity\'s draft — chat with Verity to make changes'
+              : 'No draft yet — ask Verity to write this chapter'
+          }
+        >
+          {chapter.hasDraft && <span aria-hidden className="mr-0.5">🔒</span>}
+          Draft
+        </button>
+
+        {/* Notes remain author-editable */}
         <button
           onClick={() => onFileSelect(`chapters/${chapter.slug}/notes.md`)}
           className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
@@ -340,7 +418,7 @@ export function ChaptersPanel({
           </div>
         ) : (
           <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
-            {bodyChapters.map(renderEditableRow)}
+            {bodyChapters.map(renderBodyChapterRow)}
           </div>
         )}
       </div>

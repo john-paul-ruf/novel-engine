@@ -8,6 +8,8 @@ type FilesHeaderProps = {
   onBrowse: (dirPath: string) => void;
   onBackToBrowser: () => void;
   onEdit?: () => void;
+  /** When true the file belongs to Verity — hide the Edit button and show a lock badge instead. */
+  readOnly?: boolean;
 };
 
 function BreadcrumbSegments({
@@ -83,6 +85,7 @@ export function FilesHeader({
   onBrowse,
   onBackToBrowser,
   onEdit,
+  readOnly,
 }: FilesHeaderProps): React.ReactElement {
   const breadcrumbs =
     viewMode === 'browser'
@@ -116,19 +119,29 @@ export function FilesHeader({
 
       {/* Right: Edit button + View mode switcher */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Edit button — only for .md files in reader/editor mode */}
+        {/* Edit button — only for editable .md files in reader/editor mode */}
         {filePath?.endsWith('.md') && (viewMode === 'reader' || viewMode === 'editor') && (
-          <button
-            onClick={viewMode === 'reader' ? onEdit : () => onModeChange('reader')}
-            className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-              viewMode === 'editor'
-                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
-            title={viewMode === 'editor' ? 'Back to preview' : 'Edit file'}
-          >
-            {viewMode === 'editor' ? '👁 Preview' : '✏️ Edit'}
-          </button>
+          readOnly ? (
+            /* Verity-authored draft — show a lock badge instead of the Edit button */
+            <span
+              className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 cursor-default select-none"
+              title="Verity's draft — chat with Verity to make changes"
+            >
+              🔒 Verity's
+            </span>
+          ) : (
+            <button
+              onClick={viewMode === 'reader' ? onEdit : () => onModeChange('reader')}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                viewMode === 'editor'
+                  ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+              title={viewMode === 'editor' ? 'Back to preview' : 'Edit file'}
+            >
+              {viewMode === 'editor' ? '👁 Preview' : '✏️ Edit'}
+            </button>
+          )
         )}
 
         <div className="flex items-center gap-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5">

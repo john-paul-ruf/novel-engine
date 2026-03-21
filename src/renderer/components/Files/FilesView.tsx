@@ -12,6 +12,15 @@ import type { BookMeta, BookStatus } from '@domain/types';
 // Configure marked for safe rendering
 marked.setOptions({ async: false });
 
+/**
+ * Returns true for Verity-authored chapter drafts (body chapters 02+).
+ * These files are read-only in the UI — changes must be made via chat with Verity.
+ */
+function isVerityDraft(path: string): boolean {
+  const match = path.match(/^chapters\/(\d+)-[^/]+\/draft\.md$/);
+  return match !== null && parseInt(match[1], 10) >= 2;
+}
+
 const STATUS_COLORS: Record<BookStatus, string> = {
   scaffolded: 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200',
   outlining: 'bg-amber-700 text-amber-100',
@@ -370,6 +379,8 @@ export function FilesView(): React.ReactElement {
           fileBrowserPath: browserPath || undefined,
         });
       } else if (mode === 'editor') {
+        // Verity-authored chapter drafts are read-only — block editor mode entirely.
+        if (filePath && isVerityDraft(filePath)) return;
         navigate('files', {
           filePath: filePath ?? undefined,
           fileViewMode: 'editor',
@@ -381,8 +392,10 @@ export function FilesView(): React.ReactElement {
   );
 
   const handleEdit = useCallback(() => {
+    // Guard is also present in handleModeChange, but be explicit here for safety.
+    if (filePath && isVerityDraft(filePath)) return;
     handleModeChange('editor');
-  }, [handleModeChange]);
+  }, [handleModeChange, filePath]);
 
   const handleSaveFile = useCallback(
     async (newContent: string) => {
@@ -393,6 +406,8 @@ export function FilesView(): React.ReactElement {
     },
     [filePath, activeSlug],
   );
+
+  const readOnly = !!filePath && isVerityDraft(filePath);
 
   return (
     <div className="flex h-full flex-col">
@@ -405,6 +420,7 @@ export function FilesView(): React.ReactElement {
         onBrowse={handleBrowse}
         onBackToBrowser={handleBackToBrowser}
         onEdit={handleEdit}
+        readOnly={readOnly}
       />
 
       {/* Content area */}
@@ -430,12 +446,14 @@ export function FilesView(): React.ReactElement {
           loading={loading}
           error={error}
           activeSlug={activeSlug}
+          readOnly={readOnly}
           onFileSelect={handleFileSelect}
           onClearFile={handleBackToBrowser}
         />
       )}
 
-      {viewMode === 'editor' && filePath && !loading && (
+      {/* Editor mode is blocked for Verity-authored drafts — fall back to reader. */}
+      {viewMode === 'editor' && filePath && !loading && !readOnly && (
         <div className="flex-1 min-h-0">
           <FileEditor
             filePath={filePath}
@@ -444,6 +462,18 @@ export function FilesView(): React.ReactElement {
             onClose={() => handleModeChange('reader')}
           />
         </div>
+      )}
+      {viewMode === 'editor' && readOnly && (
+        <ReaderContent
+          filePath={filePath}
+          content={content}
+          loading={loading}
+          error={error}
+          activeSlug={activeSlug}
+          readOnly={readOnly}
+          onFileSelect={handleFileSelect}
+          onClearFile={handleBackToBrowser}
+        />
       )}
     </div>
   );
@@ -459,6 +489,7 @@ function ReaderContent({
   loading,
   error,
   activeSlug,
+  readOnly,
   onFileSelect,
   onClearFile,
 }: {
@@ -467,6 +498,7 @@ function ReaderContent({
   loading: boolean;
   error: string | null;
   activeSlug: string;
+  readOnly?: boolean;
   onFileSelect: (path: string) => void;
   onClearFile: () => void;
 }): React.ReactElement {
@@ -506,6 +538,17 @@ function ReaderContent({
 
   return (
     <>
+      {/* Read-only notice for Verity-authored chapter drafts */}
+      {readOnly && (
+        <div className="shrink-0 flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-6 py-2">
+          <span className="text-amber-500" aria-hidden>🔒</span>
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            <strong>Verity's draft — read-only.</strong>{' '}
+            To revise this chapter, open the <strong>Chat</strong> view and ask Verity directly.
+          </p>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
         {isMarkdown ? (
