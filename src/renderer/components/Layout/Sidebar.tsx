@@ -3,6 +3,7 @@ import { BookSelector } from '../Sidebar/BookSelector';
 import { VoiceSetupButton } from '../Sidebar/VoiceSetupButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
 import { FileTree } from '../Sidebar/FileTree';
+import { CliActivityButton } from '../Sidebar/CliActivityButton';
 
 type ViewId = 'chat' | 'files' | 'build' | 'settings';
 
@@ -75,6 +76,10 @@ export function Sidebar(): React.ReactElement {
             onClick={() => navigate(item.id)}
           />
         ))}
+        {/* CLI Activity toggle — docks/undocks the right-side activity panel from any view */}
+        <div className="mt-0.5 border-t border-zinc-200 dark:border-zinc-800 pt-1">
+          <CliActivityButton />
+        </div>
       </div>
     </aside>
   );
