@@ -13,15 +13,20 @@ export function RevisionQueueButton() {
       return;
     }
 
-    // Show the button if any revision plan files exist — including the archived
-    // project-tasks-v1.md, which is present after the first queue is completed and
-    // during the mechanical-fixes cycle (revision-plan-2).
+    // Show the button only when there are active (non-archived) plan files to
+    // work with right now.  project-tasks-v1.md is intentionally excluded: it
+    // persists after the first queue is archived and would keep the button
+    // visible during second-read / second-assessment / copy-edit, where no
+    // loadable plan exists yet.
+    //
+    // First revision cycle:  button visible while project-tasks.md / revision-prompts.md exist
+    // Gap (second-read → copy-edit): button hidden (live files were archived)
+    // Second revision cycle: button visible once Forge regenerates both files for revision-plan-2
     Promise.all([
       window.novelEngine.files.exists(activeSlug, 'source/project-tasks.md'),
       window.novelEngine.files.exists(activeSlug, 'source/revision-prompts.md'),
-      window.novelEngine.files.exists(activeSlug, 'source/project-tasks-v1.md'),
-    ]).then(([hasTasks, hasPrompts, hasArchivedTasks]) => {
-      setHasRevisionPlan(hasTasks || hasPrompts || hasArchivedTasks);
+    ]).then(([hasTasks, hasPrompts]) => {
+      setHasRevisionPlan(hasTasks || hasPrompts);
     });
   }, [activeSlug]);
 

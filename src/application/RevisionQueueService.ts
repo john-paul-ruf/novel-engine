@@ -164,7 +164,32 @@ export class RevisionQueueService implements IRevisionQueueService {
       // File may not exist
     }
 
+    // 1a. Determine which revision cycle we're in.
+    //
+    // Sable's output (audit-report.md) signals the copy-edit phase is complete,
+    // meaning we are now in the SECOND revision cycle (mechanical fixes).
+    // The first-cycle files must have been archived (project-tasks-v1.md exists)
+    // before the second queue can load. If they weren't archived, the live files
+    // belong to the first cycle and must not be run as the second cycle's plan.
+    const [auditExists, archivedTasksExist] = await Promise.all([
+      this.fs.fileExists(bookSlug, 'source/audit-report.md'),
+      this.fs.fileExists(bookSlug, 'source/project-tasks-v1.md'),
+    ]);
+
+    if (auditExists && !archivedTasksExist && (revisionPromptsContent || projectTasksContent)) {
+      throw new Error(
+        'Sable has completed copy editing, but the first revision queue has not been archived. ' +
+        'Open the revision queue, review any remaining sessions, then click "Complete Queue" to ' +
+        'archive it before working on mechanical fixes.',
+      );
+    }
+
     if (!revisionPromptsContent && !projectTasksContent) {
+      if (auditExists) {
+        throw new Error(
+          'No mechanical fixes plan found. Run Forge to generate the mechanical fixes task list and session prompts.',
+        );
+      }
       throw new Error('No revision plan found. Run Forge first to generate project tasks and revision prompts.');
     }
 
