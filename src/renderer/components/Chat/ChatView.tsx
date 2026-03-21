@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AGENT_REGISTRY, CREATIVE_AGENT_NAMES, PIPELINE_PHASES } from '@domain/constants';
 import type { AgentName, ConversationPurpose, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
@@ -27,9 +27,18 @@ export function ChatView(): React.ReactElement {
   const lockedAgentName = useChatStore((s) => s.lockedAgentName);
   const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
   const { activeSlug } = useBookStore();
-  const { activePhase } = usePipelineStore();
+  const { activePhase, phases } = usePipelineStore();
   const { payload } = useViewStore();
   const [conversationsExpanded, setConversationsExpanded] = useState(false);
+
+  // True when the currently viewed conversation belongs to a non-active pipeline phase
+  // (e.g. a 'complete' or 'pending-completion' phase the user clicked to review).
+  // In that case the chat is shown read-only: input disabled, streaming suppressed.
+  const isReadOnly = useMemo(() => {
+    if (!activeConversation?.pipelinePhase) return false;
+    const phase = phases.find((p) => p.id === activeConversation.pipelinePhase);
+    return phase ? phase.status !== 'active' : false;
+  }, [activeConversation, phases]);
 
   // Sync pipeline lock state when the active phase changes
   useEffect(() => {
@@ -67,11 +76,12 @@ export function ChatView(): React.ReactElement {
       {activeConversation ? (
         <>
           <AgentHeader />
-          <MessageList />
+          <MessageList hideStreaming={isReadOnly} />
           <ChatInput
             onSend={handleSend}
-            disabled={isStreaming}
+            disabled={isStreaming || isReadOnly}
             lockedAgentName={pipelineLocked ? lockedAgentName : null}
+            readOnly={isReadOnly}
           />
         </>
       ) : (

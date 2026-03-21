@@ -3,7 +3,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { MessageBubble } from './MessageBubble';
 import { StreamingMessage } from './StreamingMessage';
 
-export function MessageList(): React.ReactElement {
+export function MessageList({ hideStreaming = false }: { hideStreaming?: boolean }): React.ReactElement {
   // Granular selectors — DO NOT subscribe to streamBuffer/thinkingBuffer here.
   // StreamingMessage handles its own subscriptions. Subscribing here would
   // re-render every MessageBubble on every streaming delta.
@@ -82,7 +82,7 @@ export function MessageList(): React.ReactElement {
         />
       ))}
 
-      <StreamingMessage />
+      {!hideStreaming && <StreamingMessage />}
 
       {/* Bottom sentinel for auto-scroll detection */}
       <div ref={bottomRef} className="h-1" />

@@ -88,7 +88,17 @@ export function PipelineTracker(): React.ReactElement {
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
   const { isLoading: revisionLoading, isRunning: revisionRunning, activeSessionId: revisionActiveSession } = useRevisionQueueStore();
-  const { isRunning: autoDraftRunning, chaptersWritten: autoDraftChapters, error: autoDraftError, start: autoDraftStart, stop: autoDraftStop, reset: autoDraftReset } = useAutoDraftStore();
+  const {
+    isRunning: autoDraftRunning,
+    isPaused: autoDraftPaused,
+    pauseReason: autoDraftPauseReason,
+    chaptersWritten: autoDraftChapters,
+    error: autoDraftError,
+    start: autoDraftStart,
+    stop: autoDraftStop,
+    resume: autoDraftResume,
+    reset: autoDraftReset,
+  } = useAutoDraftStore();
   const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
   const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
@@ -373,9 +383,12 @@ export function PipelineTracker(): React.ReactElement {
               {showAutoDraft && (
                 <AutoDraftSubButton
                   isRunning={autoDraftRunning}
+                  isPaused={autoDraftPaused}
+                  pauseReason={autoDraftPauseReason}
                   chaptersWritten={autoDraftChapters}
                   onStart={() => autoDraftStart(activeSlug)}
                   onStop={autoDraftStop}
+                  onResume={autoDraftResume}
                 />
               )}
               {index < phases.length - 1 && (
@@ -457,47 +470,96 @@ function CompleteRevisionSubButton({
 
 function AutoDraftSubButton({
   isRunning,
+  isPaused,
+  pauseReason,
   chaptersWritten,
   onStart,
   onStop,
+  onResume,
 }: {
   isRunning: boolean;
+  isPaused: boolean;
+  pauseReason: string | null;
   chaptersWritten: number;
   onStart: () => void;
   onStop: () => void;
+  onResume: () => void;
 }): React.ReactElement {
+  // ── Paused on error ────────────────────────────────────────────────────────
+  if (isPaused) {
+    // Truncate long error messages to fit the narrow sidebar
+    const truncated = pauseReason && pauseReason.length > 48
+      ? pauseReason.slice(0, 45) + '…'
+      : (pauseReason ?? 'CLI error');
+
+    return (
+      <div className="ml-7 flex w-[calc(100%-1.75rem)] flex-col gap-1 rounded-md bg-amber-500/10 px-2 py-1.5">
+        {/* Status row */}
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+          <span className="text-[11px] font-medium text-amber-400">Auto Draft paused</span>
+          {chaptersWritten > 0 && (
+            <span className="ml-auto text-[9px] text-amber-400/70">
+              {chaptersWritten} ch done
+            </span>
+          )}
+        </div>
+        {/* Error reason */}
+        <div
+          className="text-[9px] text-amber-400/60 leading-tight"
+          title={pauseReason ?? undefined}
+        >
+          {truncated}
+        </div>
+        {/* Action buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onResume}
+            className="flex-1 rounded bg-amber-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-amber-500 transition-colors"
+          >
+            ↺ Retry
+          </button>
+          <button
+            onClick={onStop}
+            className="rounded bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-300 hover:bg-zinc-600 transition-colors"
+          >
+            Stop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Actively running ───────────────────────────────────────────────────────
+  if (isRunning) {
+    return (
+      <button
+        onClick={onStop}
+        className="ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md bg-purple-500/15 px-2 py-1 text-[11px] font-medium text-purple-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+        title={`Auto Draft running — click to stop after the current chapter (${chaptersWritten} chapter${chaptersWritten !== 1 ? 's' : ''} written)`}
+      >
+        <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+          <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
+          <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+        </span>
+        <span>Auto Draft</span>
+        <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
+          {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
+        </span>
+        <span className="ml-1 text-[9px] text-red-400/70">■ stop</span>
+      </button>
+    );
+  }
+
+  // ── Idle ───────────────────────────────────────────────────────────────────
   return (
     <button
-      onClick={isRunning ? onStop : onStart}
-      className={`ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-        isRunning
-          ? 'bg-purple-500/15 text-purple-400 hover:bg-red-500/10 hover:text-red-400'
-          : 'text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-purple-400'
-      }`}
-      title={
-        isRunning
-          ? `Auto Draft running — click to stop after current chapter (${chaptersWritten} chapter${chaptersWritten !== 1 ? 's' : ''} written)`
-          : 'Automatically write all remaining chapters one by one'
-      }
+      onClick={onStart}
+      className="ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-200/50 hover:text-purple-400 dark:hover:bg-zinc-800/50"
+      title="Automatically write all remaining chapters one by one"
     >
-      {isRunning ? (
-        <>
-          <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
-            <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
-            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
-          </span>
-          <span>Auto Draft</span>
-          <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
-            {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
-          </span>
-          <span className="text-[9px] text-red-400/70 ml-1">■ stop</span>
-        </>
-      ) : (
-        <>
-          <span className="text-purple-500 text-xs">▶</span>
-          <span>Auto Draft</span>
-        </>
-      )}
+      <span className="text-purple-500 text-xs">▶</span>
+      <span>Auto Draft</span>
     </button>
   );
 }
