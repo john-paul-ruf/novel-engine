@@ -37,7 +37,7 @@ export function ChatView(): React.ReactElement {
   const isReadOnly = useMemo(() => {
     if (!activeConversation?.pipelinePhase) return false;
     const phase = phases.find((p) => p.id === activeConversation.pipelinePhase);
-    return phase ? phase.status !== 'active' : false;
+    return phase ? phase.status !== 'active' && phase.status !== 'pending-completion' : false;
   }, [activeConversation, phases]);
 
   // Sync pipeline lock state when the active phase changes
