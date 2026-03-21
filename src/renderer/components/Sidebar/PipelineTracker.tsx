@@ -4,6 +4,7 @@ import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 
 /**
  * Phases that require the user to manually signal completion.
@@ -56,18 +57,15 @@ function ConnectingLine({
   return <div className={`ml-[9px] h-4 w-0.5 ${color}`} />;
 }
 
-/** Phase IDs after which the "Revision Queue" sub-button may appear. */
-const REVISION_PARENT_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
-  'revision-plan-1',
-  'revision',
-  'revision-plan-2',
-]);
+/** The phase under which the "Revision Queue" sub-button appears (Verity). */
+const REVISION_QUEUE_PARENT: PipelinePhaseId = 'revision';
 
 export function PipelineTracker(): React.ReactElement {
   const { phases, markPhaseComplete } = usePipelineStore();
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
+  const { isLoading: revisionLoading, isRunning: revisionRunning, activeSessionId: revisionActiveSession } = useRevisionQueueStore();
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
   const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
@@ -118,12 +116,24 @@ export function PipelineTracker(): React.ReactElement {
       return;
     }
 
+    // Revision phase owns the revision queue — clicking it opens the queue
+    if (phase.id === REVISION_QUEUE_PARENT && hasRevisionPlan) {
+      navigate('revision-queue');
+      return;
+    }
+
     await openOrCreateConversation(phase);
   };
 
   const handleStartClick = async (phase: PipelinePhase) => {
     if (phase.id === 'build') {
       navigate('build');
+      return;
+    }
+
+    // Revision phase owns the revision queue
+    if (phase.id === REVISION_QUEUE_PARENT && hasRevisionPlan) {
+      navigate('revision-queue');
       return;
     }
 
@@ -170,15 +180,11 @@ export function PipelineTracker(): React.ReactElement {
       )}
       <div>
         {phases.map((phase, index) => {
-          // Show the revision queue sub-button after the first non-locked revision phase
+          // Show the revision queue sub-button under the Verity (revision) phase
           const showRevisionSub =
             hasRevisionPlan &&
-            REVISION_PARENT_PHASES.has(phase.id) &&
-            phase.status !== 'locked' &&
-            // Only show once — on the first matching phase
-            !phases.slice(0, index).some(
-              (p) => REVISION_PARENT_PHASES.has(p.id) && p.status !== 'locked'
-            );
+            phase.id === REVISION_QUEUE_PARENT &&
+            phase.status !== 'locked';
 
           return (
             <div key={phase.id}>
@@ -195,6 +201,7 @@ export function PipelineTracker(): React.ReactElement {
               {showRevisionSub && (
                 <RevisionQueueSubButton
                   isActive={currentView === 'revision-queue'}
+                  isRunning={revisionLoading || (revisionRunning && !!revisionActiveSession)}
                   onClick={() => navigate('revision-queue')}
                 />
               )}
@@ -214,9 +221,11 @@ export function PipelineTracker(): React.ReactElement {
 
 function RevisionQueueSubButton({
   isActive,
+  isRunning,
   onClick,
 }: {
   isActive: boolean;
+  isRunning: boolean;
   onClick: () => void;
 }): React.ReactElement {
   return (
@@ -228,8 +237,20 @@ function RevisionQueueSubButton({
           : 'text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-orange-400'
       }`}
     >
-      <span className="text-orange-500 text-xs">⚙</span>
+      {isRunning ? (
+        <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+          <span className="absolute h-3 w-3 animate-ping rounded-full bg-orange-500 opacity-40" />
+          <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+        </span>
+      ) : (
+        <span className="text-orange-500 text-xs">⚙</span>
+      )}
       <span>Revision Queue</span>
+      {isRunning && (
+        <span className="ml-auto text-[9px] text-orange-400/80 animate-pulse">
+          working…
+        </span>
+      )}
     </button>
   );
 }
@@ -256,7 +277,7 @@ function PhaseRow({
   return (
     <div
       className={`flex items-center gap-2 rounded-md px-1 py-1 ${
-        isClickable ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50' : 'cursor-default opacity-60'
+        isClickable ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50' : 'cursor-default opacity-60'
       }`}
       onClick={onPhaseClick}
       title={phase.status === 'locked' ? 'Complete the previous phase first' : phase.description}

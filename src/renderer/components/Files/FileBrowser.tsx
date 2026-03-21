@@ -128,7 +128,7 @@ function FileCard({
   return (
     <div
       onClick={onClick}
-      className="group relative rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 hover:border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800/80 cursor-pointer transition-colors"
+      className="group relative rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 hover:border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 cursor-pointer transition-colors"
     >
       {/* Quick actions (hover) */}
       <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -190,7 +190,7 @@ function FileCard({
                   e.stopPropagation();
                   onFileSelect(`${entry.path}/draft.md`);
                 }}
-                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
               >
                 Draft
               </button>
@@ -199,7 +199,7 @@ function FileCard({
                   e.stopPropagation();
                   onFileSelect(`${entry.path}/notes.md`);
                 }}
-                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
               >
                 Notes
               </button>
@@ -247,7 +247,7 @@ function FileListView({
             onClick={() =>
               entry.isDirectory ? onNavigate(entry.path) : onFileSelect(entry.path)
             }
-            className="group flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800/50 px-4 py-2 cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 transition-colors"
+            className="group flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800/50 px-4 py-2 cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-colors"
           >
             <div className="w-8 text-center shrink-0">{icon}</div>
             <div className="flex-1 min-w-0">

@@ -172,7 +172,7 @@ export type UsageSummary = {
 
 export type RevisionSessionStatus = 'pending' | 'running' | 'awaiting-approval' | 'approved' | 'rejected' | 'skipped';
 
-export type ApprovalAction = 'approve' | 'reject' | 'skip' | 'retry';
+export type ApprovalAction = 'approve' | 'approve-all' | 'reject' | 'skip' | 'retry';
 
 export type QueueMode = 'manual' | 'auto-approve' | 'auto-skip' | 'selective';
 
@@ -215,6 +215,7 @@ export type RevisionQueueEvent =
   | { type: 'session:done'; sessionId: string; taskNumbers: number[] }
   | { type: 'session:gate'; sessionId: string; gateText: string }
   | { type: 'plan:progress'; completedTasks: number; totalTasks: number }
+  | { type: 'plan:loading-step'; step: string }
   | { type: 'queue:done' }
   | { type: 'error'; sessionId: string; message: string };
 

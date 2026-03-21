@@ -145,7 +145,7 @@ export function FileEditor({
           {/* Cancel button */}
           <button
             onClick={onClose}
-            className="rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700"
+            className="rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700"
           >
             Cancel
           </button>

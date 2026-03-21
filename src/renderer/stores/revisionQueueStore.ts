@@ -3,15 +3,18 @@ import type {
   RevisionPlan,
   QueueMode,
   ApprovalAction,
+  Message,
 } from '@domain/types';
 
 type RevisionQueueState = {
-  // State
   plan: RevisionPlan | null;
   planId: string | null;
+  isLoading: boolean;
+  loadingStep: string;
   isRunning: boolean;
   isPaused: boolean;
   activeSessionId: string | null;
+  viewingSessionId: string | null;
   streamingResponse: string;
   streamingThinking: string;
   gateSessionId: string | null;
@@ -19,12 +22,16 @@ type RevisionQueueState = {
   error: string | null;
   selectedSessionIds: Set<string>;
 
-  // Actions
+  panelMessages: Message[];
+  panelMessagesConvId: string | null;
+
   loadPlan: (bookSlug: string) => Promise<void>;
+  reloadPlan: (bookSlug: string) => Promise<void>;
   runNext: () => Promise<void>;
   runAll: () => Promise<void>;
   runSession: (sessionId: string) => Promise<void>;
   respondToGate: (action: ApprovalAction, message?: string) => Promise<void>;
+  sendGateMessage: (message: string) => Promise<void>;
   approveSession: (sessionId: string) => Promise<void>;
   rejectSession: (sessionId: string) => Promise<void>;
   skipSession: (sessionId: string) => Promise<void>;
@@ -33,33 +40,65 @@ type RevisionQueueState = {
   toggleSessionSelection: (sessionId: string) => void;
   selectAllSessions: () => void;
   deselectAllSessions: () => void;
+  setViewingSession: (sessionId: string | null) => void;
+  loadPanelMessages: (conversationId: string) => Promise<void>;
   reset: () => void;
 };
 
 export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   plan: null,
   planId: null,
+  isLoading: false,
+  loadingStep: '',
   isRunning: false,
   isPaused: false,
   activeSessionId: null,
+  viewingSessionId: null,
   streamingResponse: '',
   streamingThinking: '',
   gateSessionId: null,
   gateText: '',
   error: null,
   selectedSessionIds: new Set(),
+  panelMessages: [],
+  panelMessagesConvId: null,
 
   loadPlan: async (bookSlug: string) => {
+    const { plan, isLoading } = get();
+    if (isLoading) return;
+    if (plan && plan.bookSlug === bookSlug) return;
+
     try {
-      set({ error: null });
-      const plan = await window.novelEngine.revision.loadPlan(bookSlug);
+      set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });
+      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
-        plan,
-        planId: plan.id,
-        selectedSessionIds: new Set(plan.sessions.map(s => s.id)),
+        plan: loaded,
+        planId: loaded.id,
+        isLoading: false,
+        loadingStep: '',
+        selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err) });
+      set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
+    }
+  },
+
+  reloadPlan: async (bookSlug: string) => {
+    const { isLoading } = get();
+    if (isLoading) return;
+    set({ plan: null, planId: null, error: null });
+    try {
+      set({ isLoading: true, loadingStep: 'Reloading\u2026' });
+      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
+      set({
+        plan: loaded,
+        planId: loaded.id,
+        isLoading: false,
+        loadingStep: '',
+        selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
+      });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
     }
   },
 
@@ -68,11 +107,21 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (!plan || !planId) return;
     const next = plan.sessions.find(s => s.status === 'pending');
     if (!next) return;
-    set({ isRunning: true, activeSessionId: next.id, streamingResponse: '', streamingThinking: '' });
+    set({
+      isRunning: true,
+      activeSessionId: next.id,
+      viewingSessionId: next.id,
+      streamingResponse: '',
+      streamingThinking: '',
+      panelMessages: [],
+      panelMessagesConvId: null,
+    });
     try {
       await window.novelEngine.revision.runSession(planId, next.id);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err), isRunning: false });
+      set({ error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
     }
   },
 
@@ -95,11 +144,21 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   runSession: async (sessionId: string) => {
     const { planId } = get();
     if (!planId) return;
-    set({ isRunning: true, activeSessionId: sessionId, streamingResponse: '', streamingThinking: '' });
+    set({
+      isRunning: true,
+      activeSessionId: sessionId,
+      viewingSessionId: sessionId,
+      streamingResponse: '',
+      streamingThinking: '',
+      panelMessages: [],
+      panelMessagesConvId: null,
+    });
     try {
       await window.novelEngine.revision.runSession(planId, sessionId);
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err), isRunning: false });
+      set({ error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      set({ isRunning: false, activeSessionId: null, streamingResponse: '', streamingThinking: '' });
     }
   },
 
@@ -108,6 +167,33 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (!planId || !gateSessionId) return;
     set({ gateSessionId: null, gateText: '', streamingResponse: '', streamingThinking: '' });
     await window.novelEngine.revision.respondToGate(planId, gateSessionId, action, message);
+  },
+
+  sendGateMessage: async (message: string) => {
+    const { planId, gateSessionId, plan } = get();
+    if (!planId || !gateSessionId) return;
+
+    const session = plan?.sessions.find(s => s.id === gateSessionId);
+    const convId = session?.conversationId;
+
+    const tempMessage: Message = {
+      id: 'temp-' + Date.now(),
+      role: 'user',
+      content: message,
+      thinking: '',
+      conversationId: convId ?? '',
+      timestamp: new Date().toISOString(),
+    };
+
+    set(state => ({
+      panelMessages: [...state.panelMessages, tempMessage],
+      gateSessionId: null,
+      gateText: '',
+      streamingResponse: '',
+      streamingThinking: '',
+    }));
+
+    await window.novelEngine.revision.respondToGate(planId, gateSessionId, 'reject', message);
   },
 
   approveSession: async (sessionId: string) => {
@@ -166,19 +252,50 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     set({ selectedSessionIds: new Set() });
   },
 
+  setViewingSession: (sessionId: string | null) => {
+    if (!sessionId) {
+      set({ viewingSessionId: null, panelMessages: [], panelMessagesConvId: null });
+      return;
+    }
+
+    set({ viewingSessionId: sessionId });
+
+    const { plan } = get();
+    const session = plan?.sessions.find(s => s.id === sessionId);
+    if (session?.conversationId) {
+      get().loadPanelMessages(session.conversationId);
+    } else {
+      set({ panelMessages: [], panelMessagesConvId: null });
+    }
+  },
+
+  loadPanelMessages: async (conversationId: string) => {
+    try {
+      const messages = await window.novelEngine.chat.getMessages(conversationId);
+      set({ panelMessages: messages, panelMessagesConvId: conversationId });
+    } catch {
+      set({ panelMessages: [], panelMessagesConvId: conversationId });
+    }
+  },
+
   reset: () => {
     set({
       plan: null,
       planId: null,
+      isLoading: false,
+      loadingStep: '',
       isRunning: false,
       isPaused: false,
       activeSessionId: null,
+      viewingSessionId: null,
       streamingResponse: '',
       streamingThinking: '',
       gateSessionId: null,
       gateText: '',
       error: null,
       selectedSessionIds: new Set(),
+      panelMessages: [],
+      panelMessagesConvId: null,
     });
   },
 }));

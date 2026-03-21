@@ -145,7 +145,7 @@ export function ChaptersPanel({
         {chapters.map((chapter) => (
           <div
             key={chapter.slug}
-            className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
+            className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
           >
             {/* Chapter number */}
             <div className="w-10 shrink-0 text-right font-mono text-sm text-zinc-500">

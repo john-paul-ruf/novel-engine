@@ -14,11 +14,17 @@ export function useRevisionQueueEvents() {
             const sessions = state.plan.sessions.map(s =>
               s.id === event.sessionId ? { ...s, status: event.status } : s
             );
-            return {
+            const update: Partial<typeof state> & { plan: typeof state.plan } = {
               plan: { ...state.plan, sessions },
-              isRunning: event.status === 'running',
-              activeSessionId: event.status === 'running' ? event.sessionId : state.activeSessionId,
             };
+            if (event.status === 'running') {
+              update.activeSessionId = event.sessionId;
+              update.viewingSessionId = event.sessionId;
+              update.streamingResponse = '';
+              update.streamingThinking = '';
+              update.isRunning = true;
+            }
+            return update;
           });
           break;
         }
@@ -38,14 +44,27 @@ export function useRevisionQueueEvents() {
         }
 
         case 'session:gate': {
+          const state = useRevisionQueueStore.getState();
+          const session = state.plan?.sessions.find(s => s.id === event.sessionId);
+          const convId = session?.conversationId;
+
           useRevisionQueueStore.setState({
             gateSessionId: event.sessionId,
             gateText: event.gateText,
+            viewingSessionId: event.sessionId,
           });
+
+          if (convId) {
+            useRevisionQueueStore.getState().loadPanelMessages(convId);
+          }
           break;
         }
 
         case 'session:done': {
+          const state = useRevisionQueueStore.getState();
+          const session = state.plan?.sessions.find(s => s.id === event.sessionId);
+          const convId = session?.conversationId;
+
           useRevisionQueueStore.setState(state => {
             if (!state.plan) return state;
             const completedTaskNumbers = [
@@ -60,14 +79,21 @@ export function useRevisionQueueEvents() {
             };
           });
 
-          // Revision sessions write chapter files — notify file UI to refresh
+          if (convId) {
+            useRevisionQueueStore.getState().loadPanelMessages(convId);
+          }
+
           useFileChangeStore.getState().notifyChange();
           useBookStore.getState().refreshWordCount();
           break;
         }
 
+        case 'plan:loading-step': {
+          useRevisionQueueStore.setState({ loadingStep: event.step });
+          break;
+        }
+
         case 'plan:progress': {
-          // Plan state already synced via session:done — no action needed
           break;
         }
 

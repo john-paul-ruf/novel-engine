@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
 import { randomRespondingStatus } from '@domain/constants';
 import { useBookStore } from './bookStore';
+import { useFileChangeStore } from './fileChangeStore';
+import { usePipelineStore } from './pipelineStore';
 import { streamRouter } from './streamRouter';
 
 type ChatState = {
@@ -404,19 +406,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const cleanupFilesChanged = window.novelEngine.chat.onFilesChanged((_paths) => {
       const { activeSlug } = useBookStore.getState();
       if (activeSlug) {
-        // Dynamically import stores to avoid circular dependencies
-        import('./pipelineStore').then(({ usePipelineStore }) => {
-          usePipelineStore.getState().loadPipeline(activeSlug);
-        }).catch((err) => {
-          console.error('Failed to refresh pipeline after file changes:', err);
-        });
+        // Refresh pipeline phases (new files may advance the pipeline)
+        usePipelineStore.getState().loadPipeline(activeSlug);
 
         // Bump the file change revision so all file-displaying components re-fetch
-        import('./fileChangeStore').then(({ useFileChangeStore }) => {
-          useFileChangeStore.getState().notifyChange();
-        }).catch((err) => {
-          console.error('Failed to notify file change store:', err);
-        });
+        useFileChangeStore.getState().notifyChange();
 
         // Refresh word count in the book store
         useBookStore.getState().refreshWordCount();

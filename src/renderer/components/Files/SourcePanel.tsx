@@ -95,7 +95,7 @@ export function SourcePanel({
           <div
             key={file.path}
             onClick={() => onFileSelect(file.path)}
-            className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 transition-colors hover:border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800/80"
+            className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 transition-colors hover:border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
           >
             <div className="mb-2 text-2xl">{file.icon}</div>
             <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{file.label}</div>

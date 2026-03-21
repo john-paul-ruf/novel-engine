@@ -51,11 +51,9 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'settings' ? '' : 'hidden'}`}>
         <SettingsView />
       </div>
-      {currentView === 'revision-queue' && (
-        <div className="h-full">
-          <RevisionQueueView />
-        </div>
-      )}
+      <div className={`h-full ${currentView === 'revision-queue' ? '' : 'hidden'}`}>
+        <RevisionQueueView />
+      </div>
     </>
   );
 }

@@ -84,7 +84,7 @@ function InlineEditField({
   return (
     <span
       onClick={() => setEditing(true)}
-      className={`${className} cursor-pointer rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800`}
+      className={`${className} cursor-pointer rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800`}
       title="Click to edit"
     >
       {value || placeholder}
@@ -243,7 +243,7 @@ function CoverImageSection({
       />
       <button
         onClick={onUpload}
-        className="absolute bottom-2 right-2 rounded bg-zinc-100 dark:bg-zinc-800/80 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 backdrop-blur hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700/80"
+        className="absolute bottom-2 right-2 rounded bg-zinc-100 dark:bg-zinc-800/80 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 backdrop-blur hover:bg-zinc-200 dark:hover:bg-zinc-700/80"
       >
         Change
       </button>
@@ -445,7 +445,7 @@ function ReaderContent({
         <div className="text-sm text-zinc-500">{error}</div>
         <button
           onClick={onClearFile}
-          className="mt-2 rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700"
+          className="mt-2 rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
         >
           Back
         </button>

@@ -195,7 +195,7 @@ export function BookSelector(): React.ReactElement {
       {/* Closed state — always visible */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="no-drag flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
+        className="no-drag flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
       >
         {activeBook ? (
           <>
@@ -237,7 +237,7 @@ export function BookSelector(): React.ReactElement {
                 setIsOpen(false);
                 setShowNewBookModal(true);
               }}
-              className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800"
+              className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               <span>+</span>
               <span>New Book</span>
@@ -271,7 +271,7 @@ function BookDropdownItem({
   return (
     <button
       onClick={onClick}
-      className={`no-drag flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 ${
+      className={`no-drag flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
         isActive ? 'bg-zinc-200/70 dark:bg-zinc-800/70' : ''
       }`}
     >

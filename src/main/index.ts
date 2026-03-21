@@ -13,7 +13,7 @@ if (squirrelStartup) {
 import { SettingsService } from '@infra/settings';
 import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
-import { FileSystemService } from '@infra/filesystem';
+import { FileSystemService, BookWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
 import { resolvePandocPath } from '@infra/pandoc';
 
@@ -39,6 +39,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 
 // Module-level references for lifecycle cleanup
 let db: DatabaseService;
+let bookWatcher: BookWatcher | null = null;
 let mainWindow: BrowserWindow | null = null;
 
 // Variable captured by the protocol handler (assigned during initializeApp)
@@ -174,16 +175,37 @@ async function initializeApp(): Promise<void> {
     return new Response('Not found', { status: 404 });
   });
 
-  // 6. Register IPC handlers
+  // 6. Set up file system watcher — notifies the renderer when book files change on disk
+  bookWatcher = new BookWatcher(booksDir, (changedPaths) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('chat:filesChanged', changedPaths);
+    }
+  });
+
+  // Start watching the active book (if one is set)
+  fs.getActiveBookSlug().then((activeSlug) => {
+    if (activeSlug) {
+      bookWatcher?.watch(activeSlug);
+    }
+  }).catch(() => {
+    // No active book yet — watcher will start when user selects one
+  });
+
+  // 7. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
     { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, notifications },
     { userDataPath, booksDir },
+    {
+      onActiveBookChanged: (slug: string) => {
+        bookWatcher?.watch(slug);
+      },
+    },
   );
 
-  // 7. Register window control handlers (custom title bar)
+  // 8. Register window control handlers (custom title bar)
   registerWindowControlHandlers();
 
-  // 8. Create the window
+  // 9. Create the window
   createWindow();
 }
 
@@ -203,8 +225,11 @@ app.on('activate', () => {
   }
 });
 
-// Clean up database connection on quit to prevent WAL corruption
+// Clean up database connection and file watcher on quit
 app.on('before-quit', () => {
+  if (bookWatcher) {
+    bookWatcher.stop();
+  }
   if (db) {
     db.close();
   }

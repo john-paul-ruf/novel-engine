@@ -42,6 +42,8 @@ export function registerIpcHandlers(services: {
 }, paths: {
   userDataPath: string;
   booksDir: string;
+}, hooks?: {
+  onActiveBookChanged?: (slug: string) => void;
 }): void {
 
   // === Settings ===
@@ -75,11 +77,16 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('books:getActiveSlug', () => services.fs.getActiveBookSlug());
 
-  ipcMain.handle('books:setActive', (_, slug: string) => services.fs.setActiveBook(slug));
+  ipcMain.handle('books:setActive', async (_, slug: string) => {
+    await services.fs.setActiveBook(slug);
+    hooks?.onActiveBookChanged?.(slug);
+  });
 
   ipcMain.handle('books:create', async (_, title: string) => {
     const settings = await services.settings.load();
-    return services.fs.createBook(title, settings.authorName);
+    const meta = await services.fs.createBook(title, settings.authorName);
+    hooks?.onActiveBookChanged?.(meta.slug);
+    return meta;
   });
 
   ipcMain.handle('books:getMeta', (_, slug: string) => services.fs.getBookMeta(slug));

@@ -38,7 +38,7 @@ export function PipelineLockBanner(): React.ReactElement | null {
         onClick={() => setPipelineLock(!pipelineLocked)}
         className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
           pipelineLocked
-            ? 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800'
+            ? 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
             : 'bg-amber-600/20 text-amber-600 dark:text-amber-400 hover:bg-amber-600/30'
         }`}
       >

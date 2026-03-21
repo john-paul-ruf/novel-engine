@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { createHash } from 'crypto';
 import type {
   RevisionPlan,
   RevisionSession,
@@ -25,11 +26,54 @@ import {
 } from '@domain/constants';
 import { ContextBuilder } from './ContextBuilder';
 
+// ── Cache types ──────────────────────────────────────────────────────
+
+/** Structured output from the wrangler CLI parse. */
+type ParsedWranglerOutput = {
+  sessions: {
+    index: number;
+    title: string;
+    chapters: string[];
+    taskNumbers: number[];
+    model: 'opus' | 'sonnet';
+    prompt: string;
+    notes: string;
+  }[];
+  totalTasks: number;
+  completedTaskNumbers: number[];
+  phases: { number: number; name: string; taskCount: number; completedCount: number }[];
+};
+
+/** On-disk wrangler parse cache (avoids re-calling CLI when files haven't changed). */
+type PlanCache = {
+  contentHash: string;
+  parsed: ParsedWranglerOutput;
+  cachedAt: string;
+};
+
+/** On-disk session state — survives app restarts so progress isn't lost. */
+type SessionStateFile = {
+  planHash: string;
+  mode: QueueMode;
+  sessions: Record<number, {
+    status: RevisionSessionStatus;
+    conversationId: string | null;
+  }>;
+};
+
+const CACHE_PATH = 'source/.revision-plan-cache.json';
+const STATE_PATH = 'source/.revision-queue-state.json';
+
 export class RevisionQueueService implements IRevisionQueueService {
   private plans: Map<string, RevisionPlan> = new Map();
+  /** Quick lookup: bookSlug → planId for the most recent plan per book. */
+  private plansByBook: Map<string, string> = new Map();
+  /** Cached content hash per book — avoids re-reading files on every persistState call. */
+  private hashByBook: Map<string, string> = new Map();
   private listeners: Set<(event: RevisionQueueEvent) => void> = new Set();
   private paused: boolean = false;
   private gateResolvers: Map<string, (decision: { action: ApprovalAction; message?: string }) => void> = new Map();
+  private autoApproveSessionIds: Set<string> = new Set();
 
   constructor(
     private fs: IFileSystemService,
@@ -50,16 +94,70 @@ export class RevisionQueueService implements IRevisionQueueService {
     }
   }
 
+  // ── Hashing & cache helpers ──────────────────────────────────────
+
+  private computeHash(content: string): string {
+    return createHash('sha256').update(content).digest('hex').slice(0, 16);
+  }
+
+  private async readCache(bookSlug: string): Promise<PlanCache | null> {
+    try {
+      const raw = await this.fs.readFile(bookSlug, CACHE_PATH);
+      return JSON.parse(raw) as PlanCache;
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeCache(bookSlug: string, cache: PlanCache): Promise<void> {
+    try {
+      await this.fs.writeFile(bookSlug, CACHE_PATH, JSON.stringify(cache, null, 2));
+    } catch {
+      // Best-effort — don't fail the plan load
+    }
+  }
+
+  private async readState(bookSlug: string): Promise<SessionStateFile | null> {
+    try {
+      const raw = await this.fs.readFile(bookSlug, STATE_PATH);
+      return JSON.parse(raw) as SessionStateFile;
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeState(bookSlug: string, plan: RevisionPlan, contentHash: string): Promise<void> {
+    const state: SessionStateFile = {
+      planHash: contentHash,
+      mode: plan.mode,
+      sessions: {},
+    };
+    for (const s of plan.sessions) {
+      state.sessions[s.index] = {
+        status: s.status,
+        conversationId: s.conversationId,
+      };
+    }
+    try {
+      await this.fs.writeFile(bookSlug, STATE_PATH, JSON.stringify(state, null, 2));
+    } catch {
+      // Best-effort
+    }
+  }
+
+  // ── Plan loading with cache ──────────────────────────────────────
+
   async loadPlan(bookSlug: string): Promise<RevisionPlan> {
+    // 1. Read source files
     let revisionPromptsContent: string | null = null;
     let projectTasksContent: string | null = null;
 
+    this.emit({ type: 'plan:loading-step', step: 'Reading source files…' });
     try {
       revisionPromptsContent = await this.fs.readFile(bookSlug, 'source/revision-prompts.md');
     } catch {
       // File may not exist
     }
-
     try {
       projectTasksContent = await this.fs.readFile(bookSlug, 'source/project-tasks.md');
     } catch {
@@ -70,43 +168,64 @@ export class RevisionQueueService implements IRevisionQueueService {
       throw new Error('No revision plan found. Run Forge first to generate project tasks and revision prompts.');
     }
 
-    const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
+    // 2. Compute content hash
+    const combinedContent = (revisionPromptsContent ?? '') + '\0' + (projectTasksContent ?? '');
+    const contentHash = this.computeHash(combinedContent);
 
-    const rawResponse = await this.claude.sendOneShot({
-      model: WRANGLER_MODEL,
-      systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
-      userMessage,
-      maxTokens: 8192,
-    });
+    // 3. Check disk cache — if hash matches, skip the CLI call entirely
+    let parsed: ParsedWranglerOutput;
+    const cache = await this.readCache(bookSlug);
 
-    // Extract JSON from response — handle potential markdown fencing
-    let parsed: {
-      sessions: {
-        index: number;
-        title: string;
-        chapters: string[];
-        taskNumbers: number[];
-        model: 'opus' | 'sonnet';
-        prompt: string;
-        notes: string;
-      }[];
-      totalTasks: number;
-      completedTaskNumbers: number[];
-      phases: { number: number; name: string; taskCount: number; completedCount: number }[];
-    };
+    if (cache && cache.contentHash === contentHash) {
+      this.emit({ type: 'plan:loading-step', step: 'Loaded from cache (files unchanged)' });
+      parsed = cache.parsed;
+    } else {
+      // Cache miss — call wrangler CLI
+      const promptSize = (revisionPromptsContent?.length ?? 0);
+      const taskSize = (projectTasksContent?.length ?? 0);
+      const totalChars = promptSize + taskSize;
+      this.emit({
+        type: 'plan:loading-step',
+        step: `Sending ${Math.round(totalChars / 1000)}k chars to Wrangler (${WRANGLER_MODEL})…`,
+      });
 
-    try {
-      const jsonStart = rawResponse.indexOf('{');
-      const jsonEnd = rawResponse.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error('No JSON object found in response');
+      const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
+
+      const rawResponse = await this.claude.sendOneShot({
+        model: WRANGLER_MODEL,
+        systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
+        userMessage,
+        maxTokens: 8192,
+      });
+
+      this.emit({ type: 'plan:loading-step', step: 'Parsing Wrangler response…' });
+
+      try {
+        const jsonStart = rawResponse.indexOf('{');
+        const jsonEnd = rawResponse.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) {
+          throw new Error('No JSON object found in response');
+        }
+        parsed = JSON.parse(rawResponse.slice(jsonStart, jsonEnd + 1));
+      } catch (err) {
+        throw new Error(
+          `Failed to parse Wrangler response as JSON: ${err instanceof Error ? err.message : String(err)}. Response starts with: "${rawResponse.slice(0, 200)}"`,
+        );
       }
-      parsed = JSON.parse(rawResponse.slice(jsonStart, jsonEnd + 1));
-    } catch (err) {
-      throw new Error(
-        `Failed to parse Wrangler response as JSON: ${err instanceof Error ? err.message : String(err)}. Response starts with: "${rawResponse.slice(0, 200)}"`,
-      );
+
+      // Write cache for next time
+      await this.writeCache(bookSlug, {
+        contentHash,
+        parsed,
+        cachedAt: new Date().toISOString(),
+      });
     }
+
+    // 4. Build plan from parsed data
+    this.emit({
+      type: 'plan:loading-step',
+      step: `Building ${parsed.sessions.length} sessions (${parsed.totalTasks} tasks)…`,
+    });
 
     const completedSet = new Set(parsed.completedTaskNumbers);
 
@@ -126,6 +245,25 @@ export class RevisionQueueService implements IRevisionQueueService {
       response: '',
     }));
 
+    // 5. Merge saved session state (if hash matches — same plan)
+    const savedState = await this.readState(bookSlug);
+    if (savedState && savedState.planHash === contentHash) {
+      this.emit({ type: 'plan:loading-step', step: 'Restoring session progress…' });
+      for (const session of sessions) {
+        const saved = savedState.sessions[session.index];
+        if (saved) {
+          // Only restore terminal/paused statuses — don't restore 'running' or 'awaiting-approval'
+          // since those are ephemeral states tied to an active CLI process
+          if (saved.status === 'approved' || saved.status === 'rejected' || saved.status === 'skipped') {
+            session.status = saved.status;
+          }
+          if (saved.conversationId) {
+            session.conversationId = saved.conversationId;
+          }
+        }
+      }
+    }
+
     const plan: RevisionPlan = {
       id: nanoid(),
       bookSlug,
@@ -133,13 +271,17 @@ export class RevisionQueueService implements IRevisionQueueService {
       totalTasks: parsed.totalTasks,
       completedTaskNumbers: parsed.completedTaskNumbers,
       phases: parsed.phases,
-      mode: 'manual',
+      mode: savedState?.planHash === contentHash ? savedState.mode : 'manual',
       createdAt: new Date().toISOString(),
     };
 
     this.plans.set(plan.id, plan);
+    this.plansByBook.set(bookSlug, plan.id);
+    this.hashByBook.set(bookSlug, contentHash);
     return plan;
   }
+
+  // ── Session execution ────────────────────────────────────────────
 
   async runSession(planId: string, sessionId: string): Promise<void> {
     const plan = this.plans.get(planId);
@@ -172,6 +314,7 @@ export class RevisionQueueService implements IRevisionQueueService {
     });
 
     session.conversationId = conversation.id;
+    await this.persistState(plan);
 
     this.db.saveMessage({
       conversationId: conversation.id,
@@ -247,21 +390,22 @@ export class RevisionQueueService implements IRevisionQueueService {
       session.status = 'rejected';
       this.emit({ type: 'session:status', sessionId: session.id, status: 'rejected' });
       this.emit({ type: 'error', sessionId: session.id, message: err instanceof Error ? err.message : String(err) });
+      await this.persistState(plan);
       return;
     }
 
     // Check for approval gate
     if (this.isApprovalGate(responseBuffer)) {
-      if (plan.mode === 'auto-approve') {
+      if (plan.mode === 'auto-approve' || this.autoApproveSessionIds.has(session.id)) {
         await this.sendFollowUp(session, 'Approved. Continue with the next task.');
         return this.runConversationLoop(session, plan, systemPrompt, model, settings, verity);
       } else if (plan.mode === 'auto-skip') {
         await this.sendFollowUp(session, 'Skip this task and move to the next one without waiting for approval.');
         return this.runConversationLoop(session, plan, systemPrompt, model, settings, verity);
       } else {
-        // Manual or selective: wait for author decision
         session.status = 'awaiting-approval';
         this.emit({ type: 'session:status', sessionId: session.id, status: 'awaiting-approval' });
+        await this.persistState(plan);
         const lastParagraph = responseBuffer.trim().split('\n\n').pop() ?? '';
         this.emit({ type: 'session:gate', sessionId: session.id, gateText: lastParagraph });
 
@@ -272,6 +416,13 @@ export class RevisionQueueService implements IRevisionQueueService {
             session.status = 'running';
             this.emit({ type: 'session:status', sessionId: session.id, status: 'running' });
             await this.sendFollowUp(session, 'Approved. Continue with the next task.');
+            return this.runConversationLoop(session, plan, systemPrompt, model, settings, verity);
+
+          case 'approve-all':
+            this.autoApproveSessionIds.add(session.id);
+            session.status = 'running';
+            this.emit({ type: 'session:status', sessionId: session.id, status: 'running' });
+            await this.sendFollowUp(session, 'Approved. Continue with the next task. Approve all remaining tasks in this session without stopping.');
             return this.runConversationLoop(session, plan, systemPrompt, model, settings, verity);
 
           case 'reject':
@@ -291,19 +442,15 @@ export class RevisionQueueService implements IRevisionQueueService {
             session.response = '';
             session.conversationId = null;
             this.emit({ type: 'session:status', sessionId: session.id, status: 'rejected' });
+            await this.persistState(plan);
             return;
         }
       }
     }
 
     // No approval gate — session is complete
-    session.status = 'awaiting-approval';
-    this.emit({ type: 'session:status', sessionId: session.id, status: 'awaiting-approval' });
-
-    // In auto modes, auto-approve the session
-    if (plan.mode === 'auto-approve' || plan.mode === 'auto-skip') {
-      await this.approveSession(plan.id, session.id);
-    }
+    this.autoApproveSessionIds.delete(session.id);
+    await this.approveSession(plan.id, session.id);
   }
 
   private async sendFollowUp(
@@ -418,6 +565,9 @@ export class RevisionQueueService implements IRevisionQueueService {
       completedTasks: plan.completedTaskNumbers.length,
       totalTasks: plan.totalTasks,
     });
+
+    // Persist session state to disk
+    await this.persistState(plan);
   }
 
   async rejectSession(planId: string, sessionId: string): Promise<void> {
@@ -431,6 +581,8 @@ export class RevisionQueueService implements IRevisionQueueService {
     session.response = '';
     session.conversationId = null;
     this.emit({ type: 'session:status', sessionId, status: 'rejected' });
+
+    await this.persistState(plan);
   }
 
   async skipSession(planId: string, sessionId: string): Promise<void> {
@@ -442,6 +594,8 @@ export class RevisionQueueService implements IRevisionQueueService {
 
     session.status = 'skipped';
     this.emit({ type: 'session:status', sessionId, status: 'skipped' });
+
+    await this.persistState(plan);
   }
 
   pause(planId: string): void {
@@ -452,10 +606,20 @@ export class RevisionQueueService implements IRevisionQueueService {
     const plan = this.plans.get(planId);
     if (plan) {
       plan.mode = mode;
+      this.persistState(plan); // fire-and-forget
     }
   }
 
   getPlan(planId: string): RevisionPlan | null {
     return this.plans.get(planId) ?? null;
+  }
+
+  // ── State persistence ────────────────────────────────────────────
+
+  /** Persist current session statuses to disk so they survive restarts. */
+  private async persistState(plan: RevisionPlan): Promise<void> {
+    const contentHash = this.hashByBook.get(plan.bookSlug);
+    if (!contentHash) return; // No hash means plan was never loaded — nothing to persist
+    await this.writeState(plan.bookSlug, plan, contentHash);
   }
 }

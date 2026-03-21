@@ -38,7 +38,7 @@ function FileNode({
       <>
         <button
           onClick={() => onToggle(entry.path)}
-          className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
+          className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
           style={{ paddingLeft: `${indent + 4}px` }}
         >
           <span className="shrink-0 text-[10px] text-zinc-500">
@@ -68,7 +68,7 @@ function FileNode({
   return (
     <button
       onClick={() => onFileClick(entry)}
-      className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200"
+      className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200"
       style={{ paddingLeft: `${indent + 18}px` }}
     >
       <span className="shrink-0 text-xs">{getFileIcon(entry.name, false)}</span>

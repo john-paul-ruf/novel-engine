@@ -24,7 +24,7 @@ function BreadcrumbSegments({
           {seg.clickable ? (
             <button
               onClick={() => onNavigate(seg.path)}
-              className="rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+              className="rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
             >
               {seg.label}
             </button>
@@ -100,7 +100,7 @@ export function FilesHeader({
         {viewMode === 'reader' && (
           <button
             onClick={onBackToBrowser}
-            className="shrink-0 rounded p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+            className="shrink-0 rounded p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
             title="Back to browser"
           >
             ←

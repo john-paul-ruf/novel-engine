@@ -109,7 +109,7 @@ export function ConversationList({
                 className={`group flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm ${
                   isActive
                     ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200'
                 }`}
               >
                 <div
@@ -161,7 +161,7 @@ export function ConversationList({
             {pipelineLocked && lockedAgentName && lockedPhaseId ? (
               <button
                 onClick={() => handleNewConversation(lockedAgentName, lockedPhaseId)}
-                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 hover:text-zinc-500 dark:text-zinc-400"
+                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-500 dark:text-zinc-400"
               >
                 <span>+</span> New {lockedAgentName} Conversation
               </button>
@@ -176,7 +176,7 @@ export function ConversationList({
                     <button
                       key={name}
                       onClick={() => handleNewConversation(name)}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700"
+                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                     >
                       <div
                         className="h-2 w-2 rounded-full"
@@ -197,7 +197,7 @@ export function ConversationList({
             ) : (
               <button
                 onClick={() => setShowAgentPicker(true)}
-                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 hover:text-zinc-500 dark:text-zinc-400"
+                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-500 dark:text-zinc-400"
               >
                 <span>+</span> New Conversation
               </button>

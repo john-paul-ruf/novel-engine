@@ -338,14 +338,14 @@ export function CliActivityPanel(): React.ReactElement {
         <div className="flex items-center gap-1">
           <button
             onClick={clear}
-            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300"
+            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300"
             title="Clear log"
           >
             Clear
           </button>
           <button
             onClick={close}
-            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300"
+            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300"
             title="Close panel"
           >
             ✕
@@ -380,7 +380,7 @@ export function CliActivityPanel(): React.ReactElement {
           entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-start gap-2 rounded px-2 py-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
+              className="flex items-start gap-2 rounded px-2 py-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
             >
               <span className="mt-px shrink-0 text-xs">{KIND_ICONS[entry.kind] ?? '•'}</span>
               <div className="min-w-0 flex-1">

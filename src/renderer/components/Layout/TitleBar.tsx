@@ -16,7 +16,7 @@ function WindowControls(): React.ReactElement {
       {/* Minimize */}
       <button
         onClick={() => window.novelEngine.window.minimize()}
-        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100"
+        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100"
         aria-label="Minimize"
       >
         <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
@@ -27,7 +27,7 @@ function WindowControls(): React.ReactElement {
       {/* Maximize / Restore */}
       <button
         onClick={() => window.novelEngine.window.maximize()}
-        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100"
+        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100"
         aria-label={isMaximized ? 'Restore' : 'Maximize'}
       >
         {isMaximized ? (
