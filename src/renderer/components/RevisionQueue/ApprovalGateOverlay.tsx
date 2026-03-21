@@ -25,14 +25,14 @@ export function ApprovalGateOverlay() {
     <div className="border-t border-amber-500/30 bg-amber-500/5 p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-amber-400 text-lg">&#9888;</span>
+          <span className="text-amber-600 dark:text-amber-400 text-lg">&#9888;</span>
           <h3 className="text-sm font-semibold text-amber-200">
             Approval Gate — {session?.title ?? 'Session'}
           </h3>
         </div>
 
-        <div className="bg-zinc-950 rounded-lg p-3 mb-3 max-h-48 overflow-y-auto">
-          <div className="text-sm text-zinc-200 whitespace-pre-wrap">
+        <div className="bg-white dark:bg-zinc-950 rounded-lg p-3 mb-3 max-h-48 overflow-y-auto">
+          <div className="text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">
             {streamingResponse.slice(-2000)}
           </div>
         </div>
@@ -44,7 +44,7 @@ export function ApprovalGateOverlay() {
               onChange={(e) => setRejectionMessage(e.target.value)}
               placeholder="Tell Verity what to fix..."
               rows={3}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
               autoFocus
             />
           </div>
@@ -65,13 +65,13 @@ export function ApprovalGateOverlay() {
           </button>
           <button
             onClick={() => handleAction('skip')}
-            className="flex items-center gap-1.5 bg-zinc-600 hover:bg-zinc-500 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-500 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             &#9197; Skip
           </button>
           <button
             onClick={() => handleAction('retry')}
-            className="flex items-center gap-1.5 border border-zinc-600 hover:border-zinc-500 text-zinc-300 rounded-lg px-4 py-2 text-sm transition-colors"
+            className="flex items-center gap-1.5 border border-zinc-300 dark:border-zinc-600 hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 rounded-lg px-4 py-2 text-sm transition-colors"
           >
             &#8635; Retry
           </button>
@@ -79,7 +79,7 @@ export function ApprovalGateOverlay() {
           {showRejectionInput && (
             <button
               onClick={() => { setShowRejectionInput(false); setRejectionMessage(''); }}
-              className="text-xs text-zinc-500 hover:text-zinc-300 ml-2"
+              className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-300 ml-2"
             >
               Cancel
             </button>

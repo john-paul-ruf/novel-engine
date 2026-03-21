@@ -101,11 +101,11 @@ export function FileEditor({
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between border-b border-zinc-800 px-6 py-2">
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
-          <span className="text-zinc-200 font-medium">{fileName}</span>
+      <div className="shrink-0 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-2">
+        <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <span className="text-zinc-800 dark:text-zinc-200 font-medium">{fileName}</span>
           {hasUnsavedChanges && (
-            <span className="text-amber-400" title="Unsaved changes">
+            <span className="text-amber-600 dark:text-amber-400" title="Unsaved changes">
               ●
             </span>
           )}
@@ -122,8 +122,8 @@ export function FileEditor({
             onClick={() => setShowPreview(!showPreview)}
             className={`rounded px-2.5 py-1 text-xs transition-colors ${
               showPreview
-                ? 'bg-zinc-700 text-zinc-100'
-                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
             }`}
           >
             Preview
@@ -145,7 +145,7 @@ export function FileEditor({
           {/* Cancel button */}
           <button
             onClick={onClose}
-            className="rounded bg-zinc-800 px-3 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+            className="rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700"
           >
             Cancel
           </button>
@@ -155,12 +155,12 @@ export function FileEditor({
       {/* Editor area */}
       <div className="flex flex-1 min-h-0">
         {/* Textarea */}
-        <div className={`flex-1 min-w-0 ${showPreview ? 'border-r border-zinc-800' : ''}`}>
+        <div className={`flex-1 min-w-0 ${showPreview ? 'border-r border-zinc-200 dark:border-zinc-800' : ''}`}>
           <textarea
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full h-full bg-zinc-950 text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-600"
+            className="w-full h-full bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-400 dark:placeholder-zinc-600"
             placeholder="Start writing..."
             spellCheck={false}
           />
@@ -170,7 +170,7 @@ export function FileEditor({
         {showPreview && (
           <div className="flex-1 min-w-0 overflow-y-auto p-6">
             <div
-              className="prose prose-invert prose-zinc max-w-none"
+              className="prose dark:prose-invert prose-zinc max-w-none"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </div>

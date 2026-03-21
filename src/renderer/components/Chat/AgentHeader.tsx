@@ -35,20 +35,20 @@ export function AgentHeader(): React.ReactElement | null {
     : 0;
 
   return (
-    <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+    <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
       <div className="flex items-center gap-3">
         <div
           className="w-1 self-stretch rounded-full"
           style={{ backgroundColor: agentMeta.color }}
         />
         <div>
-          <h2 className="text-lg font-bold text-zinc-100">
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
             {activeConversation.agentName}
           </h2>
           <p className="flex items-center text-sm text-zinc-500">
             {agentMeta.role}
             {phaseLabel && (
-              <span className="text-zinc-600"> &middot; {phaseLabel}</span>
+              <span className="text-zinc-400 dark:text-zinc-600"> &middot; {phaseLabel}</span>
             )}
             {activeConversation.purpose === 'voice-setup' && (
               <span className="ml-2 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300">
@@ -61,7 +61,7 @@ export function AgentHeader(): React.ReactElement | null {
               </span>
             )}
             {pipelineLocked && lockedPhaseId && activeConversation.purpose === 'pipeline' && activeConversation.pipelinePhase !== lockedPhaseId && (
-              <span className="ml-2 rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400">
+              <span className="ml-2 rounded bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
                 Past Phase
               </span>
             )}
@@ -74,7 +74,7 @@ export function AgentHeader(): React.ReactElement | null {
           <div>
             {totalTokens.toLocaleString()} tokens
           </div>
-          <div className="text-zinc-600">
+          <div className="text-zinc-400 dark:text-zinc-600">
             ${usageTotals.estimatedCost.toFixed(4)}
           </div>
         </div>

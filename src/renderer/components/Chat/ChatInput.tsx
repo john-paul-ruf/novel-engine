@@ -51,7 +51,7 @@ export function ChatInput({ onSend, disabled, lockedAgentName }: ChatInputProps)
   }, [disabled]);
 
   return (
-    <div className="border-t border-zinc-800 px-6 py-4">
+    <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
       <div className="flex items-end gap-3">
         <textarea
           ref={textareaRef}
@@ -61,7 +61,7 @@ export function ChatInput({ onSend, disabled, lockedAgentName }: ChatInputProps)
           placeholder={lockedAgentName ? `Message ${lockedAgentName}...` : 'Type a message...'}
           disabled={disabled}
           rows={3}
-          className="min-h-[72px] flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-[72px] flex-1 resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           onClick={handleSend}

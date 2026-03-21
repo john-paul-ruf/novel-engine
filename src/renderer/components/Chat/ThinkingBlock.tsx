@@ -72,12 +72,12 @@ export function ThinkingBlock({
         )}
 
         {tokenEstimate !== undefined && tokenEstimate > 0 && (
-          <span className="font-mono text-xs text-amber-400/60">
+          <span className="font-mono text-xs text-amber-600 dark:text-amber-400/60">
             ~{tokenEstimate.toLocaleString()} tokens
           </span>
         )}
 
-        <span className="text-xs text-amber-400/60">
+        <span className="text-xs text-amber-600 dark:text-amber-400/60">
           {expanded ? '▼' : '▶'}
         </span>
       </button>

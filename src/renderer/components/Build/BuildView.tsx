@@ -33,7 +33,7 @@ function ProgressLog({
 
   if (logs.length === 0 && !isBuilding) {
     return (
-      <div className="rounded-lg bg-zinc-950 p-4 text-sm text-zinc-600 font-mono">
+      <div className="rounded-lg bg-white dark:bg-zinc-950 p-4 text-sm text-zinc-400 dark:text-zinc-600 font-mono">
         Build output will appear here...
       </div>
     );
@@ -42,14 +42,14 @@ function ProgressLog({
   return (
     <div
       ref={containerRef}
-      className="max-h-80 overflow-y-auto rounded-lg bg-zinc-950 p-4 font-mono text-sm"
+      className="max-h-80 overflow-y-auto rounded-lg bg-white dark:bg-zinc-950 p-4 font-mono text-sm"
     >
       {logs.map((line, i) => {
-        let colorClass = 'text-green-400';
+        let colorClass = 'text-green-600 dark:text-green-400';
         if (line.startsWith('ERROR') || line.includes('failed:')) {
-          colorClass = 'text-red-400';
+          colorClass = 'text-red-600 dark:text-red-400';
         } else if (line.includes('...') && !line.includes('✓')) {
-          colorClass = 'text-zinc-400';
+          colorClass = 'text-zinc-500 dark:text-zinc-400';
         }
 
         return (
@@ -59,7 +59,7 @@ function ProgressLog({
         );
       })}
       {isBuilding && (
-        <span className="inline-block animate-pulse text-green-400">▊</span>
+        <span className="inline-block animate-pulse text-green-600 dark:text-green-400">▊</span>
       )}
     </div>
   );
@@ -90,17 +90,17 @@ function OutputFiles({
 
   return (
     <div className="mt-6">
-      <h3 className="mb-3 text-sm font-medium text-zinc-300">Output Files</h3>
+      <h3 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Output Files</h3>
       <div className="space-y-2">
         {buildResult.formats.map((entry) => (
           <div
             key={entry.format}
-            className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3"
+            className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3"
           >
             <div className="flex items-center gap-3">
               <span className="text-lg">{FORMAT_ICONS[entry.format]}</span>
               <div>
-                <div className="text-sm font-medium text-zinc-200">
+                <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                   output.{entry.format}
                 </div>
                 <div className="text-xs text-zinc-500">
@@ -109,11 +109,11 @@ function OutputFiles({
               </div>
             </div>
             {entry.error ? (
-              <span className="text-xs text-red-400">{entry.error}</span>
+              <span className="text-xs text-red-600 dark:text-red-400">{entry.error}</span>
             ) : (
               <button
                 onClick={() => handleOpenFile(entry.format)}
-                className="rounded bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700"
               >
                 Open
               </button>
@@ -201,9 +201,9 @@ export function BuildView(): React.ReactElement {
       <div className="mx-auto w-full max-w-3xl px-8 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-100">Build Manuscript</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Build Manuscript</h1>
           {activeBook && (
-            <div className="mt-1 text-sm text-zinc-400">
+            <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               {activeBook.title} — {totalWordCount.toLocaleString()} words
             </div>
           )}
@@ -215,7 +215,7 @@ export function BuildView(): React.ReactElement {
             <div className="text-sm font-medium text-amber-300">
               Pandoc not found
             </div>
-            <div className="mt-1 text-sm text-amber-400/80">
+            <div className="mt-1 text-sm text-amber-600 dark:text-amber-400/80">
               Install Pandoc to generate output files.{' '}
               <button
                 onClick={handleOpenPandocSite}
@@ -252,7 +252,7 @@ export function BuildView(): React.ReactElement {
         {exportMessage && (
           <div
             className={`mb-4 text-sm ${
-              exportMessage.startsWith('Saved') ? 'text-green-400' : 'text-red-400'
+              exportMessage.startsWith('Saved') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}
           >
             {exportMessage}

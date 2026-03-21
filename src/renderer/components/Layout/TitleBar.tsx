@@ -16,7 +16,7 @@ function WindowControls(): React.ReactElement {
       {/* Minimize */}
       <button
         onClick={() => window.novelEngine.window.minimize()}
-        className="flex h-8 w-11 items-center justify-center text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100"
         aria-label="Minimize"
       >
         <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
@@ -27,7 +27,7 @@ function WindowControls(): React.ReactElement {
       {/* Maximize / Restore */}
       <button
         onClick={() => window.novelEngine.window.maximize()}
-        className="flex h-8 w-11 items-center justify-center text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100"
         aria-label={isMaximized ? 'Restore' : 'Maximize'}
       >
         {isMaximized ? (
@@ -46,7 +46,7 @@ function WindowControls(): React.ReactElement {
       {/* Close */}
       <button
         onClick={() => window.novelEngine.window.close()}
-        className="flex h-8 w-11 items-center justify-center text-zinc-400 transition-colors hover:bg-red-600 hover:text-white"
+        className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-red-600 hover:text-white"
         aria-label="Close"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
@@ -60,7 +60,7 @@ function WindowControls(): React.ReactElement {
 
 export function TitleBar(): React.ReactElement {
   return (
-    <div className="drag-region flex h-8 w-full shrink-0 items-center justify-between bg-zinc-900 border-b border-zinc-800">
+    <div className="drag-region flex h-8 w-full shrink-0 items-center justify-between bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
       {/* Left spacer — accounts for macOS traffic lights */}
       {isMac ? (
         <div className="w-[78px] shrink-0" />

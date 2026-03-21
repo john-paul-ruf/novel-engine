@@ -142,6 +142,7 @@ export type AppSettings = {
   enableThinking: boolean;
   thinkingBudget: number;
   autoCollapseThinking: boolean;
+  enableNotifications: boolean; // OS notifications when agent calls complete
   theme: 'light' | 'dark' | 'system';
   initialized: boolean;    // false until onboarding is complete
   authorName: string;      // display name for book covers

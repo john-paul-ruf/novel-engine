@@ -12,7 +12,7 @@ import type { BookMeta, BookStatus } from '@domain/types';
 marked.setOptions({ async: false });
 
 const STATUS_COLORS: Record<BookStatus, string> = {
-  scaffolded: 'bg-zinc-600 text-zinc-200',
+  scaffolded: 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200',
   outlining: 'bg-amber-700 text-amber-100',
   'first-draft': 'bg-blue-700 text-blue-100',
   'revision-1': 'bg-purple-700 text-purple-100',
@@ -75,7 +75,7 @@ function InlineEditField({
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
-        className={`${className} w-full rounded border border-zinc-600 bg-zinc-800 px-2 py-1 outline-none focus:border-blue-500`}
+        className={`${className} w-full rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 outline-none focus:border-blue-500`}
         placeholder={placeholder}
       />
     );
@@ -84,7 +84,7 @@ function InlineEditField({
   return (
     <span
       onClick={() => setEditing(true)}
-      className={`${className} cursor-pointer rounded px-2 py-1 hover:bg-zinc-800`}
+      className={`${className} cursor-pointer rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800`}
       title="Click to edit"
     >
       {value || placeholder}
@@ -138,7 +138,7 @@ function AboutJsonCard({
     }
   };
 
-  const statusClass = STATUS_COLORS[meta.status] ?? 'bg-zinc-600 text-zinc-200';
+  const statusClass = STATUS_COLORS[meta.status] ?? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200';
   const createdDate = new Date(meta.created).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -148,7 +148,7 @@ function AboutJsonCard({
   const coverSrc = `novel-asset://cover/${activeSlug}?t=${coverTimestamp}`;
 
   return (
-    <div className="mx-auto max-w-lg rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+    <div className="mx-auto max-w-lg rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-6">
       {isSaving && (
         <div className="mb-3 text-xs text-zinc-500">Saving...</div>
       )}
@@ -167,7 +167,7 @@ function AboutJsonCard({
         <InlineEditField
           value={meta.title}
           onSave={(v) => handleSaveField('title', v)}
-          className="text-2xl font-bold text-zinc-100"
+          className="text-2xl font-bold text-zinc-900 dark:text-zinc-100"
           placeholder="Book Title"
         />
       </div>
@@ -177,7 +177,7 @@ function AboutJsonCard({
         <InlineEditField
           value={meta.author}
           onSave={(v) => handleSaveField('author', v)}
-          className="text-lg text-zinc-300"
+          className="text-lg text-zinc-700 dark:text-zinc-300"
           placeholder="Author Name"
         />
       </div>
@@ -212,7 +212,7 @@ function CoverImageSection({
     return (
       <button
         onClick={onUpload}
-        className="flex h-[220px] w-[160px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-600 hover:text-zinc-400"
+        className="flex h-[220px] w-[160px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-300 dark:border-zinc-600 hover:text-zinc-500 dark:text-zinc-400"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -243,7 +243,7 @@ function CoverImageSection({
       />
       <button
         onClick={onUpload}
-        className="absolute bottom-2 right-2 rounded bg-zinc-800/80 px-2 py-1 text-xs text-zinc-300 backdrop-blur hover:bg-zinc-700/80"
+        className="absolute bottom-2 right-2 rounded bg-zinc-100 dark:bg-zinc-800/80 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 backdrop-blur hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700/80"
       >
         Change
       </button>
@@ -255,7 +255,7 @@ function MarkdownViewer({ content }: { content: string }): React.ReactElement {
   const html = marked.parse(content) as string;
   return (
     <div
-      className="prose prose-invert prose-zinc max-w-none"
+      className="prose dark:prose-invert prose-zinc max-w-none"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -441,11 +441,11 @@ function ReaderContent({
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2">
-        <div className="text-red-400">Failed to load file</div>
+        <div className="text-red-600 dark:text-red-400">Failed to load file</div>
         <div className="text-sm text-zinc-500">{error}</div>
         <button
           onClick={onClearFile}
-          className="mt-2 rounded bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+          className="mt-2 rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700"
         >
           Back
         </button>
@@ -465,13 +465,13 @@ function ReaderContent({
         ) : isMarkdown ? (
           <MarkdownViewer content={content} />
         ) : (
-          <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-300">{content}</pre>
+          <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{content}</pre>
         )}
       </div>
 
       {/* Footer — word count for markdown */}
       {isMarkdown && content && (
-        <div className="shrink-0 border-t border-zinc-800 px-8 py-2 text-right text-xs text-zinc-500">
+        <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 px-8 py-2 text-right text-xs text-zinc-500">
           {countWords(content).toLocaleString()} words
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 type ChaptersPanelProps = {
   activeSlug: string;
@@ -29,6 +30,7 @@ export function ChaptersPanel({
   activeSlug,
   onFileSelect,
 }: ChaptersPanelProps): React.ReactElement {
+  const revision = useFileChangeStore((s) => s.revision);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -101,7 +103,7 @@ export function ChaptersPanel({
     return () => {
       cancelled = true;
     };
-  }, [activeSlug]);
+  }, [activeSlug, revision]);
 
   const maxWordCount = useMemo(() => {
     if (chapters.length === 0) return 1;
@@ -119,7 +121,7 @@ export function ChaptersPanel({
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-[52px] animate-pulse rounded-lg border border-zinc-800 bg-zinc-800/50"
+            className="h-[52px] animate-pulse rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-200/50 dark:bg-zinc-800/50"
           />
         ))}
       </div>
@@ -128,9 +130,9 @@ export function ChaptersPanel({
 
   if (chapters.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-800 py-8 text-center">
+      <div className="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 py-8 text-center">
         <div className="text-zinc-500">No chapters yet</div>
-        <div className="mt-1 text-xs text-zinc-600">
+        <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
           Chapters will appear here as Verity writes the first draft
         </div>
       </div>
@@ -139,11 +141,11 @@ export function ChaptersPanel({
 
   return (
     <div>
-      <div className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
         {chapters.map((chapter) => (
           <div
             key={chapter.slug}
-            className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-800/50"
+            className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
           >
             {/* Chapter number */}
             <div className="w-10 shrink-0 text-right font-mono text-sm text-zinc-500">
@@ -153,14 +155,14 @@ export function ChaptersPanel({
             {/* Title — clickable, opens draft.md */}
             <button
               onClick={() => onFileSelect(`chapters/${chapter.slug}/draft.md`)}
-              className="flex-1 text-left text-sm font-medium text-zinc-200 hover:text-white"
+              className="flex-1 text-left text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:text-white"
             >
               {chapter.title}
             </button>
 
             {/* Word count bar */}
             <div className="flex w-32 items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                 <div
                   className="h-full rounded-full bg-blue-500/60"
                   style={{ width: `${Math.min(100, (chapter.wordCount / maxWordCount) * 100)}%` }}
@@ -177,8 +179,8 @@ export function ChaptersPanel({
                 onClick={() => onFileSelect(`chapters/${chapter.slug}/draft.md`)}
                 className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                   chapter.hasDraft
-                    ? 'bg-green-500/15 text-green-400'
-                    : 'bg-zinc-800 text-zinc-600'
+                    ? 'bg-green-500/15 text-green-600 dark:text-green-400'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'
                 }`}
                 title={chapter.hasDraft ? 'Open draft' : 'No draft yet'}
               >
@@ -188,8 +190,8 @@ export function ChaptersPanel({
                 onClick={() => onFileSelect(`chapters/${chapter.slug}/notes.md`)}
                 className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                   chapter.hasNotes
-                    ? 'bg-blue-500/15 text-blue-400'
-                    : 'bg-zinc-800 text-zinc-600'
+                    ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'
                 }`}
                 title={chapter.hasNotes ? 'Open notes' : 'No notes yet'}
               >

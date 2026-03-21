@@ -51,9 +51,11 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'settings' ? '' : 'hidden'}`}>
         <SettingsView />
       </div>
-      <div className={`h-full ${currentView === 'revision-queue' ? '' : 'hidden'}`}>
-        <RevisionQueueView />
-      </div>
+      {currentView === 'revision-queue' && (
+        <div className="h-full">
+          <RevisionQueueView />
+        </div>
+      )}
     </>
   );
 }
@@ -63,7 +65,7 @@ export function AppLayout(): React.ReactElement {
   const isCliPanelOpen = useCliActivityStore((s) => s.isOpen);
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-zinc-950 text-zinc-100">
+    <div className="flex h-screen w-screen flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       <TitleBar />
       <StreamManager />
       <div className="flex flex-1 overflow-hidden">

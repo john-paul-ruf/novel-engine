@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AGENT_REGISTRY } from '@domain/constants';
 import type { AgentName } from '@domain/types';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 type AgentOutputFile = {
   path: string;
@@ -74,11 +75,11 @@ function AgentOutputCard({
   if (!exists) {
     return (
       <div
-        className="rounded-lg border border-zinc-800 border-l-2 bg-zinc-900 p-3 opacity-50"
+        className="rounded-lg border border-zinc-200 dark:border-zinc-800 border-l-2 bg-zinc-50 dark:bg-zinc-900 p-3 opacity-50"
         style={{ borderLeftColor: agentColor }}
       >
-        <div className="text-sm font-medium text-zinc-400">{file.label}</div>
-        <div className="mt-0.5 text-xs text-zinc-600">Not yet generated</div>
+        <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{file.label}</div>
+        <div className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-600">Not yet generated</div>
       </div>
     );
   }
@@ -86,12 +87,12 @@ function AgentOutputCard({
   return (
     <div
       onClick={onSelect}
-      className="group relative cursor-pointer rounded-lg border border-zinc-800 border-l-2 bg-zinc-900 p-3 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80"
+      className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 border-l-2 bg-zinc-50 dark:bg-zinc-900 p-3 transition-colors hover:border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800/80"
       style={{ borderLeftColor: agentColor }}
     >
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-zinc-200">{file.label}</span>
-        <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-400">
+        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{file.label}</span>
+        <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
           {wordCount.toLocaleString()}w
         </span>
       </div>
@@ -104,6 +105,7 @@ export function AgentOutputPanel({
   activeSlug,
   onFileSelect,
 }: AgentOutputPanelProps): React.ReactElement {
+  const revision = useFileChangeStore((s) => s.revision);
   const [fileStatuses, setFileStatuses] = useState<Record<string, FileStatus>>({});
   const [loading, setLoading] = useState(true);
 
@@ -147,19 +149,19 @@ export function AgentOutputPanel({
     return () => {
       cancelled = true;
     };
-  }, [activeSlug]);
+  }, [activeSlug, revision]);
 
   if (loading) {
     return (
       <div className="space-y-4">
         {AGENT_OUTPUTS.map((group) => (
           <div key={group.agent}>
-            <div className="mb-2 h-4 w-32 animate-pulse rounded bg-zinc-800" />
+            <div className="mb-2 h-4 w-32 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
             <div className="grid grid-cols-2 gap-3">
               {group.files.map((file) => (
                 <div
                   key={file.path}
-                  className="h-[72px] animate-pulse rounded-lg border border-zinc-800 bg-zinc-800/50"
+                  className="h-[72px] animate-pulse rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-200/50 dark:bg-zinc-800/50"
                 />
               ))}
             </div>
@@ -181,8 +183,8 @@ export function AgentOutputPanel({
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: agentMeta.color }}
               />
-              <span className="text-xs font-medium text-zinc-300">{group.agent}</span>
-              <span className="text-xs text-zinc-600">— {agentMeta.role}</span>
+              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{group.agent}</span>
+              <span className="text-xs text-zinc-400 dark:text-zinc-600">— {agentMeta.role}</span>
             </div>
 
             {/* File cards */}

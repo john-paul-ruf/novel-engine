@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useRevisionQueueStore } from '../stores/revisionQueueStore';
+import { useFileChangeStore } from '../stores/fileChangeStore';
+import { useBookStore } from '../stores/bookStore';
 import type { RevisionQueueEvent } from '@domain/types';
 
 export function useRevisionQueueEvents() {
@@ -57,6 +59,10 @@ export function useRevisionQueueEvents() {
               streamingThinking: '',
             };
           });
+
+          // Revision sessions write chapter files — notify file UI to refresh
+          useFileChangeStore.getState().notifyChange();
+          useBookStore.getState().refreshWordCount();
           break;
         }
 

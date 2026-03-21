@@ -45,21 +45,21 @@ export const MessageBubble = memo(function MessageBubble({ message, toolActivity
             tokenEstimate={thinkingTokenEstimate}
           />
         )}
-        <div className="rounded-2xl bg-zinc-800 px-4 py-3 text-zinc-100">
+        <div className="rounded-2xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100">
           <div
-            className="prose prose-invert prose-sm max-w-none"
+            className="prose dark:prose-invert prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: renderedHtml }}
           />
         </div>
         {toolActivity && toolActivity.length > 0 && (
-          <div className="mt-2 rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+          <div className="mt-2 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-zinc-900/50 px-3 py-2">
             <div className="flex items-center gap-1.5 text-xs text-zinc-500">
               <span>📁</span>
               <span>{toolActivity.length} file{toolActivity.length !== 1 ? 's' : ''} written</span>
             </div>
             <div className="mt-1 space-y-0.5">
               {toolActivity.map((filePath) => (
-                <div key={filePath} className="text-xs text-zinc-600 font-mono">
+                <div key={filePath} className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">
                   {filePath}
                 </div>
               ))}

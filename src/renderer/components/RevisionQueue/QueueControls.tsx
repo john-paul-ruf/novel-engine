@@ -21,7 +21,7 @@ export function QueueControls() {
         value={plan.mode}
         onChange={(e) => setMode(e.target.value as QueueMode)}
         disabled={isRunning}
-        className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-200 disabled:opacity-50"
+        className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
       >
         {MODE_OPTIONS.map(opt => (
           <option key={opt.value} value={opt.value}>
@@ -35,14 +35,14 @@ export function QueueControls() {
           <button
             onClick={runNext}
             disabled={!hasPending}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-200 dark:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
           >
             &#9654; Run Next
           </button>
           <button
             onClick={runAll}
             disabled={!hasPending}
-            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 disabled:bg-zinc-200 dark:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
           >
             &#9654;&#9654; Run All
           </button>

@@ -400,16 +400,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const cleanup = window.novelEngine.chat.onStreamEvent(_handleStreamEvent);
 
-    // Register listener for file change notifications — triggers pipeline refresh
+    // Register listener for file change notifications — triggers pipeline + file UI refresh
     const cleanupFilesChanged = window.novelEngine.chat.onFilesChanged((_paths) => {
       const { activeSlug } = useBookStore.getState();
       if (activeSlug) {
-        // Dynamically import pipelineStore to avoid circular dependency
+        // Dynamically import stores to avoid circular dependencies
         import('./pipelineStore').then(({ usePipelineStore }) => {
           usePipelineStore.getState().loadPipeline(activeSlug);
         }).catch((err) => {
           console.error('Failed to refresh pipeline after file changes:', err);
         });
+
+        // Bump the file change revision so all file-displaying components re-fetch
+        import('./fileChangeStore').then(({ useFileChangeStore }) => {
+          useFileChangeStore.getState().notifyChange();
+        }).catch((err) => {
+          console.error('Failed to notify file change store:', err);
+        });
+
+        // Refresh word count in the book store
+        useBookStore.getState().refreshWordCount();
       }
     });
 

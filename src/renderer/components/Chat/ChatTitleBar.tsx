@@ -14,10 +14,10 @@ export function ChatTitleBar(): React.ReactElement {
     : null;
 
   return (
-    <div className="drag-region flex h-10 shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-900/50 px-4">
+    <div className="drag-region flex h-10 shrink-0 items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-zinc-900/50 px-4">
       {/* Left: view label + book title */}
       <div className="no-drag flex items-center gap-2 text-sm">
-        <span className="font-medium text-zinc-400">Chat</span>
+        <span className="font-medium text-zinc-500 dark:text-zinc-400">Chat</span>
         {activeBook && (
           <>
             <span className="text-zinc-700">/</span>
@@ -43,19 +43,19 @@ export function ChatTitleBar(): React.ReactElement {
           onClick={toggleCliPanel}
           className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
             cliPanelOpen
-              ? 'bg-blue-500/15 text-blue-400'
-              : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+              ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+              : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300'
           }`}
           title="Toggle CLI Activity Monitor"
         >
           {cliActive ? (
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
           ) : (
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-600" />
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-600" />
           )}
           <span>CLI</span>
           {entries.length > 0 && (
-            <span className="rounded bg-zinc-800 px-1 font-mono text-[10px] text-zinc-500">
+            <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 font-mono text-[10px] text-zinc-500">
               {entries.length}
             </span>
           )}

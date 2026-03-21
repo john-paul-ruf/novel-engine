@@ -98,10 +98,10 @@ function EmptyState({
               className="mx-auto mb-3 h-4 w-4 rounded-full"
               style={{ backgroundColor: AGENT_REGISTRY[lockedAgentName].color }}
             />
-            <h3 className="text-lg font-medium text-zinc-400">
+            <h3 className="text-lg font-medium text-zinc-500 dark:text-zinc-400">
               {lockedAgentName} is ready
             </h3>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-zinc-400 dark:text-zinc-600">
               {AGENT_REGISTRY[lockedAgentName].role}
               {lockedPhaseId && (
                 <> — {PIPELINE_PHASES.find(p => p.id === lockedPhaseId)?.label}</>
@@ -110,10 +110,10 @@ function EmptyState({
           </>
         ) : (
           <>
-            <h3 className="text-lg font-medium text-zinc-400">
+            <h3 className="text-lg font-medium text-zinc-500 dark:text-zinc-400">
               No conversation selected
             </h3>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-zinc-400 dark:text-zinc-600">
               Select a phase from the pipeline or start a new conversation
             </p>
           </>
@@ -126,7 +126,7 @@ function EmptyState({
               <select
                 value={selectedAgent}
                 onChange={(e) => setSelectedAgent(e.target.value as AgentName)}
-                className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:border-blue-500 focus:outline-none"
               >
                 {CREATIVE_AGENT_NAMES.map((name) => {
                   const meta = AGENT_REGISTRY[name];
@@ -150,7 +150,7 @@ function EmptyState({
         )}
 
         {!activeSlug && (
-          <p className="mt-4 text-sm text-zinc-600">
+          <p className="mt-4 text-sm text-zinc-400 dark:text-zinc-600">
             Create or select a book to get started
           </p>
         )}

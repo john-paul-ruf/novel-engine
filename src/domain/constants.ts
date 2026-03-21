@@ -87,6 +87,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableThinking: true,
   thinkingBudget: 10000,
   autoCollapseThinking: true,
+  enableNotifications: true,
   theme: 'dark',
   initialized: false,
   authorName: '',

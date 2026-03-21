@@ -35,9 +35,9 @@ function ModalHeader(): React.ReactElement {
   const labels = purpose ? PURPOSE_LABELS[purpose] : PURPOSE_LABELS.pipeline;
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+    <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
       <div>
-        <h3 className="text-base font-semibold text-zinc-100">{labels.title}</h3>
+        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{labels.title}</h3>
         {labels.subtitle && (
           <p className="mt-0.5 text-xs text-zinc-500">{labels.subtitle}</p>
         )}
@@ -45,10 +45,10 @@ function ModalHeader(): React.ReactElement {
       <button
         onClick={close}
         disabled={isStreaming}
-        className={`flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors ${
+        className={`flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 transition-colors ${
           isStreaming
             ? 'cursor-not-allowed opacity-30'
-            : 'hover:bg-zinc-800 hover:text-zinc-200'
+            : 'hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200'
         }`}
       >
         ✕
@@ -65,12 +65,12 @@ function ModalAgentBar(): React.ReactElement {
   const badge = purpose ? PURPOSE_LABELS[purpose].badge : 'Pipeline';
 
   return (
-    <div className="flex items-center gap-3 px-5 py-2.5 border-b border-zinc-800">
+    <div className="flex items-center gap-3 px-5 py-2.5 border-b border-zinc-200 dark:border-zinc-800">
       <span
         className="h-2.5 w-2.5 rounded-full"
         style={{ backgroundColor: agentColor }}
       />
-      <span className="text-sm font-medium text-zinc-200">Verity</span>
+      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Verity</span>
       <span className="text-xs text-zinc-500">Ghostwriter</span>
       <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
         {badge}
@@ -129,9 +129,9 @@ function ModalMessageList(): React.ReactElement {
           )}
           {streamHtml ? (
             <div className="max-w-3xl">
-              <div className="rounded-2xl bg-zinc-800 px-4 py-3 text-zinc-100">
+              <div className="rounded-2xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100">
                 <div
-                  className="prose prose-invert prose-sm max-w-none"
+                  className="prose dark:prose-invert prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: streamHtml }}
                 />
               </div>
@@ -192,13 +192,13 @@ export function ChatModal(): React.ReactElement {
       }}
     >
       <div
-        className="flex w-[700px] max-h-[85vh] flex-col rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl"
+        className="flex w-[700px] max-h-[85vh] flex-col rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <ModalHeader />
         <ModalAgentBar />
         <ModalMessageList />
-        <div className="shrink-0 border-t border-zinc-800">
+        <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800">
           <ChatInput onSend={handleSend} disabled={isStreaming} lockedAgentName={null} />
         </div>
       </div>

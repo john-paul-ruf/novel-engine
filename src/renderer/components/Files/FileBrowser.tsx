@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FileEntry } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 type FileBrowserProps = {
   currentPath: string;
@@ -127,14 +128,14 @@ function FileCard({
   return (
     <div
       onClick={onClick}
-      className="group relative rounded-lg border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700 hover:bg-zinc-800/80 cursor-pointer transition-colors"
+      className="group relative rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 hover:border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800/80 cursor-pointer transition-colors"
     >
       {/* Quick actions (hover) */}
       <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         {isDist && !entry.isDirectory && (
           <button
             onClick={handleOpenExternal}
-            className="rounded bg-zinc-700 p-1 text-xs text-zinc-300 hover:bg-zinc-600"
+            className="rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:bg-zinc-600"
             title="Open externally"
           >
             ↗
@@ -148,13 +149,13 @@ function FileCard({
         <div className="min-w-0 flex-1">
           {chapterInfo ? (
             <>
-              <div className="text-sm font-medium text-zinc-200 truncate">
+              <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
                 Chapter {chapterInfo.number}
               </div>
-              <div className="text-xs text-zinc-400 truncate">{chapterInfo.title}</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{chapterInfo.title}</div>
             </>
           ) : (
-            <div className="text-sm font-medium text-zinc-200 truncate">
+            <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
               {entry.isDirectory ? entry.name : entry.name.replace(/\.md$/, '')}
             </div>
           )}
@@ -167,7 +168,7 @@ function FileCard({
           ) : (
             <div className="mt-1 flex items-center gap-2">
               {metadata?.wordCount !== null && metadata?.wordCount !== undefined && (
-                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
                   {metadata.wordCount.toLocaleString()} words
                 </span>
               )}
@@ -189,7 +190,7 @@ function FileCard({
                   e.stopPropagation();
                   onFileSelect(`${entry.path}/draft.md`);
                 }}
-                className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
               >
                 Draft
               </button>
@@ -198,7 +199,7 @@ function FileCard({
                   e.stopPropagation();
                   onFileSelect(`${entry.path}/notes.md`);
                 }}
-                className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
               >
                 Notes
               </button>
@@ -226,7 +227,7 @@ function FileListView({
   return (
     <div className="w-full">
       {/* Header */}
-      <div className="flex items-center gap-4 border-b border-zinc-800 px-4 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+      <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 px-4 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
         <div className="w-8" />
         <div className="flex-1">Name</div>
         <div className="w-24 text-right">Type</div>
@@ -246,11 +247,11 @@ function FileListView({
             onClick={() =>
               entry.isDirectory ? onNavigate(entry.path) : onFileSelect(entry.path)
             }
-            className="group flex items-center gap-4 border-b border-zinc-800/50 px-4 py-2 cursor-pointer hover:bg-zinc-800/50 transition-colors"
+            className="group flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800/50 px-4 py-2 cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 transition-colors"
           >
             <div className="w-8 text-center shrink-0">{icon}</div>
             <div className="flex-1 min-w-0">
-              <span className="text-sm text-zinc-200 truncate block">
+              <span className="text-sm text-zinc-800 dark:text-zinc-200 truncate block">
                 {chapterInfo
                   ? `Chapter ${chapterInfo.number}: ${chapterInfo.title}`
                   : entry.name}
@@ -277,6 +278,7 @@ export function FileBrowser({
   onFileSelect,
 }: FileBrowserProps): React.ReactElement {
   const { activeSlug } = useBookStore();
+  const revision = useFileChangeStore((s) => s.revision);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -285,7 +287,7 @@ export function FileBrowser({
 
   const isChaptersDir = currentPath === 'chapters' || currentPath.endsWith('/chapters');
 
-  // Load directory listing
+  // Load directory listing (re-runs when files change on disk)
   useEffect(() => {
     if (!activeSlug) {
       setEntries([]);
@@ -341,7 +343,7 @@ export function FileBrowser({
     return () => {
       cancelled = true;
     };
-  }, [activeSlug, currentPath, isChaptersDir]);
+  }, [activeSlug, currentPath, isChaptersDir, revision]);
 
   if (loading) {
     return (
@@ -354,7 +356,7 @@ export function FileBrowser({
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2">
-        <div className="text-red-400">Failed to load directory</div>
+        <div className="text-red-600 dark:text-red-400">Failed to load directory</div>
         <div className="text-sm text-zinc-500">{error}</div>
       </div>
     );
@@ -372,13 +374,13 @@ export function FileBrowser({
     <div className="flex h-full flex-col">
       {/* Layout toggle */}
       <div className="shrink-0 flex items-center justify-end px-6 py-2">
-        <div className="flex items-center gap-1 rounded-lg bg-zinc-800 p-0.5">
+        <div className="flex items-center gap-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5">
           <button
             onClick={() => setLayout('grid')}
             className={`rounded px-2 py-1 text-xs transition-colors ${
               layout === 'grid'
-                ? 'bg-zinc-700 text-zinc-100'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
             }`}
             title="Grid view"
           >
@@ -388,8 +390,8 @@ export function FileBrowser({
             onClick={() => setLayout('list')}
             className={`rounded px-2 py-1 text-xs transition-colors ${
               layout === 'list'
-                ? 'bg-zinc-700 text-zinc-100'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
             }`}
             title="List view"
           >

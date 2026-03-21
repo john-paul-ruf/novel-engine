@@ -8,11 +8,11 @@ import type { UsageSummary } from '@domain/types';
 type ModelOption = { id: string; label: string; description: string };
 
 function SectionDivider(): React.ReactElement {
-  return <div className="border-b border-zinc-800" />;
+  return <div className="border-b border-zinc-200 dark:border-zinc-800" />;
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }): React.ReactElement {
-  return <h3 className="mb-4 text-lg font-semibold text-zinc-100">{children}</h3>;
+  return <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{children}</h3>;
 }
 
 function HelpText({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -38,13 +38,13 @@ function ClaudeCliSection(): React.ReactElement {
         <span
           className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
         />
-        <span className={`text-sm font-medium ${connected ? 'text-green-400' : 'text-red-400'}`}>
+        <span className={`text-sm font-medium ${connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
           {connected ? 'Connected' : 'Not connected'}
         </span>
         <button
           onClick={handleRecheck}
           disabled={checking}
-          className="ml-auto rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          className="ml-auto rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-200 dark:bg-zinc-700 disabled:opacity-50"
         >
           {checking ? 'Checking...' : 'Re-check'}
         </button>
@@ -57,7 +57,7 @@ function ClaudeCliSection(): React.ReactElement {
                 'https://docs.anthropic.com/en/docs/claude-code',
               )
             }
-            className="text-sm text-blue-400 underline decoration-blue-400/30 transition-colors hover:text-blue-300"
+            className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
           >
             Installation instructions
           </button>
@@ -95,7 +95,7 @@ function ModelSelectionSection(): React.ReactElement {
             className={`w-full rounded-lg border p-3 text-left transition-colors ${
               selected === model.id
                 ? 'border-blue-500 bg-blue-500/10'
-                : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+                : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-300 dark:border-zinc-600'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ function ModelSelectionSection(): React.ReactElement {
                 className={`h-4 w-4 rounded-full border-2 ${
                   selected === model.id
                     ? 'border-blue-500 bg-blue-500'
-                    : 'border-zinc-600'
+                    : 'border-zinc-300 dark:border-zinc-600'
                 }`}
               >
                 {selected === model.id && (
@@ -112,9 +112,9 @@ function ModelSelectionSection(): React.ReactElement {
                   </div>
                 )}
               </div>
-              <span className="text-sm font-semibold text-zinc-100">{model.label}</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
               {model.id === 'claude-opus-4-20250514' && (
-                <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
+                <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
                   Recommended
                 </span>
               )}
@@ -150,15 +150,15 @@ function ThinkingSection(): React.ReactElement {
           type="checkbox"
           checked={enableThinking}
           onChange={(e) => update({ enableThinking: e.target.checked })}
-          className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+          className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
         />
-        <span className="text-sm text-zinc-300">Show agent thinking</span>
+        <span className="text-sm text-zinc-700 dark:text-zinc-300">Show agent thinking</span>
       </label>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-300">Default thinking budget</span>
-          <span className="text-sm font-medium text-zinc-200">
+          <span className="text-sm text-zinc-700 dark:text-zinc-300">Default thinking budget</span>
+          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
             {thinkingBudget.toLocaleString()} tokens
           </span>
         </div>
@@ -183,38 +183,73 @@ function ThinkingSection(): React.ReactElement {
           type="checkbox"
           checked={autoCollapse}
           onChange={(e) => update({ autoCollapseThinking: e.target.checked })}
-          className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+          className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
         />
-        <span className="text-sm text-zinc-300">Auto-collapse thinking after response</span>
+        <span className="text-sm text-zinc-700 dark:text-zinc-300">Auto-collapse thinking after response</span>
       </label>
     </section>
   );
 }
 
+function NotificationsSection(): React.ReactElement {
+  const { settings, update } = useSettingsStore();
+  const enabled = settings?.enableNotifications ?? true;
+
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Notifications</SectionHeading>
+      <label className="flex cursor-pointer items-center gap-3">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => update({ enableNotifications: e.target.checked })}
+          className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+        />
+        <span className="text-sm text-zinc-700 dark:text-zinc-300">
+          Show OS notifications when agents finish
+        </span>
+      </label>
+      <HelpText>
+        Get notified when a chat response, build, or revision session completes while the app is in the background
+      </HelpText>
+    </section>
+  );
+}
+
 function AppearanceSection(): React.ReactElement {
+  const { settings, update } = useSettingsStore();
+  const currentTheme = settings?.theme ?? 'dark';
+
+  const themes = [
+    { value: 'dark' as const, label: 'Dark', description: 'Always use dark theme' },
+    { value: 'light' as const, label: 'Light', description: 'Always use light theme' },
+    { value: 'system' as const, label: 'System', description: 'Follow your OS appearance setting' },
+  ];
+
   return (
     <section className="space-y-3">
       <SectionHeading>Appearance</SectionHeading>
       <div className="space-y-2">
-        {(['dark', 'light', 'system'] as const).map((theme) => (
+        {themes.map(({ value, label, description }) => (
           <label
-            key={theme}
-            className={`flex items-center gap-3 ${theme !== 'dark' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+            key={value}
+            className="flex cursor-pointer items-center gap-3"
           >
             <input
               type="radio"
               name="theme"
-              value={theme}
-              checked={theme === 'dark'}
-              disabled={theme !== 'dark'}
-              readOnly={theme === 'dark'}
-              className="h-4 w-4 border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500"
+              value={value}
+              checked={currentTheme === value}
+              onChange={() => update({ theme: value })}
+              className="h-4 w-4 border-zinc-300 bg-white text-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800"
             />
-            <span className="text-sm text-zinc-300 capitalize">{theme}</span>
+            <div>
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{label}</span>
+              <p className="text-xs text-zinc-500">{description}</p>
+            </div>
           </label>
         ))}
       </div>
-      <HelpText>Only dark theme is available in this version</HelpText>
     </section>
   );
 }
@@ -260,10 +295,10 @@ function UsageSection(): React.ReactElement {
       {!hasUsage ? (
         <HelpText>No usage data yet</HelpText>
       ) : (
-        <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+        <div className="space-y-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Total tokens used</span>
-            <span className="text-sm font-medium text-zinc-200">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Total tokens used</span>
+            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
               {formatTokens(
                 summary.totalInputTokens +
                   summary.totalOutputTokens +
@@ -272,34 +307,34 @@ function UsageSection(): React.ReactElement {
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Input</span>
-            <span className="text-sm text-zinc-300">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Input</span>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
               {formatTokens(summary.totalInputTokens)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Output</span>
-            <span className="text-sm text-zinc-300">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Output</span>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
               {formatTokens(summary.totalOutputTokens)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Thinking</span>
-            <span className="text-sm text-zinc-300">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Thinking</span>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
               {formatTokens(summary.totalThinkingTokens)}
             </span>
           </div>
-          <div className="mt-2 border-t border-zinc-700 pt-2">
+          <div className="mt-2 border-t border-zinc-300 dark:border-zinc-700 pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-400">Estimated cost</span>
-              <span className="text-sm font-semibold text-zinc-100">
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">Estimated cost</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 {formatCost(summary.totalCost)}
               </span>
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Conversations</span>
-            <span className="text-sm text-zinc-300">{summary.conversationCount}</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Conversations</span>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">{summary.conversationCount}</span>
           </div>
         </div>
       )}
@@ -371,26 +406,26 @@ function AuthorProfileSection(): React.ReactElement {
 
       {/* Author name */}
       <div className="space-y-1">
-        <label className="block text-sm text-zinc-400">
+        <label className="block text-sm text-zinc-500 dark:text-zinc-400">
           Your name (as it appears on book covers)
         </label>
         <input
           type="text"
           value={authorName}
           onChange={(e) => handleAuthorNameChange(e.target.value)}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       </div>
 
       {/* Profile content preview */}
       <div className="space-y-1">
-        <label className="block text-sm text-zinc-400">
+        <label className="block text-sm text-zinc-500 dark:text-zinc-400">
           Your creative DNA — loaded by agents to understand your writing identity
         </label>
-        <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+        <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-4">
           {authorProfile ? (
             <div
-              className="prose prose-invert prose-sm"
+              className="prose dark:prose-invert prose-sm"
               dangerouslySetInnerHTML={{ __html: String(marked.parse(authorProfile)) }}
             />
           ) : (
@@ -413,7 +448,7 @@ function AuthorProfileSection(): React.ReactElement {
             setEditableProfile(authorProfile);
             setShowManualEdit(true);
           }}
-          className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-200"
+          className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:text-zinc-200"
         >
           Edit Manually
         </button>
@@ -426,7 +461,7 @@ function AuthorProfileSection(): React.ReactElement {
             value={editableProfile}
             onChange={(e) => setEditableProfile(e.target.value)}
             rows={8}
-            className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full resize-y rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="What genres do you write? What's your style? Who are your influences?"
           />
           <div className="mt-2 flex gap-2">
@@ -439,7 +474,7 @@ function AuthorProfileSection(): React.ReactElement {
             </button>
             <button
               onClick={() => setShowManualEdit(false)}
-              className="text-sm text-zinc-400 hover:text-zinc-200"
+              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200"
             >
               Cancel
             </button>
@@ -455,7 +490,7 @@ function AboutSection(): React.ReactElement {
     <section className="space-y-3">
       <SectionHeading>About</SectionHeading>
       <div className="space-y-2">
-        <p className="text-sm text-zinc-300">
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">
           <span className="font-medium">Novel Engine</span> v0.1.0
         </p>
         <HelpText>Powered by Claude Code CLI</HelpText>
@@ -466,7 +501,7 @@ function AboutSection(): React.ReactElement {
                 'https://github.com/novel-engine/novel-engine',
               )
             }
-            className="text-sm text-blue-400 underline decoration-blue-400/30 transition-colors hover:text-blue-300"
+            className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
           >
             GitHub
           </button>
@@ -476,7 +511,7 @@ function AboutSection(): React.ReactElement {
                 'https://docs.anthropic.com/en/docs/claude-code',
               )
             }
-            className="text-sm text-blue-400 underline decoration-blue-400/30 transition-colors hover:text-blue-300"
+            className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
           >
             Claude Code Docs
           </button>
@@ -490,13 +525,15 @@ export function SettingsView(): React.ReactElement {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-[700px] space-y-8 px-6 py-8">
-        <h2 className="text-2xl font-bold text-zinc-100">Settings</h2>
+        <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h2>
 
         <ClaudeCliSection />
         <SectionDivider />
         <ModelSelectionSection />
         <SectionDivider />
         <ThinkingSection />
+        <SectionDivider />
+        <NotificationsSection />
         <SectionDivider />
         <AppearanceSection />
         <SectionDivider />

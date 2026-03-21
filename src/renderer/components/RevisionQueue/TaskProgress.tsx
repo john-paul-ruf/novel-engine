@@ -14,14 +14,14 @@ export function TaskProgress({ plan }: Props) {
 
   return (
     <div className="mt-1">
-      <div className="flex items-center gap-3 text-xs text-zinc-400">
+      <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
         <span>{sessionsApproved}/{totalSessions} sessions</span>
-        <span className="text-zinc-600">|</span>
+        <span className="text-zinc-400 dark:text-zinc-600">|</span>
         <span>{completed}/{total} tasks</span>
-        <span className="text-zinc-600">|</span>
+        <span className="text-zinc-400 dark:text-zinc-600">|</span>
         <span>{percent}% complete</span>
       </div>
-      <div className="mt-1.5 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="mt-1.5 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
         <div
           className="h-full bg-green-500 rounded-full transition-all duration-500"
           style={{ width: `${percent}%` }}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FileEntry } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 const DEFAULT_EXPANDED = new Set(['source', 'chapters']);
 
@@ -37,7 +38,7 @@ function FileNode({
       <>
         <button
           onClick={() => onToggle(entry.path)}
-          className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-300 hover:bg-zinc-800/50"
+          className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
           style={{ paddingLeft: `${indent + 4}px` }}
         >
           <span className="shrink-0 text-[10px] text-zinc-500">
@@ -67,7 +68,7 @@ function FileNode({
   return (
     <button
       onClick={() => onFileClick(entry)}
-      className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+      className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200"
       style={{ paddingLeft: `${indent + 18}px` }}
     >
       <span className="shrink-0 text-xs">{getFileIcon(entry.name, false)}</span>
@@ -79,11 +80,13 @@ function FileNode({
 export function FileTree(): React.ReactElement {
   const { activeSlug } = useBookStore();
   const { navigate } = useViewStore();
+  const revision = useFileChangeStore((s) => s.revision);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const loadTree = useCallback(async () => {
+  const loadTree = useCallback(async (preserveExpanded = false) => {
     if (!activeSlug) {
       setEntries([]);
       return;
@@ -94,15 +97,17 @@ export function FileTree(): React.ReactElement {
       const tree = await window.novelEngine.files.listDir(activeSlug);
       setEntries(tree);
 
-      // Set default expanded/collapsed paths
-      const defaultExpanded = new Set<string>();
-      for (const entry of tree) {
-        if (entry.isDirectory && DEFAULT_EXPANDED.has(entry.name)) {
-          defaultExpanded.add(entry.path);
+      if (!preserveExpanded) {
+        // Set default expanded/collapsed paths on initial load
+        const defaultExpanded = new Set<string>();
+        for (const entry of tree) {
+          if (entry.isDirectory && DEFAULT_EXPANDED.has(entry.name)) {
+            defaultExpanded.add(entry.path);
+          }
+          // dist/ and assets/ are not added — collapsed by default
         }
-        // dist/ and assets/ are not added — collapsed by default
+        setExpandedPaths(defaultExpanded);
       }
-      setExpandedPaths(defaultExpanded);
     } catch (error) {
       console.error('Failed to load file tree:', error);
       setEntries([]);
@@ -111,9 +116,18 @@ export function FileTree(): React.ReactElement {
     }
   }, [activeSlug]);
 
+  // Initial load when activeSlug changes
   useEffect(() => {
-    loadTree();
+    setHasInitialized(false);
+    loadTree(false).then(() => setHasInitialized(true));
   }, [loadTree]);
+
+  // Re-fetch (preserving expanded state) when files change on disk
+  useEffect(() => {
+    if (hasInitialized && revision > 0) {
+      loadTree(true);
+    }
+  }, [revision, hasInitialized, loadTree]);
 
   const handleToggle = (path: string) => {
     setExpandedPaths((prev) => {
@@ -157,9 +171,9 @@ export function FileTree(): React.ReactElement {
       <div className="mb-2 flex items-center justify-between">
         <div className="text-xs font-medium uppercase tracking-wider text-zinc-500">Files</div>
         <button
-          onClick={loadTree}
+          onClick={() => loadTree(false)}
           disabled={loading}
-          className="no-drag rounded p-0.5 text-xs text-zinc-500 hover:text-zinc-300"
+          className="no-drag rounded p-0.5 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-300"
           title="Refresh file tree"
         >
           🔄

@@ -26,6 +26,7 @@ import type {
 import { AVAILABLE_MODELS } from '@domain/constants';
 import type { ChatService } from '@app/ChatService';
 import type { UsageService } from '@app/UsageService';
+import type { NotificationManager } from '../notifications';
 
 export function registerIpcHandlers(services: {
   settings: ISettingsService;
@@ -37,6 +38,7 @@ export function registerIpcHandlers(services: {
   build: IBuildService;
   usage: UsageService;
   revisionQueue: IRevisionQueueService;
+  notifications: NotificationManager;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -153,12 +155,31 @@ export function registerIpcHandlers(services: {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window found');
 
+    // Track whether the call completed successfully or errored for notification
+    let hadError = false;
+    let errorText = '';
+
     await services.chat.sendMessage({
       ...params,
       onEvent: (streamEvent) => {
+        if (streamEvent.type === 'error') {
+          hadError = true;
+          errorText = streamEvent.message;
+        }
         win.webContents.send('chat:streamEvent', streamEvent);
       },
     });
+
+    // Fire OS notification (only shows if window is unfocused + setting enabled)
+    if (hadError) {
+      services.notifications.notifyChatError(params.agentName, errorText).catch(() => {});
+    } else {
+      // Resolve book title for a richer notification
+      const bookTitle = await services.fs.getBookMeta(params.bookSlug)
+        .then((meta) => meta.title)
+        .catch(() => undefined);
+      services.notifications.notifyChatComplete(params.agentName, bookTitle).catch(() => {});
+    }
 
     // If files were changed during this interaction, notify the renderer
     const changedFiles = services.chat.getLastChangedFiles();
@@ -181,9 +202,20 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('build:run', async (event, bookSlug: string) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    return services.build.build(bookSlug, (message) => {
+    const result = await services.build.build(bookSlug, (message) => {
       win?.webContents.send('build:progress', message);
     });
+
+    // Fire OS notification for build completion
+    if (result.success) {
+      const bookTitle = await services.fs.getBookMeta(bookSlug)
+        .then((meta) => meta.title)
+        .catch(() => bookSlug);
+      const successFormats = result.formats.filter((f) => !f.error).length;
+      services.notifications.notifyBuildComplete(bookTitle, successFormats).catch(() => {});
+    }
+
+    return result;
   });
 
   ipcMain.handle('build:isPandocAvailable', () => services.build.isPandocAvailable());
@@ -297,11 +329,20 @@ export function registerIpcHandlers(services: {
     return services.revisionQueue.getPlan(planId);
   });
 
-  // Forward revision queue events to all renderer windows
+  // Forward revision queue events to all renderer windows + fire OS notifications
   services.revisionQueue.onEvent((event) => {
     const wins = BrowserWindow.getAllWindows();
     for (const win of wins) {
       win.webContents.send('revision:event', event);
+    }
+
+    // Fire notifications for key revision events
+    if (event.type === 'session:done') {
+      services.notifications.notifyRevisionSessionComplete(
+        `Session finished (tasks ${event.taskNumbers.join(', ')})`,
+      ).catch(() => {});
+    } else if (event.type === 'queue:done') {
+      services.notifications.notifyRevisionQueueDone().catch(() => {});
     }
   });
 }

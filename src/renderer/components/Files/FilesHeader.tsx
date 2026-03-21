@@ -17,19 +17,19 @@ function BreadcrumbSegments({
   onNavigate: (path: string) => void;
 }): React.ReactElement {
   return (
-    <div className="flex items-center gap-1 text-sm text-zinc-400">
+    <div className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
       {segments.map((seg, i) => (
         <span key={i} className="flex items-center gap-1">
-          {i > 0 && <span className="text-zinc-600">/</span>}
+          {i > 0 && <span className="text-zinc-400 dark:text-zinc-600">/</span>}
           {seg.clickable ? (
             <button
               onClick={() => onNavigate(seg.path)}
-              className="rounded px-1 py-0.5 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+              className="rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
             >
               {seg.label}
             </button>
           ) : (
-            <span className="text-zinc-200 font-medium px-1 py-0.5">{seg.label}</span>
+            <span className="text-zinc-800 dark:text-zinc-200 font-medium px-1 py-0.5">{seg.label}</span>
           )}
         </span>
       ))}
@@ -94,13 +94,13 @@ export function FilesHeader({
   };
 
   return (
-    <div className="shrink-0 border-b border-zinc-800 px-6 py-2.5 flex items-center justify-between gap-4">
+    <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 px-6 py-2.5 flex items-center justify-between gap-4">
       {/* Left: Breadcrumb */}
       <div className="flex items-center gap-2 min-w-0">
         {viewMode === 'reader' && (
           <button
             onClick={onBackToBrowser}
-            className="shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+            className="shrink-0 rounded p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
             title="Back to browser"
           >
             ←
@@ -113,13 +113,13 @@ export function FilesHeader({
       </div>
 
       {/* Right: View mode switcher */}
-      <div className="flex items-center gap-1 rounded-lg bg-zinc-800 p-0.5 shrink-0">
+      <div className="flex items-center gap-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5 shrink-0">
         <button
           onClick={() => onModeChange('browser')}
           className={`rounded px-2.5 py-1 text-xs transition-colors ${
             viewMode === 'browser'
-              ? 'bg-zinc-700 text-zinc-100'
-              : 'text-zinc-400 hover:text-zinc-200'
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
           }`}
           title="Browse files"
         >
@@ -130,8 +130,8 @@ export function FilesHeader({
           disabled={!filePath}
           className={`rounded px-2.5 py-1 text-xs transition-colors ${
             viewMode === 'reader'
-              ? 'bg-zinc-700 text-zinc-100'
-              : 'text-zinc-400 hover:text-zinc-200'
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
           } disabled:opacity-30 disabled:cursor-not-allowed`}
           title="Read file"
         >

@@ -22,7 +22,7 @@ function StatusIcon({ status }: { status: PhaseStatus }): React.ReactElement {
       );
     case 'locked':
       return (
-        <div className="h-5 w-5 shrink-0 rounded-full border-2 border-zinc-600" />
+        <div className="h-5 w-5 shrink-0 rounded-full border-2 border-zinc-300 dark:border-zinc-600" />
       );
   }
 }
@@ -34,7 +34,7 @@ function ConnectingLine({
   fromStatus: PhaseStatus;
   toStatus: PhaseStatus;
 }): React.ReactElement {
-  let color = 'bg-zinc-700';
+  let color = 'bg-zinc-200 dark:bg-zinc-700';
   if (fromStatus === 'complete' && toStatus === 'complete') {
     color = 'bg-green-600';
   } else if (fromStatus === 'complete' && toStatus === 'active') {
@@ -158,14 +158,14 @@ function PhaseRow({
   return (
     <div
       className={`flex items-center gap-2 rounded-md px-1 py-1 ${
-        isClickable ? 'cursor-pointer hover:bg-zinc-800/50' : 'cursor-default opacity-60'
+        isClickable ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50' : 'cursor-default opacity-60'
       }`}
       onClick={onPhaseClick}
       title={phase.status === 'locked' ? 'Complete the previous phase first' : phase.description}
     >
       <StatusIcon status={phase.status} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-xs text-zinc-200">{phase.label}</div>
+        <div className="truncate text-xs text-zinc-800 dark:text-zinc-200">{phase.label}</div>
         {phase.agent && (
           <div className="truncate text-[10px] text-zinc-500">
             {phase.agent}

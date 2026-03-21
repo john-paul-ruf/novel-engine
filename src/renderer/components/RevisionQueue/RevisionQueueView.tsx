@@ -26,8 +26,8 @@ export function RevisionQueueView() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <div className="text-4xl mb-4">&#128203;</div>
-          <h2 className="text-xl font-semibold text-zinc-100 mb-2">No Revision Plan</h2>
-          <p className="text-zinc-400 text-sm">{error}</p>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">No Revision Plan</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">{error}</p>
           <p className="text-zinc-500 text-xs mt-2">
             Run Forge to generate a revision task list and session prompts.
           </p>
@@ -39,17 +39,17 @@ export function RevisionQueueView() {
   if (!plan) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-zinc-400">Loading revision plan...</div>
+        <div className="text-zinc-500 dark:text-zinc-400">Loading revision plan...</div>
       </div>
     );
   }
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="border-b border-zinc-700 p-4">
+      <div className="border-b border-zinc-300 dark:border-zinc-700 p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-semibold text-zinc-100">Revision Queue</h1>
+            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Revision Queue</h1>
             <TaskProgress plan={plan} />
           </div>
           <QueueControls />

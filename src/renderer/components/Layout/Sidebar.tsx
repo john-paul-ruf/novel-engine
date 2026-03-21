@@ -32,8 +32,8 @@ function NavButton({
       onClick={onClick}
       className={`no-drag mb-0.5 flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
         isActive
-          ? 'bg-zinc-800 text-zinc-100'
-          : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+          : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200'
       }`}
     >
       <span className="text-base">{icon}</span>
@@ -46,7 +46,7 @@ export function Sidebar(): React.ReactElement {
   const { currentView, navigate } = useViewStore();
 
   return (
-    <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
+    <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
       {/* Book selector */}
       <BookSelector />
 
@@ -59,14 +59,14 @@ export function Sidebar(): React.ReactElement {
         <PipelineTracker />
 
         {/* Divider */}
-        <div className="mx-3 my-2 border-t border-zinc-800" />
+        <div className="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-800" />
 
         {/* File tree */}
         <FileTree />
       </div>
 
       {/* Bottom nav */}
-      <div className="shrink-0 border-t border-zinc-800 p-2">
+      <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-2">
         {NAV_ITEMS.map((item) => (
           <NavButton
             key={item.id}

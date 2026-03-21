@@ -5,7 +5,7 @@ import { usePipelineStore } from '../../stores/pipelineStore';
 import { useChatStore } from '../../stores/chatStore';
 
 const STATUS_COLORS: Record<BookStatus, { bg: string; text: string }> = {
-  scaffolded:     { bg: 'bg-zinc-600',    text: 'text-zinc-200' },
+  scaffolded:     { bg: 'bg-zinc-300 dark:bg-zinc-600',    text: 'text-zinc-800 dark:text-zinc-200' },
   outlining:      { bg: 'bg-blue-600',    text: 'text-blue-100' },
   'first-draft':  { bg: 'bg-blue-600',    text: 'text-blue-100' },
   'revision-1':   { bg: 'bg-amber-600',   text: 'text-amber-100' },
@@ -45,7 +45,7 @@ function CoverThumbnail({
   if (hasError) {
     return (
       <div
-        className="flex shrink-0 items-center justify-center rounded bg-zinc-800 text-zinc-500"
+        className="flex shrink-0 items-center justify-center rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500"
         style={{ width, height }}
       >
         <span className="text-sm">📖</span>
@@ -92,8 +92,8 @@ function NewBookModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-80 rounded-lg border border-zinc-700 bg-zinc-900 p-5 shadow-xl">
-        <h3 className="mb-4 text-sm font-semibold text-zinc-100">New Book</h3>
+      <div className="w-80 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-5 shadow-xl">
+        <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">New Book</h3>
         <form onSubmit={handleSubmit}>
           <input
             ref={inputRef}
@@ -101,13 +101,13 @@ function NewBookModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Book Title"
-            className="no-drag mb-4 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-blue-500"
+            className="no-drag mb-4 w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none focus:border-blue-500"
           />
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="no-drag rounded-md px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200"
+              className="no-drag rounded-md px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200"
             >
               Cancel
             </button>
@@ -184,33 +184,33 @@ export function BookSelector(): React.ReactElement {
 
   if (loading && books.length === 0) {
     return (
-      <div className="border-b border-zinc-800 px-3 py-3">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 px-3 py-3">
         <div className="text-xs text-zinc-500">Loading books…</div>
       </div>
     );
   }
 
   return (
-    <div ref={dropdownRef} className="relative border-b border-zinc-800">
+    <div ref={dropdownRef} className="relative border-b border-zinc-200 dark:border-zinc-800">
       {/* Closed state — always visible */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="no-drag flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-800/50"
+        className="no-drag flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-200/50 dark:bg-zinc-800/50"
       >
         {activeBook ? (
           <>
             <CoverThumbnail slug={activeSlug} width={40} height={56} timestamp={coverTimestamp} />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-zinc-100">
+              <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 {activeBook.title}
               </div>
-              <div className="text-sm text-zinc-400">
+              <div className="text-sm text-zinc-500 dark:text-zinc-400">
                 {formatWordCount(totalWordCount)} words
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 text-sm text-zinc-400">No book selected</div>
+          <div className="flex-1 text-sm text-zinc-500 dark:text-zinc-400">No book selected</div>
         )}
         <span className={`text-xs text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
           ▼
@@ -219,7 +219,7 @@ export function BookSelector(): React.ReactElement {
 
       {/* Dropdown panel */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-40 border-b border-zinc-700 bg-zinc-900 shadow-xl">
+        <div className="absolute left-0 right-0 top-full z-40 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-xl">
           <div className="max-h-64 overflow-y-auto">
             {books.map((book) => (
               <BookDropdownItem
@@ -231,13 +231,13 @@ export function BookSelector(): React.ReactElement {
               />
             ))}
           </div>
-          <div className="border-t border-zinc-800 p-2">
+          <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
             <button
               onClick={() => {
                 setIsOpen(false);
                 setShowNewBookModal(true);
               }}
-              className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-400 hover:bg-zinc-800"
+              className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800"
             >
               <span>+</span>
               <span>New Book</span>
@@ -271,13 +271,13 @@ function BookDropdownItem({
   return (
     <button
       onClick={onClick}
-      className={`no-drag flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-800 ${
-        isActive ? 'bg-zinc-800/70' : ''
+      className={`no-drag flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-100 dark:bg-zinc-800 ${
+        isActive ? 'bg-zinc-200/70 dark:bg-zinc-800/70' : ''
       }`}
     >
       <CoverThumbnail slug={book.slug} width={32} height={44} timestamp={timestamp} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm text-zinc-100">{book.title}</div>
+        <div className="truncate text-sm text-zinc-900 dark:text-zinc-100">{book.title}</div>
         <div className="mt-0.5 flex items-center gap-2">
           <StatusBadge status={book.status} />
           <span className="text-xs text-zinc-500">{formatWordCount(book.wordCount)} words</span>

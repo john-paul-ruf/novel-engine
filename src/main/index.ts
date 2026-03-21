@@ -27,6 +27,9 @@ import { RevisionQueueService } from '@app/RevisionQueueService';
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
 
+// Notifications
+import { NotificationManager } from './notifications';
+
 // Bootstrap
 import { bootstrap, needsBootstrap } from './bootstrap';
 
@@ -142,6 +145,7 @@ async function initializeApp(): Promise<void> {
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
+  const notifications = new NotificationManager(settings);
 
   // 5. Register custom protocol handler for serving local assets to renderer
   protocol.handle('novel-asset', (request) => {
@@ -172,7 +176,7 @@ async function initializeApp(): Promise<void> {
 
   // 6. Register IPC handlers
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue },
+    { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, notifications },
     { userDataPath, booksDir },
   );
 
