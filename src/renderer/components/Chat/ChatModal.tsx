@@ -48,7 +48,7 @@ function ModalHeader(): React.ReactElement {
         className={`flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 transition-colors ${
           isStreaming
             ? 'cursor-not-allowed opacity-30'
-            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200'
+            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200'
         }`}
       >
         ✕

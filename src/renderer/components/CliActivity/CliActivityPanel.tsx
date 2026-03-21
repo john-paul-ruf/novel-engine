@@ -291,7 +291,7 @@ function DiagnosticsSection(): React.ReactElement | null {
         </div>
         {diagnostics.filesAvailable.length > 0 && (
           <details className="mt-1">
-            <summary className="cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-500 dark:text-zinc-400">
+            <summary className="cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400">
               Show files
             </summary>
             <div className="mt-1 max-h-24 overflow-y-auto rounded bg-zinc-50 dark:bg-zinc-900 p-1.5">
@@ -338,14 +338,14 @@ export function CliActivityPanel(): React.ReactElement {
         <div className="flex items-center gap-1">
           <button
             onClick={clear}
-            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300"
+            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300"
             title="Clear log"
           >
             Clear
           </button>
           <button
             onClick={close}
-            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300"
+            className="rounded p-1 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300"
             title="Close panel"
           >
             ✕

@@ -24,7 +24,7 @@ function BreadcrumbSegments({
           {seg.clickable ? (
             <button
               onClick={() => onNavigate(seg.path)}
-              className="rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+              className="rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
             >
               {seg.label}
             </button>
@@ -100,7 +100,7 @@ export function FilesHeader({
         {viewMode === 'reader' && (
           <button
             onClick={onBackToBrowser}
-            className="shrink-0 rounded p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+            className="shrink-0 rounded p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
             title="Back to browser"
           >
             ←
@@ -119,7 +119,7 @@ export function FilesHeader({
           className={`rounded px-2.5 py-1 text-xs transition-colors ${
             viewMode === 'browser'
               ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
           }`}
           title="Browse files"
         >
@@ -131,7 +131,7 @@ export function FilesHeader({
           className={`rounded px-2.5 py-1 text-xs transition-colors ${
             viewMode === 'reader'
               ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
           } disabled:opacity-30 disabled:cursor-not-allowed`}
           title="Read file"
         >

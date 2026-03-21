@@ -44,7 +44,7 @@ export function ChatTitleBar(): React.ReactElement {
           className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
             cliPanelOpen
               ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
-              : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:text-zinc-300'
+              : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300'
           }`}
           title="Toggle CLI Activity Monitor"
         >

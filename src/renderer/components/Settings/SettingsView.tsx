@@ -448,7 +448,7 @@ function AuthorProfileSection(): React.ReactElement {
             setEditableProfile(authorProfile);
             setShowManualEdit(true);
           }}
-          className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:text-zinc-200"
+          className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
         >
           Edit Manually
         </button>
@@ -474,7 +474,7 @@ function AuthorProfileSection(): React.ReactElement {
             </button>
             <button
               onClick={() => setShowManualEdit(false)}
-              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200"
+              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
             >
               Cancel
             </button>

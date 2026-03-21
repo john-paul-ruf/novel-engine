@@ -135,7 +135,7 @@ function FileCard({
         {isDist && !entry.isDirectory && (
           <button
             onClick={handleOpenExternal}
-            className="rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:bg-zinc-600"
+            className="rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
             title="Open externally"
           >
             ↗
@@ -190,7 +190,7 @@ function FileCard({
                   e.stopPropagation();
                   onFileSelect(`${entry.path}/draft.md`);
                 }}
-                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
               >
                 Draft
               </button>
@@ -199,7 +199,7 @@ function FileCard({
                   e.stopPropagation();
                   onFileSelect(`${entry.path}/notes.md`);
                 }}
-                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:text-zinc-200 transition-colors"
+                className="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
               >
                 Notes
               </button>
@@ -380,7 +380,7 @@ export function FileBrowser({
             className={`rounded px-2 py-1 text-xs transition-colors ${
               layout === 'grid'
                 ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
             title="Grid view"
           >
@@ -391,7 +391,7 @@ export function FileBrowser({
             className={`rounded px-2 py-1 text-xs transition-colors ${
               layout === 'list'
                 ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200'
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
             }`}
             title="List view"
           >

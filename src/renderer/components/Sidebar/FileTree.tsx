@@ -68,7 +68,7 @@ function FileNode({
   return (
     <button
       onClick={() => onFileClick(entry)}
-      className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:text-zinc-200"
+      className="no-drag flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:hover:text-zinc-200"
       style={{ paddingLeft: `${indent + 18}px` }}
     >
       <span className="shrink-0 text-xs">{getFileIcon(entry.name, false)}</span>
@@ -173,7 +173,7 @@ export function FileTree(): React.ReactElement {
         <button
           onClick={() => loadTree(false)}
           disabled={loading}
-          className="no-drag rounded p-0.5 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-300"
+          className="no-drag rounded p-0.5 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           title="Refresh file tree"
         >
           🔄

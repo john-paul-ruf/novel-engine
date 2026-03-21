@@ -109,7 +109,7 @@ function NewBookModal({
             <button
               type="button"
               onClick={onClose}
-              className="no-drag rounded-md px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200"
+              className="no-drag rounded-md px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
             >
               Cancel
             </button>

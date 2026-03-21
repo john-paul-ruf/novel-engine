@@ -108,7 +108,7 @@ function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement
       {(status === 'not-found' || status === 'idle') && (
           <button
             onClick={onNext}
-            className="rounded-lg px-6 py-2.5 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:text-zinc-200"
+            className="rounded-lg px-6 py-2.5 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             Skip for now
           </button>
@@ -285,7 +285,7 @@ function AuthorProfileStep({
         </button>
         <button
           onClick={() => onNext('', '')}
-          className="text-sm text-zinc-500 hover:text-zinc-500 dark:text-zinc-400"
+          className="text-sm text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400"
         >
           Skip — I'll set this up later
         </button>

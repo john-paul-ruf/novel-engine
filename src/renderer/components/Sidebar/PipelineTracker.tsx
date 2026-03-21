@@ -302,7 +302,7 @@ function PhaseRow({
               className={`no-drag rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
                 isConfirmingComplete
                   ? 'bg-green-600 text-white hover:bg-green-500'
-                  : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
+                  : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
               }`}
               title={isConfirmingComplete ? 'Click again to confirm' : 'Mark this phase as complete'}
             >
