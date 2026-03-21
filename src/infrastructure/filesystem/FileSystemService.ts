@@ -290,6 +290,12 @@ export class FileSystemService implements IFileSystemService {
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
+
+        // Skip front-matter chapters — these are publishing artifacts
+        // (auto-generated copyright page, author-written dedication).
+        // They are concatenated by BuildService/Pandoc, not read by agents.
+        if (entry.name === '00-copyright' || entry.name === '01-dedication') continue;
+
         chapterCount++;
 
         for (const fileName of ['draft.md', 'notes.md']) {
