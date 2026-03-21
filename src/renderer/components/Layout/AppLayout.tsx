@@ -1,52 +1,80 @@
+import { useEffect } from 'react';
 import { useViewStore } from '../../stores/viewStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
+import { useCliActivityStore } from '../../stores/cliActivityStore';
+import { useChatStore } from '../../stores/chatStore';
 import { ChatView } from '../Chat/ChatView';
 import { FilesView } from '../Files/FilesView';
 import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
 import { RevisionQueueView } from '../RevisionQueue';
 import { ChatModal } from '../Chat/ChatModal';
-import { CliActivityPanel } from '../CliActivity/CliActivityPanel';
+import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 
+/**
+ * Keeps the stream listener alive for the entire app lifecycle,
+ * independent of which view is currently visible.
+ */
+function StreamManager(): null {
+  const { initStreamListener, destroyStreamListener, recoverActiveStream } = useChatStore();
+
+  useEffect(() => {
+    initStreamListener();
+    recoverActiveStream();
+    return () => destroyStreamListener();
+  }, [initStreamListener, destroyStreamListener, recoverActiveStream]);
+
+  return null;
+}
+
+/**
+ * Renders all views simultaneously but only shows the active one.
+ * This keeps ChatView (and other views) mounted so they preserve
+ * their local state, scroll position, and stream subscriptions.
+ */
 function ViewContent(): React.ReactElement {
   const { currentView } = useViewStore();
 
-  switch (currentView) {
-    case 'chat':
-      return <ChatView />;
-    case 'files':
-      return <FilesView />;
-    case 'build':
-      return <BuildView />;
-    case 'settings':
-      return <SettingsView />;
-    case 'revision-queue':
-      return <RevisionQueueView />;
-    default:
-      return (
-        <div className="flex h-full items-center justify-center text-zinc-500">
-          <p className="text-lg">Unknown View</p>
-        </div>
-      );
-  }
+  return (
+    <>
+      <div className={`h-full ${currentView === 'chat' ? '' : 'hidden'}`}>
+        <ChatView />
+      </div>
+      <div className={`h-full ${currentView === 'files' ? '' : 'hidden'}`}>
+        <FilesView />
+      </div>
+      <div className={`h-full ${currentView === 'build' ? '' : 'hidden'}`}>
+        <BuildView />
+      </div>
+      <div className={`h-full ${currentView === 'settings' ? '' : 'hidden'}`}>
+        <SettingsView />
+      </div>
+      <div className={`h-full ${currentView === 'revision-queue' ? '' : 'hidden'}`}>
+        <RevisionQueueView />
+      </div>
+    </>
+  );
 }
 
 export function AppLayout(): React.ReactElement {
   const isModalOpen = useModalChatStore((s) => s.isOpen);
+  const isCliPanelOpen = useCliActivityStore((s) => s.isOpen);
 
   return (
     <div className="flex h-screen w-screen flex-col bg-zinc-950 text-zinc-100">
       <TitleBar />
+      <StreamManager />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-hidden">
           <ViewContent />
         </main>
+        {isCliPanelOpen && <CliActivityPanel />}
       </div>
       {isModalOpen && <ChatModal />}
-      <CliActivityPanel />
+      <CliActivityListener />
     </div>
   );
 }

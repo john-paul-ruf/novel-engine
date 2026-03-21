@@ -13,7 +13,7 @@ import { MessageList } from './MessageList';
 import { PipelineLockBanner } from './PipelineLockBanner';
 
 export function ChatView(): React.ReactElement {
-  const { activeConversation, isStreaming, sendMessage, initStreamListener, destroyStreamListener, loadConversations, createConversation, setActiveConversation, syncWithPipeline, pipelineLocked, lockedAgentName, lockedPhaseId, recoverActiveStream } = useChatStore();
+  const { activeConversation, isStreaming, sendMessage, loadConversations, createConversation, setActiveConversation, syncWithPipeline, pipelineLocked, lockedAgentName, lockedPhaseId } = useChatStore();
   const { activeSlug } = useBookStore();
   const { activePhase } = usePipelineStore();
   const { payload } = useViewStore();
@@ -23,14 +23,6 @@ export function ChatView(): React.ReactElement {
   useEffect(() => {
     syncWithPipeline(activePhase);
   }, [activePhase, syncWithPipeline]);
-
-  // Register stream event handler and recover any in-flight stream
-  useEffect(() => {
-    initStreamListener();
-    recoverActiveStream();
-    return () => destroyStreamListener();
-  }, [initStreamListener, destroyStreamListener, recoverActiveStream]);
-
   // Navigate to a specific conversation if payload contains conversationId
   useEffect(() => {
     if (payload.conversationId) {

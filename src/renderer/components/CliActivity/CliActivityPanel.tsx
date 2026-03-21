@@ -1,6 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
 
+/**
+ * Hook component that keeps the CLI activity listener alive regardless of
+ * whether the panel is visible. Mount this once in AppLayout.
+ */
+export function CliActivityListener(): null {
+  const initListener = useCliActivityStore((s) => s.initListener);
+  const destroyListener = useCliActivityStore((s) => s.destroyListener);
+  const recoverActiveStream = useCliActivityStore((s) => s.recoverActiveStream);
+
+  useEffect(() => {
+    initListener();
+    recoverActiveStream();
+    return () => destroyListener();
+  }, [initListener, destroyListener, recoverActiveStream]);
+
+  return null;
+}
+
 const KIND_ICONS: Record<string, string> = {
   spawn: '🚀',
   status: '📡',
@@ -288,16 +306,12 @@ function DiagnosticsSection(): React.ReactElement | null {
   );
 }
 
-export function CliActivityPanel(): React.ReactElement | null {
+export function CliActivityPanel(): React.ReactElement {
   const entries = useCliActivityStore((s) => s.entries);
-  const isOpen = useCliActivityStore((s) => s.isOpen);
   const isActive = useCliActivityStore((s) => s.isActive);
   const callMeta = useCliActivityStore((s) => s.callMeta);
   const close = useCliActivityStore((s) => s.close);
   const clear = useCliActivityStore((s) => s.clear);
-  const initListener = useCliActivityStore((s) => s.initListener);
-  const destroyListener = useCliActivityStore((s) => s.destroyListener);
-  const recoverActiveStream = useCliActivityStore((s) => s.recoverActiveStream);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -308,17 +322,8 @@ export function CliActivityPanel(): React.ReactElement | null {
     }
   }, [entries.length]);
 
-  // Initialize the CLI activity listener and recover any in-flight stream
-  useEffect(() => {
-    initListener();
-    recoverActiveStream();
-    return () => destroyListener();
-  }, [initListener, destroyListener, recoverActiveStream]);
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed right-0 top-0 z-50 flex h-screen w-[380px] flex-col border-l border-zinc-700 bg-zinc-900 shadow-2xl">
+    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-700 bg-zinc-900">
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-700 px-3 py-2">
         <div className="flex items-center gap-2">

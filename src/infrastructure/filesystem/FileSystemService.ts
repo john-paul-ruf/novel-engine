@@ -326,8 +326,8 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async listDirectory(bookSlug: string, relativePath?: string): Promise<FileEntry[]> {
-    const dirPath = path.join(this.booksDir, bookSlug, relativePath ?? '');
-    return this.buildFileTree(dirPath, '', 0, 3);
+    const bookRoot = path.join(this.booksDir, bookSlug);
+    return this.buildFileTree(bookRoot, relativePath ?? '', 0, 3);
   }
 
   // ── Word Count ────────────────────────────────────────────────────
