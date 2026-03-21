@@ -137,6 +137,23 @@ export class FileSystemService implements IFileSystemService {
     // phase — creating it here would mark scaffold as immediately "complete"
     // before the user has actually done any work with Verity.
 
+    // Create front matter chapters:
+    //   00-copyright — auto-generated, not manually editable via the UI
+    //   01-dedication — author-editable, must always have title "Dedication"
+    await fs.mkdir(path.join(bookRoot, 'chapters', '00-copyright'), { recursive: true });
+    await fs.writeFile(
+      path.join(bookRoot, 'chapters', '00-copyright', 'draft.md'),
+      this.generateCopyrightContent(meta.title, meta.author),
+      'utf-8',
+    );
+
+    await fs.mkdir(path.join(bookRoot, 'chapters', '01-dedication'), { recursive: true });
+    await fs.writeFile(
+      path.join(bookRoot, 'chapters', '01-dedication', 'draft.md'),
+      '# Dedication\n\n',
+      'utf-8',
+    );
+
     // Set as active book
     await this.setActiveBook(slug);
 
@@ -392,12 +409,8 @@ export class FileSystemService implements IFileSystemService {
       return [];
     }
 
-    // Sort numerically by leading number
-    entries.sort((a, b) => {
-      const numA = parseInt(a, 10) || 0;
-      const numB = parseInt(b, 10) || 0;
-      return numA - numB;
-    });
+    // Sort: front matter (00, 01) → body (02-99) → back matter (z0, z1, …)
+    entries.sort((a, b) => this.chapterSortKey(a) - this.chapterSortKey(b));
 
     const results: { slug: string; wordCount: number }[] = [];
     for (const entry of entries) {
@@ -527,6 +540,45 @@ export class FileSystemService implements IFileSystemService {
   }
 
   // ── Private Helpers ───────────────────────────────────────────────
+
+  /**
+   * Sort key for chapter folder names that correctly orders:
+   *   00-copyright, 01-dedication  → front matter (0–1)
+   *   02-chapter … 99-chapter      → body (2–99)
+   *   z0-notes, z1-afterword …     → back matter (10000+)
+   *
+   * Without this, `parseInt('z0-...', 10)` returns NaN → 0, wrongly
+   * placing back matter before the copyright page.
+   */
+  private chapterSortKey(name: string): number {
+    if (name.toLowerCase().startsWith('z')) {
+      const n = parseInt(name.slice(1), 10);
+      return 10000 + (isNaN(n) ? 0 : n);
+    }
+    const n = parseInt(name, 10);
+    return isNaN(n) ? 5000 : n;
+  }
+
+  /**
+   * Generate the auto-populated content for the 00-copyright chapter.
+   * This is written at book-creation time and regenerated during build
+   * if the draft is empty.
+   */
+  generateCopyrightContent(title: string, author: string): string {
+    const year = new Date().getFullYear();
+    const authorName = author.trim() || 'the Author';
+    return [
+      '# Copyright',
+      '',
+      `*${title}*`,
+      '',
+      `Copyright © ${year} ${authorName}`,
+      '',
+      'All rights reserved. No part of this publication may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of the author, except in the case of brief quotations embodied in critical reviews and certain other noncommercial uses permitted by copyright law.',
+      '',
+      'This is a work of fiction. Names, characters, places, and incidents either are the product of the author\'s imagination or are used fictitiously. Any resemblance to actual persons, living or dead, events, or locales is entirely coincidental.',
+    ].join('\n');
+  }
 
   private async safeRead(absolutePath: string): Promise<string> {
     try {

@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
  * BuildService — Assembles chapters and runs Pandoc to produce output files.
  *
  * Concatenates all chapter drafts into a single markdown document, then
- * generates DOCX, EPUB, and PDF via the Pandoc CLI. Handles partial
+ * generates DOCX and EPUB via the Pandoc CLI. Handles partial
  * failures gracefully — one format failing doesn't block the others.
  *
  * Imports `child_process` directly because the build step is inherently
@@ -22,6 +22,29 @@ export class BuildService implements IBuildService {
     private pandocPath: string,
     private booksDir: string,
   ) {}
+
+  /**
+   * Generate copyright page content from book metadata.
+   *
+   * Used when the 00-copyright/draft.md is missing or empty at build time.
+   * Mirrors the content written by FileSystemService.generateCopyrightContent()
+   * at book-creation time.
+   */
+  private generateCopyrightContent(title: string, author: string): string {
+    const year = new Date().getFullYear();
+    const authorName = author.trim() || 'the Author';
+    return [
+      '# Copyright',
+      '',
+      `*${title}*`,
+      '',
+      `Copyright © ${year} ${authorName}`,
+      '',
+      'All rights reserved. No part of this publication may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of the author, except in the case of brief quotations embodied in critical reviews and certain other noncommercial uses permitted by copyright law.',
+      '',
+      'This is a work of fiction. Names, characters, places, and incidents either are the product of the author\'s imagination or are used fictitiously. Any resemblance to actual persons, living or dead, events, or locales is entirely coincidental.',
+    ].join('\n');
+  }
 
   /**
    * Check if Pandoc is installed and accessible.
@@ -43,7 +66,7 @@ export class BuildService implements IBuildService {
    * 2. Load book metadata (title, author)
    * 3. Read and concatenate all chapter drafts
    * 4. Write assembled markdown to dist/output.md
-   * 5. Generate DOCX, EPUB, PDF via Pandoc (each independently)
+   * 5. Generate DOCX and EPUB via Pandoc (each independently)
    * 6. Return results with per-format success/failure status
    */
   async build(
@@ -67,11 +90,21 @@ export class BuildService implements IBuildService {
     const meta = await this.fs.getBookMeta(bookSlug);
 
     // Step 3: Assemble chapters
+    // countWordsPerChapter returns chapters in correct order:
+    //   00-copyright (front matter) → 01-dedication → body chapters → z0/z1/… (back matter)
     onProgress('Assembling chapters...');
     const chapterStats = await this.fs.countWordsPerChapter(bookSlug);
 
-    if (chapterStats.length === 0) {
-      onProgress('No chapters found. Write some chapters first.');
+    // Require at least one body chapter (02+) — front matter alone is not a publishable manuscript
+    const hasBodyChapters = chapterStats.some((ch) => {
+      const lower = ch.slug.toLowerCase();
+      if (lower.startsWith('z')) return false; // back matter
+      const n = parseInt(ch.slug, 10);
+      return !isNaN(n) && n >= 2;
+    });
+
+    if (!hasBodyChapters) {
+      onProgress('No story chapters found. Write some chapters with Verity first.');
       return {
         success: false,
         formats: [],
@@ -83,7 +116,29 @@ export class BuildService implements IBuildService {
     let totalWordCount = 0;
 
     for (const chapter of chapterStats) {
-      const draft = await this.fs.readFile(bookSlug, `chapters/${chapter.slug}/draft.md`);
+      let draft: string;
+
+      try {
+        draft = await this.fs.readFile(bookSlug, `chapters/${chapter.slug}/draft.md`);
+      } catch {
+        // draft.md missing — for the copyright chapter regenerate from metadata;
+        // for all others skip so a missing draft doesn't abort the whole build.
+        if (chapter.slug.startsWith('00-')) {
+          draft = this.generateCopyrightContent(meta.title, meta.author);
+          onProgress(`  Regenerated copyright page from metadata`);
+        } else {
+          onProgress(`  Skipping ${chapter.slug} (no draft found)`);
+          continue;
+        }
+      }
+
+      // Copyright chapter with an empty draft — regenerate so the book always
+      // ships with a proper copyright page even if the file was cleared.
+      if (chapter.slug.startsWith('00-') && !draft.trim()) {
+        draft = this.generateCopyrightContent(meta.title, meta.author);
+        onProgress(`  Regenerated copyright page from metadata`);
+      }
+
       chapterContents.push(draft);
       totalWordCount += chapter.wordCount;
       onProgress(`  Added ${chapter.slug} (${chapter.wordCount} words)`);
@@ -117,7 +172,6 @@ export class BuildService implements IBuildService {
     const pandocFormats: { format: BuildFormat; ext: string; toFlag: string }[] = [
       { format: 'docx', ext: 'docx', toFlag: 'docx' },
       { format: 'epub', ext: 'epub', toFlag: 'epub3' },
-      { format: 'pdf', ext: 'pdf', toFlag: 'pdf' },
     ];
 
     for (const { format, ext, toFlag } of pandocFormats) {
