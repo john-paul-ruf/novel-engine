@@ -17,6 +17,17 @@ export class PipelineService implements IPipelineService {
     'published',
   ]);
 
+  /**
+   * Book statuses that indicate the first draft is still in progress.
+   * The first-draft phase is only considered complete when the book's
+   * status has advanced beyond these initial statuses.
+   */
+  private static readonly FIRST_DRAFT_IN_PROGRESS: ReadonlySet<BookStatus> = new Set([
+    'scaffolded',
+    'outlining',
+    'first-draft',
+  ]);
+
   constructor(private fs: IFileSystemService) {}
 
   /**
@@ -90,10 +101,17 @@ export class PipelineService implements IPipelineService {
         return this.fs.fileExists(bookSlug, 'source/scene-outline.md');
 
       case 'first-draft': {
+        // The first draft is complete when chapters exist with meaningful content
+        // AND the book's status has explicitly advanced beyond 'first-draft'.
+        // Without the status check, the pipeline jumps ahead as soon as a single
+        // chapter exceeds 1,000 words — far too early.
         const chapters = await this.fs.countWordsPerChapter(bookSlug);
         if (chapters.length === 0) return false;
         const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0);
-        return totalWords > 1000;
+        if (totalWords <= 1000) return false;
+
+        const meta = await this.fs.getBookMeta(bookSlug);
+        return !PipelineService.FIRST_DRAFT_IN_PROGRESS.has(meta.status);
       }
 
       case 'first-read':
