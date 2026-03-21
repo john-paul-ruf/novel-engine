@@ -4,6 +4,9 @@ import { useBookStore } from '../../stores/bookStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { ShelvedPitchesPanel } from './ShelvedPitchesPanel';
+import { PitchPreviewModal } from './PitchPreviewModal';
+import { usePitchShelfStore } from '../../stores/pitchShelfStore';
 
 const STATUS_COLORS: Record<BookStatus, { bg: string; text: string }> = {
   scaffolded:     { bg: 'bg-zinc-300 dark:bg-zinc-600',    text: 'text-zinc-800 dark:text-zinc-200' },
@@ -136,7 +139,9 @@ export function BookSelector(): React.ReactElement {
 
   const [isOpen, setIsOpen] = useState(false);
   const [showNewBookModal, setShowNewBookModal] = useState(false);
+  const [showPitchShelf, setShowPitchShelf] = useState(false);
   const [coverTimestamp, setCoverTimestamp] = useState(Date.now());
+  const pitchCount = usePitchShelfStore((s) => s.pitches.length);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
 
@@ -223,7 +228,14 @@ export function BookSelector(): React.ReactElement {
     <div ref={dropdownRef} className="relative border-b border-zinc-200 dark:border-zinc-800">
       {/* Closed state — always visible */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const opening = !isOpen;
+          setIsOpen(opening);
+          if (opening) {
+            setShowPitchShelf(false);
+            usePitchShelfStore.getState().loadPitches();
+          }
+        }}
         className="no-drag flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
       >
         {activeBook ? (
@@ -258,29 +270,60 @@ export function BookSelector(): React.ReactElement {
       {/* Dropdown panel */}
       {isOpen && (
         <div className="absolute left-0 right-0 top-full z-40 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-xl">
-          <div className="max-h-64 overflow-y-auto">
-            {books.map((book) => (
-              <BookDropdownItem
-                key={book.slug}
-                book={book}
-                isActive={book.slug === activeSlug}
-                timestamp={coverTimestamp}
-                onClick={() => handleSelectBook(book.slug)}
-              />
-            ))}
-          </div>
-          <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
-            <button
-              onClick={() => {
+          {showPitchShelf ? (
+            <ShelvedPitchesPanel
+              onBack={() => setShowPitchShelf(false)}
+              onBookRestored={async (slug) => {
                 setIsOpen(false);
-                setShowNewBookModal(true);
+                setShowPitchShelf(false);
+                await setActiveBook(slug);
               }}
-              className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              <span>+</span>
-              <span>New Book</span>
-            </button>
-          </div>
+            />
+          ) : (
+            <>
+              <div className="max-h-64 overflow-y-auto">
+                {books.map((book) => (
+                  <BookDropdownItem
+                    key={book.slug}
+                    book={book}
+                    isActive={book.slug === activeSlug}
+                    timestamp={coverTimestamp}
+                    onClick={() => handleSelectBook(book.slug)}
+                  />
+                ))}
+              </div>
+
+              {/* Shelved Pitches link */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
+                <button
+                  onClick={() => setShowPitchShelf(true)}
+                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <span>📋</span>
+                  <span>Shelved Pitches</span>
+                  {pitchCount > 0 && (
+                    <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                      {pitchCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* New Book button */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    setShowNewBookModal(true);
+                  }}
+                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <span>+</span>
+                  <span>New Book</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -291,6 +334,9 @@ export function BookSelector(): React.ReactElement {
           onCreate={handleCreateBook}
         />
       )}
+
+      {/* Pitch preview modal */}
+      <PitchPreviewModal />
     </div>
   );
 }
