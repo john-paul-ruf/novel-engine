@@ -51,9 +51,34 @@ function PitchRoomStreamingMessage(): React.ReactElement | null {
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
           ) : (
-            <div className="flex items-center gap-2 text-sm text-zinc-400">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-              {statusMessage || rotatingStatus}
+            <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+              {/* Three bouncing dots — staggered for a lively wave effect */}
+              <span className="flex items-center gap-0.5">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce"
+                  style={{ animationDelay: '0ms', animationDuration: '900ms' }}
+                />
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 animate-bounce"
+                  style={{ animationDelay: '150ms', animationDuration: '900ms' }}
+                />
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300 animate-bounce"
+                  style={{ animationDelay: '300ms', animationDuration: '900ms' }}
+                />
+              </span>
+              {/* Each character gets its own wave delay, creating a ripple effect */}
+              <span key={statusMessage || rotatingStatus} className="status-fade-in inline-flex flex-wrap">
+                {(statusMessage || rotatingStatus).split('').map((char, i) => (
+                  <span
+                    key={i}
+                    className="wave-char"
+                    style={{ animationDelay: `${i * 80}ms` }}
+                  >
+                    {char === ' ' ? '\u00A0' : char}
+                  </span>
+                ))}
+              </span>
             </div>
           )}
         </div>
