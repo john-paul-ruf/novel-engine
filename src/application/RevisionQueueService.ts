@@ -98,13 +98,18 @@ export class RevisionQueueService implements IRevisionQueueService {
 
   /**
    * Compute a structural hash of the plan content.
-   * Normalizes checkbox state (`[x]` → `[ ]`) before hashing so that
-   * approving sessions (which ticks checkboxes in project-tasks.md)
+   * Normalizes checkbox state, whitespace, and line endings before hashing
+   * so that approving sessions (which ticks checkboxes in project-tasks.md)
    * does NOT invalidate the cache. Checkbox progress is tracked
    * separately via the session state file.
    */
   private computeHash(content: string): string {
-    const normalized = content.replace(/- \[x\]/g, '- [ ]');
+    const normalized = content
+      .replace(/\r\n/g, '\n')           // normalize line endings
+      .replace(/- \[[xX]\]/g, '- [ ]')  // normalize checkboxes (case-insensitive)
+      .replace(/[ \t]+$/gm, '')          // strip trailing whitespace per line
+      .replace(/\n{3,}/g, '\n\n')        // collapse excessive blank lines
+      .replace(/\n+$/, '\n');            // normalize trailing newline
     return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
   }
 
@@ -131,6 +136,36 @@ export class RevisionQueueService implements IRevisionQueueService {
       return JSON.parse(raw) as SessionStateFile;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Re-read source files, re-compute the content hash, and update both
+   * the on-disk cache and the in-memory hash map. Called after any operation
+   * that modifies project-tasks.md or revision-prompts.md so the cache
+   * stays in sync and the next loadPlan doesn't re-send to the Wrangler.
+   */
+  private async refreshCacheHash(bookSlug: string): Promise<void> {
+    try {
+      let revisionPromptsContent: string | null = null;
+      let projectTasksContent: string | null = null;
+      try { revisionPromptsContent = await this.fs.readFile(bookSlug, 'source/revision-prompts.md'); } catch { /* may not exist */ }
+      try { projectTasksContent = await this.fs.readFile(bookSlug, 'source/project-tasks.md'); } catch { /* may not exist */ }
+
+      const combinedContent = (revisionPromptsContent ?? '') + '\0' + (projectTasksContent ?? '');
+      const newHash = this.computeHash(combinedContent);
+
+      // Update in-memory hash
+      this.hashByBook.set(bookSlug, newHash);
+
+      // Update on-disk cache
+      const cache = await this.readCache(bookSlug);
+      if (cache) {
+        cache.contentHash = newHash;
+        await this.writeCache(bookSlug, cache);
+      }
+    } catch {
+      // Best-effort — don't break the approval flow
     }
   }
 
@@ -212,7 +247,26 @@ export class RevisionQueueService implements IRevisionQueueService {
     if (cache && cache.contentHash === contentHash) {
       this.emit({ type: 'plan:loading-step', step: 'Loaded from cache (files unchanged)' });
       parsed = cache.parsed;
+    } else if (cache?.parsed?.sessions?.length) {
+      // Cache exists with valid parsed data but hash doesn't match.
+      // This happens when: (a) approveSession modified project-tasks.md and the
+      // old normalization didn't fully cancel out the change, or (b) the hash
+      // algorithm was upgraded. Re-use the cached parse and update the hash
+      // so subsequent loads are instant.
+      console.log(
+        `[RevisionQueue] Cache hash stale — cached: ${cache.contentHash}, computed: ${contentHash}. Re-using cached parse.`,
+      );
+      parsed = cache.parsed;
+      await this.writeCache(bookSlug, { contentHash, parsed, cachedAt: new Date().toISOString() });
     } else {
+      if (cache) {
+        console.log(
+          `[RevisionQueue] Cache hash mismatch and no valid parsed data — cached: ${cache.contentHash}, computed: ${contentHash}. Re-parsing with Wrangler.`,
+        );
+      } else {
+        console.log('[RevisionQueue] No cache found. Parsing with Wrangler.');
+      }
+
       const promptSize = (revisionPromptsContent?.length ?? 0);
       const taskSize = (projectTasksContent?.length ?? 0);
       const totalChars = promptSize + taskSize;
@@ -691,6 +745,9 @@ export class RevisionQueueService implements IRevisionQueueService {
       }
 
       await this.fs.writeFile(plan.bookSlug, 'source/project-tasks.md', taskContent);
+
+      // Keep cache hash in sync so the next loadPlan uses the cache
+      await this.refreshCacheHash(plan.bookSlug);
     } catch (err) {
       // project-tasks.md update is best-effort — don't fail the approval
       console.error('Failed to update project-tasks.md:', err);

@@ -1,59 +1,111 @@
-
 #!/usr/bin/env node
 
 /**
- * Generates placeholder icon files for Novel Engine.
+ * Generates platform-specific icon files for Novel Engine from a source PNG.
  *
- * Usage: node scripts/generate-icons.js
+ * Usage: node scripts/generate-icons.js [source.png]
+ *
+ * Default source: assets/icon.png
  *
  * Creates:
- *   assets/icon.svg  — SVG source icon (dark rounded square with "NE" text)
- *   assets/icon.png  — Minimal placeholder PNG (replace with real 1024x1024 icon)
+ *   assets/icon.icns — macOS icon (16x16 through 512x512@2x)
+ *   assets/icon.ico  — Windows icon (16x16 through 256x256)
  *
- * To generate platform-specific icons from a real PNG:
- *   macOS (.icns):  mkdir icon.iconset && sips -z 1024 1024 icon.png --out icon.iconset/icon_512x512@2x.png && iconutil -c icns icon.iconset
- *   Windows (.ico): npx png-to-ico assets/icon.png > assets/icon.ico
- *   Linux:          uses icon.png directly
+ * Requirements:
+ *   macOS:  sips + iconutil (built-in)
+ *   .ico:   ImageMagick (brew install imagemagick)
  */
 
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const assetsDir = path.resolve(__dirname, '..', 'assets');
-fs.mkdirSync(assetsDir, { recursive: true });
+const sourcePng = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.join(assetsDir, 'icon.png');
 
-// Create an SVG icon — a dark rounded square with "NE" text in the Novel Engine brand colors
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="180" fill="#18181b"/>
-  <rect x="40" y="40" width="944" height="944" rx="150" fill="#27272a" stroke="#3b82f6" stroke-width="8"/>
-  <text x="512" y="440" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="320" font-weight="700" fill="#3b82f6">NE</text>
-  <text x="512" y="620" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="100" font-weight="400" fill="#a1a1aa">Novel Engine</text>
-</svg>`;
+if (!fs.existsSync(sourcePng)) {
+  console.error(`Source PNG not found: ${sourcePng}`);
+  process.exit(1);
+}
 
-const svgPath = path.join(assetsDir, 'icon.svg');
-fs.writeFileSync(svgPath, svg, 'utf8');
-console.log(`Created: ${svgPath}`);
+function run(cmd) {
+  execSync(cmd, { stdio: 'inherit' });
+}
 
-// Create a minimal valid PNG (1x1 transparent pixel) as a build placeholder.
-// This is the smallest valid PNG file. Replace with a real 1024x1024 PNG for production.
-const pngBuffer = Buffer.from([
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-  0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk length + type
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // width=1, height=1
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, // bit depth=8, color=RGBA
-  0x89,                                             // IHDR CRC
-  0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, // IDAT chunk length + type
-  0x78, 0x9C, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, // zlib-compressed pixel data
-  0x01, 0xE5, 0x27, 0xDE, 0xFC,                    // IDAT CRC
-  0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, // IEND chunk
-  0xAE, 0x42, 0x60, 0x82,                          // IEND CRC
-]);
+// ── macOS .icns ──────────────────────────────────────────────────────────────
 
-const pngPath = path.join(assetsDir, 'icon.png');
-fs.writeFileSync(pngPath, pngBuffer);
-console.log(`Created: ${pngPath} (placeholder - replace with a real 1024x1024 icon)`);
+function generateIcns() {
+  const iconsetDir = path.join(assetsDir, 'icon.iconset');
+  fs.mkdirSync(iconsetDir, { recursive: true });
 
-console.log('\nTo generate platform-specific icons from a real PNG:');
-console.log('  macOS (.icns): mkdir icon.iconset && sips -z 1024 1024 icon.png --out icon.iconset/icon_512x512@2x.png && iconutil -c icns icon.iconset');
-console.log('  Windows (.ico): npx png-to-ico assets/icon.png > assets/icon.ico');
-console.log('  Linux: uses icon.png directly');
+  const sizes = [16, 32, 64, 128, 256, 512, 1024];
+
+  for (const size of sizes) {
+    const out = path.join(iconsetDir, `icon_${size}x${size}.png`);
+    run(`sips -z ${size} ${size} "${sourcePng}" --out "${out}" > /dev/null 2>&1`);
+  }
+
+  // Create @2x variants from the next-size-up renders
+  const retinaMap = {
+    '16x16@2x': '32x32',
+    '32x32@2x': '64x64',
+    '128x128@2x': '256x256',
+    '256x256@2x': '512x512',
+    '512x512@2x': '1024x1024',
+  };
+
+  for (const [retina, source] of Object.entries(retinaMap)) {
+    fs.copyFileSync(
+      path.join(iconsetDir, `icon_${source}.png`),
+      path.join(iconsetDir, `icon_${retina}.png`)
+    );
+  }
+
+  // Remove intermediate sizes not part of the iconset spec
+  for (const extra of ['64x64', '1024x1024']) {
+    const p = path.join(iconsetDir, `icon_${extra}.png`);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  }
+
+  const icnsPath = path.join(assetsDir, 'icon.icns');
+  run(`iconutil -c icns "${iconsetDir}" -o "${icnsPath}"`);
+
+  // Clean up
+  fs.rmSync(iconsetDir, { recursive: true, force: true });
+
+  console.log(`Created: ${icnsPath}`);
+}
+
+// ── Windows .ico ─────────────────────────────────────────────────────────────
+
+function generateIco() {
+  const icoPath = path.join(assetsDir, 'icon.ico');
+  const sizes = [16, 32, 48, 64, 128, 256];
+  const resizeArgs = sizes
+    .map((s) => `\\( -clone 0 -resize ${s}x${s} \\)`)
+    .join(' ');
+
+  run(`magick "${sourcePng}" ${resizeArgs} -delete 0 "${icoPath}"`);
+
+  console.log(`Created: ${icoPath}`);
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
+console.log(`Source: ${sourcePng}\n`);
+
+try {
+  generateIcns();
+} catch (err) {
+  console.warn(`⚠ Skipped .icns generation (requires macOS sips + iconutil): ${err.message}`);
+}
+
+try {
+  generateIco();
+} catch (err) {
+  console.warn(`⚠ Skipped .ico generation (requires ImageMagick): ${err.message}`);
+}
+
+console.log('\nDone.');
