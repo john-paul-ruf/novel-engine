@@ -1,9 +1,21 @@
 import { useState } from 'react';
-import type { PhaseStatus, PipelinePhase } from '@domain/types';
+import type { PhaseStatus, PipelinePhase, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
+
+/**
+ * Phases that require the user to manually signal completion.
+ *
+ * These phases depend on the book's `status` field in `about.json`
+ * (not just file existence), and nothing auto-advances that status.
+ * The user must click "Done" when they're finished with the phase.
+ */
+const MANUAL_COMPLETION_PHASES: ReadonlySet<PipelinePhaseId> = new Set([
+  'first-draft',
+  'mechanical-fixes',
+]);
 
 function StatusIcon({ status }: { status: PhaseStatus }): React.ReactElement {
   switch (status) {
@@ -45,11 +57,12 @@ function ConnectingLine({
 }
 
 export function PipelineTracker(): React.ReactElement {
-  const { phases } = usePipelineStore();
+  const { phases, markPhaseComplete } = usePipelineStore();
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate } = useViewStore();
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
+  const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
 
   if (!activeSlug || phases.length === 0) {
     return (
@@ -111,6 +124,19 @@ export function PipelineTracker(): React.ReactElement {
     await openOrCreateConversation(phase);
   };
 
+  const handleMarkComplete = async (phaseId: PipelinePhaseId) => {
+    if (confirmingComplete === phaseId) {
+      // Second click = confirm
+      await markPhaseComplete(activeSlug, phaseId);
+      setConfirmingComplete(null);
+    } else {
+      // First click = enter confirmation state
+      setConfirmingComplete(phaseId);
+      // Auto-cancel after 4 seconds
+      setTimeout(() => setConfirmingComplete((prev) => (prev === phaseId ? null : prev)), 4000);
+    }
+  };
+
   return (
     <div className="px-3 py-3">
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -128,6 +154,11 @@ export function PipelineTracker(): React.ReactElement {
               phase={phase}
               onPhaseClick={() => handlePhaseClick(phase)}
               onStartClick={() => handleStartClick(phase)}
+              showMarkComplete={
+                phase.status === 'active' && MANUAL_COMPLETION_PHASES.has(phase.id)
+              }
+              isConfirmingComplete={confirmingComplete === phase.id}
+              onMarkComplete={() => handleMarkComplete(phase.id)}
             />
             {index < phases.length - 1 && (
               <ConnectingLine
@@ -146,10 +177,16 @@ function PhaseRow({
   phase,
   onPhaseClick,
   onStartClick,
+  showMarkComplete,
+  isConfirmingComplete,
+  onMarkComplete,
 }: {
   phase: PipelinePhase;
   onPhaseClick: () => void;
   onStartClick: () => void;
+  showMarkComplete: boolean;
+  isConfirmingComplete: boolean;
+  onMarkComplete: () => void;
 }): React.ReactElement {
   const isClickable = phase.status !== 'locked';
   const isActive = phase.status === 'active';
@@ -173,15 +210,33 @@ function PhaseRow({
         )}
       </div>
       {isActive && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartClick();
-          }}
-          className="no-drag shrink-0 rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500"
-        >
-          {isBuildPhase ? 'Build' : 'Start'}
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {showMarkComplete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkComplete();
+              }}
+              className={`no-drag rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                isConfirmingComplete
+                  ? 'bg-green-600 text-white hover:bg-green-500'
+                  : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
+              }`}
+              title={isConfirmingComplete ? 'Click again to confirm' : 'Mark this phase as complete'}
+            >
+              {isConfirmingComplete ? 'Confirm?' : 'Done'}
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartClick();
+            }}
+            className="no-drag shrink-0 rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500"
+          >
+            {isBuildPhase ? 'Build' : 'Start'}
+          </button>
+        </div>
       )}
     </div>
   );

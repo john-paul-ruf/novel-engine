@@ -1,14 +1,15 @@
 import { create } from 'zustand';
-import type { PipelinePhase } from '@domain/types';
+import type { PipelinePhase, PipelinePhaseId } from '@domain/types';
 
 type PipelineState = {
   phases: PipelinePhase[];
   activePhase: PipelinePhase | null;
   loading: boolean;
   loadPipeline: (bookSlug: string) => Promise<void>;
+  markPhaseComplete: (bookSlug: string, phaseId: PipelinePhaseId) => Promise<void>;
 };
 
-export const usePipelineStore = create<PipelineState>((set) => ({
+export const usePipelineStore = create<PipelineState>((set, get) => ({
   phases: [],
   activePhase: null,
   loading: false,
@@ -24,6 +25,16 @@ export const usePipelineStore = create<PipelineState>((set) => ({
     } catch (error) {
       console.error('Failed to load pipeline:', error);
       set({ loading: false });
+    }
+  },
+
+  markPhaseComplete: async (bookSlug: string, phaseId: PipelinePhaseId) => {
+    try {
+      await window.novelEngine.pipeline.markPhaseComplete(bookSlug, phaseId);
+      // Reload the pipeline to reflect the new state
+      await get().loadPipeline(bookSlug);
+    } catch (error) {
+      console.error('Failed to mark phase complete:', error);
     }
   },
 }));

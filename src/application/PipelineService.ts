@@ -3,6 +3,19 @@ import type { AgentName, BookStatus, PipelinePhase, PipelinePhaseId } from '@dom
 import { PIPELINE_PHASES } from '@domain/constants';
 
 /**
+ * Maps pipeline phase IDs to the book status they should advance TO
+ * when the user explicitly marks a phase complete.
+ *
+ * Only phases that depend on book status need entries here.
+ * File-existence phases advance automatically when the agent creates
+ * the expected output file.
+ */
+const PHASE_STATUS_ADVANCEMENT: Partial<Record<PipelinePhaseId, BookStatus>> = {
+  'first-draft': 'revision-1',
+  'mechanical-fixes': 'final',
+};
+
+/**
  * PipelineService — Detects which pipeline phase a book is in.
  *
  * Checks for the existence of key output files to determine which phases
@@ -84,6 +97,29 @@ export class PipelineService implements IPipelineService {
   getAgentForPhase(phaseId: PipelinePhaseId): AgentName | null {
     const phase = PIPELINE_PHASES.find((p) => p.id === phaseId);
     return phase?.agent ?? null;
+  }
+
+  /**
+   * Manually mark a pipeline phase as complete by advancing the book status.
+   *
+   * This is needed for phases whose completion depends on the book's status
+   * field (like `first-draft` and `mechanical-fixes`), since nothing
+   * auto-advances the status. The user explicitly signals "I'm done with
+   * this phase" and the status is updated accordingly.
+   *
+   * Throws if the phase doesn't support manual completion (i.e., it's
+   * purely file-existence based and will complete automatically).
+   */
+  async markPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<void> {
+    const targetStatus = PHASE_STATUS_ADVANCEMENT[phaseId];
+    if (!targetStatus) {
+      throw new Error(
+        `Phase "${phaseId}" does not support manual completion — ` +
+        `it completes automatically when the expected output file is created.`,
+      );
+    }
+
+    await this.fs.updateBookMeta(bookSlug, { status: targetStatus });
   }
 
   /**

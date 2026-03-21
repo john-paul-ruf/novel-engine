@@ -198,6 +198,10 @@ export function registerIpcHandlers(services: {
     services.pipeline.getActivePhase(bookSlug),
   );
 
+  ipcMain.handle('pipeline:markPhaseComplete', (_, bookSlug: string, phaseId: PipelinePhaseId) =>
+    services.pipeline.markPhaseComplete(bookSlug, phaseId),
+  );
+
   // === Build ===
 
   ipcMain.handle('build:run', async (event, bookSlug: string) => {

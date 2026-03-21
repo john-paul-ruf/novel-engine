@@ -125,22 +125,10 @@ export class FileSystemService implements IFileSystemService {
       'utf-8',
     );
 
-    // Write starter source files
-    await fs.writeFile(
-      path.join(bookRoot, 'source', 'voice-profile.md'),
-      `# Voice Profile\n\nDescribe the narrative voice, tone, and style for this book.\n`,
-      'utf-8',
-    );
-    await fs.writeFile(
-      path.join(bookRoot, 'source', 'scene-outline.md'),
-      `# Scene Outline\n\nOutline the scenes and structure of your story.\n`,
-      'utf-8',
-    );
-    await fs.writeFile(
-      path.join(bookRoot, 'source', 'story-bible.md'),
-      `# Story Bible\n\nCharacters, settings, world-building details, and continuity notes.\n`,
-      'utf-8',
-    );
+    // NOTE: Do NOT create starter source files that serve as pipeline phase
+    // completion gates. `scene-outline.md` in particular gates the "scaffold"
+    // phase — creating it here would mark scaffold as immediately "complete"
+    // before the user has actually done any work with Verity.
 
     // Set as active book
     await this.setActiveBook(slug);

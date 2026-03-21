@@ -105,6 +105,16 @@ export interface IPipelineService {
   detectPhases(bookSlug: string): Promise<PipelinePhase[]>;
   getActivePhase(bookSlug: string): Promise<PipelinePhase | null>;
   getAgentForPhase(phaseId: PipelinePhaseId): AgentName | null;
+
+  /**
+   * Manually mark a pipeline phase as complete by advancing the book status.
+   *
+   * Some phases (like `first-draft` and `mechanical-fixes`) depend on the
+   * book's status field in about.json, not just file existence. Since nothing
+   * auto-advances the status, this method lets the user explicitly signal
+   * that a phase is done.
+   */
+  markPhaseComplete(bookSlug: string, phaseId: PipelinePhaseId): Promise<void>;
 }
 
 export interface IBuildService {

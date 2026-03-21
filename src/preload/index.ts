@@ -110,6 +110,8 @@ const api = {
       ipcRenderer.invoke('pipeline:detect', bookSlug),
     getActive: (bookSlug: string): Promise<PipelinePhase | null> =>
       ipcRenderer.invoke('pipeline:getActive', bookSlug),
+    markPhaseComplete: (bookSlug: string, phaseId: PipelinePhaseId): Promise<void> =>
+      ipcRenderer.invoke('pipeline:markPhaseComplete', bookSlug, phaseId),
   },
 
   // Build
