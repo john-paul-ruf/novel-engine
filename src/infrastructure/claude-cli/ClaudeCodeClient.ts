@@ -44,7 +44,7 @@ export class ClaudeCodeClient implements IClaudeClient {
     bookSlug?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const { model, systemPrompt, messages, maxTokens, thinkingBudget, bookSlug, onEvent } = params;
+    const { model, systemPrompt, messages, thinkingBudget, bookSlug, onEvent } = params;
 
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
@@ -57,7 +57,6 @@ export class ClaudeCodeClient implements IClaudeClient {
       '--max-turns', '15',
       '--system-prompt', systemPrompt,
       '--allowedTools', 'Read,Write,Edit,LS',
-      '--max-tokens', String(maxTokens),
     ];
 
     if (thinkingBudget && thinkingBudget > 0) {
