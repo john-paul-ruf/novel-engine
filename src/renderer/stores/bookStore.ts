@@ -12,6 +12,12 @@ type BookState = {
   createBook: (title: string) => Promise<string>;
   refreshWordCount: () => Promise<void>;
   /**
+   * Open the native file picker and save the selected image as the cover
+   * for the given book. Returns the new cover filename (e.g. "cover.jpg")
+   * or null if the user cancelled.
+   */
+  uploadCover: (bookSlug: string) => Promise<string | null>;
+  /**
    * Subscribe to `books:changed` push events from the main process.
    * Automatically calls `loadBooks()` whenever the books directory
    * gains or loses a subdirectory (e.g. a book was manually copied in).
@@ -83,6 +89,20 @@ export const useBookStore = create<BookState>((set, get) => ({
       set({ totalWordCount: total });
     } catch (error) {
       console.error('Failed to refresh word count:', error);
+    }
+  },
+
+  uploadCover: async (bookSlug: string) => {
+    try {
+      const result = await window.novelEngine.books.uploadCover(bookSlug);
+      if (result) {
+        // Refresh the book list so the updated coverImage field is reflected
+        await get().loadBooks();
+      }
+      return result;
+    } catch (error) {
+      console.error('Failed to upload cover:', error);
+      return null;
     }
   },
 

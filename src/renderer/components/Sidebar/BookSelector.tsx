@@ -128,7 +128,7 @@ function NewBookModal({
 }
 
 export function BookSelector(): React.ReactElement {
-  const { books, activeSlug, totalWordCount, loading, loadBooks, setActiveBook, createBook, refreshWordCount, subscribeToDirectoryChanges } = useBookStore();
+  const { books, activeSlug, totalWordCount, loading, loadBooks, setActiveBook, createBook, refreshWordCount, subscribeToDirectoryChanges, uploadCover } = useBookStore();
   const { loadPipeline, setDisplayedBook } = usePipelineStore();
   const { loadConversations } = useChatStore();
 
@@ -192,6 +192,15 @@ export function BookSelector(): React.ReactElement {
     }
   };
 
+  const handleCoverClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Don't toggle the dropdown
+    if (!activeSlug) return;
+    const result = await uploadCover(activeSlug);
+    if (result) {
+      setCoverTimestamp(Date.now()); // Bust the image cache
+    }
+  };
+
   if (loading && books.length === 0) {
     return (
       <div className="border-b border-zinc-200 dark:border-zinc-800 px-3 py-3">
@@ -209,7 +218,16 @@ export function BookSelector(): React.ReactElement {
       >
         {activeBook ? (
           <>
-            <CoverThumbnail slug={activeSlug} width={40} height={56} timestamp={coverTimestamp} />
+            <button
+              onClick={handleCoverClick}
+              title="Change cover image"
+              className="group/cover relative shrink-0 cursor-pointer rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <CoverThumbnail slug={activeSlug} width={40} height={56} timestamp={coverTimestamp} />
+              <div className="absolute inset-0 flex items-center justify-center rounded bg-black/50 opacity-0 transition-opacity group-hover/cover:opacity-100">
+                <span className="text-xs text-white">📷</span>
+              </div>
+            </button>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 {activeBook.title}
