@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { marked } from 'marked';
 import { useChatStore } from '../../stores/chatStore';
 import { ThinkingBlock } from './ThinkingBlock';
+import { useRotatingStatus } from '../../hooks/useRotatingStatus';
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -12,18 +13,20 @@ export function StreamingMessage(): React.ReactElement | null {
   const isThinking = useChatStore((s) => s.isThinking);
   const thinkingBuffer = useChatStore((s) => s.thinkingBuffer);
   const streamBuffer = useChatStore((s) => s.streamBuffer);
-  const statusMessage = useChatStore((s) => s.statusMessage);
 
   const renderedHtml = useMemo(() => {
     if (!streamBuffer) return '';
     return String(marked.parse(streamBuffer));
   }, [streamBuffer]);
 
-  if (!isStreaming) return null;
-
   const showThinking = thinkingBuffer.length > 0 || isThinking;
   const showResponse = streamBuffer.length > 0;
-  const showStatus = statusMessage && !showThinking && !showResponse;
+  const showStatus = isStreaming && !showThinking && !showResponse;
+
+  // Rotate through fun status phrases every 15–30 s while waiting
+  const rotatingStatus = useRotatingStatus(showStatus);
+
+  if (!isStreaming) return null;
 
   return (
     <div className="px-6 py-2">
@@ -31,7 +34,7 @@ export function StreamingMessage(): React.ReactElement | null {
         {showStatus && (
           <div className="flex items-center gap-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-            {statusMessage}
+            {rotatingStatus}
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
 import { FilesHeader } from './FilesHeader';
 import { FileBrowser } from './FileBrowser';
+import { FileEditor } from './FileEditor';
 import { StructuredBrowser } from './StructuredBrowser';
 import type { FileViewMode } from '../../stores/viewStore';
 import type { BookMeta, BookStatus } from '@domain/types';
@@ -368,9 +369,29 @@ export function FilesView(): React.ReactElement {
           fileViewMode: 'reader',
           fileBrowserPath: browserPath || undefined,
         });
+      } else if (mode === 'editor') {
+        navigate('files', {
+          filePath: filePath ?? undefined,
+          fileViewMode: 'editor',
+          fileBrowserPath: browserPath || undefined,
+        });
       }
     },
     [navigate, filePath, browserPath],
+  );
+
+  const handleEdit = useCallback(() => {
+    handleModeChange('editor');
+  }, [handleModeChange]);
+
+  const handleSaveFile = useCallback(
+    async (newContent: string) => {
+      if (!filePath || !activeSlug) return;
+      await window.novelEngine.files.write(activeSlug, filePath, newContent);
+      // Refresh the in-memory content so reader mode shows the latest text
+      setContent(newContent);
+    },
+    [filePath, activeSlug],
   );
 
   return (
@@ -383,6 +404,7 @@ export function FilesView(): React.ReactElement {
         onModeChange={handleModeChange}
         onBrowse={handleBrowse}
         onBackToBrowser={handleBackToBrowser}
+        onEdit={handleEdit}
       />
 
       {/* Content area */}
@@ -411,6 +433,17 @@ export function FilesView(): React.ReactElement {
           onFileSelect={handleFileSelect}
           onClearFile={handleBackToBrowser}
         />
+      )}
+
+      {viewMode === 'editor' && filePath && !loading && (
+        <div className="flex-1 min-h-0">
+          <FileEditor
+            filePath={filePath}
+            initialContent={content}
+            onSave={handleSaveFile}
+            onClose={() => handleModeChange('reader')}
+          />
+        </div>
       )}
     </div>
   );

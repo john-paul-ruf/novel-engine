@@ -4,6 +4,7 @@ import { useModalChatStore } from '../../stores/modalChatStore';
 import { MessageBubble } from './MessageBubble';
 import { ThinkingBlock } from './ThinkingBlock';
 import { ChatInput } from './ChatInput';
+import { useRotatingStatus } from '../../hooks/useRotatingStatus';
 import { AGENT_REGISTRY } from '@domain/constants';
 import type { ConversationPurpose } from '@domain/types';
 
@@ -89,7 +90,6 @@ function ModalMessageList(): React.ReactElement {
   const isThinking = useModalChatStore((s) => s.isThinking);
   const streamBuffer = useModalChatStore((s) => s.streamBuffer);
   const thinkingBuffer = useModalChatStore((s) => s.thinkingBuffer);
-  const statusMessage = useModalChatStore((s) => s.statusMessage);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +97,11 @@ function ModalMessageList(): React.ReactElement {
     if (!streamBuffer) return '';
     return String(marked.parse(streamBuffer));
   }, [streamBuffer]);
+
+  const showStatus = isStreaming && !isThinking && !streamHtml;
+
+  // Rotate through fun status phrases every 15–30 s while waiting
+  const rotatingStatus = useRotatingStatus(showStatus);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -137,13 +142,13 @@ function ModalMessageList(): React.ReactElement {
               </div>
             </div>
           ) : (
-            !isThinking && statusMessage && (
+            showStatus && (
               <div className="flex items-center gap-2 text-xs text-zinc-500">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-75" />
                   <span className="inline-flex h-2 w-2 rounded-full bg-purple-400" />
                 </span>
-                <span>{statusMessage}</span>
+                <span>{rotatingStatus}</span>
               </div>
             )
           )}

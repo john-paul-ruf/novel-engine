@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 type ViewId = 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue';
 
-export type FileViewMode = 'browser' | 'reader';
+export type FileViewMode = 'browser' | 'reader' | 'editor';
 
 type ViewPayload = {
   filePath?: string;
