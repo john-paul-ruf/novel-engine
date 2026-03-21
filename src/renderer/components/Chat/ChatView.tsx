@@ -13,7 +13,19 @@ import { MessageList } from './MessageList';
 import { PipelineLockBanner } from './PipelineLockBanner';
 
 export function ChatView(): React.ReactElement {
-  const { activeConversation, isStreaming, sendMessage, loadConversations, createConversation, setActiveConversation, syncWithPipeline, pipelineLocked, lockedAgentName, lockedPhaseId } = useChatStore();
+  // Granular selectors — DO NOT use useChatStore() here without a selector.
+  // streamBuffer/thinkingBuffer update on every character during streaming;
+  // a bare useChatStore() call would re-render the entire ChatView tree on every delta.
+  const activeConversation = useChatStore((s) => s.activeConversation);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const loadConversations = useChatStore((s) => s.loadConversations);
+  const createConversation = useChatStore((s) => s.createConversation);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+  const syncWithPipeline = useChatStore((s) => s.syncWithPipeline);
+  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
+  const lockedAgentName = useChatStore((s) => s.lockedAgentName);
+  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
   const { activeSlug } = useBookStore();
   const { activePhase } = usePipelineStore();
   const { payload } = useViewStore();
@@ -76,7 +88,9 @@ function EmptyState({
   activeSlug: string;
   createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose?: ConversationPurpose) => Promise<void>;
 }): React.ReactElement {
-  const { pipelineLocked, lockedAgentName, lockedPhaseId } = useChatStore();
+  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
+  const lockedAgentName = useChatStore((s) => s.lockedAgentName);
+  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
   const [selectedAgent, setSelectedAgent] = useState<AgentName>('Spark');
 
   const handleNewConversation = useCallback(async () => {

@@ -34,7 +34,15 @@ export function ConversationList({
   expanded,
   onToggle,
 }: ConversationListProps): React.ReactElement {
-  const { conversations, activeConversation, setActiveConversation, deleteConversation, createConversation, pipelineLocked, lockedAgentName, lockedPhaseId } = useChatStore();
+  // Granular selectors — bare useChatStore() re-renders on every streaming delta.
+  const conversations = useChatStore((s) => s.conversations);
+  const activeConversation = useChatStore((s) => s.activeConversation);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+  const deleteConversation = useChatStore((s) => s.deleteConversation);
+  const createConversation = useChatStore((s) => s.createConversation);
+  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
+  const lockedAgentName = useChatStore((s) => s.lockedAgentName);
+  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
   const { activeSlug } = useBookStore();
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);

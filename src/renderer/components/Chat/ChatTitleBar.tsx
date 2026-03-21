@@ -5,7 +5,8 @@ import { useCliActivityStore } from '../../stores/cliActivityStore';
 
 export function ChatTitleBar(): React.ReactElement {
   const { activeSlug, books } = useBookStore();
-  const { activeConversation } = useChatStore();
+  // Granular selector — bare useChatStore() re-renders on every streaming delta.
+  const activeConversation = useChatStore((s) => s.activeConversation);
   const { isOpen: cliPanelOpen, isActive: cliActive, toggle: toggleCliPanel, entries } = useCliActivityStore();
 
   const activeBook = books.find((b) => b.slug === activeSlug);

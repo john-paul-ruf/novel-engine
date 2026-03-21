@@ -3,7 +3,11 @@ import { AGENT_REGISTRY, PIPELINE_PHASES } from '@domain/constants';
 import { useChatStore } from '../../stores/chatStore';
 
 export function AgentHeader(): React.ReactElement | null {
-  const { activeConversation, conversationUsage, pipelineLocked, lockedPhaseId } = useChatStore();
+  // Granular selectors — bare useChatStore() re-renders on every streaming delta.
+  const activeConversation = useChatStore((s) => s.activeConversation);
+  const conversationUsage = useChatStore((s) => s.conversationUsage);
+  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
+  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
 
   const agentMeta = activeConversation
     ? AGENT_REGISTRY[activeConversation.agentName]

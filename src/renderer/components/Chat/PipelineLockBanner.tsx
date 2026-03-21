@@ -2,7 +2,11 @@ import { AGENT_REGISTRY, PIPELINE_PHASES } from '@domain/constants';
 import { useChatStore } from '../../stores/chatStore';
 
 export function PipelineLockBanner(): React.ReactElement | null {
-  const { pipelineLocked, lockedAgentName, lockedPhaseId, setPipelineLock } = useChatStore();
+  // Granular selectors — bare useChatStore() re-renders on every streaming delta.
+  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
+  const lockedAgentName = useChatStore((s) => s.lockedAgentName);
+  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
+  const setPipelineLock = useChatStore((s) => s.setPipelineLock);
 
   // Don't show if there's no locked agent (e.g., build phase has no agent, or no book selected)
   if (!lockedAgentName || !lockedPhaseId) return null;
