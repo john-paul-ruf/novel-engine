@@ -235,6 +235,7 @@ export class PipelineService implements IPipelineService {
 
       case 'revision-plan-1':
         await this.ensureStubFile(bookSlug, 'source/project-tasks.md', 'Revision Task Plan');
+        await this.ensureStubFile(bookSlug, 'source/revision-prompts.md', 'Revision Session Prompts');
         break;
 
       case 'second-read':
@@ -582,13 +583,30 @@ export class PipelineService implements IPipelineService {
         return this.hasSubstantiveFile(bookSlug, 'source/dev-report.md');
 
       case 'revision-plan-1': {
-        // Complete when a project tasks file exists — either the live one (Forge ran, queue not
-        // yet started) or the archived v1 copy (queue was completed and files were archived).
-        const [hasTasks, hasArchivedTasks] = await Promise.all([
+        // Forge produces TWO files: project-tasks.md and revision-prompts.md.
+        // Both must exist for the phase to be complete.
+        //
+        // Additionally, when an archived v1 copy exists (from a previous revision
+        // queue), the live project-tasks.md must have a different word count than
+        // the archive — proving Forge actually re-ran rather than the pipeline
+        // seeing stale files left over from the first cycle.
+        //
+        // First run (no archive): both files exist → complete.
+        // Second+ run (archive exists): both files exist AND word counts differ → complete.
+        const [hasTasks, hasPrompts, hasArchivedTasks] = await Promise.all([
           this.hasSubstantiveFile(bookSlug, 'source/project-tasks.md'),
+          this.hasSubstantiveFile(bookSlug, 'source/revision-prompts.md'),
           this.fs.fileExists(bookSlug, 'source/project-tasks-v1.md'),
         ]);
-        return hasTasks || hasArchivedTasks;
+        if (!hasTasks || !hasPrompts) return false;
+        // If no archive exists, this is the first run — both files present is sufficient
+        if (!hasArchivedTasks) return true;
+        // Archive exists — verify Forge regenerated (live differs from archive)
+        return this.filesHaveDifferentWordCount(
+          bookSlug,
+          'source/project-tasks.md',
+          'source/project-tasks-v1.md',
+        );
       }
 
       case 'revision':
