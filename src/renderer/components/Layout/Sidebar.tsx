@@ -84,10 +84,17 @@ export function Sidebar(): React.ReactElement {
 
       {/* Pipeline tracker + File tree — scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <PipelineTracker />
+        {/* Hide the pipeline tracker in the Pitch Room — that view is a
+            pre-pipeline creative space and showing 14 downstream phases
+            (First Draft, Revision, Copy Edit, …) is confusing noise. */}
+        {currentView !== 'pitch-room' && (
+          <>
+            <PipelineTracker />
 
-        {/* Divider */}
-        <div className="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-800" />
+            {/* Divider */}
+            <div className="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-800" />
+          </>
+        )}
 
         {/* File tree */}
         <FileTree />
