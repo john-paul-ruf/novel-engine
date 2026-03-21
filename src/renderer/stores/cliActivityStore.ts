@@ -35,7 +35,7 @@ type PhaseSpan = {
   durationMs: number | null;
 };
 
-/** Metadata about the current/last CLI call */
+/** Metadata about a single CLI call */
 type CallMeta = {
   agentName: AgentName;
   agentColor: string;
@@ -46,49 +46,55 @@ type CallMeta = {
   startedAt: number;
 };
 
-type CliActivityState = {
+/** State for a single CLI call — multiple can be tracked concurrently */
+export type CliCall = {
+  callId: string;
+  callMeta: CallMeta;
   entries: CliActivityEntry[];
-  isOpen: boolean;
   isActive: boolean;
   currentToolName: string | null;
-  diagnostics: ContextDiagnostics | null;
-
-  // Token accumulation for current session (final, from done event)
+  streamingThinkingChars: number;
+  streamingTextChars: number;
+  phases: PhaseSpan[];
+  _currentPhaseIndex: number | null;
   sessionInputTokens: number;
   sessionOutputTokens: number;
   sessionThinkingTokens: number;
-
-  // Call metadata
-  callMeta: CallMeta | null;
-
-  // Real-time character accumulation (for live token estimate)
-  streamingThinkingChars: number;
-  streamingTextChars: number;
-
-  // Phase tracking
-  phases: PhaseSpan[];
-  _currentPhaseIndex: number | null;
-
-  // Cost estimation (set after done)
   estimatedCost: number | null;
-
-  // Elapsed time (updated by the panel via interval)
   callElapsedMs: number;
-
-  // Tool use stats for current call
   toolUseCount: number;
-  toolUseBreakdown: Record<string, number>; // toolName -> count
+  toolUseBreakdown: Record<string, number>;
+  diagnostics: ContextDiagnostics | null;
+  _nextEntryId: number;
+};
+
+/** StreamEvent augmented with callId injected by the IPC layer */
+type TaggedStreamEvent = StreamEvent & { callId?: string };
+
+type CliActivityState = {
+  /** All tracked calls, keyed by callId. Includes active and recently completed. */
+  calls: Record<string, CliCall>;
+
+  /** Ordered list of callIds (most recent first) for display */
+  callOrder: string[];
+
+  /** Which call is currently selected for detail view in the panel */
+  selectedCallId: string | null;
+
+  isOpen: boolean;
 
   toggle: () => void;
   open: () => void;
   close: () => void;
   clear: () => void;
-  handleStreamEvent: (event: StreamEvent) => void;
-  loadDiagnostics: () => Promise<void>;
+  clearCall: (callId: string) => void;
+  selectCall: (callId: string) => void;
+  handleStreamEvent: (event: TaggedStreamEvent) => void;
+  loadDiagnostics: (callId: string) => Promise<void>;
   updateElapsed: () => void;
 
-  _nextId: number;
-  _push: (kind: CliActivityEntryKind, message: string, extra?: Partial<CliActivityEntry>) => void;
+  /** Number of currently active calls */
+  activeCallCount: () => number;
 
   _cleanupListener: (() => void) | null;
   initListener: () => void;
@@ -96,7 +102,8 @@ type CliActivityState = {
   recoverActiveStream: () => Promise<void>;
 };
 
-const MAX_ENTRIES = 500;
+const MAX_ENTRIES_PER_CALL = 500;
+const MAX_COMPLETED_CALLS = 10;
 
 function getModelLabel(model: string): string {
   if (model.includes('opus')) return 'Opus 4';
@@ -110,25 +117,75 @@ function estimateCost(model: string, input: number, output: number): number {
   return (input / 1_000_000) * pricing.input + (output / 1_000_000) * pricing.output;
 }
 
+/** Format milliseconds into a human-readable duration */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
+}
+
+function createCall(callId: string, meta: CallMeta): CliCall {
+  return {
+    callId,
+    callMeta: meta,
+    entries: [],
+    isActive: true,
+    currentToolName: null,
+    streamingThinkingChars: 0,
+    streamingTextChars: 0,
+    phases: [],
+    _currentPhaseIndex: null,
+    sessionInputTokens: 0,
+    sessionOutputTokens: 0,
+    sessionThinkingTokens: 0,
+    estimatedCost: null,
+    callElapsedMs: 0,
+    toolUseCount: 0,
+    toolUseBreakdown: {},
+    diagnostics: null,
+    _nextEntryId: 0,
+  };
+}
+
+function pushEntry(call: CliCall, kind: CliActivityEntryKind, message: string, extra?: Partial<CliActivityEntry>): CliCall {
+  const entry: CliActivityEntry = {
+    id: call._nextEntryId,
+    timestamp: Date.now(),
+    kind,
+    message,
+    ...extra,
+  };
+  return {
+    ...call,
+    _nextEntryId: call._nextEntryId + 1,
+    entries: [...call.entries.slice(-MAX_ENTRIES_PER_CALL + 1), entry],
+  };
+}
+
+/** Prune completed calls beyond the limit, keeping the most recent */
+function pruneCompletedCalls(calls: Record<string, CliCall>, callOrder: string[]): { calls: Record<string, CliCall>; callOrder: string[] } {
+  const completedIds = callOrder.filter((id) => !calls[id]?.isActive);
+  if (completedIds.length <= MAX_COMPLETED_CALLS) return { calls, callOrder };
+
+  const toRemove = new Set(completedIds.slice(MAX_COMPLETED_CALLS));
+  const nextCalls = { ...calls };
+  for (const id of toRemove) {
+    delete nextCalls[id];
+  }
+  return {
+    calls: nextCalls,
+    callOrder: callOrder.filter((id) => !toRemove.has(id)),
+  };
+}
+
 export const useCliActivityStore = create<CliActivityState>((set, get) => ({
-  entries: [],
+  calls: {},
+  callOrder: [],
+  selectedCallId: null,
   isOpen: false,
-  isActive: false,
-  currentToolName: null,
-  diagnostics: null,
-  sessionInputTokens: 0,
-  sessionOutputTokens: 0,
-  sessionThinkingTokens: 0,
-  callMeta: null,
-  streamingThinkingChars: 0,
-  streamingTextChars: 0,
-  phases: [],
-  _currentPhaseIndex: null,
-  estimatedCost: null,
-  callElapsedMs: 0,
-  toolUseCount: 0,
-  toolUseBreakdown: {},
-  _nextId: 0,
   _cleanupListener: null,
 
   toggle: () => set((s) => ({ isOpen: !s.isOpen })),
@@ -136,203 +193,229 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
   close: () => set({ isOpen: false }),
 
   clear: () => set({
-    entries: [],
-    isActive: false,
-    currentToolName: null,
-    diagnostics: null,
-    sessionInputTokens: 0,
-    sessionOutputTokens: 0,
-    sessionThinkingTokens: 0,
-    callMeta: null,
-    streamingThinkingChars: 0,
-    streamingTextChars: 0,
-    phases: [],
-    _currentPhaseIndex: null,
-    estimatedCost: null,
-    callElapsedMs: 0,
-    toolUseCount: 0,
-    toolUseBreakdown: {},
+    calls: {},
+    callOrder: [],
+    selectedCallId: null,
   }),
 
-  _push: (kind, message, extra) => {
-    const id = get()._nextId;
-    const entry: CliActivityEntry = {
-      id,
-      timestamp: Date.now(),
-      kind,
-      message,
-      ...extra,
-    };
-    set((s) => ({
-      _nextId: id + 1,
-      entries: [...s.entries.slice(-MAX_ENTRIES + 1), entry],
-    }));
+  clearCall: (callId: string) => set((s) => {
+    const nextCalls = { ...s.calls };
+    delete nextCalls[callId];
+    const nextOrder = s.callOrder.filter((id) => id !== callId);
+    const nextSelected = s.selectedCallId === callId
+      ? (nextOrder[0] ?? null)
+      : s.selectedCallId;
+    return { calls: nextCalls, callOrder: nextOrder, selectedCallId: nextSelected };
+  }),
+
+  selectCall: (callId: string) => set({ selectedCallId: callId }),
+
+  activeCallCount: () => {
+    const { calls } = get();
+    return Object.values(calls).filter((c) => c.isActive).length;
   },
 
   updateElapsed: () => {
-    const { callMeta, isActive } = get();
-    if (callMeta && isActive) {
-      set({ callElapsedMs: Date.now() - callMeta.startedAt });
+    const { calls } = get();
+    let changed = false;
+    const updated: Record<string, CliCall> = {};
+
+    for (const [id, call] of Object.entries(calls)) {
+      if (call.isActive && call.callMeta) {
+        changed = true;
+        updated[id] = { ...call, callElapsedMs: Date.now() - call.callMeta.startedAt };
+      } else {
+        updated[id] = call;
+      }
     }
+
+    if (changed) set({ calls: updated });
   },
 
-  handleStreamEvent: (event: StreamEvent) => {
-    const { _push } = get();
+  handleStreamEvent: (event: TaggedStreamEvent) => {
+    const { calls, callOrder, selectedCallId } = get();
+
+    // Determine callId — use the injected one, or fall back to a default
+    let callId = event.callId ?? '_default';
+
+    if (event.type === 'callStart') {
+      const agentInfo = AGENT_REGISTRY[event.agentName];
+      const meta: CallMeta = {
+        agentName: event.agentName,
+        agentColor: agentInfo?.color ?? '#71717A',
+        agentRole: agentInfo?.role ?? '',
+        model: event.model,
+        modelLabel: getModelLabel(event.model),
+        bookSlug: event.bookSlug,
+        startedAt: Date.now(),
+      };
+
+      let newCall = createCall(callId, meta);
+      newCall = pushEntry(newCall, 'spawn', `${event.agentName} call started (${getModelLabel(event.model)})`);
+
+      const newOrder = [callId, ...callOrder.filter((id) => id !== callId)];
+      const newCalls = { ...calls, [callId]: newCall };
+      const pruned = pruneCompletedCalls(newCalls, newOrder);
+
+      set({
+        calls: pruned.calls,
+        callOrder: pruned.callOrder,
+        // Auto-select the new call if nothing is selected or if the panel just opened
+        selectedCallId: selectedCallId && calls[selectedCallId]?.isActive ? selectedCallId : callId,
+      });
+      return;
+    }
+
+    // For non-callStart events, find the call to update
+    let call = calls[callId];
+
+    // Fallback: if no callId match, try the most recently started active call
+    if (!call) {
+      const activeId = callOrder.find((id) => calls[id]?.isActive);
+      if (activeId) {
+        callId = activeId;
+        call = calls[activeId];
+      }
+    }
+
+    // If still no match and it's a status event without any calls, create a default call
+    if (!call) {
+      if (event.type === 'status') {
+        const defaultCall = createCall(callId, {
+          agentName: 'Wrangler' as AgentName,
+          agentColor: '#71717A',
+          agentRole: '',
+          model: 'unknown',
+          modelLabel: 'Unknown',
+          bookSlug: '',
+          startedAt: Date.now(),
+        });
+        const updated = pushEntry(defaultCall, 'status', (event as { message: string }).message);
+        set({
+          calls: { ...calls, [callId]: updated },
+          callOrder: [callId, ...callOrder],
+          selectedCallId: selectedCallId ?? callId,
+        });
+      }
+      return;
+    }
+
+    let updated = { ...call };
 
     switch (event.type) {
-      case 'callStart': {
-        const agentInfo = AGENT_REGISTRY[event.agentName];
-        set({
-          isActive: true,
-          callMeta: {
-            agentName: event.agentName,
-            agentColor: agentInfo?.color ?? '#71717A',
-            agentRole: agentInfo?.role ?? '',
-            model: event.model,
-            modelLabel: getModelLabel(event.model),
-            bookSlug: event.bookSlug,
-            startedAt: Date.now(),
-          },
-          streamingThinkingChars: 0,
-          streamingTextChars: 0,
-          phases: [],
-          _currentPhaseIndex: null,
-          estimatedCost: null,
-          callElapsedMs: 0,
-          toolUseCount: 0,
-          toolUseBreakdown: {},
-          sessionInputTokens: 0,
-          sessionOutputTokens: 0,
-          sessionThinkingTokens: 0,
-        });
-        _push('spawn', `${event.agentName} call started (${getModelLabel(event.model)})`);
-        break;
-      }
-
       case 'status':
-        if (!get().isActive && !get().callMeta) {
-          set({ isActive: true });
-          _push('spawn', 'CLI process started');
-        }
-        _push('status', event.message);
+        updated = pushEntry(updated, 'status', event.message);
         break;
 
       case 'blockStart': {
         const now = Date.now();
         if (event.blockType === 'thinking') {
           const span: PhaseSpan = { label: 'Thinking', startedAt: now, endedAt: null, durationMs: null };
-          set((s) => ({
-            phases: [...s.phases, span],
-            _currentPhaseIndex: s.phases.length,
-          }));
-          _push('thinking-start', 'Extended thinking started');
+          updated = {
+            ...updated,
+            phases: [...updated.phases, span],
+            _currentPhaseIndex: updated.phases.length,
+          };
+          updated = pushEntry(updated, 'thinking-start', 'Extended thinking started');
         } else if (event.blockType === 'text') {
           const span: PhaseSpan = { label: 'Generating', startedAt: now, endedAt: null, durationMs: null };
-          set((s) => ({
-            phases: [...s.phases, span],
-            _currentPhaseIndex: s.phases.length,
-          }));
-          _push('text-start', 'Response text streaming');
+          updated = {
+            ...updated,
+            phases: [...updated.phases, span],
+            _currentPhaseIndex: updated.phases.length,
+          };
+          updated = pushEntry(updated, 'text-start', 'Response text streaming');
         }
         break;
       }
 
       case 'blockEnd': {
         const now = Date.now();
-        const { _currentPhaseIndex, phases } = get();
-        if (_currentPhaseIndex !== null && phases[_currentPhaseIndex]) {
-          const updatedPhases = [...phases];
-          const phase = { ...updatedPhases[_currentPhaseIndex] };
+        if (updated._currentPhaseIndex !== null && updated.phases[updated._currentPhaseIndex]) {
+          const updatedPhases = [...updated.phases];
+          const phase = { ...updatedPhases[updated._currentPhaseIndex] };
           phase.endedAt = now;
           phase.durationMs = now - phase.startedAt;
-          updatedPhases[_currentPhaseIndex] = phase;
-          set({ phases: updatedPhases, _currentPhaseIndex: null });
+          updatedPhases[updated._currentPhaseIndex] = phase;
+          updated = { ...updated, phases: updatedPhases, _currentPhaseIndex: null };
         }
         if (event.blockType === 'thinking') {
-          const chars = get().streamingThinkingChars;
-          const estTokens = Math.round(chars / CHARS_PER_TOKEN);
-          _push('thinking-end', `Thinking complete (~${estTokens.toLocaleString()} tokens est.)`);
+          const estTokens = Math.round(updated.streamingThinkingChars / CHARS_PER_TOKEN);
+          updated = pushEntry(updated, 'thinking-end', `Thinking complete (~${estTokens.toLocaleString()} tokens est.)`);
         } else if (event.blockType === 'text') {
-          const chars = get().streamingTextChars;
-          const estTokens = Math.round(chars / CHARS_PER_TOKEN);
-          _push('text-end', `Text complete (~${estTokens.toLocaleString()} tokens est.)`);
+          const estTokens = Math.round(updated.streamingTextChars / CHARS_PER_TOKEN);
+          updated = pushEntry(updated, 'text-end', `Text complete (~${estTokens.toLocaleString()} tokens est.)`);
         }
         break;
       }
 
       case 'thinkingDelta':
-        set((s) => ({ streamingThinkingChars: s.streamingThinkingChars + event.text.length }));
+        updated = { ...updated, streamingThinkingChars: updated.streamingThinkingChars + event.text.length };
         break;
 
       case 'textDelta':
-        set((s) => ({ streamingTextChars: s.streamingTextChars + event.text.length }));
+        updated = { ...updated, streamingTextChars: updated.streamingTextChars + event.text.length };
         break;
 
       case 'toolUse': {
         const { tool } = event;
         if (tool.status === 'started') {
-          // Start a tool phase
           const now = Date.now();
           const span: PhaseSpan = { label: `Tool: ${tool.toolName}`, startedAt: now, endedAt: null, durationMs: null };
-          set((s) => ({
+          updated = {
+            ...updated,
             currentToolName: tool.toolName,
-            phases: [...s.phases, span],
-            _currentPhaseIndex: s.phases.length,
-            toolUseCount: s.toolUseCount + 1,
+            phases: [...updated.phases, span],
+            _currentPhaseIndex: updated.phases.length,
+            toolUseCount: updated.toolUseCount + 1,
             toolUseBreakdown: {
-              ...s.toolUseBreakdown,
-              [tool.toolName]: (s.toolUseBreakdown[tool.toolName] ?? 0) + 1,
+              ...updated.toolUseBreakdown,
+              [tool.toolName]: (updated.toolUseBreakdown[tool.toolName] ?? 0) + 1,
             },
-          }));
-          const fileInfo = tool.filePath ? ` → ${tool.filePath}` : '';
-          _push('tool-start', `${tool.toolName}${fileInfo}`, { tool });
+          };
+          const fileInfo = tool.filePath ? ` \u2192 ${tool.filePath}` : '';
+          updated = pushEntry(updated, 'tool-start', `${tool.toolName}${fileInfo}`, { tool });
         } else if (tool.status === 'complete') {
-          // End the tool phase
           const now = Date.now();
-          const { _currentPhaseIndex, phases } = get();
-          if (_currentPhaseIndex !== null && phases[_currentPhaseIndex]) {
-            const updatedPhases = [...phases];
-            const phase = { ...updatedPhases[_currentPhaseIndex] };
+          if (updated._currentPhaseIndex !== null && updated.phases[updated._currentPhaseIndex]) {
+            const updatedPhases = [...updated.phases];
+            const phase = { ...updatedPhases[updated._currentPhaseIndex] };
             phase.endedAt = now;
             phase.durationMs = now - phase.startedAt;
-            updatedPhases[_currentPhaseIndex] = phase;
-            set({ phases: updatedPhases, _currentPhaseIndex: null });
+            updatedPhases[updated._currentPhaseIndex] = phase;
+            updated = { ...updated, phases: updatedPhases, _currentPhaseIndex: null };
           }
-          const fileInfo = tool.filePath ? ` → ${tool.filePath}` : '';
-          _push('tool-complete', `${tool.toolName} done${fileInfo}`, { tool });
-          set({ currentToolName: null });
+          const fileInfo = tool.filePath ? ` \u2192 ${tool.filePath}` : '';
+          updated = pushEntry(updated, 'tool-complete', `${tool.toolName} done${fileInfo}`, { tool });
+          updated = { ...updated, currentToolName: null };
         } else if (tool.status === 'error') {
-          // End the tool phase on error
           const now = Date.now();
-          const { _currentPhaseIndex, phases } = get();
-          if (_currentPhaseIndex !== null && phases[_currentPhaseIndex]) {
-            const updatedPhases = [...phases];
-            const phase = { ...updatedPhases[_currentPhaseIndex] };
+          if (updated._currentPhaseIndex !== null && updated.phases[updated._currentPhaseIndex]) {
+            const updatedPhases = [...updated.phases];
+            const phase = { ...updatedPhases[updated._currentPhaseIndex] };
             phase.endedAt = now;
             phase.durationMs = now - phase.startedAt;
-            updatedPhases[_currentPhaseIndex] = phase;
-            set({ phases: updatedPhases, _currentPhaseIndex: null });
+            updatedPhases[updated._currentPhaseIndex] = phase;
+            updated = { ...updated, phases: updatedPhases, _currentPhaseIndex: null };
           }
-          _push('tool-error', `${tool.toolName} failed`, { tool });
-          set({ currentToolName: null });
+          updated = pushEntry(updated, 'tool-error', `${tool.toolName} failed`, { tool });
+          updated = { ...updated, currentToolName: null };
         }
         break;
       }
 
       case 'filesChanged':
-        _push('files-changed', `${event.paths.length} file(s) modified`, {
+        updated = pushEntry(updated, 'files-changed', `${event.paths.length} file(s) modified`, {
           detail: event.paths.join('\n'),
         });
         break;
 
       case 'done': {
-        const { callMeta } = get();
-        const finalElapsed = callMeta ? Date.now() - callMeta.startedAt : 0;
-        const cost = callMeta
-          ? estimateCost(callMeta.model, event.inputTokens, event.outputTokens)
-          : 0;
+        const finalElapsed = Date.now() - updated.callMeta.startedAt;
+        const cost = estimateCost(updated.callMeta.model, event.inputTokens, event.outputTokens);
 
-        set({
+        updated = {
+          ...updated,
           isActive: false,
           currentToolName: null,
           _currentPhaseIndex: null,
@@ -341,39 +424,60 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
           sessionThinkingTokens: event.thinkingTokens,
           callElapsedMs: finalElapsed,
           estimatedCost: cost,
-        });
+        };
 
         const durationStr = formatDuration(finalElapsed);
-        const costStr = cost > 0 ? ` · $${cost.toFixed(4)}` : '';
-        _push('done', `Complete in ${durationStr}${costStr}`, {
+        const costStr = cost > 0 ? ` \u00b7 $${cost.toFixed(4)}` : '';
+        updated = pushEntry(updated, 'done', `Complete in ${durationStr}${costStr}`, {
           tokens: {
             input: event.inputTokens,
             output: event.outputTokens,
             thinking: event.thinkingTokens,
           },
         });
-        // Auto-load diagnostics when a call completes
-        get().loadDiagnostics();
         break;
       }
 
       case 'error':
-        set({ isActive: false, currentToolName: null, _currentPhaseIndex: null });
-        _push('error', event.message);
+        updated = {
+          ...updated,
+          isActive: false,
+          currentToolName: null,
+          _currentPhaseIndex: null,
+        };
+        updated = pushEntry(updated, 'error', event.message);
         break;
 
       default:
         break;
     }
+
+    const nextCalls = { ...calls, [callId]: updated };
+    set({ calls: nextCalls });
+
+    // Auto-load diagnostics when a call completes
+    if (event.type === 'done') {
+      get().loadDiagnostics(callId);
+    }
   },
 
-  loadDiagnostics: async () => {
+  loadDiagnostics: async (callId: string) => {
     try {
       const diag = await window.novelEngine.context.getLastDiagnostics();
-      if (diag) {
-        set({ diagnostics: diag });
-        get()._push('context-loaded', `Context: ${diag.filesAvailable.length} files, ${diag.conversationTurnsSent} turns sent (${diag.conversationTurnsDropped} dropped), ~${diag.manifestTokenEstimate.toLocaleString()} manifest tokens`);
-      }
+      if (!diag) return;
+
+      const { calls } = get();
+      const call = calls[callId];
+      if (!call) return;
+
+      let updated: CliCall = { ...call, diagnostics: diag };
+      updated = pushEntry(
+        updated,
+        'context-loaded',
+        `Context: ${diag.filesAvailable.length} files, ${diag.conversationTurnsSent} turns sent (${diag.conversationTurnsDropped} dropped), ~${diag.manifestTokenEstimate.toLocaleString()} manifest tokens`,
+      );
+
+      set({ calls: { ...get().calls, [callId]: updated } });
     } catch {
       // Non-critical — diagnostics are optional
     }
@@ -384,7 +488,7 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
     if (_cleanupListener) _cleanupListener();
 
     const cleanup = window.novelEngine.chat.onStreamEvent((event) => {
-      get().handleStreamEvent(event);
+      get().handleStreamEvent(event as TaggedStreamEvent);
     });
     set({ _cleanupListener: cleanup });
   },
@@ -406,34 +510,32 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
 
       const agentInfo = AGENT_REGISTRY[active.agentName];
       const startedAt = new Date(active.startedAt).getTime();
+      const callId = `recovered:${active.conversationId}`;
 
-      set({
-        isActive: true,
-        callMeta: {
-          agentName: active.agentName,
-          agentColor: agentInfo?.color ?? '#71717A',
-          agentRole: agentInfo?.role ?? '',
-          model: active.model,
-          modelLabel: active.model.includes('opus') ? 'Opus 4' : active.model.includes('sonnet') ? 'Sonnet 4' : active.model,
-          bookSlug: active.bookSlug,
-          startedAt,
-        },
+      const meta: CallMeta = {
+        agentName: active.agentName,
+        agentColor: agentInfo?.color ?? '#71717A',
+        agentRole: agentInfo?.role ?? '',
+        model: active.model,
+        modelLabel: getModelLabel(active.model),
+        bookSlug: active.bookSlug,
+        startedAt,
+      };
+
+      let call = createCall(callId, meta);
+      call = {
+        ...call,
         callElapsedMs: Date.now() - startedAt,
-      });
+      };
+      call = pushEntry(call, 'status', `Reconnected to active ${active.agentName} call (started ${new Date(active.startedAt).toLocaleTimeString()})`);
 
-      get()._push('status', `Reconnected to active ${active.agentName} call (started ${new Date(active.startedAt).toLocaleTimeString()})`);
+      set((s) => ({
+        calls: { ...s.calls, [callId]: call },
+        callOrder: [callId, ...s.callOrder.filter((id) => id !== callId)],
+        selectedCallId: s.selectedCallId ?? callId,
+      }));
     } catch {
       // Non-critical — recovery is best-effort
     }
   },
 }));
-
-/** Format milliseconds into a human-readable duration */
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
-}

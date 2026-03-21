@@ -129,7 +129,7 @@ function NewBookModal({
 
 export function BookSelector(): React.ReactElement {
   const { books, activeSlug, totalWordCount, loading, loadBooks, setActiveBook, createBook, refreshWordCount, subscribeToDirectoryChanges } = useBookStore();
-  const { loadPipeline } = usePipelineStore();
+  const { loadPipeline, setDisplayedBook } = usePipelineStore();
   const { loadConversations } = useChatStore();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -151,6 +151,8 @@ export function BookSelector(): React.ReactElement {
   // React to active book changes: refresh word count, pipeline, conversations
   useEffect(() => {
     if (activeSlug) {
+      // Instantly swap to cached pipeline for this book (no flash of stale data)
+      setDisplayedBook(activeSlug);
       refreshWordCount();
       loadPipeline(activeSlug);
       loadConversations(activeSlug);

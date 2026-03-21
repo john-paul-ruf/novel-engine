@@ -402,17 +402,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const cleanup = window.novelEngine.chat.onStreamEvent(_handleStreamEvent);
 
-    // Register listener for file change notifications — triggers pipeline + file UI refresh
-    const cleanupFilesChanged = window.novelEngine.chat.onFilesChanged((_paths) => {
+    // Register listener for file change notifications — triggers pipeline + file UI refresh.
+    // The event now carries the bookSlug of the book whose files changed, so we
+    // refresh the correct book's pipeline rather than always using activeSlug.
+    const cleanupFilesChanged = window.novelEngine.chat.onFilesChanged((_paths, changedBookSlug) => {
       const { activeSlug } = useBookStore.getState();
-      if (activeSlug) {
-        // Refresh pipeline phases (new files may advance the pipeline)
-        usePipelineStore.getState().loadPipeline(activeSlug);
 
-        // Bump the file change revision so all file-displaying components re-fetch
+      // Refresh the pipeline for the book whose files actually changed.
+      // This silently updates the cache if it's a background book, or
+      // updates the displayed pipeline if it's the active book.
+      const targetSlug = changedBookSlug || activeSlug;
+      if (targetSlug) {
+        usePipelineStore.getState().loadPipeline(targetSlug);
+      }
+
+      // Only bump file-change revision and word count if the active book changed.
+      // This prevents the Files view and word counter from flashing for the wrong book.
+      if (activeSlug && (!changedBookSlug || changedBookSlug === activeSlug)) {
         useFileChangeStore.getState().notifyChange();
-
-        // Refresh word count in the book store
         useBookStore.getState().refreshWordCount();
       }
     });

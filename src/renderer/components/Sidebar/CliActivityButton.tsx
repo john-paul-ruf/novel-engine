@@ -2,12 +2,16 @@ import { useCliActivityStore } from '../../stores/cliActivityStore';
 
 /**
  * Sidebar button that toggles the CLI Activity panel.
- * Visible from every view — shows a live pulsing dot while a CLI call is in flight.
+ * Visible from every view — shows a live pulsing dot and active call count
+ * while CLI calls are in flight.
  */
 export function CliActivityButton(): React.ReactElement {
   const isOpen = useCliActivityStore((s) => s.isOpen);
-  const isActive = useCliActivityStore((s) => s.isActive);
+  const calls = useCliActivityStore((s) => s.calls);
   const toggle = useCliActivityStore((s) => s.toggle);
+
+  const activeCount = Object.values(calls).filter((c) => c.isActive).length;
+  const isActive = activeCount > 0;
 
   return (
     <button
@@ -47,11 +51,11 @@ export function CliActivityButton(): React.ReactElement {
 
       <span>CLI Activity</span>
 
-      {/* "Live" badge when active but panel is hidden — draws attention */}
+      {/* "Live" badge when active — shows count when multiple calls are in flight */}
       {isActive && !isOpen && (
         <span className="ml-auto flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
           <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-blue-400" />
-          Live
+          {activeCount > 1 ? `${activeCount} Live` : 'Live'}
         </span>
       )}
     </button>

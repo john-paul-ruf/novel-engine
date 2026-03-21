@@ -227,6 +227,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
 
       let rawResponse = '';
+      let cliError = '';
       await this.claude.sendMessage({
         model: WRANGLER_MODEL,
         systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
@@ -235,9 +236,15 @@ export class RevisionQueueService implements IRevisionQueueService {
         onEvent: (event) => {
           if (event.type === 'textDelta') {
             rawResponse += event.text;
+          } else if (event.type === 'error') {
+            cliError = event.message;
           }
         },
       });
+
+      if (!rawResponse.trim() && cliError) {
+        throw new Error(`Wrangler CLI call failed: ${cliError}`);
+      }
 
       this.emit({
         type: 'session:streamEvent',

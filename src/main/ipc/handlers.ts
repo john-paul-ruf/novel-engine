@@ -1,4 +1,5 @@
 import { ipcMain, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
+import { randomUUID } from 'node:crypto';
 import * as fsPromises from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import * as path from 'node:path';
@@ -172,6 +173,9 @@ export function registerIpcHandlers(services: {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window found');
 
+    // Generate a unique call ID so the renderer can track concurrent CLI calls
+    const callId = randomUUID();
+
     // Track whether the call completed successfully or errored for notification
     let hadError = false;
     let errorText = '';
@@ -183,7 +187,8 @@ export function registerIpcHandlers(services: {
           hadError = true;
           errorText = streamEvent.message;
         }
-        win.webContents.send('chat:streamEvent', streamEvent);
+        // Inject callId so the renderer can distinguish concurrent calls
+        win.webContents.send('chat:streamEvent', { ...streamEvent, callId });
       },
     });
 
@@ -198,10 +203,12 @@ export function registerIpcHandlers(services: {
       services.notifications.notifyChatComplete(params.agentName, bookTitle).catch(() => {});
     }
 
-    // If files were changed during this interaction, notify the renderer
+    // If files were changed during this interaction, notify the renderer.
+    // Include the bookSlug so the renderer scopes the pipeline refresh
+    // to the correct book — prevents cross-book pipeline bleed.
     const changedFiles = services.chat.getLastChangedFiles();
     if (changedFiles.length > 0) {
-      win.webContents.send('chat:filesChanged', changedFiles);
+      win.webContents.send('chat:filesChanged', changedFiles, params.bookSlug);
     }
   });
 
@@ -373,7 +380,8 @@ export function registerIpcHandlers(services: {
       win.webContents.send('revision:event', event);
 
       if (event.type === 'session:streamEvent') {
-        win.webContents.send('chat:streamEvent', event.event);
+        // Use sessionId as callId so the renderer groups events per revision session
+        win.webContents.send('chat:streamEvent', { ...event.event, callId: `rev:${event.sessionId}` });
       }
     }
 

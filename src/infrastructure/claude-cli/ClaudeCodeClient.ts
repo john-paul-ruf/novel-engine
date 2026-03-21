@@ -44,7 +44,7 @@ export class ClaudeCodeClient implements IClaudeClient {
     bookSlug?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const { model, systemPrompt, messages, bookSlug, onEvent } = params;
+    const { model, systemPrompt, messages, maxTokens, thinkingBudget, bookSlug, onEvent } = params;
 
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
@@ -57,7 +57,12 @@ export class ClaudeCodeClient implements IClaudeClient {
       '--max-turns', '15',
       '--system-prompt', systemPrompt,
       '--allowedTools', 'Read,Write,Edit,LS',
+      '--max-tokens', String(maxTokens),
     ];
+
+    if (thinkingBudget && thinkingBudget > 0) {
+      args.push('--thinking-budget', String(thinkingBudget));
+    }
 
     // Set working directory to book root if bookSlug is provided
     const cwd = bookSlug
@@ -93,6 +98,20 @@ export class ClaudeCodeClient implements IClaudeClient {
 
       child.on('error', (err: NodeJS.ErrnoException) => {
         const message = err.code === 'ENOENT' ? CLI_NOT_FOUND_MESSAGE : err.message;
+        onEvent({ type: 'error', message });
+        settle(() => reject(new Error(message)));
+      });
+
+      // Guard against EPIPE — the CLI process may exit before we finish writing
+      // to stdin (e.g. invalid args, immediate crash). Without this handler the
+      // error bubbles up as an uncaught exception and crashes the app.
+      child.stdin.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
+          // The child process is already dead — the 'close' handler will
+          // capture the exit code and emit a proper error event.
+          return;
+        }
+        const message = `CLI stdin error: ${err.message}`;
         onEvent({ type: 'error', message });
         settle(() => reject(new Error(message)));
       });

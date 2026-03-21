@@ -33,6 +33,15 @@ async function fixShellPath(): Promise<void> {
   }
 }
 
+// Prevent uncaught errors from crashing the app — log and continue.
+// The most common cause is EPIPE when a spawned CLI process dies mid-stream.
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 import squirrelStartup from 'electron-squirrel-startup';
 if (squirrelStartup) {

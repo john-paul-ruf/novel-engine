@@ -108,8 +108,8 @@ const api = {
       ipcRenderer.on('chat:streamEvent', handler);
       return () => ipcRenderer.removeListener('chat:streamEvent', handler);
     },
-    onFilesChanged: (callback: (paths: string[]) => void) => {
-      const handler = (_: Electron.IpcRendererEvent, paths: string[]) => callback(paths);
+    onFilesChanged: (callback: (paths: string[], bookSlug?: string) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, paths: string[], bookSlug?: string) => callback(paths, bookSlug);
       ipcRenderer.on('chat:filesChanged', handler);
       return () => ipcRenderer.removeListener('chat:filesChanged', handler);
     },

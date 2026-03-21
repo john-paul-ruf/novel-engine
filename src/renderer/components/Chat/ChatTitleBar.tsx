@@ -7,7 +7,11 @@ export function ChatTitleBar(): React.ReactElement {
   const { activeSlug, books } = useBookStore();
   // Granular selector — bare useChatStore() re-renders on every streaming delta.
   const activeConversation = useChatStore((s) => s.activeConversation);
-  const { isOpen: cliPanelOpen, isActive: cliActive, toggle: toggleCliPanel, entries } = useCliActivityStore();
+  const cliPanelOpen = useCliActivityStore((s) => s.isOpen);
+  const toggleCliPanel = useCliActivityStore((s) => s.toggle);
+  const cliCalls = useCliActivityStore((s) => s.calls);
+  const cliActive = Object.values(cliCalls).some((c) => c.isActive);
+  const totalEntries = Object.values(cliCalls).reduce((sum, c) => sum + c.entries.length, 0);
 
   const activeBook = books.find((b) => b.slug === activeSlug);
   const agentMeta = activeConversation
@@ -55,9 +59,9 @@ export function ChatTitleBar(): React.ReactElement {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-600" />
           )}
           <span>CLI</span>
-          {entries.length > 0 && (
+          {totalEntries > 0 && (
             <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 font-mono text-[10px] text-zinc-500">
-              {entries.length}
+              {totalEntries}
             </span>
           )}
         </button>
