@@ -1,5 +1,4 @@
 import { useViewStore } from '../../stores/viewStore';
-import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { BookSelector } from '../Sidebar/BookSelector';
 import { VoiceSetupButton } from '../Sidebar/VoiceSetupButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
@@ -46,7 +45,6 @@ function NavButton({
 
 function PitchRoomButton(): React.ReactElement {
   const { currentView, navigate } = useViewStore();
-  const draftCount = usePitchRoomStore((s) => s.drafts.length);
 
   return (
     <button
@@ -59,11 +57,6 @@ function PitchRoomButton(): React.ReactElement {
     >
       <span>💡</span>
       <span>Pitch Room</span>
-      {draftCount > 0 && (
-        <span className="ml-auto rounded-full bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-          {draftCount}
-        </span>
-      )}
     </button>
   );
 }

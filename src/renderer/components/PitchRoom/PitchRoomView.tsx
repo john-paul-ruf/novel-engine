@@ -6,9 +6,6 @@ import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
 import { ChatInput } from '../Chat/ChatInput';
 import { useRotatingStatus } from '../../hooks/useRotatingStatus';
-import { PitchRoomHeader } from './PitchRoomHeader';
-import { PitchDraftSidebar } from './PitchDraftSidebar';
-import { PitchOutcomeBar } from './PitchOutcomeBar';
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -52,7 +49,6 @@ function PitchRoomStreamingMessage(): React.ReactElement | null {
             />
           ) : (
             <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
-              {/* Three bouncing dots — staggered for a lively wave effect */}
               <span className="flex items-center gap-0.5">
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce"
@@ -67,7 +63,6 @@ function PitchRoomStreamingMessage(): React.ReactElement | null {
                   style={{ animationDelay: '300ms', animationDuration: '900ms' }}
                 />
               </span>
-              {/* Each character gets its own wave delay, creating a ripple effect */}
               <span key={statusMessage || rotatingStatus} className="status-fade-in inline-flex flex-wrap">
                 {(statusMessage || rotatingStatus).split('').map((char, i) => (
                   <span
@@ -87,39 +82,8 @@ function PitchRoomStreamingMessage(): React.ReactElement | null {
   );
 }
 
-/**
- * Agent header for the Pitch Room — shows Spark's info.
- */
-function PitchRoomAgentHeader(): React.ReactElement | null {
-  const activeConversation = usePitchRoomStore((s) => s.activeConversation);
-
-  if (!activeConversation) return null;
-
-  const sparkMeta = AGENT_REGISTRY.Spark;
-
-  return (
-    <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 px-6 py-3">
-      <div
-        className="w-1 self-stretch rounded-full"
-        style={{ backgroundColor: sparkMeta.color }}
-      />
-      <div>
-        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-          Spark
-        </h2>
-        <p className="text-xs text-zinc-500">
-          {sparkMeta.role}
-          <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400">
-            Pitch Room
-          </span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export function PitchRoomView(): React.ReactElement {
-  const loadDrafts = usePitchRoomStore((s) => s.loadDrafts);
+  const ensureConversation = usePitchRoomStore((s) => s.ensureConversation);
   const activeConversation = usePitchRoomStore((s) => s.activeConversation);
   const messages = usePitchRoomStore((s) => s.messages);
   const isStreaming = usePitchRoomStore((s) => s.isStreaming);
@@ -130,10 +94,10 @@ export function PitchRoomView(): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
-  // Load drafts on mount
+  // Auto-create or load the single pitch room conversation on mount
   useEffect(() => {
-    loadDrafts();
-  }, [loadDrafts]);
+    ensureConversation();
+  }, [ensureConversation]);
 
   // Register stream event listener for the pitch room
   useEffect(() => {
@@ -184,51 +148,51 @@ export function PitchRoomView(): React.ReactElement {
     return () => observer.disconnect();
   }, [isStreaming]);
 
+  const sparkMeta = AGENT_REGISTRY.Spark;
+
   return (
     <div className="flex h-full flex-col">
-      <PitchRoomHeader />
-      <div className="flex flex-1 overflow-hidden">
-        <PitchDraftSidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {activeConversation ? (
-            <>
-              <PitchRoomAgentHeader />
-              <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
-                {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))}
-                <PitchRoomStreamingMessage />
-                <div ref={bottomRef} className="h-1" />
-              </div>
-              <ChatInput
-                onSend={sendMessage}
-                disabled={isStreaming}
-                lockedAgentName="Spark"
-              />
-              <PitchOutcomeBar />
-            </>
-          ) : (
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
-                <div className="mb-4 text-5xl">💡</div>
-                <h2 className="mb-2 text-xl font-bold text-zinc-900 dark:text-zinc-100">
-                  Welcome to the Pitch Room
-                </h2>
-                <p className="max-w-sm text-sm text-zinc-500">
-                  Brainstorm story ideas with Spark without creating a book first.
-                  When you find a concept you love, make it a book or shelve it for later.
-                </p>
-                <button
-                  onClick={() => usePitchRoomStore.getState().startNewPitch()}
-                  className="mt-6 rounded-lg bg-amber-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-700"
-                >
-                  Start Brainstorming
-                </button>
-              </div>
-            </div>
-          )}
+      {/* Minimal header — just Spark's identity */}
+      <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 px-6 py-3">
+        <div
+          className="w-1 self-stretch rounded-full"
+          style={{ backgroundColor: sparkMeta.color }}
+        />
+        <div>
+          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+            Spark
+          </h2>
+          <p className="text-xs text-zinc-500">
+            {sparkMeta.role}
+            <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400">
+              Pitch Room
+            </span>
+          </p>
         </div>
       </div>
+
+      {/* Messages */}
+      <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
+        {messages.length === 0 && !isStreaming && (
+          <div className="flex h-full items-center justify-center">
+            <p className="max-w-sm text-center text-sm text-zinc-400 dark:text-zinc-500">
+              Brainstorm story ideas with Spark. When you find a concept you love, just tell Spark to shelve it or make it a book.
+            </p>
+          </div>
+        )}
+        {messages.map((message) => (
+          <MessageBubble key={message.id} message={message} />
+        ))}
+        <PitchRoomStreamingMessage />
+        <div ref={bottomRef} className="h-1" />
+      </div>
+
+      {/* Chat input */}
+      <ChatInput
+        onSend={sendMessage}
+        disabled={isStreaming || !activeConversation}
+        lockedAgentName="Spark"
+      />
     </div>
   );
 }

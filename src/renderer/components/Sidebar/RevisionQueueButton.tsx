@@ -2,12 +2,27 @@ import { useEffect, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 
 export function RevisionQueueButton() {
   const { activeSlug } = useBookStore();
   const { navigate, currentView } = useViewStore();
   const fileRevision = useFileChangeStore((s) => s.revision);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
+
+  // Read running/progress state from the revision queue store
+  const isRunning = useRevisionQueueStore((s) => s.isRunning);
+  const plan = useRevisionQueueStore((s) => s.plan);
+  const gateSessionId = useRevisionQueueStore((s) => s.gateSessionId);
+
+  // Only show running indicator if this plan belongs to the currently active book
+  const isActiveBookRunning = isRunning && plan?.bookSlug === activeSlug;
+  const isWaitingForApproval = gateSessionId !== null && plan?.bookSlug === activeSlug;
+
+  // Compute progress counts
+  const sessionsApproved = plan?.sessions.filter(s => s.status === 'approved').length ?? 0;
+  const totalSessions = plan?.sessions.length ?? 0;
+  const hasPlan = plan !== null && plan.bookSlug === activeSlug;
 
   useEffect(() => {
     if (!activeSlug) {
@@ -43,11 +58,44 @@ export function RevisionQueueButton() {
       className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
         currentView === 'revision-queue'
           ? 'text-orange-300 bg-zinc-200/70 dark:bg-zinc-800/70'
+          : isWaitingForApproval
+          ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20'
+          : isActiveBookRunning
+          ? 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20'
           : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
       }`}
     >
-      <span className="text-orange-600 dark:text-orange-400">&#9881;</span>
-      <span>Revision Queue</span>
+      {/* Icon — animated when running, pulsing when awaiting approval */}
+      {isActiveBookRunning ? (
+        <span className="relative flex h-4 w-4 items-center justify-center shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-40" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
+        </span>
+      ) : isWaitingForApproval ? (
+        <span className="relative flex h-4 w-4 items-center justify-center shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-amber-400 opacity-40" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+        </span>
+      ) : (
+        <span className="text-orange-600 dark:text-orange-400">&#9881;</span>
+      )}
+
+      <span className="flex-1 text-left">Revision Queue</span>
+
+      {/* Progress badge — shows session count when plan is loaded */}
+      {hasPlan && totalSessions > 0 && (
+        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+          isActiveBookRunning
+            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+            : isWaitingForApproval
+            ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+            : sessionsApproved === totalSessions
+            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+            : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+        }`}>
+          {sessionsApproved}/{totalSessions}
+        </span>
+      )}
     </button>
   );
 }

@@ -1,12 +1,9 @@
 import { create } from 'zustand';
-import type { PitchDraft, Conversation, Message, StreamEvent, BookMeta, ShelvedPitchMeta } from '@domain/types';
+import type { Conversation, Message, StreamEvent } from '@domain/types';
 import { PITCH_ROOM_SLUG, randomRespondingStatus } from '@domain/constants';
 import { streamRouter } from './streamRouter';
-import { useBookStore } from './bookStore';
-import { useViewStore } from './viewStore';
 
 type PitchRoomState = {
-  drafts: PitchDraft[];
   activeConversation: Conversation | null;
   messages: Message[];
   isStreaming: boolean;
@@ -17,20 +14,13 @@ type PitchRoomState = {
   loading: boolean;
 
   // Actions
-  loadDrafts: () => Promise<void>;
-  startNewPitch: () => Promise<void>;
-  selectDraft: (conversationId: string) => Promise<void>;
+  ensureConversation: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
-  promoteToBook: (conversationId: string) => Promise<BookMeta>;
-  shelveDraft: (conversationId: string, logline?: string) => Promise<ShelvedPitchMeta>;
-  discardDraft: (conversationId: string) => Promise<void>;
-  refreshDrafts: () => Promise<void>;
 
   _handleStreamEvent: (event: StreamEvent) => void;
 };
 
 export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
-  drafts: [],
   activeConversation: null,
   messages: [],
   isStreaming: false,
@@ -40,83 +30,32 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   statusMessage: '',
   loading: false,
 
-  loadDrafts: async () => {
+  ensureConversation: async () => {
+    // If already loaded, skip
+    if (get().activeConversation || get().loading) return;
+
     set({ loading: true });
     try {
-      const [drafts, conversations] = await Promise.all([
-        window.novelEngine.pitchRoom.listDrafts(),
-        window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG),
-      ]);
-
-      // Merge conversation data with draft data — a conversation may exist
-      // without a draft folder (if Spark hasn't written any files yet)
-      const draftMap = new Map(drafts.map((d) => [d.conversationId, d]));
-      const mergedDrafts: PitchDraft[] = [];
-
-      for (const conv of conversations) {
-        if (conv.purpose !== 'pitch-room') continue;
-        const existing = draftMap.get(conv.id);
-        mergedDrafts.push({
-          conversationId: conv.id,
-          title: existing?.title || conv.title || 'Untitled Draft',
-          hasPitch: existing?.hasPitch ?? false,
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
-        });
-      }
-
-      set({ drafts: mergedDrafts, loading: false });
-    } catch (error) {
-      console.error('Failed to load pitch drafts:', error);
-      set({ loading: false });
-    }
-  },
-
-  startNewPitch: async () => {
-    try {
-      const conversation = await window.novelEngine.chat.createConversation({
-        bookSlug: PITCH_ROOM_SLUG,
-        agentName: 'Spark',
-        pipelinePhase: null,
-        purpose: 'pitch-room',
-      });
-
-      set((state) => ({
-        activeConversation: conversation,
-        messages: [],
-        drafts: [
-          {
-            conversationId: conversation.id,
-            title: 'Untitled Draft',
-            hasPitch: false,
-            createdAt: conversation.createdAt,
-            updatedAt: conversation.updatedAt,
-          },
-          ...state.drafts,
-        ],
-      }));
-    } catch (error) {
-      console.error('Failed to start new pitch:', error);
-    }
-  },
-
-  selectDraft: async (conversationId: string) => {
-    try {
-      const messages = await window.novelEngine.chat.getMessages(conversationId);
+      // Look for an existing pitch-room conversation
       const conversations = await window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG);
-      const conversation = conversations.find((c) => c.id === conversationId) ?? null;
+      const pitchConv = conversations.find((c) => c.purpose === 'pitch-room');
 
-      set({
-        activeConversation: conversation,
-        messages,
-        streamBuffer: '',
-        thinkingBuffer: '',
-        isStreaming: false,
-        isThinking: false,
-        statusMessage: '',
-      });
+      if (pitchConv) {
+        const messages = await window.novelEngine.chat.getMessages(pitchConv.id);
+        set({ activeConversation: pitchConv, messages, loading: false });
+      } else {
+        // Create one — this is the single pitch room conversation
+        const conversation = await window.novelEngine.chat.createConversation({
+          bookSlug: PITCH_ROOM_SLUG,
+          agentName: 'Spark',
+          pipelinePhase: null,
+          purpose: 'pitch-room',
+        });
+        set({ activeConversation: conversation, messages: [], loading: false });
+      }
     } catch (error) {
-      console.error('Failed to select draft:', error);
+      console.error('Failed to ensure pitch room conversation:', error);
+      set({ loading: false });
     }
   },
 
@@ -174,55 +113,6 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
     }
   },
 
-  promoteToBook: async (conversationId: string) => {
-    const meta = await window.novelEngine.pitchRoom.promote(conversationId);
-
-    // Switch to the new book
-    await useBookStore.getState().setActiveBook(meta.slug);
-    useViewStore.getState().navigate('chat');
-
-    // Remove draft from local state
-    set((state) => ({
-      drafts: state.drafts.filter((d) => d.conversationId !== conversationId),
-      activeConversation: state.activeConversation?.id === conversationId ? null : state.activeConversation,
-      messages: state.activeConversation?.id === conversationId ? [] : state.messages,
-    }));
-
-    return meta;
-  },
-
-  shelveDraft: async (conversationId: string, logline?: string) => {
-    const meta = await window.novelEngine.pitchRoom.shelve(conversationId, logline);
-
-    // Remove draft from local state
-    set((state) => ({
-      drafts: state.drafts.filter((d) => d.conversationId !== conversationId),
-      activeConversation: state.activeConversation?.id === conversationId ? null : state.activeConversation,
-      messages: state.activeConversation?.id === conversationId ? [] : state.messages,
-    }));
-
-    return meta;
-  },
-
-  discardDraft: async (conversationId: string) => {
-    await window.novelEngine.pitchRoom.discard(conversationId);
-
-    set((state) => {
-      const remaining = state.drafts.filter((d) => d.conversationId !== conversationId);
-      const wasActive = state.activeConversation?.id === conversationId;
-
-      return {
-        drafts: remaining,
-        activeConversation: wasActive ? null : state.activeConversation,
-        messages: wasActive ? [] : state.messages,
-      };
-    });
-  },
-
-  refreshDrafts: async () => {
-    await get().loadDrafts();
-  },
-
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'pitch-room') return;
 
@@ -268,9 +158,6 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
               thinkingBuffer: '',
               statusMessage: '',
             });
-
-            // Refresh drafts to pick up any newly written pitch.md
-            get().refreshDrafts();
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
             if (get().activeConversation?.id === doneConversationId) {
