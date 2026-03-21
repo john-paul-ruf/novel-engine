@@ -251,10 +251,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messageToolActivity: {},
     });
 
-    // Step 2: Load conversations for the new book
+    // Step 2: Load conversations for the new book and activate the latest one
     try {
       const conversations = await window.novelEngine.chat.getConversations(newBookSlug);
       set({ conversations });
+
+      // Auto-select the most recent conversation (list is sorted newest-first)
+      if (conversations.length > 0) {
+        await get().setActiveConversation(conversations[0].id);
+      }
     } catch (error) {
       console.error('Failed to load conversations for new book:', error);
     }
