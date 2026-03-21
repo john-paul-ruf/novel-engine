@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { useChatStore } from './chatStore';
 import { usePipelineStore } from './pipelineStore';
 import { useViewStore } from './viewStore';
 import { useBookStore } from './bookStore';
+import { useChatStore } from './chatStore';
 import { useFileChangeStore } from './fileChangeStore';
+import { streamRouter } from './streamRouter';
 
 /**
  * The prompt sent to Verity on every auto-draft iteration.
@@ -27,11 +28,11 @@ const MAX_ITERATIONS = 150;
 const INTER_CHAPTER_DELAY_MS = 600;
 
 /**
- * How long to wait after sendMessage() for async state to settle.
+ * How long to wait after the IPC send resolves for async state to settle.
  *
- * The chatStore 'done' handler reloads messages from DB asynchronously, and
- * stream events arrive via ipcRenderer.on before the invoke response resolves.
- * 400 ms is enough for both to complete before we inspect chatStore.messages.
+ * The ChatService saves messages to DB as part of the stream flow, and
+ * file-change notifications propagate asynchronously. 400 ms is enough
+ * for both to complete before we inspect DB state.
  */
 const POST_SEND_SETTLE_MS = 400;
 
@@ -82,11 +83,14 @@ type AutoDraftState = {
    * then repeatedly sends the chapter-writing prompt until:
    * - No new chapter was written AND no error (Verity signalled DRAFT_COMPLETE)
    * - The user calls stop()
-   * - The active book changes
    * - MAX_ITERATIONS is reached (safety valve)
    * - An unrecoverable exception is thrown
    *
    * On CLI errors, the loop pauses (isPaused = true) and waits for resume() or stop().
+   *
+   * The loop is **book-independent**: it keeps running even if the user switches
+   * to a different book. It uses `window.novelEngine.chat.send()` directly
+   * (bypassing chatStore.sendMessage) so it always targets the correct book.
    */
   start: (bookSlug: string) => Promise<void>;
 
@@ -122,23 +126,10 @@ async function getChapterCount(bookSlug: string): Promise<number> {
 }
 
 /**
- * Inspect chatStore.messages to determine if the most recent assistant turn
- * was a stream error rather than a clean response.
- *
- * chatStore adds synthetic error messages with id 'error-<timestamp>' when the
- * CLI emits a stream error event. These are renderer-only (not persisted to DB).
- * Real saved messages use nanoid IDs (21-char alphanumeric). This distinction
- * is fully reliable: nanoid IDs never start with the literal string "error-".
+ * Check if the user is currently viewing the given book.
  */
-function lastMessageWasStreamError(): { wasError: boolean; message: string } {
-  const messages = useChatStore.getState().messages;
-  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-  if (!lastAssistant?.id.startsWith('error-')) {
-    return { wasError: false, message: '' };
-  }
-  // Strip the "Error: " prefix chatStore prepends so the UI gets the raw text
-  const rawMessage = lastAssistant.content.replace(/^Error:\s*/i, '').trim();
-  return { wasError: true, message: rawMessage || 'Unknown CLI error' };
+function isViewingBook(bookSlug: string): boolean {
+  return useBookStore.getState().activeSlug === bookSlug;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -194,7 +185,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
 
       set({ conversationId });
 
-      // ── Step 2: Navigate to chat so the author can watch progress ──
+      // ── Step 2: Navigate to chat so the author can watch initial progress ──
 
       useViewStore.getState().navigate('chat');
 
@@ -202,39 +193,65 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       await delay(300);
 
       // ── Step 3: The chapter loop ──
+      //
+      // This loop calls the IPC bridge directly (window.novelEngine.chat.send)
+      // instead of chatStore.sendMessage(). This is critical because:
+      // - chatStore.sendMessage reads bookSlug from useBookStore.activeSlug,
+      //   which would be wrong if the user switched books
+      // - chatStore.sendMessage sets the active conversation and stream routing,
+      //   which would hijack the user's current chat view
+      // - We use our stored bookSlug and conversationId for all operations
 
       let iteration = 0;
 
       while (!get().stopRequested && iteration < MAX_ITERATIONS) {
-        // Guard: abort if the user switched to a different book
-        if (useBookStore.getState().activeSlug !== bookSlug) break;
-
         iteration++;
 
         // Count chapters before this call
         const countBefore = await getChapterCount(bookSlug);
         if (countBefore === -1) break; // FS unreadable — bail
 
-        // Re-ensure our conversation is still active (user may have clicked away)
-        const currentActive = useChatStore.getState().activeConversation;
-        if (!currentActive || currentActive.id !== conversationId) {
-          await useChatStore.getState().setActiveConversation(conversationId);
-          await delay(100);
+        // Count assistant messages before so we can detect errors
+        const msgsBefore = await window.novelEngine.chat.getMessages(conversationId);
+        const assistantCountBefore = msgsBefore.filter((m) => m.role === 'assistant').length;
+
+        // Route stream events away from chatStore during auto-draft.
+        // This prevents auto-draft events from polluting the user's chat view
+        // (setting isStreaming, appending to streamBuffer, etc.) when they are
+        // viewing a different conversation or book.
+        const prevTarget = streamRouter.target;
+        streamRouter.target = 'auto-draft';
+
+        try {
+          await window.novelEngine.chat.send({
+            agentName: 'Verity',
+            message: AUTO_DRAFT_PROMPT,
+            conversationId,
+            bookSlug,
+          });
+        } finally {
+          // Restore stream router only if we still own it.
+          // If the user started a manual chat while auto-draft was running,
+          // their sendMessage() set target to 'main' — don't override that.
+          if (streamRouter.target === 'auto-draft') {
+            streamRouter.target = prevTarget;
+          }
         }
 
-        // Send the chapter-writing prompt.
-        // chatStore.sendMessage awaits window.novelEngine.chat.send, which only
-        // resolves once the full CLI stream is complete — perfect for sequencing.
-        await useChatStore.getState().sendMessage(AUTO_DRAFT_PROMPT);
-
-        // Wait for async state to settle:
-        // - chatStore 'done' handler reloads messages from DB via Promise.all
-        // - Stream events from ipcRenderer.on need to process through the event loop
+        // Wait for async state to settle (DB writes, file-change events)
         await delay(POST_SEND_SETTLE_MS);
+
+        // Bail check after the send completes (user may have stopped during the call)
+        if (get().stopRequested) break;
 
         // ── Determine what happened ──
 
-        const { wasError, message: errorMsg } = lastMessageWasStreamError();
+        // Check DB for a new assistant message. ChatService saves the assistant
+        // response on the 'done' event but does NOT save on 'error'. So if the
+        // assistant count didn't increase, the CLI errored.
+        const msgsAfter = await window.novelEngine.chat.getMessages(conversationId);
+        const assistantCountAfter = msgsAfter.filter((m) => m.role === 'assistant').length;
+        const gotResponse = assistantCountAfter > assistantCountBefore;
 
         const countAfter = await getChapterCount(bookSlug);
         if (countAfter === -1) break; // FS unreadable — bail
@@ -244,21 +261,30 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           const newChapters = countAfter - countBefore;
           set((s) => ({ chaptersWritten: s.chaptersWritten + newChapters }));
 
-          // Refresh pipeline tracker, file tree, word count badge
+          // Refresh pipeline tracker for the auto-draft book (works even if
+          // the user is viewing a different book — it updates the cache silently)
           usePipelineStore.getState().loadPipeline(bookSlug);
-          useFileChangeStore.getState().notifyChange();
-          useBookStore.getState().refreshWordCount();
+
+          // Only refresh file tree and word count if the user is viewing this book
+          if (isViewingBook(bookSlug)) {
+            useFileChangeStore.getState().notifyChange();
+            useBookStore.getState().refreshWordCount();
+          }
 
           // Brief pause before the next chapter
           await delay(INTER_CHAPTER_DELAY_MS);
-        } else if (wasError) {
-          // ✗ CLI error — pause and wait for the user to decide
+        } else if (!gotResponse) {
+          // ✗ No assistant message saved → CLI error
           //
           // We store the Promise resolver in Zustand state so resume() and stop()
           // can unblock the loop from outside. Storing functions in Zustand is safe
           // when there is no persist middleware (this store has none).
           await new Promise<void>((resolve) => {
-            set({ isPaused: true, pauseReason: errorMsg, _resumeResolve: resolve });
+            set({
+              isPaused: true,
+              pauseReason: 'CLI error — no response received',
+              _resumeResolve: resolve,
+            });
           });
 
           // Pause resolved — clean up before the next iteration
@@ -268,8 +294,6 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           if (get().stopRequested) break;
 
           // Otherwise: resume was requested — retry the same chapter
-          // (iteration will increment at the top of the loop, which is fine —
-          // we're just retrying; the chapter count will be re-read fresh)
         } else {
           // ✓ No error, no new chapter: Verity replied DRAFT_COMPLETE (or there
           // was nothing left to write). The draft is done — exit cleanly.
@@ -282,6 +306,16 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       set({ error: message, isPaused: false, pauseReason: null, _resumeResolve: null });
     } finally {
       set({ isRunning: false, stopRequested: false });
+
+      // Final pipeline + word count refresh for the auto-draft book
+      const { bookSlug: slug } = get();
+      if (slug) {
+        usePipelineStore.getState().loadPipeline(slug);
+        if (isViewingBook(slug)) {
+          useFileChangeStore.getState().notifyChange();
+          useBookStore.getState().refreshWordCount();
+        }
+      }
     }
   },
 

@@ -5,5 +5,5 @@
  * This is NOT reactive — it's only checked inside event handlers.
  */
 export const streamRouter = {
-  target: 'main' as 'main' | 'modal',
+  target: 'main' as 'main' | 'modal' | 'auto-draft',
 };
