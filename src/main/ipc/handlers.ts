@@ -309,6 +309,10 @@ export function registerIpcHandlers(services: {
     return services.revisionQueue.loadPlan(bookSlug);
   });
 
+  ipcMain.handle('revision:clearCache', async (_, bookSlug: string) => {
+    await services.revisionQueue.clearCache(bookSlug);
+  });
+
   ipcMain.handle('revision:runSession', async (_, planId: string, sessionId: string) => {
     return services.revisionQueue.runSession(planId, sessionId);
   });

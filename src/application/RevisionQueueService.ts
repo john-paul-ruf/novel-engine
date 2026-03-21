@@ -290,6 +290,23 @@ export class RevisionQueueService implements IRevisionQueueService {
     return plan;
   }
 
+  async clearCache(bookSlug: string): Promise<void> {
+    // Delete the plan cache to force a fresh parse on next load
+    try {
+      await this.fs.deleteFile(bookSlug, CACHE_PATH);
+      this.emit({ type: 'plan:loading-step', step: 'Cache cleared' });
+    } catch {
+      // Cache file may not exist, which is fine
+    }
+    // Clear in-memory caches
+    const planId = this.plansByBook.get(bookSlug);
+    if (planId) {
+      this.plans.delete(planId);
+      this.plansByBook.delete(bookSlug);
+    }
+    this.hashByBook.delete(bookSlug);
+  }
+
   // ── Session execution ────────────────────────────────────────────
 
   async runSession(planId: string, sessionId: string): Promise<void> {

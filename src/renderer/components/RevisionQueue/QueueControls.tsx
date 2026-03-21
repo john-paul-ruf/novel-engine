@@ -1,4 +1,5 @@
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
+import { useBookStore } from '../../stores/bookStore';
 import type { QueueMode } from '@domain/types';
 
 const MODE_OPTIONS: { value: QueueMode; label: string; description: string }[] = [
@@ -9,7 +10,8 @@ const MODE_OPTIONS: { value: QueueMode; label: string; description: string }[] =
 ];
 
 export function QueueControls() {
-  const { plan, isRunning, isPaused, setMode, runNext, runAll, pause } = useRevisionQueueStore();
+  const { activeSlug } = useBookStore();
+  const { plan, isRunning, isPaused, isLoading, setMode, runNext, runAll, pause, clearCache } = useRevisionQueueStore();
 
   if (!plan) return null;
 
@@ -55,6 +57,15 @@ export function QueueControls() {
           &#9646;&#9646; {isPaused ? 'Pausing...' : 'Pause'}
         </button>
       )}
+
+      <button
+        onClick={() => activeSlug && clearCache(activeSlug)}
+        disabled={isRunning || isLoading || !plan.sessions.length}
+        title="Clear cache and reload the plan from source files"
+        className="flex items-center gap-1.5 bg-zinc-500 hover:bg-zinc-600 disabled:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 disabled:text-zinc-400 text-white rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+      >
+        ↻ Clear Cache
+      </button>
     </div>
   );
 }

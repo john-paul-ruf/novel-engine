@@ -27,6 +27,7 @@ type RevisionQueueState = {
 
   loadPlan: (bookSlug: string) => Promise<void>;
   reloadPlan: (bookSlug: string) => Promise<void>;
+  clearCache: (bookSlug: string) => Promise<void>;
   runNext: () => Promise<void>;
   runAll: () => Promise<void>;
   runSession: (sessionId: string) => Promise<void>;
@@ -96,6 +97,25 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
         isLoading: false,
         loadingStep: '',
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
+      });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
+    }
+  },
+
+  clearCache: async (bookSlug: string) => {
+    try {
+      set({ isLoading: true, loadingStep: 'Clearing cache\u2026' });
+      await window.novelEngine.revision.clearCache(bookSlug);
+      // Reload the plan after clearing cache to get fresh parse
+      const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
+      set({
+        plan: loaded,
+        planId: loaded.id,
+        isLoading: false,
+        loadingStep: '',
+        selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
+        error: null,
       });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
