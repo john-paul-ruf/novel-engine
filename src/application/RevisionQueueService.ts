@@ -338,12 +338,19 @@ export class RevisionQueueService implements IRevisionQueueService {
 
       let rawResponse = '';
       let cliError = '';
+      const wranglerSettings = await this.settings.load();
+      const wranglerThinkingBudget = wranglerSettings.enableThinking ? 4000 : undefined;
       await this.claude.sendMessage({
         model: WRANGLER_MODEL,
         systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
         messages: [{ role: 'user' as const, content: userMessage }],
         maxTokens: 8192,
+        thinkingBudget: wranglerThinkingBudget,
         onEvent: (event) => {
+          // Forward ALL stream events to the activity viewer so users can
+          // see thinking, tool use, and progress while the Wrangler works
+          this.emit({ type: 'session:streamEvent', sessionId: '__plan-load__', event });
+
           if (event.type === 'textDelta') {
             rawResponse += event.text;
           } else if (event.type === 'error') {
@@ -356,11 +363,8 @@ export class RevisionQueueService implements IRevisionQueueService {
         throw new Error(`Wrangler CLI call failed: ${cliError}`);
       }
 
-      this.emit({
-        type: 'session:streamEvent',
-        sessionId: '__plan-load__',
-        event: { type: 'done', inputTokens: 0, outputTokens: 0, thinkingTokens: 0 },
-      });
+      // The real 'done' event is already forwarded by the onEvent handler above,
+      // so no synthetic done emission is needed here.
 
       this.emit({ type: 'plan:loading-step', step: 'Parsing Wrangler response…' });
 

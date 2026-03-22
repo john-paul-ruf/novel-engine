@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
 import type { CliCall } from '../../stores/cliActivityStore';
+import type { AgentName } from '@domain/types';
+import { AGENT_REGISTRY } from '@domain/constants';
 
 /**
  * Hook component that keeps the CLI activity listener alive regardless of
@@ -95,6 +97,39 @@ function TokenBadge({ label, value, color }: { label: string; value: number; col
   );
 }
 
+/** Compact collapsible wrapper for CLI panel sections */
+function CollapsiblePanel({ title, defaultExpanded = true, badge, children }: {
+  title: string;
+  defaultExpanded?: boolean;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50">
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          className={`h-2.5 w-2.5 shrink-0 text-zinc-400 dark:text-zinc-600 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
+        >
+          <path d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" />
+        </svg>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
+          {title}
+        </span>
+        {badge && <span className="ml-auto">{badge}</span>}
+      </button>
+      {expanded && children}
+    </div>
+  );
+}
+
 // === Call List (tab bar showing all tracked calls) ===
 
 function CallListItem({ call, isSelected, onSelect, onClear }: {
@@ -161,22 +196,132 @@ function CallListItem({ call, isSelected, onSelect, onClear }: {
   );
 }
 
+/** Filter dropdown styled as a minimal select */
+function FilterSelect<T extends string>({ value, onChange, options, placeholder, renderOption }: {
+  value: T | null;
+  onChange: (val: T | null) => void;
+  options: T[];
+  placeholder: string;
+  renderOption?: (opt: T) => string;
+}): React.ReactElement {
+  return (
+    <select
+      value={value ?? ''}
+      onChange={(e) => onChange((e.target.value || null) as T | null)}
+      className="h-6 rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-1.5 text-[10px] text-zinc-600 dark:text-zinc-300 outline-none hover:border-zinc-400 dark:hover:border-zinc-600 focus:border-blue-500 transition-colors appearance-none cursor-pointer min-w-0"
+      style={{ backgroundImage: 'none', paddingRight: '0.5rem' }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt) => (
+        <option key={opt} value={opt}>
+          {renderOption ? renderOption(opt) : opt}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function FilterBar(): React.ReactElement | null {
+  const calls = useCliActivityStore((s) => s.calls);
+  const callOrder = useCliActivityStore((s) => s.callOrder);
+  const filterAgent = useCliActivityStore((s) => s.filterAgent);
+  const filterBook = useCliActivityStore((s) => s.filterBook);
+  const setFilterAgent = useCliActivityStore((s) => s.setFilterAgent);
+  const setFilterBook = useCliActivityStore((s) => s.setFilterBook);
+  const getFilteredCallOrder = useCliActivityStore((s) => s.getFilteredCallOrder);
+
+  const agentNames = useMemo(() => {
+    const names = new Set<AgentName>();
+    for (const id of callOrder) {
+      const call = calls[id];
+      if (call) names.add(call.callMeta.agentName);
+    }
+    return [...names].sort();
+  }, [calls, callOrder]);
+
+  const bookSlugs = useMemo(() => {
+    const slugs = new Set<string>();
+    for (const id of callOrder) {
+      const call = calls[id];
+      if (call?.callMeta.bookSlug) slugs.add(call.callMeta.bookSlug);
+    }
+    return [...slugs].sort();
+  }, [calls, callOrder]);
+
+  // Only show filter bar when there's something worth filtering
+  if (callOrder.length < 2 && !filterAgent && !filterBook) return null;
+
+  const hasFilters = filterAgent !== null || filterBook !== null;
+  const filteredCount = getFilteredCallOrder().length;
+  const totalCount = callOrder.length;
+
+  return (
+    <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50 px-3 py-1.5">
+      <div className="flex items-center gap-1.5">
+        {/* Filter icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 shrink-0 text-zinc-400 dark:text-zinc-600">
+          <path d="M14 2H2l5 5.6V12l2 1V7.6L14 2Z" />
+        </svg>
+
+        {agentNames.length > 1 && (
+          <FilterSelect<AgentName>
+            value={filterAgent}
+            onChange={setFilterAgent}
+            options={agentNames}
+            placeholder="All agents"
+            renderOption={(name) => {
+              const info = AGENT_REGISTRY[name];
+              return info ? `${name} — ${info.role}` : name;
+            }}
+          />
+        )}
+
+        {bookSlugs.length > 1 && (
+          <FilterSelect<string>
+            value={filterBook}
+            onChange={setFilterBook}
+            options={bookSlugs}
+            placeholder="All books"
+            renderOption={(slug) => slug.length > 20 ? slug.slice(0, 20) + '…' : slug}
+          />
+        )}
+
+        {hasFilters && (
+          <>
+            <span className="text-[10px] text-zinc-500 dark:text-zinc-500 tabular-nums">
+              {filteredCount}/{totalCount}
+            </span>
+            <button
+              onClick={() => { setFilterAgent(null); setFilterBook(null); }}
+              className="ml-auto rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+              title="Clear filters"
+            >
+              Reset
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CallList(): React.ReactElement | null {
   const calls = useCliActivityStore((s) => s.calls);
   const callOrder = useCliActivityStore((s) => s.callOrder);
   const selectedCallId = useCliActivityStore((s) => s.selectedCallId);
   const selectCall = useCliActivityStore((s) => s.selectCall);
   const clearCall = useCliActivityStore((s) => s.clearCall);
+  const filteredOrder = useCliActivityStore((s) => s.getFilteredCallOrder)();
 
-  if (callOrder.length <= 1) return null;
+  if (callOrder.length <= 1 && filteredOrder.length <= 1) return null;
 
   return (
     <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50 px-2 py-1.5">
       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
-        CLI Calls ({callOrder.length})
+        CLI Calls ({filteredOrder.length}{filteredOrder.length !== callOrder.length ? `/${callOrder.length}` : ''})
       </div>
       <div className="flex max-h-28 flex-col gap-0.5 overflow-y-auto">
-        {callOrder.map((id) => {
+        {filteredOrder.map((id) => {
           const call = calls[id];
           if (!call) return null;
           return (
@@ -211,19 +356,26 @@ function CallHeader({ call }: { call: CliCall }): React.ReactElement {
   const textTokensEst = Math.round(call.streamingTextChars / CHARS_PER_TOKEN);
   const isDone = !isActive && callElapsedMs > 0;
 
+  const durationBadge = (
+    <span className={`font-mono text-[10px] tabular-nums ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500'}`}>
+      {formatDuration(callElapsedMs)}
+    </span>
+  );
+
   return (
-    <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50 bg-zinc-50 dark:bg-zinc-900/80 px-3 py-2">
-      {/* Agent + Model row */}
-      <div className="flex items-center justify-between">
+    <CollapsiblePanel
+      title={`${meta.agentName} — ${meta.agentRole}`}
+      defaultExpanded={true}
+      badge={durationBadge}
+    >
+      <div className="bg-zinc-50 dark:bg-zinc-900/80 px-3 pb-2">
+        {/* Agent + Model row */}
         <div className="flex items-center gap-2">
           <div
             className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: meta.agentColor }}
           />
           <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">{meta.agentName}</span>
-          <span className="text-[10px] text-zinc-500">{meta.agentRole}</span>
-        </div>
-        <div className="flex items-center gap-2">
           <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
             {meta.modelLabel}
           </span>
@@ -232,55 +384,52 @@ function CallHeader({ call }: { call: CliCall }): React.ReactElement {
               {meta.bookSlug}
             </span>
           )}
-          <span className={`font-mono text-xs tabular-nums ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500'}`}>
-            {formatDuration(callElapsedMs)}
-          </span>
         </div>
-      </div>
 
-      {/* Live streaming stats */}
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        {isActive && thinkingTokensEst > 0 && (
-          <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
-            <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-amber-400" />
-            Think ~{formatTokens(thinkingTokensEst)}
-          </span>
-        )}
-        {isActive && textTokensEst > 0 && (
-          <span className="inline-flex items-center gap-1 rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-300">
-            <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-green-400" />
-            Text ~{formatTokens(textTokensEst)}
-          </span>
-        )}
-        {isActive && call.currentToolName && (
-          <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-300">
-            <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-purple-400" />
-            {call.currentToolName}
-          </span>
-        )}
-        {call.toolUseCount > 0 && (
-          <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
-            {call.toolUseCount} tool{call.toolUseCount !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-
-      {/* Final token summary + cost (shown after done) */}
-      {isDone && (
+        {/* Live streaming stats */}
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <TokenBadge label="IN" value={call.sessionInputTokens} color="bg-blue-500/10 text-blue-300" />
-          <TokenBadge label="OUT" value={call.sessionOutputTokens} color="bg-green-500/10 text-green-300" />
-          {call.sessionThinkingTokens > 0 && (
-            <TokenBadge label="THINK" value={call.sessionThinkingTokens} color="bg-amber-500/10 text-amber-300" />
+          {isActive && thinkingTokensEst > 0 && (
+            <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+              <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-amber-400" />
+              Think ~{formatTokens(thinkingTokensEst)}
+            </span>
           )}
-          {call.estimatedCost !== null && call.estimatedCost > 0 && (
-            <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
-              ${call.estimatedCost.toFixed(4)}
+          {isActive && textTokensEst > 0 && (
+            <span className="inline-flex items-center gap-1 rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-300">
+              <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-green-400" />
+              Text ~{formatTokens(textTokensEst)}
+            </span>
+          )}
+          {isActive && call.currentToolName && (
+            <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-300">
+              <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-purple-400" />
+              {call.currentToolName}
+            </span>
+          )}
+          {call.toolUseCount > 0 && (
+            <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
+              {call.toolUseCount} tool{call.toolUseCount !== 1 ? 's' : ''}
             </span>
           )}
         </div>
-      )}
-    </div>
+
+        {/* Final token summary + cost (shown after done) */}
+        {isDone && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <TokenBadge label="IN" value={call.sessionInputTokens} color="bg-blue-500/10 text-blue-300" />
+            <TokenBadge label="OUT" value={call.sessionOutputTokens} color="bg-green-500/10 text-green-300" />
+            {call.sessionThinkingTokens > 0 && (
+              <TokenBadge label="THINK" value={call.sessionThinkingTokens} color="bg-amber-500/10 text-amber-300" />
+            )}
+            {call.estimatedCost !== null && call.estimatedCost > 0 && (
+              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                ${call.estimatedCost.toFixed(4)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </CollapsiblePanel>
   );
 }
 
@@ -295,35 +444,38 @@ function PhaseTimeline({ call }: { call: CliCall }): React.ReactElement | null {
 
   if (completedPhases.length === 0 && !activePhase) return null;
 
-  return (
-    <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50 px-3 py-1.5">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
-        Phases
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {completedPhases.map((phase, i) => {
-          const isThinking = phase.label === 'Thinking';
-          const isTool = phase.label.startsWith('Tool:');
-          const bgColor = isThinking
-            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-            : isTool
-              ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-              : 'bg-green-500/10 text-green-600 dark:text-green-400';
+  const phaseBadge = (
+    <span className="text-[10px] tabular-nums text-zinc-500">{phases.length}</span>
+  );
 
-          return (
-            <span key={i} className={`rounded px-1.5 py-0.5 text-[10px] ${bgColor}`}>
-              {phase.label} {formatDuration(phase.durationMs!)}
+  return (
+    <CollapsiblePanel title="Phases" defaultExpanded={true} badge={phaseBadge}>
+      <div className="px-3 pb-1.5">
+        <div className="flex flex-wrap gap-1">
+          {completedPhases.map((phase, i) => {
+            const isThinking = phase.label === 'Thinking';
+            const isTool = phase.label.startsWith('Tool:');
+            const bgColor = isThinking
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              : isTool
+                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                : 'bg-green-500/10 text-green-600 dark:text-green-400';
+
+            return (
+              <span key={i} className={`rounded px-1.5 py-0.5 text-[10px] ${bgColor}`}>
+                {phase.label} {formatDuration(phase.durationMs!)}
+              </span>
+            );
+          })}
+          {activePhase && isActive && (
+            <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-600 dark:text-blue-400">
+              <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-blue-400" />
+              {activePhase.label}
             </span>
-          );
-        })}
-        {activePhase && isActive && (
-          <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-600 dark:text-blue-400">
-            <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-blue-400" />
-            {activePhase.label}
-          </span>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </CollapsiblePanel>
   );
 }
 
@@ -333,20 +485,23 @@ function ToolBreakdown({ call }: { call: CliCall }): React.ReactElement | null {
 
   const entries = Object.entries(call.toolUseBreakdown).sort((a, b) => b[1] - a[1]);
 
+  const toolBadge = (
+    <span className="text-[10px] tabular-nums text-zinc-500">{call.toolUseCount}</span>
+  );
+
   return (
-    <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50 px-3 py-1.5">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
-        Tool Usage
+    <CollapsiblePanel title="Tool Usage" defaultExpanded={true} badge={toolBadge}>
+      <div className="px-3 pb-1.5">
+        <div className="flex flex-wrap gap-1.5">
+          {entries.map(([name, count]) => (
+            <span key={name} className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-300">
+              {name}
+              <span className="font-mono text-purple-600 dark:text-purple-400/70">{count}</span>
+            </span>
+          ))}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {entries.map(([name, count]) => (
-          <span key={name} className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-300">
-            {name}
-            <span className="font-mono text-purple-600 dark:text-purple-400/70">{count}</span>
-          </span>
-        ))}
-      </div>
-    </div>
+    </CollapsiblePanel>
   );
 }
 
@@ -354,56 +509,60 @@ function DiagnosticsSection({ call }: { call: CliCall }): React.ReactElement | n
   const diagnostics = call.diagnostics;
   if (!diagnostics) return null;
 
+  const diagBadge = (
+    <span className="text-[10px] tabular-nums text-zinc-500">{diagnostics.filesAvailable.length} files</span>
+  );
+
   return (
-    <div className="border-b border-zinc-300 dark:border-zinc-700/50 px-3 py-2">
-      <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-        Context Diagnostics
-      </h4>
-      <div className="space-y-1 text-xs">
-        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
-          <span>Files available</span>
-          <span className="font-mono text-zinc-700 dark:text-zinc-300">{diagnostics.filesAvailable.length}</span>
-        </div>
-        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
-          <span>Conversation turns sent</span>
-          <span className="font-mono text-zinc-700 dark:text-zinc-300">{diagnostics.conversationTurnsSent}</span>
-        </div>
-        {diagnostics.conversationTurnsDropped > 0 && (
+    <CollapsiblePanel title="Context Diagnostics" defaultExpanded={false} badge={diagBadge}>
+      <div className="px-3 pb-2">
+        <div className="space-y-1 text-xs">
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
-            <span>Turns dropped</span>
-            <span className="font-mono text-amber-600 dark:text-amber-400">{diagnostics.conversationTurnsDropped}</span>
+            <span>Files available</span>
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">{diagnostics.filesAvailable.length}</span>
           </div>
-        )}
-        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
-          <span>Manifest tokens</span>
-          <span className="font-mono text-zinc-700 dark:text-zinc-300">~{diagnostics.manifestTokenEstimate.toLocaleString()}</span>
-        </div>
-        {diagnostics.filesAvailable.length > 0 && (
-          <details className="mt-1">
-            <summary className="cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400">
-              Show files
-            </summary>
-            <div className="mt-1 max-h-24 overflow-y-auto rounded bg-zinc-50 dark:bg-zinc-900 p-1.5">
-              {diagnostics.filesAvailable.map((f) => (
-                <div key={f} className="truncate font-mono text-[10px] text-zinc-500">{f}</div>
-              ))}
+          <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
+            <span>Conversation turns sent</span>
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">{diagnostics.conversationTurnsSent}</span>
+          </div>
+          {diagnostics.conversationTurnsDropped > 0 && (
+            <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
+              <span>Turns dropped</span>
+              <span className="font-mono text-amber-600 dark:text-amber-400">{diagnostics.conversationTurnsDropped}</span>
             </div>
-          </details>
-        )}
+          )}
+          <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
+            <span>Manifest tokens</span>
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">~{diagnostics.manifestTokenEstimate.toLocaleString()}</span>
+          </div>
+          {diagnostics.filesAvailable.length > 0 && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400">
+                Show files
+              </summary>
+              <div className="mt-1 max-h-24 overflow-y-auto rounded bg-zinc-50 dark:bg-zinc-900 p-1.5">
+                {diagnostics.filesAvailable.map((f) => (
+                  <div key={f} className="truncate font-mono text-[10px] text-zinc-500">{f}</div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
       </div>
-    </div>
+    </CollapsiblePanel>
   );
 }
 
 function EntryList({ call }: { call: CliCall }): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(true);
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && expanded) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [call.entries.length]);
+  }, [call.entries.length, expanded]);
 
   if (call.entries.length === 0) {
     return (
@@ -416,45 +575,69 @@ function EntryList({ call }: { call: CliCall }): React.ReactElement {
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto px-1 py-1">
-      {call.entries.map((entry) => (
-        <div
-          key={entry.id}
-          className="flex items-start gap-2 rounded px-2 py-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex shrink-0 items-center gap-1.5 border-b border-zinc-300 dark:border-zinc-700/50 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          className={`h-2.5 w-2.5 shrink-0 text-zinc-400 dark:text-zinc-600 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
         >
-          <span className="mt-px shrink-0 text-xs">{KIND_ICONS[entry.kind] ?? '\u2022'}</span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className={`text-xs leading-tight ${KIND_COLORS[entry.kind] ?? 'text-zinc-500 dark:text-zinc-400'}`}>
-                {entry.message}
-              </span>
-              <span className="shrink-0 font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
-                {formatRelativeTime(entry.timestamp, call.callMeta.startedAt)}
-              </span>
-            </div>
-            {entry.tokens && (
-              <div className="mt-0.5 flex gap-1.5">
-                <span className="text-[10px] text-blue-600 dark:text-blue-400/70">
-                  {formatTokens(entry.tokens.input)} in
-                </span>
-                <span className="text-[10px] text-green-600 dark:text-green-400/70">
-                  {formatTokens(entry.tokens.output)} out
-                </span>
-                {entry.tokens.thinking > 0 && (
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400/70">
-                    {formatTokens(entry.tokens.thinking)} think
+          <path d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" />
+        </svg>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
+          Activity Log
+        </span>
+        <span className="ml-auto text-[10px] tabular-nums text-zinc-500">{call.entries.length}</span>
+      </button>
+
+      {/* Scrollable entries */}
+      {expanded && (
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-1 py-1">
+          {call.entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="flex items-start gap-2 rounded px-2 py-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+            >
+              <span className="mt-px shrink-0 text-xs">{KIND_ICONS[entry.kind] ?? '\u2022'}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-xs leading-tight ${KIND_COLORS[entry.kind] ?? 'text-zinc-500 dark:text-zinc-400'}`}>
+                    {entry.message}
                   </span>
+                  <span className="shrink-0 font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
+                    {formatRelativeTime(entry.timestamp, call.callMeta.startedAt)}
+                  </span>
+                </div>
+                {entry.tokens && (
+                  <div className="mt-0.5 flex gap-1.5">
+                    <span className="text-[10px] text-blue-600 dark:text-blue-400/70">
+                      {formatTokens(entry.tokens.input)} in
+                    </span>
+                    <span className="text-[10px] text-green-600 dark:text-green-400/70">
+                      {formatTokens(entry.tokens.output)} out
+                    </span>
+                    {entry.tokens.thinking > 0 && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400/70">
+                        {formatTokens(entry.tokens.thinking)} think
+                      </span>
+                    )}
+                  </div>
+                )}
+                {entry.detail && (
+                  <pre className="mt-0.5 max-h-16 overflow-auto whitespace-pre-wrap font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
+                    {entry.detail}
+                  </pre>
                 )}
               </div>
-            )}
-            {entry.detail && (
-              <pre className="mt-0.5 max-h-16 overflow-auto whitespace-pre-wrap font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
-                {entry.detail}
-              </pre>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -465,11 +648,15 @@ export function CliActivityPanel(): React.ReactElement {
   const calls = useCliActivityStore((s) => s.calls);
   const callOrder = useCliActivityStore((s) => s.callOrder);
   const selectedCallId = useCliActivityStore((s) => s.selectedCallId);
+  const filterAgent = useCliActivityStore((s) => s.filterAgent);
+  const filterBook = useCliActivityStore((s) => s.filterBook);
   const close = useCliActivityStore((s) => s.close);
   const clear = useCliActivityStore((s) => s.clear);
 
   const activeCount = Object.values(calls).filter((c) => c.isActive).length;
   const selectedCall = selectedCallId ? calls[selectedCallId] : null;
+  const hasFilters = filterAgent !== null || filterBook !== null;
+  const filteredOrder = useCliActivityStore((s) => s.getFilteredCallOrder)();
 
   return (
     <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
@@ -504,6 +691,9 @@ export function CliActivityPanel(): React.ReactElement {
         </div>
       </div>
 
+      {/* Filter bar (shown when there are multiple calls to filter) */}
+      <FilterBar />
+
       {/* Call list (only shown when multiple calls exist) */}
       <CallList />
 
@@ -522,6 +712,15 @@ export function CliActivityPanel(): React.ReactElement {
             <p className="text-sm text-zinc-500">No CLI activity yet</p>
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
               Send a message to an agent to see what happens under the hood
+            </p>
+          </div>
+        </div>
+      ) : hasFilters && filteredOrder.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <p className="text-sm text-zinc-500">No calls match filters</p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
+              Try adjusting the agent or book filter above
             </p>
           </div>
         </div>

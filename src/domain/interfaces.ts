@@ -8,11 +8,14 @@ import type {
   BuildResult,
   Conversation,
   FileEntry,
+  FileTouchMap,
   Message,
   MessageRole,
+  PersistedStreamEvent,
   PipelinePhase,
   PipelinePhaseId,
   PitchDraft,
+  ProgressStage,
   ProjectManifest,
   QueueMode,
   QueueStatus,
@@ -21,6 +24,7 @@ import type {
   ShelvedPitch,
   ShelvedPitchMeta,
   StreamEvent,
+  StreamSessionRecord,
   UsageRecord,
   UsageSummary,
 } from './types';
@@ -54,6 +58,18 @@ export interface IDatabaseService {
 
   // Book slug migration
   updateBookSlug(oldSlug: string, newSlug: string): void;
+
+  // Stream event persistence
+  persistStreamEvent(event: Omit<PersistedStreamEvent, 'id'>): void;
+  getStreamEvents(sessionId: string): PersistedStreamEvent[];
+  deleteStreamEvents(sessionId: string): void;
+  pruneStreamEvents(olderThanDays: number): void;
+
+  // Session records
+  createStreamSession(session: StreamSessionRecord): void;
+  endStreamSession(sessionId: string, finalStage: ProgressStage, filesTouched: FileTouchMap): void;
+  getActiveStreamSessions(): StreamSessionRecord[];
+  markSessionInterrupted(sessionId: string, lastStage: ProgressStage): void;
 
   // Lifecycle
   close(): void;
@@ -132,10 +148,13 @@ export interface IClaudeClient {
     thinkingBudget?: number;
     bookSlug?: string;
     workingDir?: string;
+    sessionId?: string;          // caller-provided session ID for tracking
+    conversationId?: string;     // needed for event persistence
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
 
   isAvailable(): Promise<boolean>;
+  invalidateAvailabilityCache(): void;
 }
 
 export interface IPipelineService {

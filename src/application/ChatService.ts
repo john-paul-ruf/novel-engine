@@ -15,6 +15,7 @@ import type {
   Message,
   PipelinePhaseId,
   StreamEvent,
+  StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
 import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
@@ -39,6 +40,7 @@ export class ChatService {
   private lastChangedFiles: string[] = [];
   private contextBuilder = new ContextBuilder();
   private activeStream: ActiveStreamInfo | null = null;
+  private recoveredOrphans: StreamSessionRecord[] = [];
 
   constructor(
     private settings: ISettingsService,
@@ -49,6 +51,29 @@ export class ChatService {
     private usage: UsageService,
     private chapterValidator: IChapterValidator,
   ) {}
+
+  /**
+   * Called once at app startup. Checks for orphaned stream sessions
+   * (started but never finished) and marks them as interrupted.
+   *
+   * Returns the list of interrupted sessions so the UI can display
+   * a recovery notice (e.g., "Previous session interrupted during: drafting").
+   */
+  async recoverOrphanedSessions(): Promise<StreamSessionRecord[]> {
+    const orphans = this.db.getActiveStreamSessions();
+
+    for (const session of orphans) {
+      this.db.markSessionInterrupted(session.id, session.finalStage);
+    }
+
+    this.recoveredOrphans = orphans;
+    return orphans;
+  }
+
+  /** Returns orphans recovered at startup (cached). */
+  getRecoveredOrphans(): StreamSessionRecord[] {
+    return this.recoveredOrphans;
+  }
 
   /**
    * Send a message to an agent and stream the response.
@@ -97,6 +122,21 @@ export class ChatService {
       thinking: '',
     });
 
+    // Create a session record for orphan detection
+    const sessionId = nanoid();
+    this.db.createStreamSession({
+      id: sessionId,
+      conversationId,
+      agentName,
+      model: appSettings.model,
+      bookSlug,
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      finalStage: 'idle',
+      filesTouched: {},
+      interrupted: false,
+    });
+
     // Steps 5–9: Context assembly → CLI call → response capture
     // Wrapped in try/catch so errors are always forwarded as events
     try {
@@ -106,7 +146,7 @@ export class ChatService {
       // Pitch Room branch — skip wrangler, minimal context, custom working dir
       if (conversation?.purpose === 'pitch-room') {
         await this.handlePitchRoomMessage({
-          conversationId, agentName, bookSlug, appSettings, agent, onEvent,
+          conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId,
         });
         return;
       }
@@ -157,6 +197,11 @@ export class ChatService {
         model: appSettings.model,
         bookSlug,
         startedAt: new Date().toISOString(),
+        sessionId,
+        progressStage: 'idle',
+        filesTouched: {},
+        thinkingBuffer: '',
+        textBuffer: '',
       };
 
       // Step 8d: Emit callStart metadata so the activity monitor knows what's happening
@@ -174,12 +219,32 @@ export class ChatService {
         maxTokens: appSettings.maxTokens,
         thinkingBudget,
         bookSlug,
+        sessionId,
+        conversationId,
         onEvent: async (event: StreamEvent) => {
-          // Accumulate response content
+          // Update activeStream with live progress data (Session E)
+          if (this.activeStream) {
+            if (event.type === 'progressStage') {
+              this.activeStream.progressStage = event.stage;
+            }
+            if (event.type === 'toolDuration') {
+              if (event.tool.filePath && (event.tool.toolName === 'Write' || event.tool.toolName === 'Edit')) {
+                const current = this.activeStream.filesTouched[event.tool.filePath] ?? 0;
+                this.activeStream.filesTouched[event.tool.filePath] = current + 1;
+              }
+            }
+            if (event.type === 'done') {
+              this.activeStream.filesTouched = event.filesTouched;
+            }
+          }
+
+          // Accumulate response content (both local buffers and activeStream for recovery)
           if (event.type === 'textDelta') {
             responseBuffer += event.text;
+            if (this.activeStream) this.activeStream.textBuffer = responseBuffer;
           } else if (event.type === 'thinkingDelta') {
             thinkingBuffer += event.text;
+            if (this.activeStream) this.activeStream.thinkingBuffer = thinkingBuffer;
           } else if (event.type === 'filesChanged') {
             // Capture files changed during this interaction
             this.lastChangedFiles = event.paths;
@@ -201,6 +266,9 @@ export class ChatService {
               model: appSettings.model,
             });
 
+            // End the stream session record
+            this.db.endStreamSession(sessionId, 'complete', event.filesTouched);
+
             // Validate and correct chapter file placement (Verity sometimes misplaces files)
             try {
               const correctedChapters = await this.chapterValidator.validateAndCorrect(bookSlug);
@@ -221,6 +289,8 @@ export class ChatService {
             // Clear active stream — the CLI call is complete
             this.activeStream = null;
           } else if (event.type === 'error') {
+            // End session on error
+            this.db.endStreamSession(sessionId, 'idle', {});
             // Clear active stream on error as well
             this.activeStream = null;
           }
@@ -230,6 +300,7 @@ export class ChatService {
         },
       });
     } catch (err) {
+      this.db.endStreamSession(sessionId, 'idle', {});
       this.activeStream = null;
       const errorMessage = err instanceof Error ? err.message : String(err);
       onEvent({ type: 'error', message: errorMessage });
@@ -311,8 +382,9 @@ export class ChatService {
     appSettings: { model: string; maxTokens: number; enableThinking: boolean };
     agent: { systemPrompt: string; thinkingBudget: number };
     onEvent: (event: StreamEvent) => void;
+    sessionId: string;
   }): Promise<void> {
-    const { conversationId, agentName, bookSlug, appSettings, agent, onEvent } = params;
+    const { conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId } = params;
 
     onEvent({ type: 'status', message: randomPreparingStatus() });
 
@@ -355,6 +427,11 @@ export class ChatService {
       model: appSettings.model,
       bookSlug,
       startedAt: new Date().toISOString(),
+      sessionId,
+      progressStage: 'idle',
+      filesTouched: {},
+      thinkingBuffer: '',
+      textBuffer: '',
     };
 
     onEvent({ type: 'callStart', agentName, model: appSettings.model, bookSlug });
@@ -371,11 +448,31 @@ export class ChatService {
       maxTokens: appSettings.maxTokens,
       thinkingBudget,
       workingDir,
+      sessionId,
+      conversationId,
       onEvent: (event: StreamEvent) => {
+        // Update activeStream with live progress data (Session E)
+        if (this.activeStream) {
+          if (event.type === 'progressStage') {
+            this.activeStream.progressStage = event.stage;
+          }
+          if (event.type === 'toolDuration') {
+            if (event.tool.filePath && (event.tool.toolName === 'Write' || event.tool.toolName === 'Edit')) {
+              const current = this.activeStream.filesTouched[event.tool.filePath] ?? 0;
+              this.activeStream.filesTouched[event.tool.filePath] = current + 1;
+            }
+          }
+          if (event.type === 'done') {
+            this.activeStream.filesTouched = event.filesTouched;
+          }
+        }
+
         if (event.type === 'textDelta') {
           responseBuffer += event.text;
+          if (this.activeStream) this.activeStream.textBuffer = responseBuffer;
         } else if (event.type === 'thinkingDelta') {
           thinkingBuffer += event.text;
+          if (this.activeStream) this.activeStream.thinkingBuffer = thinkingBuffer;
         } else if (event.type === 'filesChanged') {
           this.lastChangedFiles = event.paths;
         } else if (event.type === 'done') {
@@ -396,8 +493,10 @@ export class ChatService {
             model: appSettings.model,
           });
 
+          this.db.endStreamSession(sessionId, 'complete', event.filesTouched);
           this.activeStream = null;
         } else if (event.type === 'error') {
+          this.db.endStreamSession(sessionId, 'idle', {});
           this.activeStream = null;
         }
 

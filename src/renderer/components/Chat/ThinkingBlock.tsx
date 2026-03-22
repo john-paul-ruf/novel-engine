@@ -15,12 +15,19 @@ export function ThinkingBlock({
   isStreaming,
   tokenEstimate,
 }: ThinkingBlockProps): React.ReactElement {
-  const [expanded, setExpanded] = useState(isStreaming);
-  const [wasStreaming, setWasStreaming] = useState(isStreaming);
-  const bodyRef = useRef<HTMLDivElement>(null);
   const autoCollapseThinking = useSettingsStore(
     (s) => s.settings?.autoCollapseThinking ?? true
   );
+
+  // Determine initial expanded state:
+  // - Streaming messages: always start expanded (user is watching live)
+  // - Persisted messages: respect the autoCollapseThinking setting.
+  //   Previously this was `useState(isStreaming)`, which ALWAYS collapsed
+  //   persisted thinking blocks — making it look like thinking was "gone"
+  //   even when autoCollapseThinking was false.
+  const [expanded, setExpanded] = useState(isStreaming || !autoCollapseThinking);
+  const [wasStreaming, setWasStreaming] = useState(isStreaming);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   // Expand when streaming starts
   useEffect(() => {
@@ -52,6 +59,14 @@ export function ThinkingBlock({
     [content],
   );
 
+  // When collapsed, show a brief preview of the thinking content so
+  // the user knows there IS content behind the disclosure toggle.
+  const previewSnippet = useMemo(() => {
+    if (expanded || !content) return '';
+    const plain = content.replace(/[#*_`~\[\]]/g, '').trim();
+    return plain.length > 120 ? plain.slice(0, 120) + '…' : plain;
+  }, [content, expanded]);
+
   return (
     <div className="mb-2 rounded-lg border border-amber-500/20 bg-amber-950/20">
       <button
@@ -81,6 +96,15 @@ export function ThinkingBlock({
           {expanded ? '▼' : '▶'}
         </span>
       </button>
+
+      {/* Preview snippet when collapsed — shows the user thinking content exists */}
+      {!expanded && previewSnippet && (
+        <div className="border-t border-amber-500/10 px-4 py-2">
+          <p className="text-xs leading-relaxed text-amber-200/40 italic line-clamp-2">
+            {previewSnippet}
+          </p>
+        </div>
+      )}
 
       {expanded && (
         <div

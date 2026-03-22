@@ -27,12 +27,38 @@
   animation: statusFadeIn 0.35s ease-out both;
 }
 
-/* Wavy character animation — each letter bobs independently */
-@keyframes waveChar {
-  0%, 60%, 100% { transform: translateY(0px); }
-  30%            { transform: translateY(-3px); }
+/* Gradient shimmer — a highlight sweeps across the status text */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
-.wave-char {
-  display: inline-block;
-  animation: waveChar 2s ease-in-out infinite;
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #a1a1aa 0%,
+    #e4e4e7 40%,
+    #ffffff 50%,
+    #e4e4e7 60%,
+    #a1a1aa 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2.5s linear infinite;
+}
+.dark .shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #71717a 0%,
+    #a1a1aa 40%,
+    #d4d4d8 50%,
+    #a1a1aa 60%,
+    #71717a 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2.5s linear infinite;
 }

@@ -202,7 +202,7 @@ async function initializeApp(): Promise<void> {
   db = new DatabaseService(dbPath);
   const agents = new AgentService(agentsDir);
   const fs = new FileSystemService(booksDir, userDataPath);
-  const claudeClient = new ClaudeCodeClient(booksDir);
+  const claudeClient = new ClaudeCodeClient(booksDir, db);
 
   // 3.5 Auto-reconcile any book folders whose name diverged from the
   //      title stored in about.json (e.g. after a direct on-disk edit).
@@ -225,6 +225,18 @@ async function initializeApp(): Promise<void> {
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
   const notifications = new NotificationManager(settings);
+
+  // 4b. Recover orphaned stream sessions and prune old event data
+  try {
+    await chat.recoverOrphanedSessions();
+  } catch (err) {
+    console.warn('[startup] recoverOrphanedSessions failed:', err);
+  }
+  try {
+    db.pruneStreamEvents(7);
+  } catch (err) {
+    console.warn('[startup] pruneStreamEvents failed:', err);
+  }
 
   // 5. Sync Electron native theme with user preference (affects window frame color)
   const initialSettings = await settings.load();

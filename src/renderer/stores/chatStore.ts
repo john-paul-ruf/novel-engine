@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, StreamEvent, UsageRecord } from '@domain/types';
+import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, ProgressStage, StreamEvent, StreamSessionRecord, TimestampedToolUse, UsageRecord } from '@domain/types';
 import { randomRespondingStatus } from '@domain/constants';
 import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
@@ -22,6 +22,15 @@ type ChatState = {
   toolActivity: string[];                     // file paths written during current streaming response
   lastChangedFiles: string[];                 // files changed in the last completed interaction
   messageToolActivity: Record<string, string[]>;  // maps message IDs to files written during generation
+
+  // New tracking fields
+  progressStage: ProgressStage;
+  thinkingSummary: string;
+  toolTimings: TimestampedToolUse[];
+
+  // Orphan recovery
+  interruptedSession: StreamSessionRecord | null;
+  dismissInterrupted: () => void;
 
   // Pipeline lock state
   pipelineLocked: boolean;
@@ -60,6 +69,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toolActivity: [],
   lastChangedFiles: [],
   messageToolActivity: {},
+  progressStage: 'idle',
+  thinkingSummary: '',
+  toolTimings: [],
+  interruptedSession: null,
   pipelineLocked: true,
   lockedAgentName: null,
   lockedPhaseId: null,
@@ -196,6 +209,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  dismissInterrupted: () => set({ interruptedSession: null }),
+
   setPipelineLock: (locked: boolean) => {
     set({ pipelineLocked: locked });
   },
@@ -254,6 +269,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       toolActivity: [],
       lastChangedFiles: [],
       messageToolActivity: {},
+      progressStage: 'idle',
+      thinkingSummary: '',
+      toolTimings: [],
+      interruptedSession: null,
     });
 
     // Step 3: Load conversations for the new book and activate the latest one
@@ -272,6 +291,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'main') return;
+
+    // Ignore events from the revision queue — they carry a callId prefixed
+    // with 'rev:' and should only be handled by the revision queue store.
+    // Without this guard the Wrangler's plan-loading thinking/text deltas
+    // bleed into the main chat's streaming UI.
+    const callId = (event as StreamEvent & { callId?: string }).callId;
+    if (callId && callId.startsWith('rev:')) return;
 
     const { activeConversation } = get();
 
@@ -306,6 +332,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
             toolActivity: [...state.toolActivity, event.tool.filePath!],
           }));
         }
+        break;
+
+      case 'progressStage':
+        set({ progressStage: event.stage });
+        break;
+
+      case 'thinkingSummary':
+        set({ thinkingSummary: event.summary.text });
+        break;
+
+      case 'toolDuration':
+        set((state) => ({
+          toolTimings: [...state.toolTimings, event.tool],
+        }));
         break;
 
       case 'filesChanged':
@@ -347,12 +387,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
               },
               toolActivity: [],
               lastChangedFiles: [],
+              progressStage: 'idle',
+              thinkingSummary: '',
+              toolTimings: [],
             }));
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
-            // Only clear streaming state if still on the same conversation
+            // Only update if still on the same conversation
             if (get().activeConversation?.id === doneConversationId) {
-              set({
+              // Preserve streamed content as a synthetic message so the user
+              // doesn't lose the response when the DB reload fails.
+              const { streamBuffer, thinkingBuffer } = get();
+              const fallbackMessages: Message[] = [];
+              if (streamBuffer || thinkingBuffer) {
+                fallbackMessages.push({
+                  id: 'fallback-' + Date.now(),
+                  role: 'assistant' as const,
+                  content: streamBuffer,
+                  thinking: thinkingBuffer,
+                  conversationId: doneConversationId,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+              set((state) => ({
+                messages: fallbackMessages.length > 0
+                  ? [...state.messages, ...fallbackMessages]
+                  : state.messages,
                 isStreaming: false,
                 isThinking: false,
                 streamBuffer: '',
@@ -360,7 +420,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 statusMessage: '',
                 toolActivity: [],
                 lastChangedFiles: [],
-              });
+                progressStage: 'idle',
+                thinkingSummary: '',
+                toolTimings: [],
+              }));
             }
           });
         } else {
@@ -372,6 +435,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             statusMessage: '',
             toolActivity: [],
             lastChangedFiles: [],
+            progressStage: 'idle',
+            thinkingSummary: '',
+            toolTimings: [],
           });
         }
         break;
@@ -455,7 +521,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   recoverActiveStream: async () => {
     try {
       const active = await window.novelEngine.chat.getActiveStream();
-      if (!active) return;
+      if (!active) {
+        // Check for orphans from a previous crash
+        try {
+          const orphans = await window.novelEngine.chat.getOrphanedSessions();
+          if (orphans.length > 0) {
+            set({ interruptedSession: orphans[0] });
+          }
+        } catch {
+          // Orphan check is best-effort
+        }
+        return;
+      }
 
       // The main process has an active stream — restore the streaming UI.
       // Load the conversation and its messages so the user sees context.
@@ -468,17 +545,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
           activeConversation: conversation,
           messages,
           isStreaming: true,
-          streamBuffer: '',
-          thinkingBuffer: '',
+          isThinking: (active.thinkingBuffer ?? '').length > 0 && !(active.textBuffer ?? ''),
+          streamBuffer: active.textBuffer ?? '',
+          thinkingBuffer: active.thinkingBuffer ?? '',
           statusMessage: randomRespondingStatus(),
+          progressStage: active.progressStage ?? 'idle',
         });
       } else {
         // Conversation not in the loaded list (e.g. different book) — just flag streaming
         set({
           isStreaming: true,
-          streamBuffer: '',
-          thinkingBuffer: '',
+          isThinking: (active.thinkingBuffer ?? '').length > 0 && !(active.textBuffer ?? ''),
+          streamBuffer: active.textBuffer ?? '',
+          thinkingBuffer: active.thinkingBuffer ?? '',
           statusMessage: randomRespondingStatus(),
+          progressStage: active.progressStage ?? 'idle',
         });
       }
     } catch (error) {

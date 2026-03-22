@@ -24,6 +24,7 @@ import type {
   ShelvedPitch,
   ShelvedPitchMeta,
   StreamEvent,
+  StreamSessionRecord,
   UsageRecord,
   UsageSummary,
 } from '@domain/types';
@@ -114,6 +115,8 @@ const api = {
       ipcRenderer.invoke('chat:send', params),
     getActiveStream: (): Promise<ActiveStreamInfo | null> =>
       ipcRenderer.invoke('chat:getActiveStream'),
+    getOrphanedSessions: (): Promise<StreamSessionRecord[]> =>
+      ipcRenderer.invoke('chat:getOrphanedSessions'),
     onStreamEvent: (callback: (event: StreamEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: StreamEvent) => callback(event);
       ipcRenderer.on('chat:streamEvent', handler);

@@ -83,15 +83,32 @@ type CliActivityState = {
 
   isOpen: boolean;
 
+  /** Filter: only show calls for this agent (null = show all) */
+  filterAgent: AgentName | null;
+
+  /** Filter: only show calls for this book slug (null = show all) */
+  filterBook: string | null;
+
   toggle: () => void;
   open: () => void;
   close: () => void;
   clear: () => void;
   clearCall: (callId: string) => void;
   selectCall: (callId: string) => void;
+  setFilterAgent: (agent: AgentName | null) => void;
+  setFilterBook: (bookSlug: string | null) => void;
   handleStreamEvent: (event: TaggedStreamEvent) => void;
   loadDiagnostics: (callId: string) => Promise<void>;
   updateElapsed: () => void;
+
+  /** Returns the callOrder filtered by active agent/book filters */
+  getFilteredCallOrder: () => string[];
+
+  /** Returns unique book slugs from all tracked calls */
+  getBookSlugs: () => string[];
+
+  /** Returns unique agent names from all tracked calls */
+  getAgentNames: () => AgentName[];
 
   /** Number of currently active calls */
   activeCallCount: () => number;
@@ -186,6 +203,8 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
   callOrder: [],
   selectedCallId: null,
   isOpen: false,
+  filterAgent: null,
+  filterBook: null,
   _cleanupListener: null,
 
   toggle: () => set((s) => ({ isOpen: !s.isOpen })),
@@ -196,7 +215,68 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
     calls: {},
     callOrder: [],
     selectedCallId: null,
+    filterAgent: null,
+    filterBook: null,
   }),
+
+  setFilterAgent: (agent: AgentName | null) => {
+    set({ filterAgent: agent });
+    // If current selection is filtered out, select the first visible call
+    const { calls, selectedCallId } = get();
+    if (selectedCallId && agent) {
+      const selectedCall = calls[selectedCallId];
+      if (selectedCall && selectedCall.callMeta.agentName !== agent) {
+        const firstVisible = get().getFilteredCallOrder()[0] ?? null;
+        set({ selectedCallId: firstVisible });
+      }
+    }
+  },
+
+  setFilterBook: (bookSlug: string | null) => {
+    set({ filterBook: bookSlug });
+    // If current selection is filtered out, select the first visible call
+    const { calls, selectedCallId } = get();
+    if (selectedCallId && bookSlug) {
+      const selectedCall = calls[selectedCallId];
+      if (selectedCall && selectedCall.callMeta.bookSlug !== bookSlug) {
+        const firstVisible = get().getFilteredCallOrder()[0] ?? null;
+        set({ selectedCallId: firstVisible });
+      }
+    }
+  },
+
+  getFilteredCallOrder: () => {
+    const { calls, callOrder, filterAgent, filterBook } = get();
+    if (!filterAgent && !filterBook) return callOrder;
+
+    return callOrder.filter((id) => {
+      const call = calls[id];
+      if (!call) return false;
+      if (filterAgent && call.callMeta.agentName !== filterAgent) return false;
+      if (filterBook && call.callMeta.bookSlug !== filterBook) return false;
+      return true;
+    });
+  },
+
+  getBookSlugs: () => {
+    const { calls, callOrder } = get();
+    const slugs = new Set<string>();
+    for (const id of callOrder) {
+      const call = calls[id];
+      if (call?.callMeta.bookSlug) slugs.add(call.callMeta.bookSlug);
+    }
+    return [...slugs].sort();
+  },
+
+  getAgentNames: () => {
+    const { calls, callOrder } = get();
+    const names = new Set<AgentName>();
+    for (const id of callOrder) {
+      const call = calls[id];
+      if (call) names.add(call.callMeta.agentName);
+    }
+    return [...names].sort();
+  },
 
   clearCall: (callId: string) => set((s) => {
     const nextCalls = { ...s.calls };

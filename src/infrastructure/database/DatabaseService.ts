@@ -5,9 +5,13 @@ import type {
   Conversation,
   ConversationPurpose,
   AgentName,
+  FileTouchMap,
   PipelinePhaseId,
+  PersistedStreamEvent,
+  ProgressStage,
   Message,
   MessageRole,
+  StreamSessionRecord,
   UsageRecord,
   UsageSummary,
 } from '@domain/types';
@@ -30,6 +34,17 @@ export class DatabaseService implements IDatabaseService {
   private stmtGetUsageSummaryAll: Database.Statement;
   private stmtGetUsageSummaryByBook: Database.Statement;
   private stmtGetUsageByConversation: Database.Statement;
+
+  // Stream events
+  private stmtInsertStreamEvent: Database.Statement;
+  private stmtGetStreamEvents: Database.Statement;
+  private stmtDeleteStreamEvents: Database.Statement;
+
+  // Stream sessions
+  private stmtInsertStreamSession: Database.Statement;
+  private stmtEndStreamSession: Database.Statement;
+  private stmtGetActiveStreamSessions: Database.Statement;
+  private stmtMarkSessionInterrupted: Database.Statement;
 
   constructor(dbPath: string) {
     this.db = new Database(dbPath);
@@ -106,6 +121,40 @@ export class DatabaseService implements IDatabaseService {
     this.stmtGetUsageByConversation = this.db.prepare(`
       SELECT conversation_id, input_tokens, output_tokens, thinking_tokens, model, estimated_cost, timestamp
       FROM token_usage WHERE conversation_id = ? ORDER BY timestamp ASC
+    `);
+
+    // Stream events
+    this.stmtInsertStreamEvent = this.db.prepare(`
+      INSERT INTO stream_events (session_id, conversation_id, sequence_number, event_type, payload, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    this.stmtGetStreamEvents = this.db.prepare(`
+      SELECT id, session_id, conversation_id, sequence_number, event_type, payload, timestamp
+      FROM stream_events WHERE session_id = ? ORDER BY sequence_number ASC
+    `);
+
+    this.stmtDeleteStreamEvents = this.db.prepare(`
+      DELETE FROM stream_events WHERE session_id = ?
+    `);
+
+    // Stream sessions
+    this.stmtInsertStreamSession = this.db.prepare(`
+      INSERT INTO stream_sessions (id, conversation_id, agent_name, model, book_slug, started_at, ended_at, final_stage, files_touched, interrupted)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    this.stmtEndStreamSession = this.db.prepare(`
+      UPDATE stream_sessions SET ended_at = datetime('now'), final_stage = ?, files_touched = ? WHERE id = ?
+    `);
+
+    this.stmtGetActiveStreamSessions = this.db.prepare(`
+      SELECT id, conversation_id, agent_name, model, book_slug, started_at, ended_at, final_stage, files_touched, interrupted
+      FROM stream_sessions WHERE ended_at IS NULL
+    `);
+
+    this.stmtMarkSessionInterrupted = this.db.prepare(`
+      UPDATE stream_sessions SET interrupted = 1, final_stage = ?, ended_at = datetime('now') WHERE id = ?
     `);
   }
 
@@ -214,6 +263,64 @@ export class DatabaseService implements IDatabaseService {
     this.db.prepare('UPDATE conversations SET book_slug = ? WHERE book_slug = ?').run(newSlug, oldSlug);
   }
 
+  // === Stream Events ===
+
+  persistStreamEvent(event: Omit<PersistedStreamEvent, 'id'>): void {
+    this.stmtInsertStreamEvent.run(
+      event.sessionId,
+      event.conversationId,
+      event.sequenceNumber,
+      event.eventType,
+      event.payload,
+      event.timestamp,
+    );
+  }
+
+  getStreamEvents(sessionId: string): PersistedStreamEvent[] {
+    const rows = this.stmtGetStreamEvents.all(sessionId) as StreamEventRow[];
+    return rows.map(mapStreamEventRow);
+  }
+
+  deleteStreamEvents(sessionId: string): void {
+    this.stmtDeleteStreamEvents.run(sessionId);
+  }
+
+  pruneStreamEvents(olderThanDays: number): void {
+    this.db.prepare(
+      `DELETE FROM stream_events WHERE timestamp < datetime('now', '-' || ? || ' days')`,
+    ).run(olderThanDays);
+  }
+
+  // === Stream Sessions ===
+
+  createStreamSession(session: StreamSessionRecord): void {
+    this.stmtInsertStreamSession.run(
+      session.id,
+      session.conversationId,
+      session.agentName,
+      session.model,
+      session.bookSlug,
+      session.startedAt,
+      session.endedAt,
+      session.finalStage,
+      JSON.stringify(session.filesTouched),
+      session.interrupted ? 1 : 0,
+    );
+  }
+
+  endStreamSession(sessionId: string, finalStage: ProgressStage, filesTouched: FileTouchMap): void {
+    this.stmtEndStreamSession.run(finalStage, JSON.stringify(filesTouched), sessionId);
+  }
+
+  getActiveStreamSessions(): StreamSessionRecord[] {
+    const rows = this.stmtGetActiveStreamSessions.all() as StreamSessionRow[];
+    return rows.map(mapStreamSessionRow);
+  }
+
+  markSessionInterrupted(sessionId: string, lastStage: ProgressStage): void {
+    this.stmtMarkSessionInterrupted.run(lastStage, sessionId);
+  }
+
   // === Lifecycle ===
 
   close(): void {
@@ -261,6 +368,29 @@ type UsageRow = {
   timestamp: string;
 };
 
+type StreamEventRow = {
+  id: number;
+  session_id: string;
+  conversation_id: string;
+  sequence_number: number;
+  event_type: string;
+  payload: string;
+  timestamp: string;
+};
+
+type StreamSessionRow = {
+  id: string;
+  conversation_id: string;
+  agent_name: string;
+  model: string;
+  book_slug: string;
+  started_at: string;
+  ended_at: string | null;
+  final_stage: string;
+  files_touched: string;
+  interrupted: number;
+};
+
 // === Row mappers (snake_case → camelCase) ===
 
 function mapConversationRow(row: ConversationRow): Conversation {
@@ -296,5 +426,39 @@ function mapUsageRow(row: UsageRow): UsageRecord {
     model: row.model,
     estimatedCost: row.estimated_cost,
     timestamp: row.timestamp,
+  };
+}
+
+function mapStreamEventRow(row: StreamEventRow): PersistedStreamEvent {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    conversationId: row.conversation_id,
+    sequenceNumber: row.sequence_number,
+    eventType: row.event_type,
+    payload: row.payload,
+    timestamp: row.timestamp,
+  };
+}
+
+function mapStreamSessionRow(row: StreamSessionRow): StreamSessionRecord {
+  let filesTouched: FileTouchMap = {};
+  try {
+    filesTouched = JSON.parse(row.files_touched) as FileTouchMap;
+  } catch {
+    // Defensive — corrupted JSON defaults to empty map
+  }
+
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    agentName: row.agent_name as AgentName,
+    model: row.model,
+    bookSlug: row.book_slug,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    finalStage: row.final_stage as ProgressStage,
+    filesTouched,
+    interrupted: row.interrupted === 1,
   };
 }

@@ -141,6 +141,62 @@ export type ToolUseInfo = {
   status: 'started' | 'running' | 'complete' | 'error';
 };
 
+// === Progress Stage ===
+// High-level stage inferred from tool-use patterns during a CLI stream.
+// The UI binds a status indicator to this single string.
+export type ProgressStage =
+  | 'idle'
+  | 'reading'      // agent is using Read/LS tools
+  | 'thinking'     // extended thinking block is active
+  | 'drafting'     // first Write to a file path
+  | 'editing'      // Edit tool or second+ Write to a previously-written path
+  | 'reviewing'    // Read of a file the agent already wrote in this session
+  | 'complete';    // result event received
+
+// === File Touch Tracking ===
+export type FileTouchMap = Record<string, number>;  // path → write count
+
+// === Timestamped Tool Use ===
+export type TimestampedToolUse = ToolUseInfo & {
+  startedAt: number;    // Date.now() when tool_use block started
+  endedAt?: number;     // Date.now() when content_block_stop fires
+  durationMs?: number;  // endedAt - startedAt
+};
+
+// === Thinking Summary ===
+// First ~200 chars or last complete sentence of a thinking block.
+export type ThinkingSummary = {
+  text: string;          // the summary snippet
+  fullLengthChars: number;  // total chars in the full thinking block
+};
+
+// === Persisted Stream Event ===
+// Every event that flows through onEvent is persisted to SQLite for replay.
+export type PersistedStreamEvent = {
+  id: number;                     // auto-increment PK
+  sessionId: string;              // groups events for one CLI call
+  conversationId: string;         // the conversation this belongs to
+  sequenceNumber: number;         // ordering within the session
+  eventType: string;              // StreamEvent.type discriminator
+  payload: string;                // JSON-serialized StreamEvent
+  timestamp: string;              // ISO date
+};
+
+// === Session Record ===
+// Tracks a single CLI invocation for orphan detection.
+export type StreamSessionRecord = {
+  id: string;                     // nanoid
+  conversationId: string;
+  agentName: AgentName;
+  model: string;
+  bookSlug: string;
+  startedAt: string;              // ISO date
+  endedAt: string | null;         // null = still running (or orphaned)
+  finalStage: ProgressStage;      // last known stage
+  filesTouched: FileTouchMap;     // accumulated file touch map
+  interrupted: boolean;           // true if marked as orphaned on startup
+};
+
 export type StreamEvent =
   | { type: 'callStart'; agentName: AgentName; model: string; bookSlug: string }
   | { type: 'status'; message: string }
@@ -150,8 +206,11 @@ export type StreamEvent =
   | { type: 'blockEnd'; blockType: StreamBlockType }
   | { type: 'toolUse'; tool: ToolUseInfo }
   | { type: 'filesChanged'; paths: string[] }
-  | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number }
+  | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number; filesTouched: FileTouchMap }
   | { type: 'pitchOutcome'; action: PitchOutcome; bookSlug?: string; pitchSlug?: string; title?: string }
+  | { type: 'progressStage'; stage: ProgressStage }
+  | { type: 'thinkingSummary'; summary: ThinkingSummary }
+  | { type: 'toolDuration'; tool: TimestampedToolUse }
   | { type: 'error'; message: string };
 
 /**
@@ -164,6 +223,11 @@ export type ActiveStreamInfo = {
   model: string;
   bookSlug: string;
   startedAt: string;         // ISO date when the stream began
+  sessionId: string;              // links to StreamSessionRecord
+  progressStage: ProgressStage;   // current inferred stage
+  filesTouched: FileTouchMap;     // accumulated file touches
+  thinkingBuffer: string;        // accumulated thinking text so far (for recovery after reload)
+  textBuffer: string;            // accumulated response text so far (for recovery after reload)
 };
 
 // === Settings ===

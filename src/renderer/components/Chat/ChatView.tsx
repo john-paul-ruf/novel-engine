@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AGENT_REGISTRY, CREATIVE_AGENT_NAMES, PIPELINE_PHASES } from '@domain/constants';
-import type { AgentName, ConversationPurpose, CreativeAgentName, PipelinePhaseId } from '@domain/types';
+import type { AgentName, ConversationPurpose, CreativeAgentName, PipelinePhaseId, StreamSessionRecord } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
@@ -11,6 +11,28 @@ import { ChatTitleBar } from './ChatTitleBar';
 import { ConversationList } from './ConversationList';
 import { MessageList } from './MessageList';
 import { PipelineLockBanner } from './PipelineLockBanner';
+
+function InterruptedSessionBanner({ session, onDismiss }: { session: StreamSessionRecord; onDismiss: () => void }): React.ReactElement {
+  return (
+    <div className="mx-4 mt-2 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5">
+      <div className="flex items-center gap-2 text-sm text-amber-300">
+        <span>⚠️</span>
+        <span>
+          Previous <strong>{session.agentName}</strong> session was interrupted
+          {session.finalStage !== 'idle' && (
+            <> during <strong>{session.finalStage}</strong></>
+          )}
+        </span>
+      </div>
+      <button
+        onClick={onDismiss}
+        className="rounded px-2 py-0.5 text-xs text-amber-400 hover:bg-amber-500/20"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
 
 export function ChatView(): React.ReactElement {
   // Granular selectors — DO NOT use useChatStore() here without a selector.
@@ -26,6 +48,8 @@ export function ChatView(): React.ReactElement {
   const pipelineLocked = useChatStore((s) => s.pipelineLocked);
   const lockedAgentName = useChatStore((s) => s.lockedAgentName);
   const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
+  const interruptedSession = useChatStore((s) => s.interruptedSession);
+  const dismissInterrupted = useChatStore((s) => s.dismissInterrupted);
   const { activeSlug } = useBookStore();
   const { activePhase, phases } = usePipelineStore();
   const { payload } = useViewStore();
@@ -73,6 +97,9 @@ export function ChatView(): React.ReactElement {
         onToggle={() => setConversationsExpanded((prev) => !prev)}
       />
       <PipelineLockBanner />
+      {interruptedSession && (
+        <InterruptedSessionBanner session={interruptedSession} onDismiss={dismissInterrupted} />
+      )}
       {activeConversation ? (
         <>
           <AgentHeader />

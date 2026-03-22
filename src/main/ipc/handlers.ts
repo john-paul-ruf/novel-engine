@@ -317,6 +317,10 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('chat:getActiveStream', () => services.chat.getActiveStream());
 
+  ipcMain.handle('chat:getOrphanedSessions', () =>
+    services.chat.getRecoveredOrphans()
+  );
+
   // === Author Profile ===
 
   ipcMain.handle('settings:saveAuthorProfile', async (_, content: string) => {
