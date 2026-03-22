@@ -296,32 +296,23 @@ export class RevisionQueueService implements IRevisionQueueService {
     if (cache && cache.contentHash === contentHash) {
       this.emit({ type: 'plan:loading-step', step: 'Loaded from cache (files unchanged)' });
       parsed = cache.parsed;
-    } else if (cache?.parsed?.sessions?.length) {
-      // Cache exists with valid parsed data but hash doesn't match.
-      // This happens when: (a) approveSession modified project-tasks.md and the
-      // old normalization didn't fully cancel out the change, or (b) the hash
-      // algorithm was upgraded. Re-use the cached parse and update the hash
-      // so subsequent loads are instant.
-      console.log(
-        `[RevisionQueue] Cache hash stale — cached: ${cache.contentHash}, computed: ${contentHash}. Re-using cached parse.`,
-      );
-      parsed = cache.parsed;
-      await this.writeCache(bookSlug, { contentHash, parsed, cachedAt: new Date().toISOString() });
-    } else if (savedState?.parsed?.sessions?.length) {
-      // No cache file, but the state file has embedded parsed data.
-      // This happens after a reinstall or directory copy where the cache
-      // file was lost. Recover from the state file.
-      console.log('[RevisionQueue] Cache file missing — recovering parsed data from state file.');
+    } else if (savedState?.parsed?.sessions?.length && savedState.planHash === contentHash) {
+      // No valid cache but the state file has embedded parsed data AND its
+      // planHash matches the current content. This happens after a reinstall
+      // or directory copy where the cache file was lost but the plan hasn't
+      // actually changed. Only recover if the hashes match — a hash mismatch
+      // means the content genuinely changed and needs a fresh Wrangler parse.
+      console.log('[RevisionQueue] Cache file missing — recovering parsed data from state file (hash match).');
       parsed = savedState.parsed;
       // Re-create the cache file for next time
       await this.writeCache(bookSlug, { contentHash, parsed, cachedAt: new Date().toISOString() });
     } else {
       if (cache) {
         console.log(
-          `[RevisionQueue] Cache hash mismatch and no valid parsed data — cached: ${cache.contentHash}, computed: ${contentHash}. Re-parsing with Wrangler.`,
+          `[RevisionQueue] Cache hash mismatch — cached: ${cache.contentHash}, computed: ${contentHash}. Content changed, re-parsing with Wrangler.`,
         );
       } else {
-        console.log('[RevisionQueue] No cache or state file found. Parsing with Wrangler.');
+        console.log('[RevisionQueue] No valid cache or matching state file found. Parsing with Wrangler.');
       }
 
       const promptSize = (revisionPromptsContent?.length ?? 0);
@@ -477,13 +468,18 @@ export class RevisionQueueService implements IRevisionQueueService {
   }
 
   async clearCache(bookSlug: string): Promise<void> {
-    // Delete the plan cache to force a fresh parse on next load
-    try {
-      await this.fs.deleteFile(bookSlug, CACHE_PATH);
-      this.emit({ type: 'plan:loading-step', step: 'Cache cleared' });
-    } catch {
-      // Cache file may not exist — that's fine
+    // Delete both the plan cache AND the session state file to force a
+    // completely fresh Wrangler parse on next load. The state file contains
+    // an embedded copy of the parsed data, so leaving it would let loadPlan
+    // recover the old (stale) sessions even after the cache is gone.
+    for (const path of [CACHE_PATH, STATE_PATH]) {
+      try {
+        await this.fs.deleteFile(bookSlug, path);
+      } catch {
+        // File may not exist — that's fine
+      }
     }
+    this.emit({ type: 'plan:loading-step', step: 'Cache cleared' });
     // Clear in-memory caches
     const planId = this.plansByBook.get(bookSlug);
     if (planId) {
