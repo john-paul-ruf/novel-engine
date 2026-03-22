@@ -353,14 +353,15 @@ export function PipelineTracker(): React.ReactElement {
       )}
       <div>
         {phases.map((phase, index) => {
-          // Show the revision queue sub-button under both revision queue phases.
-          // This covers:
-          //   - `revision`        → first revision queue (structural fixes)
-          //   - `mechanical-fixes` → second revision queue (copy-level fixes)
+          // Show the revision queue sub-button ONLY under the currently active
+          // revision queue phase — not all of them at once. The phase must be:
+          //   - a revision queue phase (`revision` or `mechanical-fixes`)
+          //   - the current step (active or pending-completion)
+          //   - backed by the supporting docs (project-tasks.md / revision-prompts.md)
           const showRevisionSub =
             hasRevisionPlan &&
             REVISION_QUEUE_PHASES.has(phase.id) &&
-            phase.status !== 'locked';
+            (phase.status === 'active' || phase.status === 'pending-completion');
 
           // Show "Complete Revision" only when the `revision` phase is active or
           // pending-completion and the queue isn't running.
