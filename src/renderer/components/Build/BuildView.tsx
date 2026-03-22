@@ -17,12 +17,12 @@ const FORMAT_ICONS: Record<BuildFormat, string> = {
 };
 
 /** Formats produced by BuildService, in display order. */
-const KNOWN_OUTPUT_FILES: { filename: string; format: BuildFormat }[] = [
-  { filename: 'output.md',   format: 'md'   },
-  { filename: 'output.docx', format: 'docx' },
-  { filename: 'output.epub', format: 'epub' },
-  { filename: 'output.pdf',  format: 'pdf'  },
-];
+const KNOWN_FORMATS: BuildFormat[] = ['md', 'docx', 'epub', 'pdf'];
+
+/** Build output filenames based on the book slug. */
+function getOutputFilename(slug: string, format: BuildFormat): string {
+  return `${slug}.${format}`;
+}
 
 function ProgressLog({
   logs,
@@ -88,7 +88,7 @@ function OutputFiles({
     try {
       const absPath = await window.novelEngine.books.getAbsolutePath(
         activeSlug,
-        `dist/output.${format}`,
+        `dist/${getOutputFilename(activeSlug, format)}`,
       );
       await window.novelEngine.shell.openPath(absPath);
     } catch (error) {
@@ -127,7 +127,7 @@ function OutputFiles({
               <span className="text-lg">{FORMAT_ICONS[entry.format]}</span>
               <div>
                 <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                  output.{entry.format}
+                  {getOutputFilename(activeSlug, entry.format)}
                 </div>
                 <div className="text-xs text-zinc-500">
                   {FORMAT_LABELS[entry.format]}
@@ -172,7 +172,8 @@ export function BuildView(): React.ReactElement {
       const entries = await window.novelEngine.files.listDir(slug, 'dist');
       const formats: BuildResult['formats'] = [];
 
-      for (const { filename, format } of KNOWN_OUTPUT_FILES) {
+      for (const format of KNOWN_FORMATS) {
+        const filename = getOutputFilename(slug, format);
         const found = entries.find((e) => !e.isDirectory && e.name === filename);
         if (found) {
           formats.push({ format, path: found.path });

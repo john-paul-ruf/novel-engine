@@ -261,7 +261,7 @@ export class PipelineService implements IPipelineService {
         break;
 
       case 'build':
-        await this.ensureStubFile(bookSlug, 'dist/output.md', 'Manuscript Output');
+        await this.ensureStubFile(bookSlug, `dist/${bookSlug}.md`, 'Manuscript Output');
         break;
 
       case 'publish':
@@ -672,7 +672,7 @@ export class PipelineService implements IPipelineService {
       }
 
       case 'build':
-        return this.fs.fileExists(bookSlug, 'dist/output.md');
+        return this.fs.fileExists(bookSlug, `dist/${bookSlug}.md`);
 
       case 'publish':
         return this.hasSubstantiveFile(bookSlug, 'source/metadata.md');

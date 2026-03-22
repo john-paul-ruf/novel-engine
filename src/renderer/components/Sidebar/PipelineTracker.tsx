@@ -191,12 +191,12 @@ export function PipelineTracker(): React.ReactElement {
    * Ensure build artifacts exist before opening a Quill conversation.
    *
    * This is the ONLY place in the app where a build is automatically forced.
-   * If `dist/output.md` doesn't exist, the build runs inline before Quill opens.
+   * If `dist/{slug}.md` doesn't exist, the build runs inline before Quill opens.
    * Returns true if we can proceed to Quill, false if build failed.
    */
   const ensureBuildForQuill = async (): Promise<boolean> => {
     try {
-      const exists = await window.novelEngine.files.exists(activeSlug, 'dist/output.md');
+      const exists = await window.novelEngine.files.exists(activeSlug, `dist/${activeSlug}.md`);
       if (exists) return true;
     } catch {
       // If the existence check fails, proceed — the build will surface any real error

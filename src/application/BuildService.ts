@@ -65,7 +65,7 @@ export class BuildService implements IBuildService {
    * 1. Verify Pandoc availability
    * 2. Load book metadata (title, author)
    * 3. Read and concatenate all chapter drafts
-   * 4. Write assembled markdown to dist/output.md
+   * 4. Write assembled markdown to dist/{bookSlug}.md
    * 5. Generate DOCX and EPUB via Pandoc (each independently)
    * 6. Return results with per-format success/failure status
    */
@@ -157,11 +157,11 @@ export class BuildService implements IBuildService {
 
     // Step 4: Write assembled markdown
     onProgress('Writing assembled markdown...');
-    await this.fs.writeFile(bookSlug, 'dist/output.md', assembledMarkdown);
+    await this.fs.writeFile(bookSlug, `dist/${bookSlug}.md`, assembledMarkdown);
 
     // Step 5: Generate each format
     const distDir = join(this.booksDir, bookSlug, 'dist');
-    const inputPath = join(distDir, 'output.md');
+    const inputPath = join(distDir, `${bookSlug}.md`);
     const formats: BuildResult['formats'] = [
       { format: 'md' as BuildFormat, path: inputPath },
     ];
@@ -176,7 +176,7 @@ export class BuildService implements IBuildService {
 
     for (const { format, ext, toFlag } of pandocFormats) {
       onProgress(`Generating ${format.toUpperCase()}...`);
-      const outputPath = join(distDir, `output.${ext}`);
+      const outputPath = join(distDir, `${bookSlug}.${ext}`);
 
       const args = [
         inputPath,
