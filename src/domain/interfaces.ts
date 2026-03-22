@@ -237,19 +237,6 @@ export interface IRevisionQueueService {
   getPlan(planId: string): RevisionPlan | null;
 
   /**
-   * Archive the revision plan files to signal the queue is fully done.
-   *
-   * Moves source/project-tasks.md → source/project-tasks-v1.md and
-   * source/revision-prompts.md → source/revision-prompts-v1.md.
-   * This clears the way for Forge to generate new revision files for
-   * the mechanical-fixes phase (revision-plan-2).
-   *
-   * Emits 'queue:archived' on completion.
-   * Throws if any sessions are still pending, running, or awaiting approval.
-   */
-  completeQueue(planId: string): Promise<void>;
-
-  /**
    * Return the live running status for a book's queue.
    * Used by the frontend to re-derive isRunning / activeSessionId after a
    * book switch, since the singleton store loses that state when swapping plans.

@@ -13,8 +13,6 @@ type RevisionQueueState = {
   loadingStep: string;
   isRunning: boolean;
   isPaused: boolean;
-  isArchiving: boolean;
-  isQueueArchived: boolean;
   activeSessionId: string | null;
   viewingSessionId: string | null;
   streamingResponse: string;
@@ -46,7 +44,6 @@ type RevisionQueueState = {
   deselectAllSessions: () => void;
   setViewingSession: (sessionId: string | null) => void;
   loadPanelMessages: (conversationId: string) => Promise<void>;
-  completeQueue: () => Promise<void>;
   reset: () => void;
 };
 
@@ -59,8 +56,6 @@ type CachedBookState = {
   planId: string | null;
   isRunning: boolean;
   isPaused: boolean;
-  isArchiving: boolean;
-  isQueueArchived: boolean;
   activeSessionId: string | null;
   viewingSessionId: string | null;
   streamingResponse: string;
@@ -81,8 +76,6 @@ function snapshotState(state: RevisionQueueState): CachedBookState {
     planId: state.planId,
     isRunning: state.isRunning,
     isPaused: state.isPaused,
-    isArchiving: state.isArchiving,
-    isQueueArchived: state.isQueueArchived,
     activeSessionId: state.activeSessionId,
     viewingSessionId: state.viewingSessionId,
     streamingResponse: state.streamingResponse,
@@ -103,8 +96,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   loadingStep: '',
   isRunning: false,
   isPaused: false,
-  isArchiving: false,
-  isQueueArchived: false,
   activeSessionId: null,
   viewingSessionId: null,
   streamingResponse: '',
@@ -170,8 +161,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       loadingStep: '',
       isRunning: false,
       isPaused: false,
-      isArchiving: false,
-      isQueueArchived: false,
       activeSessionId: null,
       viewingSessionId: null,
       streamingResponse: '',
@@ -203,14 +192,13 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (plan && plan.bookSlug === bookSlug && plan.sessions.length > 0) return;
 
     try {
-      set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026', isQueueArchived: false });
+      set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
         plan: loaded,
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
@@ -230,7 +218,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
       });
     } catch (err) {
@@ -248,7 +235,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
         planId: loaded.id,
         isLoading: false,
         loadingStep: '',
-        isQueueArchived: false,
         selectedSessionIds: new Set(loaded.sessions.map(s => s.id)),
         error: null,
       });
@@ -448,22 +434,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     }
   },
 
-  completeQueue: async () => {
-    const { planId, plan } = get();
-    if (!planId) return;
-    set({ isArchiving: true, error: null });
-    try {
-      await window.novelEngine.revision.completeQueue(planId);
-      // isQueueArchived will be set to true via the queue:archived event handler
-      // Also clear the book cache so a fresh load happens next time
-      if (plan?.bookSlug) {
-        bookStateCache.delete(plan.bookSlug);
-      }
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err), isArchiving: false });
-    }
-  },
-
   reset: () => {
     set({
       plan: null,
@@ -472,8 +442,6 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       loadingStep: '',
       isRunning: false,
       isPaused: false,
-      isArchiving: false,
-      isQueueArchived: false,
       activeSessionId: null,
       viewingSessionId: null,
       streamingResponse: '',

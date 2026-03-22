@@ -260,7 +260,6 @@ export type RevisionQueueEvent =
   | { type: 'plan:progress'; planId: string; completedTasks: number; totalTasks: number }
   | { type: 'plan:loading-step'; step: string }
   | { type: 'queue:done'; planId: string }
-  | { type: 'queue:archived'; planId: string }
   | { type: 'error'; sessionId: string; message: string };
 
 // === Build ===

@@ -137,19 +137,6 @@ export function useRevisionQueueEvents() {
           break;
         }
 
-        case 'queue:archived': {
-          const archiveState = useRevisionQueueStore.getState();
-          if (archiveState.planId === event.planId) {
-            useRevisionQueueStore.setState({
-              isArchiving: false,
-              isQueueArchived: true,
-              plan: null,
-              planId: null,
-            });
-          }
-          break;
-        }
-
         case 'error': {
           if (!sessionBelongsToCurrentPlan(event.sessionId)) return;
           useRevisionQueueStore.setState({
