@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PhaseStatus, PipelinePhase, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -112,7 +112,7 @@ export function PipelineTracker(): React.ReactElement {
   const autoDraftError = autoDraftErrorGlobal && autoDraftBookSlug === activeSlug ? autoDraftErrorGlobal : null;
   const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
   const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
-  const [confirmingComplete, setConfirmingComplete] = useState<PipelinePhaseId | null>(null);
+  const [manualOverridePhase, setManualOverridePhase] = useState<PipelinePhaseId | null>(null);
   const [markCompleteError, setMarkCompleteError] = useState<string | null>(null);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
   const [confirmingRevisionComplete, setConfirmingRevisionComplete] = useState(false);
@@ -170,8 +170,12 @@ export function PipelineTracker(): React.ReactElement {
     // Locked phases are not interactive
     if (phase.status === 'locked') return;
 
-    // Revision queue phases — clicking them opens the queue, not a bare agent conversation
+    // Revision queue phases — clicking them resets stale state and opens the queue
     if (REVISION_QUEUE_PHASES.has(phase.id) && hasRevisionPlan) {
+      const { isRunning } = useRevisionQueueStore.getState();
+      if (!isRunning) {
+        useRevisionQueueStore.setState({ plan: null, planId: null, error: null });
+      }
       navigate('revision-queue');
       return;
     }
@@ -224,50 +228,23 @@ export function PipelineTracker(): React.ReactElement {
     }
   };
 
-  const handleStartClick = async (phase: PipelinePhase) => {
-    if (phase.id === 'build') {
-      navigate('build');
-      return;
-    }
-
-    // Revision queue phases — Start button opens the queue with a fresh load
-    if (REVISION_QUEUE_PHASES.has(phase.id) && hasRevisionPlan) {
-      const { isRunning } = useRevisionQueueStore.getState();
-      if (!isRunning) {
-        useRevisionQueueStore.setState({ plan: null, planId: null, error: null });
-      }
-      navigate('revision-queue');
-      return;
-    }
-
-    // Quill (publish) — the only agent that requires build artifacts.
-    // Auto-run the build if needed before opening the conversation.
-    if (phase.id === 'publish') {
-      const ready = await ensureBuildForQuill();
-      if (!ready) return;
-    }
-
-    await openOrCreateConversation(phase);
+  /** Opens the manual override warning modal for a given phase. */
+  const handleMarkComplete = (phaseId: PipelinePhaseId) => {
+    setManualOverridePhase(phaseId);
   };
 
-  const handleMarkComplete = async (phaseId: PipelinePhaseId) => {
-    if (confirmingComplete === phaseId) {
-      // Second click = confirm
-      try {
-        setMarkCompleteError(null);
-        await markPhaseComplete(activeSlug, phaseId);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        setMarkCompleteError(msg);
-        setTimeout(() => setMarkCompleteError(null), 6000);
-      }
-      setConfirmingComplete(null);
-    } else {
-      // First click = enter confirmation state
-      setConfirmingComplete(phaseId);
-      // Auto-cancel after 4 seconds
-      setTimeout(() => setConfirmingComplete((prev) => (prev === phaseId ? null : prev)), 4000);
+  /** Called from the modal when the user confirms the manual override. */
+  const confirmManualOverride = async () => {
+    if (!manualOverridePhase) return;
+    try {
+      setMarkCompleteError(null);
+      await markPhaseComplete(activeSlug, manualOverridePhase);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setMarkCompleteError(msg);
+      setTimeout(() => setMarkCompleteError(null), 6000);
     }
+    setManualOverridePhase(null);
   };
 
   const handleCompleteRevision = async () => {
@@ -405,11 +382,9 @@ export function PipelineTracker(): React.ReactElement {
               <PhaseRow
                 phase={phase}
                 onPhaseClick={() => handlePhaseClick(phase)}
-                onStartClick={() => handleStartClick(phase)}
                 showMarkComplete={
                   phase.status === 'active' && !SKIP_DONE_BUTTON_PHASES.has(phase.id)
                 }
-                isConfirmingComplete={confirmingComplete === phase.id}
                 onMarkComplete={() => handleMarkComplete(phase.id)}
                 isBuildingForQuill={phase.id === 'publish' && isBuildingForQuill}
                 showConfirmAdvancement={phase.status === 'pending-completion'}
@@ -451,6 +426,94 @@ export function PipelineTracker(): React.ReactElement {
             </div>
           );
         })}
+      </div>
+
+      {/* Manual Override Warning Modal */}
+      {manualOverridePhase && (
+        <ManualOverrideModal
+          phaseName={phases.find((p) => p.id === manualOverridePhase)?.label ?? manualOverridePhase}
+          onConfirm={confirmManualOverride}
+          onCancel={() => setManualOverridePhase(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ManualOverrideModal({
+  phaseName,
+  onConfirm,
+  onCancel,
+}: {
+  phaseName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  // Close on backdrop click
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+        onCancel();
+      }
+    },
+    [onCancel],
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={handleBackdropClick}
+    >
+      <div
+        ref={modalRef}
+        className="w-full max-w-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-xl"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 px-5 py-3">
+          <span className="text-amber-500 text-base">⚠</span>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Manual Override
+          </h2>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
+          <p>
+            You are manually completing <strong className="text-zinc-800 dark:text-zinc-200">{phaseName}</strong> without
+            running its agent.
+          </p>
+          <p className="text-xs text-amber-500/90">
+            This is not recommended. Skipping an agent may leave the pipeline
+            without the output that later phases depend on.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 border-t border-zinc-200 dark:border-zinc-800 px-5 py-3">
+          <button
+            onClick={onCancel}
+            className="rounded-md px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500 transition-colors"
+          >
+            Complete Anyway
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -618,9 +681,7 @@ function AutoDraftSubButton({
 function PhaseRow({
   phase,
   onPhaseClick,
-  onStartClick,
   showMarkComplete,
-  isConfirmingComplete,
   onMarkComplete,
   isBuildingForQuill = false,
   showConfirmAdvancement,
@@ -631,9 +692,7 @@ function PhaseRow({
 }: {
   phase: PipelinePhase;
   onPhaseClick: () => void;
-  onStartClick: () => void;
   showMarkComplete: boolean;
-  isConfirmingComplete: boolean;
   onMarkComplete: () => void;
   isBuildingForQuill?: boolean;
   /** Show the "Advance →" button — only true when status is 'pending-completion'. */
@@ -659,7 +718,9 @@ function PhaseRow({
         isClickable
           ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
           : 'cursor-default'
-      } ${dimmed ? 'opacity-60' : ''}`}
+      } ${dimmed ? 'opacity-60' : ''} ${
+        isActive ? 'bg-blue-500/15 ring-1 ring-blue-500/40' : ''
+      }`}
       onClick={onPhaseClick}
       title={
         phase.status === 'locked' && !isBuildPhase
@@ -708,14 +769,10 @@ function PhaseRow({
               e.stopPropagation();
               onMarkComplete();
             }}
-            className={`no-drag rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
-              isConfirmingComplete
-                ? 'bg-green-600 text-white hover:bg-green-500'
-                : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600'
-            }`}
-            title={isConfirmingComplete ? 'Click again to confirm' : 'Mark this phase as complete'}
+            className="no-drag rounded px-2 py-0.5 text-[10px] font-medium transition-colors bg-red-600/15 text-red-400 hover:bg-red-600/25 hover:text-red-300"
+            title="Mark this phase as complete (manual override)"
           >
-            {isConfirmingComplete ? 'Confirm?' : 'Done'}
+            Done
           </button>
         )}
         {/* "Advance →" confirmation button — only for pending-completion phases */}
@@ -731,17 +788,16 @@ function PhaseRow({
             Advance →
           </button>
         )}
-        {/* "Start" / "Build" action button — only for active phases and the build phase */}
-        {(isActive || isBuildPhase) && (
+        {/* "Build" action button — only for the build phase */}
+        {isBuildPhase && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (!isBuildingForQuill) onStartClick();
+              onPhaseClick();
             }}
-            disabled={isBuildingForQuill}
-            className="no-drag shrink-0 rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="no-drag shrink-0 rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-500"
           >
-            {isBuildingForQuill ? 'Building…' : isBuildPhase ? 'Build' : 'Start'}
+            Build
           </button>
         )}
       </div>
