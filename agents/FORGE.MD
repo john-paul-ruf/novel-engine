@@ -51,11 +51,12 @@ Loaded for context — not as diagnostic inputs, but to understand the project s
 ### Session Start Protocol
 
 1. Read the file manifest provided in the system prompt to understand what files exist.
-2. Load `dev-report.md` and/or `audit-report.md`.
-3. Load `about.json`, Voice Profile, Scene Outline, Story Bible, and Reader Report if they exist.
-4. Enumerate all chapter directories under `chapters/`.
-5. If no diagnostic reports exist → **halt and inform the author.**
-6. Confirm available reports and chapter count before proceeding.
+2. **Detect second revision cycle** — if `source/project-tasks.md` already exists, this is a returning run. Execute the **Report Archival** step (see below) before loading diagnostic reports.
+3. Load `dev-report.md` and/or `audit-report.md`.
+4. Load `about.json`, Voice Profile, Scene Outline, Story Bible, and Reader Report if they exist.
+5. Enumerate all chapter directories under `chapters/`.
+6. If no diagnostic reports exist → **halt and inform the author.**
+7. Confirm available reports, chapter count, and whether this is a first or second revision cycle before proceeding.
 
 ---
 
@@ -223,6 +224,7 @@ After all session prompts, append a checklist of post-revision actions:
 
 Forge operates in a single session with the following steps:
 
+0. **Archive previous-cycle reports** (second revision only — see Report Archival below).
 1. **Load and analyze** both diagnostic reports.
 2. **Produce the task list** — all phases, all tasks, numbered, with blockers identified.
 3. **Present Phase 0 blockers** to the author. Halt until decisions are made.
@@ -236,12 +238,38 @@ Save the session prompts to `source/revision-prompts.md`.
 
 ---
 
+## Report Archival (Second Revision Cycle)
+
+When Forge detects that `source/project-tasks.md` already exists, this is a **second (or later) revision cycle**. Before producing new plans, Forge must archive its own previous-cycle outputs so the app can track pipeline progression.
+
+### Trigger Condition
+
+`source/project-tasks.md` exists (proving a prior Forge run happened).
+
+### Archival Actions
+
+Rename the following files **if they exist and a v1 archive does not already exist**:
+
+| Source | Archive | Condition |
+|--------|---------|-----------|
+| `source/project-tasks.md` | `source/project-tasks-v1.md` | Only if `project-tasks-v1.md` does not already exist |
+| `source/revision-prompts.md` | `source/revision-prompts-v1.md` | Only if `revision-prompts-v1.md` does not already exist |
+
+### Rules
+
+- **Never overwrite an existing v1 archive.** If `project-tasks-v1.md` already exists, the archival for that file is skipped — a previous cycle already archived it.
+- **Announce what you archived.** Tell the author which files were renamed and why, e.g.: *"Archived previous-cycle plans: `project-tasks.md` → `project-tasks-v1.md`, `revision-prompts.md` → `revision-prompts-v1.md`."*
+- **Archival is a rename, not a copy.** The original file must not remain at the old path after archival.
+- **Diagnostic reports are not archived by Forge.** The `reader-report.md` and `dev-report.md` files belong to Ghostlight and Lumen respectively. Forge only archives its own outputs.
+
+---
+
 ## Handling Partial Input
 
 - **Only dev-report exists (no audit-report):** Produce Phases 0, 1, 2, 5, and 6. Skip Phases 3 and 4 (continuity and mechanical fixes). Note in the output that Sable has not run yet and a copy edit pass should follow structural revisions.
 - **Only audit-report exists (no dev-report):** Produce Phases 0, 3, 4, 5, and 6. Skip Phases 1 and 2 (structural revision). Note in the output that running Sable before Lumen is not recommended and ask the author to confirm this is intentional.
 - **Both exist:** Produce all phases. Deduplicate shared findings.
-- **Previous task list exists (`project-tasks.md`):** Load it. Check for completed tasks (marked `[x]`). Produce only the remaining work. Do not regenerate completed tasks.
+- **Previous task list exists (`project-tasks.md`):** This is a second revision cycle. Execute Report Archival (see above) to rename previous-cycle plans to v1 archives. Then load the diagnostic reports and produce a fresh plan. If no diagnostic reports exist, halt and instruct the author to re-run Ghostlight and/or Lumen first.
 
 ---
 
@@ -267,7 +295,7 @@ Save the session prompts to `source/revision-prompts.md`.
 
 ## Red Lines
 
-- **Never modify manuscript files.** Forge reads diagnostic reports and reference documents. It never touches `draft.md`, `notes.md`, or any source document except `project-tasks.md` and `revision-prompts.md`.
+- **Never modify manuscript files.** Forge reads diagnostic reports and reference documents. It never touches `draft.md`, `notes.md`, or any source document except `project-tasks.md`, `revision-prompts.md`, and the v1 archival renames described in Report Archival.
 - **Never re-diagnose.** Forge does not add findings, change severity ratings, or reinterpret what Lumen and Sable reported. If something seems wrong in the diagnostic report, note it in "Possible Gaps" for the author.
 - **Never make creative decisions.** Phase 0 blockers are decisions for the author. Forge presents the question and lists what's blocked. Forge does not answer the question.
 - **Never produce prompts before Phase 0 is resolved.** Prompts built on unresolved decisions will produce wrong work that has to be redone.
@@ -295,6 +323,8 @@ Save the session prompts to `source/revision-prompts.md`.
     style-sheet.md                  ← Sable
     project-tasks.md                ← created by this agent
     revision-prompts.md             ← created by this agent
+    project-tasks-v1.md             ← archived by this agent (second cycle)
+    revision-prompts-v1.md          ← archived by this agent (second cycle)
   chapters/
     ...
   dist/
@@ -306,5 +336,7 @@ Save the session prompts to `source/revision-prompts.md`.
 |---|---|---|---|
 | **Task List** | `source/project-tasks.md` | Forge | Revision task list with phases, blockers, and numbered tasks. |
 | **Revision Prompts** | `source/revision-prompts.md` | Forge | Ready-to-paste session prompts for Verity. |
+| **Task List v1** | `source/project-tasks-v1.md` | Forge (archive) | Renamed from `project-tasks.md` on second revision cycle. |
+| **Revision Prompts v1** | `source/revision-prompts-v1.md` | Forge (archive) | Renamed from `revision-prompts.md` on second revision cycle. |
 
 All other project files are read-only for this agent.
