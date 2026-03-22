@@ -41,6 +41,8 @@ const AGENT_OUTPUTS: AgentOutputGroup[] = [
     files: [
       { path: 'source/project-tasks.md', label: 'Project Tasks', description: 'Revision task breakdown' },
       { path: 'source/revision-prompts.md', label: 'Revision Prompts', description: 'Per-chapter fix instructions' },
+      { path: 'source/project-tasks-v1.md', label: 'Project Tasks v2', description: 'Post-revision task breakdown' },
+      { path: 'source/revision-prompts-v1.md', label: 'Revision Prompts v2', description: 'Post-revision fix instructions' },
     ],
   },
 ];
