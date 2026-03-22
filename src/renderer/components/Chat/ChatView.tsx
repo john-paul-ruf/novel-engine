@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AGENT_REGISTRY, CREATIVE_AGENT_NAMES, PIPELINE_PHASES } from '@domain/constants';
-import type { AgentName, ConversationPurpose, PipelinePhaseId } from '@domain/types';
+import type { AgentName, ConversationPurpose, CreativeAgentName, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
@@ -81,6 +81,7 @@ export function ChatView(): React.ReactElement {
             onSend={handleSend}
             disabled={isStreaming || isReadOnly}
             lockedAgentName={pipelineLocked ? lockedAgentName : null}
+            agentName={activeConversation.agentName !== 'Wrangler' ? activeConversation.agentName as CreativeAgentName : null}
             readOnly={isReadOnly}
           />
         </>

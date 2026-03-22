@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { CreativeAgentName } from '@domain/types';
+import { QuickActions } from './QuickActions';
 
 type ChatInputProps = {
   onSend: (message: string) => void;
   disabled: boolean;
   lockedAgentName?: string | null;
+  /** The current agent for quick-action prompts. */
+  agentName?: CreativeAgentName | null;
   /** When true, the conversation belongs to a completed phase — shown read-only. */
   readOnly?: boolean;
 };
 
-export function ChatInput({ onSend, disabled, lockedAgentName, readOnly = false }: ChatInputProps): React.ReactElement {
+export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOnly = false }: ChatInputProps): React.ReactElement {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -31,6 +35,13 @@ export function ChatInput({ onSend, disabled, lockedAgentName, readOnly = false 
     [handleSend]
   );
 
+  // When a quick action is selected, populate the textarea and focus it
+  const handleQuickAction = useCallback((prompt: string) => {
+    setValue(prompt);
+    // Focus the textarea so the user can edit or just hit Enter
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }, []);
+
   // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -52,9 +63,19 @@ export function ChatInput({ onSend, disabled, lockedAgentName, readOnly = false 
     prevDisabledRef.current = disabled;
   }, [disabled]);
 
+  // Determine if quick actions should be shown (not read-only, not Wrangler)
+  const showQuickActions = !readOnly && agentName;
+
   return (
     <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
       <div className="flex items-end gap-3">
+        {showQuickActions && (
+          <QuickActions
+            agentName={agentName}
+            onSelect={handleQuickAction}
+            disabled={disabled}
+          />
+        )}
         <textarea
           ref={textareaRef}
           value={value}

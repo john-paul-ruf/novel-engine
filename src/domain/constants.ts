@@ -301,6 +301,48 @@ export function randomPitchRoomFlavor(): string {
   return pickRandom(PITCH_ROOM_FLAVOR);
 }
 
+// === Agent Quick Actions ===
+// Pre-built prompts shown in a dropdown next to the chat input, per agent.
+
+export type QuickAction = {
+  label: string;     // short label shown in the dropdown
+  prompt: string;    // the full text inserted into the chat input
+};
+
+export const AGENT_QUICK_ACTIONS: Record<CreativeAgentName, QuickAction[]> = {
+  Spark: [
+    { label: 'Pitch me a story', prompt: 'Pitch me a story. Ask me questions to discover what I\'m drawn to — genre, themes, emotions, a character, a "what if." When the concept crystallizes, produce a full pitch card and write it to source/pitch.md.' },
+    { label: 'I have an idea...', prompt: 'I have a story idea. Here it is:' },
+    { label: 'Revisit the pitch', prompt: 'Read the current pitch in source/pitch.md. Let\'s refine it — something isn\'t clicking yet. Ask me what feels off, then revise and rewrite the pitch file.' },
+  ],
+  Verity: [
+    { label: 'Next chapter', prompt: 'Write the next chapter of this novel according to the scene outline.\nInstructions:\n1. Read source/scene-outline.md to identify all planned chapters in order.\n2. Check the chapters/ directory to see which chapters already have a draft.md.\n3. Find the next chapter that is missing a draft.md and write the complete prose for it as chapters/[NN-slug]/draft.md. Use the correct zero-padded chapter number and a descriptive slug.\n4. After writing the chapter, update source/story-bible.md to record any new characters, locations, or significant plot developments introduced.\n5. If all chapters in the scene outline already have draft files, tell me the draft is complete.' },
+    { label: 'Build scene outline', prompt: 'Read the pitch in source/pitch.md and build a complete scene outline. Create a chapter-by-chapter structural plan with scene beats, POV, and dramatic purpose for each chapter. Write it to source/scene-outline.md.' },
+    { label: 'Build story bible', prompt: 'Read the pitch in source/pitch.md and the scene outline in source/scene-outline.md. Build the story bible — characters (with arcs, wants, needs, flaws), key relationships, world rules, locations, and timeline. Write it to source/story-bible.md.' },
+    { label: 'Revise chapter...', prompt: 'Revise chapter' },
+  ],
+  Ghostlight: [
+    { label: 'Read the manuscript', prompt: 'Read the full manuscript from beginning to end — every chapter in order. Then produce your reader report and write it to source/reader-report.md. Give me your honest, unfiltered experience as a first reader.' },
+  ],
+  Lumen: [
+    { label: 'Full assessment', prompt: 'Run the full developmental assessment. Read the entire manuscript, apply all seven lenses, and produce the complete report with pacing map, scene necessity audit, and revision roadmap. Write it to source/dev-report.md.' },
+    { label: 'Pacing & scenes', prompt: 'Focus on Lens 4 (Pacing & Momentum) and Lens 5 (Scene Necessity). Read the manuscript, produce the pacing map and scene audit table, and flag any sagging sections or underperforming scenes.' },
+    { label: 'Character arcs', prompt: 'Focus on Lens 2 (Protagonist Arc) and Lens 3 (Supporting Cast). Map the protagonist\'s internal trajectory and assess every significant supporting character\'s function. Flag arc stalls, unearned transformations, and redundant characters.' },
+  ],
+  Sable: [
+    { label: 'Copy edit', prompt: 'Copy edit the full manuscript. Read every chapter in order, audit for grammar, consistency, and mechanical issues, then produce the audit report and write it to source/audit-report.md. Build or update the style sheet at source/style-sheet.md.' },
+    { label: 'Build style sheet', prompt: 'Read the manuscript and build a style sheet — catalog all character name spellings, place names, hyphenation choices, number formatting, recurring constructions, and any inconsistencies. Write it to source/style-sheet.md.' },
+  ],
+  Forge: [
+    { label: 'Create revision plan', prompt: 'Read source/reader-report.md and source/dev-report.md. Synthesize both into a prioritized revision plan with phased tasks and session prompts for Verity. Write the task list to source/project-tasks.md and the session prompts to source/revision-prompts.md.' },
+    { label: 'Plan copy fixes', prompt: 'Read source/audit-report.md. Create a fix plan with session prompts for Verity to implement the mechanical fixes. Write tasks to source/project-tasks.md and session prompts to source/revision-prompts.md.' },
+  ],
+  Quill: [
+    { label: 'Prepare for publication', prompt: 'Audit the build outputs in dist/. Generate publication metadata — title, subtitle, description, keywords, categories, and back-cover copy. Flag any remaining issues. Write metadata to source/metadata.md.' },
+    { label: 'Generate metadata', prompt: 'Read the manuscript and pitch. Generate publication metadata — title, subtitle, description, keywords, BISAC categories, comp titles, and back-cover copy. Write it to source/metadata.md.' },
+  ],
+};
+
 // Token estimation: ~4 chars per token for English
 export const CHARS_PER_TOKEN = 4;
 // Opus context window
