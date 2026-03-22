@@ -2,11 +2,13 @@
 
 ## Context
 
-Novel Engine Electron app. The revision queue (Sessions 24–27) lets the author run Forge's revision sessions through Verity, approve/reject/skip each session, and archive the queue to advance the pipeline. Currently, when all sessions reach a terminal state (approved/skipped), the queue shows 100% and offers a "Complete & Archive" button.
+Novel Engine Electron app. The revision queue (Sessions 24–27) lets the author run Forge's revision sessions through Verity, approve/reject/skip each session, and advance the pipeline. Currently, when all sessions reach a terminal state (approved/skipped), the queue shows 100% but there's no structured way to confirm the tasks were actually done.
 
-The problem: **100% completion doesn't mean the tasks are actually done.** Verity might have skipped a subtask, partially addressed a note, or introduced a new issue. The author has no structured way to verify this before archiving — they'd have to manually re-read `project-tasks.md` and compare it against the manuscript, which defeats the purpose of the queue system.
+The problem: **100% completion doesn't mean the tasks are actually done.** Verity might have skipped a subtask, partially addressed a note, or introduced a new issue. The author has no structured way to verify this — they'd have to manually re-read `project-tasks.md` and compare it against the manuscript, which defeats the purpose of the queue system.
 
-This session adds a **"Verify" button** that appears alongside "Complete & Archive" when the queue hits 100%. Clicking it opens a verification chat with **Forge** (the task master) in the revision session panel. Forge reads the current `project-tasks.md`, the manuscript, and any reports, then produces a verification assessment: which tasks are genuinely complete, which need more work, and what's still outstanding. The author can then discuss findings and make final revisions before archiving.
+This session adds a **"Verify" button** that appears when the queue hits 100%. Clicking it opens a verification chat with **Forge** (the task master) in the revision session panel. Forge reads the current `project-tasks.md`, the manuscript, and any reports, then produces a verification assessment: which tasks are genuinely complete, which need more work, and what's still outstanding. The author can then discuss findings and make final revisions.
+
+**Note:** Archiving of revision files (project-tasks.md, revision-prompts.md) is an agent action, not a user-facing button. The "Complete & Archive" button has been removed. The pipeline advances when all revisions are complete — archiving is handled as part of the agent workflow.
 
 ---
 
@@ -14,20 +16,19 @@ This session adds a **"Verify" button** that appears alongside "Complete & Archi
 
 ### Concept
 
-The Verify button is **optional** — the author can still archive directly without verifying. But for authors who want confidence that every task was truly addressed, Verify provides a structured AI audit before closing the loop.
+The Verify button is **optional** — but it provides structured AI audit for authors who want confidence that every task was truly addressed before moving on.
 
 The verification flow:
 
 1. Author completes all revision sessions (queue hits 100%)
-2. "Verify" button appears next to "Complete & Archive"
+2. "Verify" button appears in the controls
 3. Clicking "Verify" opens the revision session panel with a new **verification conversation** with Forge
 4. Forge automatically receives a verification prompt that instructs it to:
    - Read `project-tasks.md` and check each task marked `[x]`
    - Read the relevant chapters to verify changes were actually made
-   - Produce a verification report: ✅ confirmed, ⚠️ partial, ❌ not addressed
-   - Recommend whether the queue is safe to archive or needs more work
+   - Produce a verification report: confirmed, partial, not addressed
+   - Recommend whether more work is needed
 5. The author can chat with Forge to discuss findings, ask for details, or request re-checks
-6. When satisfied, the author clicks "Complete & Archive" as normal
 
 ### Key Architectural Decision: Reuse the Chat Infrastructure
 
@@ -49,28 +50,28 @@ The only new pieces are:
 When the queue is at 100% and "Verify" is clicked:
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Revision Queue                        [Verify ✓] [Complete & Archive]  │
-│  15/15 sessions | 47/47 tasks | 100% complete                          │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-├─────────────────────┬────────────────────────────────────────────────────┤
-│  ✅ S1: Ch 20-26    │  🔶 Forge — Verification                          │
-│  ✅ S2: Ch 27-30    │                                                    │
-│  ⏭️ S3: Timeline    │  [Forge]: I've reviewed all 47 tasks against the  │
-│  ✅ S4: Ch 1-5      │  current manuscript. Here's my assessment:         │
-│  ✅ S5: Ch 6-12     │                                                    │
-│  ...                │  ## Verification Report                            │
-│                     │                                                    │
-│  ─────────────────  │  ✅ 41/47 tasks confirmed complete                 │
-│  🔍 Verification    │  ⚠️  4 tasks partially addressed                   │
-│  (active)           │  ❌ 2 tasks not addressed                          │
-│                     │                                                    │
-│                     │  ### Partially Addressed                           │
-│                     │  - Task 12: Timeline consistency...                │
-│                     │  ...                                               │
-│                     ├────────────────────────────────────────────────────┤
-│                     │  [Ask Forge about the findings...]        [Send]  │
-└─────────────────────┴────────────────────────────────────────────────────┘
++--------------------------------------------------------------------------+
+|  Revision Queue                                          [Verify]        |
+|  15/15 sessions | 47/47 tasks | 100% complete                           |
+|  ====================================================================    |
++---------------------+----------------------------------------------------+
+|  S1: Ch 20-26       |  Forge — Verification                              |
+|  S2: Ch 27-30       |                                                    |
+|  S3: Timeline       |  [Forge]: I've reviewed all 47 tasks against the   |
+|  S4: Ch 1-5         |  current manuscript. Here's my assessment:          |
+|  S5: Ch 6-12        |                                                    |
+|  ...                |  ## Verification Report                            |
+|                     |                                                    |
+|  -----------------  |  41/47 tasks confirmed complete                    |
+|  Verification       |  4 tasks partially addressed                       |
+|  (active)           |  2 tasks not addressed                             |
+|                     |                                                    |
+|                     |  ### Partially Addressed                           |
+|                     |  - Task 12: Timeline consistency...                |
+|                     |  ...                                               |
+|                     +----------------------------------------------------+
+|                     |  [Ask Forge about the findings...]        [Send]   |
++---------------------+----------------------------------------------------+
 ```
 
 The verification conversation appears as a special entry below the session list — visually distinct from the numbered sessions. It uses Forge's color (orange) and shows as "Verification" rather than a numbered session.
@@ -96,9 +97,9 @@ Read \`source/project-tasks.md\` carefully. For every task marked \`[x]\` (compl
 2. For each completed task (\`[x]\`), read the chapters or files it references
 3. Check whether the described change is actually present in the current text
 4. Categorize each task:
-   - ✅ **Confirmed** — the change is clearly present and well-executed
-   - ⚠️ **Partial** — some work was done but the task isn't fully addressed (explain what's missing)
-   - ❌ **Not Done** — the task is marked complete but the change is not evident in the text
+   - **Confirmed** — the change is clearly present and well-executed
+   - **Partial** — some work was done but the task isn't fully addressed (explain what's missing)
+   - **Not Done** — the task is marked complete but the change is not evident in the text
 5. For any tasks still marked \`[ ]\` (incomplete), note them as **Skipped**
 
 ## Output Format
@@ -117,12 +118,12 @@ Brief list of task numbers that passed verification.
 ### Issues Found
 
 For each partial or unaddressed task:
-- **Task N: [title]** — [status emoji] [explanation of what's missing or wrong]
+- **Task N: [title]** — [status] [explanation of what's missing or wrong]
   - Referenced files: [which chapters/files you checked]
   - Recommendation: [what needs to happen to complete this task]
 
 ### Recommendation
-State clearly whether the revision queue is safe to archive or whether more work is needed. If more work is needed, prioritize the outstanding items.
+State clearly whether more work is needed. If more work is needed, prioritize the outstanding items.
 
 ## Important
 - Be thorough but efficient — you don't need to quote entire chapters, just verify the changes exist
@@ -146,7 +147,7 @@ export type RevisionPlan = {
   phases: RevisionPlanPhase[];
   mode: QueueMode;
   createdAt: string;
-  verificationConversationId: string | null;  // ← NEW
+  verificationConversationId: string | null;  // <- NEW
 };
 ```
 
@@ -310,28 +311,31 @@ Using `viewingSessionId: '__verification__'` as a sentinel value to indicate the
 
 ### Update `src/renderer/components/RevisionQueue/QueueControls.tsx`
 
-Add a "Verify" button that appears alongside "Complete & Archive" when the queue is at 100%:
+Add a "Verify" button that appears when the queue is at 100%:
 
 ```tsx
 const {
-  plan, isRunning, isPaused, isLoading, isArchiving, isQueueArchived,
-  setMode, runNext, runAll, pause, clearCache, completeQueue,
+  plan, isRunning, isPaused, isLoading,
+  setMode, runNext, runAll, pause, clearCache,
   startVerification, isVerifying, verificationConversationId,
 } = useRevisionQueueStore();
 
-// ... existing canArchive logic ...
+const allDone = plan.sessions.length > 0 && plan.sessions.every(
+  s => s.status === 'approved' || s.status === 'skipped',
+);
+const canVerify = allDone && !isRunning;
 
-{canArchive && !showArchiveConfirm && (
+{canVerify && (
   <>
     {/* Verify button — only shown when no verification has been started yet */}
     {!verificationConversationId && (
       <button
         onClick={startVerification}
         disabled={isVerifying}
-        title="Run Forge to verify all tasks were genuinely completed before archiving"
+        title="Run Forge to verify all tasks were genuinely completed"
         className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
       >
-        {isVerifying ? 'Starting…' : '🔍 Verify'}
+        {isVerifying ? 'Starting...' : 'Verify'}
       </button>
     )}
     {/* If verification exists, show a button to view it */}
@@ -340,16 +344,9 @@ const {
         onClick={() => useRevisionQueueStore.getState().setViewingSession('__verification__')}
         className="flex items-center gap-1.5 bg-orange-500/20 text-orange-300 border border-orange-500/30 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors hover:bg-orange-500/30"
       >
-        🔍 View Verification
+        View Verification
       </button>
     )}
-    <button
-      onClick={() => setShowArchiveConfirm(true)}
-      title="Archive revision files and advance the pipeline to the next stage"
-      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
-    >
-      ✓ Complete & Archive
-    </button>
   </>
 )}
 ```
@@ -370,7 +367,6 @@ Add a verification entry below the session list in the sidebar:
     }`}
   >
     <div className="flex items-center gap-3 p-3">
-      <span className="text-lg">🔍</span>
       <div className="flex-1 min-w-0">
         <span className="font-medium text-sm text-orange-400">Verification</span>
         <span className="text-xs text-zinc-500 ml-2">Forge</span>
@@ -421,10 +417,6 @@ This ensures that if the author starts verification, restarts the app, and comes
 
 Also update `loadPlan()` to initialize `verificationConversationId: null` on the plan object, and restore it from saved state if present.
 
-### Update `completeQueue()` cleanup
-
-When the queue is archived via `completeQueue()`, the verification conversation (if any) should be left in the database — it's a useful record. But the `verificationConversationId` should be cleared from the in-memory plan. This happens naturally since `completeQueue()` already removes the plan from the `this.plans` map.
-
 ---
 
 ## Verification
@@ -432,13 +424,12 @@ When the queue is archived via `completeQueue()`, the verification conversation 
 ### Manual Test
 
 1. Open a book with a completed revision queue (all sessions approved/skipped, 100% progress)
-2. Verify the "🔍 Verify" button appears next to "Complete & Archive"
+2. Verify the "Verify" button appears in the controls
 3. Click "Verify" — the session panel opens with a "Verification" entry and a chat with Forge
 4. Forge streams a verification report checking all tasks against the manuscript
 5. Send a follow-up message asking about a specific task — Forge responds in the same conversation
 6. The verification entry persists across app restarts (verificationConversationId in state file)
-7. "Complete & Archive" still works normally — clicking it archives regardless of verification state
-8. The Verify button changes to "View Verification" after the first verification is started
+7. The Verify button changes to "View Verification" after the first verification is started
 
 ### Type Check
 

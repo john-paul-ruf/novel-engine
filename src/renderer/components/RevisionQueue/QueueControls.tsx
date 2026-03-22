@@ -14,11 +14,16 @@ export function QueueControls() {
   const {
     plan, isRunning, isPaused, isLoading,
     setMode, runNext, runAll, pause, clearCache,
+    startVerification, isVerifying, verificationConversationId,
   } = useRevisionQueueStore();
 
   if (!plan) return null;
 
   const hasPending = plan.sessions.some(s => s.status === 'pending');
+  const allDone = plan.sessions.length > 0 && plan.sessions.every(
+    s => s.status === 'approved' || s.status === 'skipped',
+  );
+  const canVerify = allDone && !isRunning;
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -58,6 +63,26 @@ export function QueueControls() {
           className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
         >
           &#9646;&#9646; {isPaused ? 'Pausing...' : 'Pause'}
+        </button>
+      )}
+
+      {canVerify && !verificationConversationId && (
+        <button
+          onClick={startVerification}
+          disabled={isVerifying}
+          title="Open a verification chat with Verity to confirm all revisions are complete"
+          className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
+        >
+          {isVerifying ? 'Starting...' : 'Verify'}
+        </button>
+      )}
+
+      {canVerify && verificationConversationId && (
+        <button
+          onClick={() => useRevisionQueueStore.getState().setViewingSession('__verification__')}
+          className="flex items-center gap-1.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors hover:bg-purple-500/30"
+        >
+          View Verification
         </button>
       )}
 

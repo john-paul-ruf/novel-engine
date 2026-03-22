@@ -17,7 +17,7 @@ import type {
   StreamEvent,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -123,12 +123,13 @@ export class ChatService {
       if (conversation?.purpose === 'voice-setup') {
         purposeInstructions = VOICE_SETUP_INSTRUCTIONS;
       } else if (conversation?.purpose === 'author-profile') {
-        // Inject the absolute author profile path so the agent writes to the correct location
         const authorProfilePath = this.fs.getAuthorProfilePath();
         purposeInstructions = AUTHOR_PROFILE_INSTRUCTIONS.replace(
           'author-profile.md',
           authorProfilePath,
         );
+      } else if (conversation?.agentName === 'Verity' && conversation?.title === 'Revision Verification') {
+        purposeInstructions = REVISION_VERIFICATION_PROMPT;
       }
 
       // Step 7b: Determine thinking budget (needed for both context and CLI call)

@@ -430,6 +430,10 @@ export function registerIpcHandlers(services: {
     return services.revisionQueue.getPlan(planId);
   });
 
+  ipcMain.handle('revision:startVerification', (_, planId: string) =>
+    services.revisionQueue.startVerification(planId),
+  );
+
 
   ipcMain.handle('revision:getQueueStatus', (_, bookSlug: string) => {
     return services.revisionQueue.getQueueStatus(bookSlug);

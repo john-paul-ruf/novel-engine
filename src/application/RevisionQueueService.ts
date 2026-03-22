@@ -459,6 +459,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       phases: parsed.phases,
       mode: savedState?.mode ?? 'manual',
       createdAt: new Date().toISOString(),
+      verificationConversationId: null,
     };
 
     this.plans.set(plan.id, plan);
@@ -860,6 +861,35 @@ export class RevisionQueueService implements IRevisionQueueService {
     const activeSessionId = plan?.sessions.find(s => s.status === 'running')?.id ?? null;
 
     return { planId, isRunning, activeSessionId };
+  }
+
+  async startVerification(planId: string): Promise<string> {
+    const plan = this.plans.get(planId);
+    if (!plan) throw new Error('Plan not found');
+
+    if (plan.verificationConversationId) {
+      return plan.verificationConversationId;
+    }
+
+    const conversation = this.db.createConversation({
+      id: nanoid(),
+      bookSlug: plan.bookSlug,
+      agentName: 'Verity' as AgentName,
+      pipelinePhase: null,
+      purpose: 'pipeline',
+      title: 'Revision Verification',
+    });
+
+    plan.verificationConversationId = conversation.id;
+
+    this.db.saveMessage({
+      conversationId: conversation.id,
+      role: 'user',
+      content: 'All revision sessions are complete. Please review the project tasks and the manuscript, then give me a final check-in on how things look.',
+      thinking: '',
+    });
+
+    return conversation.id;
   }
 
   // ── State persistence ────────────────────────────────────────────

@@ -13,6 +13,7 @@ export function RevisionQueueView() {
   const currentView = useViewStore((s) => s.currentView);
   const {
     plan, isLoading, loadingStep, isRunning, error, viewingSessionId, activeSessionId,
+    verificationConversationId,
   } = useRevisionQueueStore();
 
   useRevisionQueueEvents();
@@ -110,6 +111,24 @@ export function RevisionQueueView() {
               compact={showPanel}
             />
           ))}
+
+          {verificationConversationId && (
+            <button
+              onClick={() => useRevisionQueueStore.getState().setViewingSession('__verification__')}
+              className={`w-full text-left border rounded-lg transition-colors mt-2 ${
+                viewingSessionId === '__verification__'
+                  ? 'border-purple-500 bg-purple-500/10 ring-1 ring-purple-500/30'
+                  : 'border-purple-500/30 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
+              }`}
+            >
+              <div className="flex items-center gap-3 p-3">
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm text-purple-400">Verification</span>
+                  <span className="text-xs text-zinc-500 ml-2">Verity</span>
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 

@@ -25,6 +25,9 @@ type RevisionQueueState = {
   panelMessages: Message[];
   panelMessagesConvId: string | null;
 
+  verificationConversationId: string | null;
+  isVerifying: boolean;
+
   loadPlan: (bookSlug: string) => Promise<void>;
   reloadPlan: (bookSlug: string) => Promise<void>;
   clearCache: (bookSlug: string) => Promise<void>;
@@ -44,6 +47,7 @@ type RevisionQueueState = {
   deselectAllSessions: () => void;
   setViewingSession: (sessionId: string | null) => void;
   loadPanelMessages: (conversationId: string) => Promise<void>;
+  startVerification: () => Promise<void>;
   reset: () => void;
 };
 
@@ -66,6 +70,8 @@ type CachedBookState = {
   selectedSessionIds: Set<string>;
   panelMessages: Message[];
   panelMessagesConvId: string | null;
+  verificationConversationId: string | null;
+  isVerifying: boolean;
 };
 
 const bookStateCache = new Map<string, CachedBookState>();
@@ -86,6 +92,8 @@ function snapshotState(state: RevisionQueueState): CachedBookState {
     selectedSessionIds: new Set(state.selectedSessionIds),
     panelMessages: state.panelMessages,
     panelMessagesConvId: state.panelMessagesConvId,
+    verificationConversationId: state.verificationConversationId,
+    isVerifying: state.isVerifying,
   };
 }
 
@@ -106,6 +114,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   selectedSessionIds: new Set(),
   panelMessages: [],
   panelMessagesConvId: null,
+  verificationConversationId: null,
+  isVerifying: false,
 
   switchToBook: async (bookSlug: string) => {
     const current = get();
@@ -171,6 +181,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       selectedSessionIds: new Set(),
       panelMessages: [],
       panelMessagesConvId: null,
+      verificationConversationId: null,
+      isVerifying: false,
     });
 
     // Load plan + check running status from backend
@@ -416,6 +428,16 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
 
     set({ viewingSessionId: sessionId });
 
+    if (sessionId === '__verification__') {
+      const { verificationConversationId } = get();
+      if (verificationConversationId) {
+        get().loadPanelMessages(verificationConversationId);
+      } else {
+        set({ panelMessages: [], panelMessagesConvId: null });
+      }
+      return;
+    }
+
     const { plan } = get();
     const session = plan?.sessions.find(s => s.id === sessionId);
     if (session?.conversationId) {
@@ -431,6 +453,27 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       set({ panelMessages: messages, panelMessagesConvId: conversationId });
     } catch {
       set({ panelMessages: [], panelMessagesConvId: conversationId });
+    }
+  },
+
+  startVerification: async () => {
+    const { planId } = get();
+    if (!planId) return;
+
+    set({ isVerifying: true, error: null });
+    try {
+      const conversationId = await window.novelEngine.revision.startVerification(planId);
+      set({
+        verificationConversationId: conversationId,
+        viewingSessionId: '__verification__',
+        isVerifying: false,
+      });
+      await get().loadPanelMessages(conversationId);
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : String(err),
+        isVerifying: false,
+      });
     }
   },
 
@@ -452,6 +495,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       selectedSessionIds: new Set(),
       panelMessages: [],
       panelMessagesConvId: null,
+      verificationConversationId: null,
+      isVerifying: false,
     });
   },
 }));

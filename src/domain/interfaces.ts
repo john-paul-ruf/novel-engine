@@ -243,6 +243,8 @@ export interface IRevisionQueueService {
    */
   getQueueStatus(bookSlug: string): QueueStatus;
 
+  startVerification(planId: string): Promise<string>;
+
   // Register event listener
   onEvent(callback: (event: RevisionQueueEvent) => void): () => void;
 }

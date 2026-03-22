@@ -248,6 +248,7 @@ export type RevisionPlan = {
   phases: RevisionPlanPhase[];
   mode: QueueMode;
   createdAt: string;
+  verificationConversationId: string | null;
 };
 
 export type RevisionQueueEvent =

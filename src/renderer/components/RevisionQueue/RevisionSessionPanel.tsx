@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
+import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
-import type { RevisionSession } from '@domain/types';
+import type { RevisionSession, StreamEvent } from '@domain/types';
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -223,7 +224,194 @@ function PromptCollapsible({ prompt }: { prompt: string }) {
   );
 }
 
+function VerificationPanel() {
+  const { setViewingSession, verificationConversationId, panelMessages, loadPanelMessages } = useRevisionQueueStore();
+  const { activeSlug } = useBookStore();
+  const { navigate } = useViewStore();
+  const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [streamingThinking, setStreamingThinking] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+
+  useEffect(() => {
+    const sentinel = bottomRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { isAtBottomRef.current = entry.isIntersecting; },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (isAtBottomRef.current && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [panelMessages, streamingText, streamingThinking]);
+
+  useEffect(() => {
+    if (!isSending || !containerRef.current) return;
+    const container = containerRef.current;
+    const observer = new MutationObserver(() => {
+      if (isAtBottomRef.current && bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [isSending]);
+
+  useEffect(() => {
+    if (!isSending) return;
+    const cleanup = window.novelEngine.chat.onStreamEvent((event: StreamEvent) => {
+      if (event.type === 'textDelta') {
+        setStreamingText(prev => prev + event.text);
+      } else if (event.type === 'thinkingDelta') {
+        setStreamingThinking(prev => prev + event.text);
+      } else if (event.type === 'done' || event.type === 'error') {
+        setIsSending(false);
+        setStreamingText('');
+        setStreamingThinking('');
+        if (verificationConversationId) {
+          loadPanelMessages(verificationConversationId);
+        }
+      }
+    });
+    return () => { cleanup(); };
+  }, [isSending, verificationConversationId, loadPanelMessages]);
+
+  const handleSend = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || !verificationConversationId || !activeSlug || isSending) return;
+
+    setInput('');
+    setIsSending(true);
+    setStreamingText('');
+    setStreamingThinking('');
+
+    await window.novelEngine.chat.send({
+      agentName: 'Verity',
+      message: trimmed,
+      conversationId: verificationConversationId,
+      bookSlug: activeSlug,
+    });
+  }, [input, verificationConversationId, activeSlug, isSending]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
+
+  const renderedStreamHtml = useMemo(() => {
+    if (!streamingText) return '';
+    return String(marked.parse(streamingText));
+  }, [streamingText]);
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-950">
+      <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-700 px-4 py-3 shrink-0">
+        <button
+          onClick={() => setViewingSession(null)}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+        >
+          &#8592;
+        </button>
+        <div className="flex-1 min-w-0">
+          <span className="font-medium text-purple-400">Verification</span>
+          <span className="text-xs text-zinc-500 ml-2">Verity</span>
+        </div>
+        {verificationConversationId && (
+          <button
+            onClick={() => navigate('chat', { conversationId: verificationConversationId })}
+            className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-400 transition-colors shrink-0"
+          >
+            Open in Chat
+          </button>
+        )}
+      </div>
+
+      <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
+        {panelMessages.map(msg => (
+          <MessageBubble key={msg.id} message={msg} />
+        ))}
+
+        {isSending && (
+          <div className="px-6 py-2">
+            <div className="max-w-3xl">
+              {!streamingThinking && !streamingText && (
+                <div className="flex items-center gap-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-purple-500" />
+                  Verity is reviewing...
+                </div>
+              )}
+              {streamingThinking && (
+                <ThinkingBlock content={streamingThinking} isStreaming={true} />
+              )}
+              {streamingText && (
+                <div className="rounded-2xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100">
+                  <div
+                    className="prose dark:prose-invert prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: renderedStreamHtml }}
+                  />
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-zinc-400" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!isSending && panelMessages.length <= 1 && (
+          <div className="flex items-center justify-center h-32 text-sm text-zinc-500">
+            Send a message to start the verification chat with Verity
+          </div>
+        )}
+
+        <div ref={bottomRef} className="h-1" />
+      </div>
+
+      <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-700 p-3">
+        <div className="flex gap-2">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Chat with Verity about the revisions..."
+            rows={1}
+            disabled={isSending}
+            className="flex-1 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isSending}
+            className="bg-purple-600 hover:bg-purple-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white disabled:text-zinc-500 rounded-lg px-4 py-2 text-sm font-medium transition-colors shrink-0"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RevisionSessionPanel() {
+  const viewingSessionId = useRevisionQueueStore(s => s.viewingSessionId);
+
+  if (viewingSessionId === '__verification__') {
+    return <VerificationPanel />;
+  }
+
+  return <SessionPanel />;
+}
+
+function SessionPanel() {
   const viewingSessionId = useRevisionQueueStore(s => s.viewingSessionId);
   const activeSessionId = useRevisionQueueStore(s => s.activeSessionId);
   const plan = useRevisionQueueStore(s => s.plan);

@@ -228,6 +228,8 @@ const api = {
       ipcRenderer.invoke('revision:getPlan', planId),
     getQueueStatus: (bookSlug: string): Promise<QueueStatus> =>
       ipcRenderer.invoke('revision:getQueueStatus', bookSlug),
+    startVerification: (planId: string): Promise<string> =>
+      ipcRenderer.invoke('revision:startVerification', planId),
     onEvent: (callback: (event: RevisionQueueEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: RevisionQueueEvent) => callback(event);
       ipcRenderer.on('revision:event', handler);
