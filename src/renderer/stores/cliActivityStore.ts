@@ -582,6 +582,10 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
   /**
    * Query the main process for an in-flight CLI stream and restore the
    * activity panel state so the user sees ongoing activity after a refresh.
+   *
+   * After restoring the snapshot, live events continue flowing because the
+   * main process broadcasts to ALL windows. A polling fallback (every 2s)
+   * detects stream completion if the `done` event was missed during reload.
    */
   recoverActiveStream: async () => {
     try {
@@ -606,14 +610,39 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
       call = {
         ...call,
         callElapsedMs: Date.now() - startedAt,
+        streamingThinkingChars: (active.thinkingBuffer ?? '').length,
+        streamingTextChars: (active.textBuffer ?? '').length,
       };
-      call = pushEntry(call, 'status', `Reconnected to active ${active.agentName} call (started ${new Date(active.startedAt).toLocaleTimeString()})`);
+      call = pushEntry(call, 'status', `Reconnected to active ${active.agentName} call — live events resumed`);
 
       set((s) => ({
         calls: { ...s.calls, [callId]: call },
         callOrder: [callId, ...s.callOrder.filter((id) => id !== callId)],
         selectedCallId: s.selectedCallId ?? callId,
       }));
+
+      // Polling fallback: detect stream end if `done` was missed during reload
+      const pollTimer = setInterval(async () => {
+        try {
+          const current = await window.novelEngine.chat.getActiveStream();
+          if (!current) {
+            clearInterval(pollTimer);
+            // Mark the recovered call as done
+            const { calls } = get();
+            const existingCall = calls[callId];
+            if (existingCall && existingCall.isActive) {
+              let finished = { ...existingCall, isActive: false };
+              finished = pushEntry(finished, 'done', 'Stream completed (detected via poll)');
+              set((s) => ({ calls: { ...s.calls, [callId]: finished } }));
+            }
+          }
+        } catch {
+          // Poll failed — try again next tick
+        }
+      }, 2000);
+
+      // Safety: stop polling after 10 minutes max
+      setTimeout(() => clearInterval(pollTimer), 10 * 60 * 1000);
     } catch {
       // Non-critical — recovery is best-effort
     }

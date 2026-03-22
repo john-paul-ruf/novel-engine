@@ -7,6 +7,22 @@ import { usePipelineStore } from './pipelineStore';
 import { useViewStore } from './viewStore';
 import { streamRouter } from './streamRouter';
 
+/**
+ * Module-level timer for the recovery poll.
+ * After a renderer refresh, we poll the main process every 2s to detect
+ * when the active CLI stream finishes (in case the `done` event was missed
+ * during the brief reload gap). Cleared on `done` or when polling detects
+ * the stream has ended.
+ */
+let _recoveryPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function clearRecoveryPoll(): void {
+  if (_recoveryPollTimer) {
+    clearInterval(_recoveryPollTimer);
+    _recoveryPollTimer = null;
+  }
+}
+
 type ChatState = {
   activeConversation: Conversation | null;
   conversations: Conversation[];
@@ -354,6 +370,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         break;
 
       case 'done': {
+        // Clear recovery poll — the done event arrived naturally
+        clearRecoveryPoll();
         const doneConversationId = activeConversation?.id ?? null;
 
         if (doneConversationId) {
@@ -445,6 +463,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
 
       case 'error':
+        clearRecoveryPoll();
         set((state) => {
           const errorMessage: Message = {
             id: 'error-' + Date.now(),
@@ -512,12 +531,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (_cleanupFilesChanged) {
       _cleanupFilesChanged();
     }
+    clearRecoveryPoll();
     set({ _cleanupListener: null, _cleanupFilesChanged: null });
   },
 
   /**
    * Check the main process for an in-flight CLI stream and restore
    * streaming UI state so the user sees the active request after refresh.
+   *
+   * After restoring the snapshot, live events continue flowing because
+   * the main process broadcasts `chat:streamEvent` to ALL windows —
+   * the freshly-registered listener picks them up immediately. A polling
+   * fallback (every 2s) catches the edge case where the `done` event
+   * was sent during the brief reload gap before the listener was registered.
    */
   recoverActiveStream: async () => {
     try {
@@ -534,6 +560,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         return;
       }
+
+      // Ensure the stream router points to main so events are processed
+      streamRouter.target = 'main';
 
       // The main process has an active stream — restore the streaming UI.
       // Load the conversation and its messages so the user sees context.
@@ -563,6 +592,67 @@ export const useChatStore = create<ChatState>((set, get) => ({
           progressStage: active.progressStage ?? 'idle',
         });
       }
+
+      // Start polling fallback: detect stream completion if `done` was
+      // lost during the reload gap. Also catches the race where the stream
+      // ends between our getActiveStream() call and the set() above.
+      clearRecoveryPoll();
+      _recoveryPollTimer = setInterval(async () => {
+        // If something else already cleared streaming, stop polling
+        if (!get().isStreaming) {
+          clearRecoveryPoll();
+          return;
+        }
+
+        try {
+          const current = await window.novelEngine.chat.getActiveStream();
+          if (!current) {
+            // Stream ended — reload final messages from DB and reset
+            clearRecoveryPoll();
+            const convId = get().activeConversation?.id;
+            if (convId) {
+              try {
+                const [msgs, usage] = await Promise.all([
+                  window.novelEngine.chat.getMessages(convId),
+                  window.novelEngine.usage.byConversation(convId),
+                ]);
+                set({
+                  messages: msgs,
+                  conversationUsage: usage,
+                  isStreaming: false,
+                  isThinking: false,
+                  streamBuffer: '',
+                  thinkingBuffer: '',
+                  statusMessage: '',
+                  toolActivity: [],
+                  lastChangedFiles: [],
+                  progressStage: 'idle',
+                  thinkingSummary: '',
+                  toolTimings: [],
+                });
+              } catch {
+                set({
+                  isStreaming: false,
+                  isThinking: false,
+                  streamBuffer: '',
+                  thinkingBuffer: '',
+                  statusMessage: '',
+                });
+              }
+            } else {
+              set({
+                isStreaming: false,
+                isThinking: false,
+                streamBuffer: '',
+                thinkingBuffer: '',
+                statusMessage: '',
+              });
+            }
+          }
+        } catch {
+          // Poll failed — try again next tick, don't crash
+        }
+      }, 2000);
     } catch (error) {
       console.error('Failed to recover active stream:', error);
     }

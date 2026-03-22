@@ -23,6 +23,7 @@ import type {
   PipelinePhaseId,
   QueueMode,
   SendMessageParams,
+  StreamEvent,
 } from '@domain/types';
 import { AVAILABLE_MODELS } from '@domain/constants';
 import type { ChatService } from '@app/ChatService';
@@ -192,6 +193,25 @@ export function registerIpcHandlers(services: {
     let hadError = false;
     let errorText = '';
 
+    /**
+     * Broadcast a stream event to ALL open windows (not just the sender).
+     *
+     * After a renderer refresh (Cmd+R / F5), the original BrowserWindow
+     * and its webContents are still alive but the old page context is gone.
+     * By broadcasting to every window we guarantee the reloaded page's
+     * freshly-registered `ipcRenderer.on('chat:streamEvent')` listener
+     * receives events — enabling true live re-subscription.
+     */
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string }) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        try {
+          w.webContents.send('chat:streamEvent', streamEvent);
+        } catch {
+          // Window may be closing or destroyed — skip silently
+        }
+      }
+    };
+
     await services.chat.sendMessage({
       ...params,
       onEvent: (streamEvent) => {
@@ -200,7 +220,7 @@ export function registerIpcHandlers(services: {
           errorText = streamEvent.message;
         }
         // Inject callId so the renderer can distinguish concurrent calls
-        win.webContents.send('chat:streamEvent', { ...streamEvent, callId });
+        broadcastStreamEvent({ ...streamEvent, callId });
       },
     });
 
@@ -218,9 +238,16 @@ export function registerIpcHandlers(services: {
     // If files were changed during this interaction, notify the renderer.
     // Include the bookSlug so the renderer scopes the pipeline refresh
     // to the correct book — prevents cross-book pipeline bleed.
+    // Broadcast to all windows so refreshed renderers also receive the notification.
     const changedFiles = services.chat.getLastChangedFiles();
     if (changedFiles.length > 0) {
-      win.webContents.send('chat:filesChanged', changedFiles, params.bookSlug);
+      for (const w of BrowserWindow.getAllWindows()) {
+        try {
+          w.webContents.send('chat:filesChanged', changedFiles, params.bookSlug);
+        } catch {
+          // Window may be closing — skip
+        }
+      }
     }
   });
 
