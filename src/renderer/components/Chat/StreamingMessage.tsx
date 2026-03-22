@@ -134,7 +134,7 @@ export function StreamingMessage(): React.ReactElement | null {
         {showResponse && (
           <div className="rounded-2xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100">
             <div
-              className="prose dark:prose-invert prose-sm max-w-none"
+              className="prose dark:prose-invert prose-sm max-w-none prose-p:my-3 prose-p:leading-relaxed prose-hr:my-8 prose-hr:border-zinc-300 dark:prose-hr:border-zinc-700 prose-h1:mt-8 prose-h1:mb-4 prose-h2:mt-6 prose-h2:mb-3 prose-blockquote:my-4"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
             <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-zinc-400" />

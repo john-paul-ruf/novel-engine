@@ -272,7 +272,7 @@ function MarkdownViewer({ content }: { content: string }): React.ReactElement {
   const html = marked.parse(content) as string;
   return (
     <div
-      className="prose dark:prose-invert prose-zinc max-w-none"
+      className="prose prose-lg dark:prose-invert prose-zinc max-w-none prose-p:my-4 prose-p:leading-relaxed prose-hr:my-10 prose-hr:border-zinc-300 dark:prose-hr:border-zinc-700 prose-h1:mt-12 prose-h1:mb-6 prose-blockquote:my-6"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

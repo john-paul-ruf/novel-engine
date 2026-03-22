@@ -315,10 +315,18 @@ export class ClaudeCodeClient implements IClaudeClient {
           const text = block.text as string ?? '';
           if (!text) continue;
 
-          // Emit text block as a complete unit
+          // Emit text block as a complete unit.
+          // When the agent loop produces multiple assistant turns (interleaved
+          // with tool_use / tool_result), each turn's text arrives as a
+          // separate textDelta. Insert a paragraph break between turns so the
+          // accumulated response doesn't smash sentences together.
+          const needsSeparator = tracker.getHasEmittedText();
           tracker.setCurrentBlockType('text');
           tracker.markTextEmitted();
           onEvent({ type: 'blockStart', blockType: 'text' });
+          if (needsSeparator) {
+            onEvent({ type: 'textDelta', text: '\n\n' });
+          }
           onEvent({ type: 'textDelta', text });
           onEvent({ type: 'blockEnd', blockType: 'text' });
           tracker.setCurrentBlockType(null);
@@ -442,6 +450,16 @@ export class ClaudeCodeClient implements IClaudeClient {
 
       const streamBlockType = cbType === 'thinking' ? 'thinking' as const : 'text' as const;
       tracker.setCurrentBlockType(streamBlockType);
+
+      // Insert paragraph break between agent-loop text turns (same fix as the
+      // high-level assistant event path above).
+      if (streamBlockType === 'text' && tracker.getHasEmittedText()) {
+        onEvent({ type: 'textDelta', text: '\n\n' });
+      }
+      if (streamBlockType === 'text') {
+        tracker.markTextEmitted();
+      }
+
       onEvent({ type: 'blockStart', blockType: streamBlockType });
 
       if (streamBlockType === 'thinking') {

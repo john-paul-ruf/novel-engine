@@ -113,7 +113,7 @@ export function ThinkingBlock({
         >
           {renderedHtml ? (
             <div
-              className="font-mono text-sm leading-relaxed text-amber-200/70"
+              className="prose prose-sm prose-invert max-w-none font-mono text-amber-200/70 prose-p:my-2.5 prose-p:leading-relaxed prose-headings:text-amber-200/80 prose-headings:mt-4 prose-headings:mb-2 prose-strong:text-amber-200/80 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-hr:my-4 prose-hr:border-amber-500/20 prose-code:text-amber-200/80 prose-a:text-amber-300/70"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
           ) : (
