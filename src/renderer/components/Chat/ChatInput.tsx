@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreativeAgentName } from '@domain/types';
 import { QuickActions } from './QuickActions';
+import { ThinkingBudgetSlider } from './ThinkingBudgetSlider';
 
 type ChatInputProps = {
   onSend: (message: string) => void;
@@ -10,9 +11,15 @@ type ChatInputProps = {
   agentName?: CreativeAgentName | null;
   /** When true, the conversation belongs to a completed phase — shown read-only. */
   readOnly?: boolean;
+  /** Current thinking budget value (controlled by parent). */
+  thinkingBudget: number;
+  /** The agent's default thinking budget (for the reset button). */
+  defaultThinkingBudget: number;
+  /** Called when the user adjusts the thinking budget slider. */
+  onThinkingBudgetChange: (value: number) => void;
 };
 
-export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOnly = false }: ChatInputProps): React.ReactElement {
+export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOnly = false, thinkingBudget, defaultThinkingBudget, onThinkingBudgetChange }: ChatInputProps): React.ReactElement {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -68,6 +75,14 @@ export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOn
 
   return (
     <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
+      {!readOnly && (
+        <ThinkingBudgetSlider
+          value={thinkingBudget}
+          defaultValue={defaultThinkingBudget}
+          onChange={onThinkingBudgetChange}
+          disabled={disabled}
+        />
+      )}
       <div className="flex items-end gap-3">
         {showQuickActions && (
           <QuickActions

@@ -355,6 +355,7 @@ export type SendMessageParams = {
   message: string;
   conversationId: string;
   bookSlug: string;
+  thinkingBudgetOverride?: number;  // per-message thinking budget (0 = no thinking)
 };
 
 // === Context Assembly ===

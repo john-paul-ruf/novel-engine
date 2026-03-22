@@ -91,6 +91,7 @@ export class ChatService {
     message: string;
     conversationId: string;
     bookSlug: string;
+    thinkingBudgetOverride?: number;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
     const { agentName, message, conversationId, bookSlug, onEvent } = params;
@@ -147,6 +148,7 @@ export class ChatService {
       if (conversation?.purpose === 'pitch-room') {
         await this.handlePitchRoomMessage({
           conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId,
+          thinkingBudgetOverride: params.thinkingBudgetOverride,
         });
         return;
       }
@@ -173,7 +175,13 @@ export class ChatService {
       }
 
       // Step 7b: Determine thinking budget (needed for both context and CLI call)
-      const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
+      // Per-message override takes priority over global settings
+      const thinkingBudget = (() => {
+        if (params.thinkingBudgetOverride !== undefined) {
+          return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
+        }
+        return appSettings.enableThinking ? agent.thinkingBudget : undefined;
+      })();
 
       // Step 7c: Build context using the lean ContextBuilder (budget-aware compaction)
       const authorProfileAbsPath = this.fs.getAuthorProfilePath();
@@ -383,6 +391,7 @@ export class ChatService {
     agent: { systemPrompt: string; thinkingBudget: number };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
+    thinkingBudgetOverride?: number;
   }): Promise<void> {
     const { conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId } = params;
 
@@ -411,7 +420,13 @@ export class ChatService {
       content: m.content,
     }));
 
-    const thinkingBudget = appSettings.enableThinking ? agent.thinkingBudget : undefined;
+    // Per-message override takes priority over global settings
+    const thinkingBudget = (() => {
+      if (params.thinkingBudgetOverride !== undefined) {
+        return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
+      }
+      return appSettings.enableThinking ? agent.thinkingBudget : undefined;
+    })();
 
     // Get the draft directory path — this is where Spark will write files
     const workingDir = this.fs.getPitchDraftPath(conversationId);

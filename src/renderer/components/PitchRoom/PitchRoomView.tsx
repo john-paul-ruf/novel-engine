@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { AGENT_REGISTRY, randomPitchRoomFlavor } from '@domain/constants';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
 import { MessageBubble } from '../Chat/MessageBubble';
@@ -153,9 +154,27 @@ export function PitchRoomView(): React.ReactElement {
   const lastOutcome = usePitchRoomStore((s) => s.lastOutcome);
   const clearOutcome = usePitchRoomStore((s) => s.clearOutcome);
 
+  const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+
+  // Thinking budget slider state — Spark's default from the registry
+  const defaultThinkingBudget = enableThinking ? AGENT_REGISTRY.Spark.thinkingBudget : 0;
+  const [thinkingBudget, setThinkingBudget] = useState(defaultThinkingBudget);
+
+  useEffect(() => {
+    setThinkingBudget(defaultThinkingBudget);
+  }, [defaultThinkingBudget]);
+
+  const handleSend = useCallback(
+    (content: string) => {
+      sendMessage(content, thinkingBudget);
+      setThinkingBudget(defaultThinkingBudget);
+    },
+    [sendMessage, thinkingBudget, defaultThinkingBudget],
+  );
 
   // Auto-create or load the single pitch room conversation on mount
   useEffect(() => {
@@ -265,9 +284,12 @@ export function PitchRoomView(): React.ReactElement {
 
       {/* Chat input */}
       <ChatInput
-        onSend={sendMessage}
+        onSend={handleSend}
         disabled={isStreaming || !activeConversation}
         lockedAgentName="Spark"
+        thinkingBudget={thinkingBudget}
+        defaultThinkingBudget={defaultThinkingBudget}
+        onThinkingBudgetChange={setThinkingBudget}
       />
     </div>
   );

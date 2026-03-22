@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AGENT_REGISTRY, CREATIVE_AGENT_NAMES, PIPELINE_PHASES } from '@domain/constants';
+import { useSettingsStore } from '../../stores/settingsStore';
 import type { AgentName, ConversationPurpose, CreativeAgentName, PipelinePhaseId, StreamSessionRecord } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -53,7 +54,24 @@ export function ChatView(): React.ReactElement {
   const { activeSlug } = useBookStore();
   const { activePhase, phases } = usePipelineStore();
   const { payload } = useViewStore();
+  const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
   const [conversationsExpanded, setConversationsExpanded] = useState(false);
+
+  // Compute the default thinking budget from the current agent's registry entry
+  const defaultThinkingBudget = useMemo(() => {
+    if (!activeConversation) return 0;
+    const agentMeta = AGENT_REGISTRY[activeConversation.agentName];
+    if (!enableThinking) return 0;
+    return agentMeta?.thinkingBudget ?? 0;
+  }, [activeConversation, enableThinking]);
+
+  const [thinkingBudget, setThinkingBudget] = useState<number>(defaultThinkingBudget);
+
+  // Reset thinking budget when the active conversation (or its agent) changes,
+  // or when the global enableThinking setting changes
+  useEffect(() => {
+    setThinkingBudget(defaultThinkingBudget);
+  }, [defaultThinkingBudget]);
 
   // True when the currently viewed conversation belongs to a non-active pipeline phase
   // (e.g. a 'complete' or 'pending-completion' phase the user clicked to review).
@@ -84,9 +102,11 @@ export function ChatView(): React.ReactElement {
 
   const handleSend = useCallback(
     (content: string) => {
-      sendMessage(content);
+      sendMessage(content, thinkingBudget);
+      // Reset to agent default after sending
+      setThinkingBudget(defaultThinkingBudget);
     },
-    [sendMessage]
+    [sendMessage, thinkingBudget, defaultThinkingBudget]
   );
 
   return (
@@ -110,6 +130,9 @@ export function ChatView(): React.ReactElement {
             lockedAgentName={pipelineLocked ? lockedAgentName : null}
             agentName={activeConversation.agentName !== 'Wrangler' ? activeConversation.agentName as CreativeAgentName : null}
             readOnly={isReadOnly}
+            thinkingBudget={thinkingBudget}
+            defaultThinkingBudget={defaultThinkingBudget}
+            onThinkingBudgetChange={setThinkingBudget}
           />
         </>
       ) : (

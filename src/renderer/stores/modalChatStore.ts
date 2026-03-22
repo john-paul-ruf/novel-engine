@@ -21,7 +21,7 @@ type ModalChatState = {
   // Actions
   open: (purpose: ConversationPurpose, bookSlug: string) => Promise<void>;
   close: () => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
 
   // Stream handling (internal)
   _handleStreamEvent: (event: StreamEvent) => void;
@@ -85,7 +85,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
     set({ isOpen: false });
   },
 
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, thinkingBudgetOverride?: number) => {
     const { conversation, bookSlug } = get();
     if (!conversation) return;
 
@@ -114,6 +114,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
         message: content,
         conversationId: conversation.id,
         bookSlug,
+        thinkingBudgetOverride,
       });
     } catch (error) {
       console.error('Failed to send modal message:', error);

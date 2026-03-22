@@ -40,7 +40,7 @@ type ChatState = {
   loadConversations: (bookSlug: string) => Promise<void>;
   createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose?: ConversationPurpose) => Promise<void>;
   setActiveConversation: (conversationId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
 
   // Pipeline lock actions
@@ -132,7 +132,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, thinkingBudgetOverride?: number) => {
     const { activeConversation } = get();
     if (!activeConversation) return;
 
@@ -167,6 +167,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         message: content,
         conversationId,
         bookSlug,
+        thinkingBudgetOverride,
       });
     } catch (error) {
       console.error('Failed to send message:', error);

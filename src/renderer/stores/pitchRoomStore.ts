@@ -18,7 +18,7 @@ type PitchRoomState = {
 
   // Actions
   ensureConversation: () => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
   clearOutcome: () => void;
 
   _handleStreamEvent: (event: StreamEvent) => void;
@@ -64,7 +64,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
     }
   },
 
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, thinkingBudgetOverride?: number) => {
     const { activeConversation } = get();
     if (!activeConversation) return;
 
@@ -97,6 +97,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         message: content,
         conversationId,
         bookSlug: PITCH_ROOM_SLUG,
+        thinkingBudgetOverride,
       });
     } catch (error) {
       console.error('Failed to send pitch room message:', error);

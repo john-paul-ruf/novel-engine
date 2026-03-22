@@ -1,6 +1,7 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { marked } from 'marked';
 import { useModalChatStore } from '../../stores/modalChatStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { MessageBubble } from './MessageBubble';
 import { ThinkingBlock } from './ThinkingBlock';
 import { ChatInput } from './ChatInput';
@@ -171,6 +172,16 @@ export function ChatModal(): React.ReactElement {
   const sendMessage = useModalChatStore((s) => s.sendMessage);
   const initStreamListener = useModalChatStore((s) => s.initStreamListener);
   const destroyStreamListener = useModalChatStore((s) => s.destroyStreamListener);
+  const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
+
+  // Modal always uses Verity — compute default thinking budget
+  const defaultThinkingBudget = enableThinking ? AGENT_REGISTRY.Verity.thinkingBudget : 0;
+  const [thinkingBudget, setThinkingBudget] = useState(defaultThinkingBudget);
+
+  // Reset when enableThinking changes
+  useEffect(() => {
+    setThinkingBudget(defaultThinkingBudget);
+  }, [defaultThinkingBudget]);
 
   useEffect(() => {
     initStreamListener();
@@ -189,9 +200,10 @@ export function ChatModal(): React.ReactElement {
 
   const handleSend = useCallback(
     (content: string) => {
-      sendMessage(content);
+      sendMessage(content, thinkingBudget);
+      setThinkingBudget(defaultThinkingBudget);
     },
-    [sendMessage],
+    [sendMessage, thinkingBudget, defaultThinkingBudget],
   );
 
   return (
@@ -209,7 +221,14 @@ export function ChatModal(): React.ReactElement {
         <ModalAgentBar />
         <ModalMessageList />
         <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800">
-          <ChatInput onSend={handleSend} disabled={isStreaming} lockedAgentName={null} />
+          <ChatInput
+            onSend={handleSend}
+            disabled={isStreaming}
+            lockedAgentName={null}
+            thinkingBudget={thinkingBudget}
+            defaultThinkingBudget={defaultThinkingBudget}
+            onThinkingBudgetChange={setThinkingBudget}
+          />
         </div>
       </div>
     </div>
