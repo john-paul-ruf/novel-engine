@@ -492,7 +492,9 @@ async function build() {
 
     const pandocBin = await Pandoc.getBinaryPath();
     const coverArgs = fs.existsSync(COVER) ? `--epub-cover-image="${COVER}"` : '';
-    execSync(`"${pandocBin}" "${epubFile}" -o "${epubOut}" --toc --toc-depth=2 --split-level=2 ${coverArgs}`, { stdio: 'pipe' });
+    const epubCss = path.join(__dirname, 'epub.css');
+    const cssArgs = fs.existsSync(epubCss) ? `--css="${epubCss}"` : '';
+    execSync(`"${pandocBin}" "${epubFile}" -o "${epubOut}" --toc --toc-depth=2 --split-level=2 ${coverArgs} ${cssArgs}`, { stdio: 'pipe' });
     fs.unlinkSync(epubFile);
 
     console.log(`✓ EPUB built:     ${epubOut}`);

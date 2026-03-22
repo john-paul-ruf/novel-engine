@@ -1,0 +1,4 @@
+/* EPUB margin styling — applied via pandoc --css flag */
+body {
+  margin: 20px;
+}
