@@ -24,6 +24,12 @@ Built with Electron, React, TypeScript, and powered entirely by the [Claude Code
 
 Requires tech skill to use. One day there will be installers...
 
+<p align="center">
+  <img src="screenshots/first-draft.png" alt="Verity ghostwriting a first draft with Auto Draft, pipeline tracker, and CLI Activity monitor" width="800" />
+  <br />
+  <em>Verity ghostwriting Chapter 21 during the First Draft phase — pipeline tracker on the left, real-time CLI activity on the right</em>
+</p>
+
 ---
 
 ## What It Does
@@ -100,6 +106,12 @@ A free brainstorming space where you explore story ideas with Spark before commi
 
 Shelved pitches can be browsed, previewed, restored to a new book, or deleted from the sidebar.
 
+<p align="center">
+  <img src="screenshots/pitch-room.png" alt="Pitch Room with Spark agent brainstorming story concepts" width="800" />
+  <br />
+  <em>Spark pitching story concepts in the Pitch Room — extended thinking, file browser, and CLI Activity monitor visible</em>
+</p>
+
 ### Voice Profile System
 
 Before Verity writes a single word, you establish a **Voice Profile** — a detailed document capturing your sentence rhythm, vocabulary register, dialogue style, emotional temperature, interiority depth, punctuation habits, structural instincts, tonal anchors, and an avoid list. Verity conducts a guided interview (four prompts, one at a time) to extract your authentic voice, or analyzes writing samples you provide. The voice profile is stored per-book at `source/voice-profile.md` and loaded into every Verity session.
@@ -137,6 +149,12 @@ Features:
 - **Plan caching** — avoids re-calling the Wrangler when source files haven't changed
 - **Revision verification** — after all sessions complete, opens a Verity conversation for a final gut-check
 - **Two revision cycles** — supports both structural revision (cycle 1) and mechanical fixes (cycle 2), with automatic cycle detection and state transitions
+
+<p align="center">
+  <img src="screenshots/revision-queue.png" alt="Revision Queue with 13 sessions and 30 tasks across the editorial pipeline" width="800" />
+  <br />
+  <em>Revision Queue — 13 sessions, 30 tasks, with manual/auto execution modes and per-session chapter targeting</em>
+</p>
 
 ### Extended Thinking
 
