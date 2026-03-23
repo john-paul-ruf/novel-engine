@@ -22,7 +22,20 @@ You bring the story. The agents pitch, scaffold, draft in your voice, read, anal
 
 Built with Electron, React, TypeScript, and powered entirely by the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code). No API keys. No cloud backend. Everything runs on your machine.
 
-Requires tech skill to use. One day there will be installers...
+Requires tech skill to use — or grab a pre-built installer from [Releases](https://github.com/john-paul-ruf/novel-engine/releases) if one exists for your platform.
+
+> ### 🧪 Testers Needed!
+>
+> Pre-built installers are now available on the [Releases](https://github.com/john-paul-ruf/novel-engine/releases) page for **macOS** (.dmg), **Windows** (Squirrel installer), and **Linux** (.deb). These are early builds and **have not been tested on all platforms** — I develop on macOS, so the Windows and Linux installers especially need eyes on them.
+>
+> If you download an installer and try it out, **please report what happens** — whether it works perfectly, crashes on launch, or anything in between. Open an [issue](https://github.com/john-paul-ruf/novel-engine/issues) or email [john.paul.ruf@gmail.com](mailto:john.paul.ruf@gmail.com?subject=Novel%20Engine%20Installer%20Testing).
+>
+> Things I'd love feedback on:
+> - Does the installer run and complete without errors?
+> - Does the app launch after installation?
+> - Does the onboarding wizard detect your Claude Code CLI?
+> - Can you create a book and chat with an agent?
+> - Any UI glitches, missing fonts, or broken layouts?
 
 <p align="center">
   <img src="screenshots/first-draft.png" alt="Verity ghostwriting a first draft with Auto Draft, pipeline tracker, and CLI Activity monitor" width="800" />
