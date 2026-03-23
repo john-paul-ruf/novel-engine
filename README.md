@@ -1,18 +1,12 @@
-# Heads up
-
-This is a work in progress...
-
-
 # Dedication
-
 *To everyone who has an idea for a good book but doesn't know how to craft it, this is for you...*
 
 *For everyone else who may be impacted by this work, or whose sensibilities I have offended.*
 *I am so sorry.  I just wanted to write my memoir and found out it is easier to write fiction than fact. This is the result.*
 
-# Questions, comments, or rants?
-[john.paul.ruf@gmail.com](mailto:john.paul.ruf@gmail.com?subject=Novel%20Engine)
-
+# Book created in this engine
+- [Cleartext](https://www.amazon.com/dp/B0GTN8DRM8)
+- [Junk Souls](https://www.amazon.com/dp/B0GTMGN843)
 
 # Novel Engine
 
