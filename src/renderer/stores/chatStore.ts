@@ -331,7 +331,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const { _activeCallId, activeConversation, isStreaming } = get();
 
-    // Primary guard: callId matching
+    // Primary guard: callId matching — the callId is a UUID generated per
+    // sendMessage call, so this alone prevents cross-call bleed.
     if (_activeCallId && callId && callId !== _activeCallId) return;
 
     // Secondary guard: when no call is active, reject stale events.
@@ -343,9 +344,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
     }
 
-    // Tertiary guard: conversationId mismatch (catches cross-book bleed
-    // even when callIds happen to match due to timing races)
-    if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
+    // NOTE: No conversationId guard in the main (callId-present) path.
+    // The user may switch conversations mid-stream, which changes
+    // activeConversation. Lifecycle events (done/error) must still be
+    // processed to reset isStreaming and clear buffers. The callId guard
+    // is sufficient — it's a unique UUID per send call.
 
     switch (event.type) {
       case 'status':

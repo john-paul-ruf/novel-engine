@@ -154,14 +154,11 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
 
     const { _activeCallId, conversation, isStreaming } = get();
 
-    // Primary guard: callId matching
+    // Primary guard: callId matching — UUID per send, prevents cross-call bleed
     if (_activeCallId && callId && callId !== _activeCallId) return;
 
     // Secondary guard: when no call is active, reject stale events
     if (!_activeCallId && !isStreaming) return;
-
-    // Tertiary guard: conversationId mismatch
-    if (enriched.conversationId && conversation && enriched.conversationId !== conversation.id) return;
 
     switch (event.type) {
       case 'status':
