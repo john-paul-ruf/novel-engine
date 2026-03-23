@@ -56,6 +56,11 @@ type PlanCache = {
 type SessionStateFile = {
   planHash: string;
   mode: QueueMode;
+  /** Which revision cycle this state belongs to — `1` for the first revision
+   *  cycle, `2` for mechanical fixes. Used to detect cycle transitions and
+   *  auto-clear stale state from the previous cycle. Files created before this
+   *  field was added default to `1` on read. */
+  revisionCycle: 1 | 2;
   sessions: Record<number, {
     status: RevisionSessionStatus;
     conversationId: string | null;
@@ -82,6 +87,9 @@ export class RevisionQueueService implements IRevisionQueueService {
   /** In-memory copy of the parsed Wrangler output per book — ensures writeState
    *  can always embed parsed data even if the cache file is missing on disk. */
   private parsedByBook: Map<string, ParsedWranglerOutput> = new Map();
+  /** Tracks the current revision cycle per book — `1` for first revision,
+   *  `2` for mechanical fixes. Set in `loadPlan()`, used by `writeState()`. */
+  private cycleByBook: Map<string, 1 | 2> = new Map();
   private listeners: Set<(event: RevisionQueueEvent) => void> = new Set();
   /** Per-plan paused flags — keyed by planId. */
   private pausedPlans: Set<string> = new Set();
@@ -213,10 +221,12 @@ export class RevisionQueueService implements IRevisionQueueService {
     // Use the in-memory parsed data directly — never depend on the cache file
     // existing on disk, since writeCache is best-effort and can silently fail.
     const parsed = this.parsedByBook.get(bookSlug);
+    const revisionCycle = this.cycleByBook.get(bookSlug) ?? 1;
 
     const state: SessionStateFile = {
       planHash: contentHash,
       mode: plan.mode,
+      revisionCycle,
       sessions: {},
       parsed,
     };
@@ -270,6 +280,24 @@ export class RevisionQueueService implements IRevisionQueueService {
         'The archiving of revision files (project-tasks, revision-prompts) is an agent action ' +
         'that should be handled as part of the revision workflow.',
       );
+    }
+
+    // Determine which revision cycle we're loading and auto-clear stale state
+    // from a previous cycle. A cycle transition is detected when the on-disk
+    // state file records a different cycle than the one we're about to load.
+    const isSecondCycle = auditExists && archivedTasksExist;
+    const currentCycle: 1 | 2 = isSecondCycle ? 2 : 1;
+    this.cycleByBook.set(bookSlug, currentCycle);
+
+    const savedStateForCycleCheck = await this.readState(bookSlug);
+    if (savedStateForCycleCheck && (savedStateForCycleCheck.revisionCycle ?? 1) !== currentCycle) {
+      console.log(
+        `[RevisionQueue] Cycle transition detected: state is cycle ${savedStateForCycleCheck.revisionCycle ?? 1}, ` +
+        `now loading cycle ${currentCycle}. Clearing stale cache and state.`,
+      );
+      await this.clearCache(bookSlug);
+      // Re-set the cycle since clearCache deletes it
+      this.cycleByBook.set(bookSlug, currentCycle);
     }
 
     if (!revisionPromptsContent && !projectTasksContent) {
@@ -424,11 +452,12 @@ export class RevisionQueueService implements IRevisionQueueService {
       response: '',
     }));
 
-    // 5. Merge saved session state.
-    //    Always merge if the state file has matching session indices — the hash
-    //    check is intentionally relaxed because reinstalls / normalization upgrades
-    //    can change the hash without changing the actual plan structure.
-    if (savedState?.sessions) {
+    // 5. Merge saved session state (only if the plan content hasn't changed).
+    //    A hash mismatch means the plan content genuinely changed (e.g., cycle
+    //    transition, manual edits) and old statuses are meaningless. The hash
+    //    normalization in computeHash() strips checkbox state and whitespace,
+    //    so the only remaining hash changes represent genuine content differences.
+    if (savedState?.sessions && savedState.planHash === contentHash) {
       this.emit({ type: 'plan:loading-step', step: 'Restoring session progress…' });
       for (const session of sessions) {
         const saved = savedState.sessions[session.index];
@@ -443,6 +472,12 @@ export class RevisionQueueService implements IRevisionQueueService {
           }
         }
       }
+    } else if (savedState?.sessions) {
+      console.log(
+        `[RevisionQueue] Skipping state merge: plan hash mismatch ` +
+        `(state: ${savedState.planHash}, current: ${contentHash}). ` +
+        `This is expected after a cycle transition or content change.`,
+      );
     }
 
     const reconciledCompleted = new Set(parsed.completedTaskNumbers);
@@ -493,6 +528,7 @@ export class RevisionQueueService implements IRevisionQueueService {
     }
     this.hashByBook.delete(bookSlug);
     this.parsedByBook.delete(bookSlug);
+    this.cycleByBook.delete(bookSlug);
   }
 
   // ── Session execution ────────────────────────────────────────────

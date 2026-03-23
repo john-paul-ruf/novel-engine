@@ -53,41 +53,6 @@ jobs:
           path: dist-installers/*
           if-no-files-found: error
 
-  # ── macOS Intel ──────────────────────────────────────────────────
-  build-macos-x64:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download Pandoc (x64)
-        run: npm run download-pandoc
-
-      - name: Verify icons exist
-        run: |
-          test -f assets/icon.png || { echo "Missing icon.png"; exit 1; }
-          test -f assets/icon.icns || { echo "Missing icon.icns"; exit 1; }
-
-      - name: Build installers
-        run: node scripts/ci-build.js
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installers-darwin-x64
-          path: dist-installers/*
-          if-no-files-found: error
-
   # ── Windows ──────────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
@@ -188,7 +153,6 @@ jobs:
   release:
     needs:
       - build-macos-arm64
-      - build-macos-x64
       - build-windows
       - build-linux-x64
       - build-linux-arm64
@@ -239,7 +203,6 @@ jobs:
             | Platform | File | Architecture |
             |----------|------|--------------|
             | **macOS** (Apple Silicon) | `Novel-Engine-*-darwin-arm64.dmg` | ARM64 |
-            | **macOS** (Intel) | `Novel-Engine-*-darwin-x64.dmg` | x86_64 |
             | **Windows** | `Novel-Engine-*-win32-x64.exe` | x86_64 |
             | **Linux** (Debian/Ubuntu) | `Novel-Engine-*-linux-x64.deb` | x86_64 |
             | **Linux** (Fedora/RHEL) | `Novel-Engine-*-linux-x64.rpm` | x86_64 |
