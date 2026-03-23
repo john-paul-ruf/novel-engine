@@ -76,6 +76,11 @@ type CachedBookState = {
 
 const bookStateCache = new Map<string, CachedBookState>();
 
+/** Tracks the bookSlug currently being loaded (wrangler call in-flight).
+ *  Prevents `switchToBook` from restarting a load when the user navigates
+ *  away and back before the wrangler finishes. */
+let _loadingBookSlug: string | null = null;
+
 function snapshotState(state: RevisionQueueState): CachedBookState {
   return {
     plan: state.plan,
@@ -123,6 +128,9 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
 
     // Same book — nothing to do
     if (currentSlug === bookSlug) return;
+
+    // Already loading this book (wrangler call in-flight) — don't restart
+    if (current.isLoading && _loadingBookSlug === bookSlug) return;
 
     // Save current state to cache (if we have a plan loaded)
     if (currentSlug) {
@@ -204,6 +212,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (plan && plan.bookSlug === bookSlug && plan.sessions.length > 0) return;
 
     try {
+      _loadingBookSlug = bookSlug;
       set({ error: null, isLoading: true, loadingStep: 'Initializing\u2026' });
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
@@ -215,6 +224,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
+    } finally {
+      _loadingBookSlug = null;
     }
   },
 
@@ -223,6 +234,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     if (isLoading) return;
     set({ plan: null, planId: null, error: null });
     try {
+      _loadingBookSlug = bookSlug;
       set({ isLoading: true, loadingStep: 'Reloading\u2026' });
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
       set({
@@ -234,11 +246,14 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
+    } finally {
+      _loadingBookSlug = null;
     }
   },
 
   clearCache: async (bookSlug: string) => {
     try {
+      _loadingBookSlug = bookSlug;
       set({ isLoading: true, loadingStep: 'Clearing cache\u2026' });
       await window.novelEngine.revision.clearCache(bookSlug);
       const loaded = await window.novelEngine.revision.loadPlan(bookSlug);
@@ -252,6 +267,8 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), isLoading: false, loadingStep: '' });
+    } finally {
+      _loadingBookSlug = null;
     }
   },
 

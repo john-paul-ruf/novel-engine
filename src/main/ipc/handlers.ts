@@ -186,8 +186,10 @@ export function registerIpcHandlers(services: {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window found');
 
-    // Generate a unique call ID so the renderer can track concurrent CLI calls
-    const callId = randomUUID();
+    // Use the renderer-provided callId if available, otherwise generate one.
+    // Renderer-generated IDs let stores filter events to their own call,
+    // preventing cross-book stream bleed when multiple chats run concurrently.
+    const callId = params.callId ?? randomUUID();
 
     // Track whether the call completed successfully or errored for notification
     let hadError = false;

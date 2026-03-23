@@ -356,6 +356,7 @@ export type SendMessageParams = {
   conversationId: string;
   bookSlug: string;
   thinkingBudgetOverride?: number;  // per-message thinking budget (0 = no thinking)
+  callId?: string;                  // renderer-generated ID to scope stream events
 };
 
 // === Context Assembly ===

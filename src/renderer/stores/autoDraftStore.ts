@@ -228,6 +228,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
             message: AUTO_DRAFT_PROMPT,
             conversationId,
             bookSlug,
+            callId: crypto.randomUUID(),
           });
         } finally {
           // Restore stream router only if we still own it.

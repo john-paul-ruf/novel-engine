@@ -23,6 +23,9 @@ type ModalChatState = {
   close: () => void;
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
 
+  // Call scoping — prevents cross-book stream bleed
+  _activeCallId: string | null;
+
   // Stream handling (internal)
   _handleStreamEvent: (event: StreamEvent) => void;
   _cleanupListener: (() => void) | null;
@@ -41,6 +44,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
   streamBuffer: '',
   thinkingBuffer: '',
   statusMessage: '',
+  _activeCallId: null,
   _cleanupListener: null,
 
   open: async (purpose: ConversationPurpose, bookSlug: string) => {
@@ -100,12 +104,15 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
 
     streamRouter.target = 'modal';
 
+    const callId = crypto.randomUUID();
+
     set((state) => ({
       messages: [...state.messages, tempMessage],
       isStreaming: true,
       streamBuffer: '',
       thinkingBuffer: '',
       statusMessage: randomRespondingStatus(),
+      _activeCallId: callId,
     }));
 
     try {
@@ -115,6 +122,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
         conversationId: conversation.id,
         bookSlug,
         thinkingBudgetOverride,
+        callId,
       });
     } catch (error) {
       console.error('Failed to send modal message:', error);
@@ -139,6 +147,12 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
 
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'modal') return;
+
+    const callId = (event as StreamEvent & { callId?: string }).callId;
+    if (callId && callId.startsWith('rev:')) return;
+
+    const { _activeCallId } = get();
+    if (_activeCallId && callId && callId !== _activeCallId) return;
 
     const { conversation } = get();
 
@@ -183,6 +197,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
                 streamBuffer: '',
                 thinkingBuffer: '',
                 statusMessage: '',
+                _activeCallId: null,
               });
               streamRouter.target = 'main';
             })
@@ -194,6 +209,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
                 streamBuffer: '',
                 thinkingBuffer: '',
                 statusMessage: '',
+                _activeCallId: null,
               });
               streamRouter.target = 'main';
             });
@@ -204,6 +220,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            _activeCallId: null,
           });
           streamRouter.target = 'main';
         }
@@ -226,6 +243,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            _activeCallId: null,
           };
         });
         streamRouter.target = 'main';

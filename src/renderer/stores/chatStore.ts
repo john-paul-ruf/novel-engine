@@ -48,6 +48,9 @@ type ChatState = {
   interruptedSession: StreamSessionRecord | null;
   dismissInterrupted: () => void;
 
+  // Call scoping — prevents cross-book stream bleed
+  _activeCallId: string | null;
+
   // Pipeline lock state
   pipelineLocked: boolean;
   lockedAgentName: AgentName | null;
@@ -89,6 +92,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   thinkingSummary: '',
   toolTimings: [],
   interruptedSession: null,
+  _activeCallId: null,
   pipelineLocked: true,
   lockedAgentName: null,
   lockedPhaseId: null,
@@ -158,6 +162,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Ensure stream events are routed to the main chat store
     streamRouter.target = 'main';
 
+    // Generate a unique callId so we only process events from THIS call,
+    // preventing cross-book stream bleed when multiple chats run concurrently.
+    const callId = crypto.randomUUID();
+
     // Optimistic update: add user message immediately
     const tempMessage: Message = {
       id: 'temp-' + Date.now(),
@@ -175,6 +183,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       thinkingBuffer: '',
       statusMessage: randomRespondingStatus(),
       toolActivity: [],
+      _activeCallId: callId,
     }));
 
     try {
@@ -184,6 +193,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         conversationId,
         bookSlug,
         thinkingBudgetOverride,
+        callId,
       });
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -290,6 +300,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       thinkingSummary: '',
       toolTimings: [],
       interruptedSession: null,
+      _activeCallId: null,
     });
 
     // Step 3: Load conversations for the new book and activate the latest one
@@ -309,12 +320,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'main') return;
 
-    // Ignore events from the revision queue — they carry a callId prefixed
-    // with 'rev:' and should only be handled by the revision queue store.
-    // Without this guard the Wrangler's plan-loading thinking/text deltas
-    // bleed into the main chat's streaming UI.
+    // Scope events to the call that THIS store initiated.
+    // Each sendMessage generates a unique callId and passes it to the IPC
+    // layer, which injects it into every broadcast event. By filtering here,
+    // we ensure that events from other concurrent CLI calls (different books,
+    // revision queue, auto-draft, etc.) don't bleed into our buffers.
     const callId = (event as StreamEvent & { callId?: string }).callId;
     if (callId && callId.startsWith('rev:')) return;
+
+    const { _activeCallId } = get();
+    if (_activeCallId && callId && callId !== _activeCallId) return;
 
     const { activeConversation } = get();
 
@@ -409,6 +424,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               progressStage: 'idle',
               thinkingSummary: '',
               toolTimings: [],
+              _activeCallId: null,
             }));
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
@@ -442,6 +458,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 progressStage: 'idle',
                 thinkingSummary: '',
                 toolTimings: [],
+                _activeCallId: null,
               }));
             }
           });
@@ -457,6 +474,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             progressStage: 'idle',
             thinkingSummary: '',
             toolTimings: [],
+            _activeCallId: null,
           });
         }
         break;
@@ -481,6 +499,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             thinkingBuffer: '',
             statusMessage: '',
             toolActivity: [],
+            _activeCallId: null,
           };
         });
         break;

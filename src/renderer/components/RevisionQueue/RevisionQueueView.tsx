@@ -29,6 +29,9 @@ export function RevisionQueueView() {
     // 3. Verifying running state against the backend
     // 4. Loading plan from disk if no cache exists
     const current = useRevisionQueueStore.getState();
+    // Skip if a load is already in progress (e.g. wrangler CLI call running) —
+    // navigating away and back shouldn't restart it
+    if (current.isLoading) return;
     if (!current.plan || current.plan.bookSlug !== activeSlug) {
       useRevisionQueueStore.getState().switchToBook(activeSlug);
     }

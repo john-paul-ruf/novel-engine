@@ -21,6 +21,7 @@ type PitchRoomState = {
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
   clearOutcome: () => void;
 
+  _activeCallId: string | null;
   _handleStreamEvent: (event: StreamEvent) => void;
 };
 
@@ -34,6 +35,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   statusMessage: '',
   loading: false,
   lastOutcome: null,
+  _activeCallId: null,
 
   ensureConversation: async () => {
     // If already loaded, skip
@@ -73,6 +75,8 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
     // Route stream events to the pitch room store
     streamRouter.target = 'pitch-room';
 
+    const callId = crypto.randomUUID();
+
     // Optimistic update: add user message immediately
     const tempMessage: Message = {
       id: 'temp-' + Date.now(),
@@ -89,6 +93,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
       streamBuffer: '',
       thinkingBuffer: '',
       statusMessage: randomRespondingStatus(),
+      _activeCallId: callId,
     }));
 
     try {
@@ -98,6 +103,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         conversationId,
         bookSlug: PITCH_ROOM_SLUG,
         thinkingBudgetOverride,
+        callId,
       });
     } catch (error) {
       console.error('Failed to send pitch room message:', error);
@@ -125,6 +131,12 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
 
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'pitch-room') return;
+
+    const callId = (event as StreamEvent & { callId?: string }).callId;
+    if (callId && callId.startsWith('rev:')) return;
+
+    const { _activeCallId } = get();
+    if (_activeCallId && callId && callId !== _activeCallId) return;
 
     const { activeConversation } = get();
 
@@ -167,6 +179,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
               streamBuffer: '',
               thinkingBuffer: '',
               statusMessage: '',
+              _activeCallId: null,
             });
           }).catch((error) => {
             console.error('Failed to reload messages after done:', error);
@@ -177,6 +190,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
                 streamBuffer: '',
                 thinkingBuffer: '',
                 statusMessage: '',
+                _activeCallId: null,
               });
             }
           });
@@ -187,6 +201,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            _activeCallId: null,
           });
         }
         break;
@@ -225,6 +240,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            _activeCallId: null,
           };
         });
         break;
