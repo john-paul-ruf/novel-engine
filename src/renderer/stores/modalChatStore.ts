@@ -148,13 +148,20 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'modal') return;
 
-    const callId = (event as StreamEvent & { callId?: string }).callId;
+    const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
+    const callId = enriched.callId;
     if (callId && callId.startsWith('rev:')) return;
 
-    const { _activeCallId } = get();
+    const { _activeCallId, conversation, isStreaming } = get();
+
+    // Primary guard: callId matching
     if (_activeCallId && callId && callId !== _activeCallId) return;
 
-    const { conversation } = get();
+    // Secondary guard: when no call is active, reject stale events
+    if (!_activeCallId && !isStreaming) return;
+
+    // Tertiary guard: conversationId mismatch
+    if (enriched.conversationId && conversation && enriched.conversationId !== conversation.id) return;
 
     switch (event.type) {
       case 'status':

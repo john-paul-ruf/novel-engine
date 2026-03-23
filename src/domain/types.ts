@@ -224,6 +224,7 @@ export type ActiveStreamInfo = {
   bookSlug: string;
   startedAt: string;         // ISO date when the stream began
   sessionId: string;              // links to StreamSessionRecord
+  callId: string;                 // renderer-generated ID for stream event scoping
   progressStage: ProgressStage;   // current inferred stage
   filesTouched: FileTouchMap;     // accumulated file touches
   thinkingBuffer: string;        // accumulated thinking text so far (for recovery after reload)

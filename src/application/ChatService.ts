@@ -92,6 +92,7 @@ export class ChatService {
     conversationId: string;
     bookSlug: string;
     thinkingBudgetOverride?: number;
+    callId?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
     const { agentName, message, conversationId, bookSlug, onEvent } = params;
@@ -149,6 +150,7 @@ export class ChatService {
         await this.handlePitchRoomMessage({
           conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId,
           thinkingBudgetOverride: params.thinkingBudgetOverride,
+          callId: params.callId,
         });
         return;
       }
@@ -206,6 +208,7 @@ export class ChatService {
         bookSlug,
         startedAt: new Date().toISOString(),
         sessionId,
+        callId: params.callId ?? '',
         progressStage: 'idle',
         filesTouched: {},
         thinkingBuffer: '',
@@ -392,6 +395,7 @@ export class ChatService {
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
     thinkingBudgetOverride?: number;
+    callId?: string;
   }): Promise<void> {
     const { conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId } = params;
 
@@ -443,6 +447,7 @@ export class ChatService {
       bookSlug,
       startedAt: new Date().toISOString(),
       sessionId,
+      callId: params.callId ?? '',
       progressStage: 'idle',
       filesTouched: {},
       thinkingBuffer: '',

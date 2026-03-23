@@ -325,13 +325,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // layer, which injects it into every broadcast event. By filtering here,
     // we ensure that events from other concurrent CLI calls (different books,
     // revision queue, auto-draft, etc.) don't bleed into our buffers.
-    const callId = (event as StreamEvent & { callId?: string }).callId;
+    const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
+    const callId = enriched.callId;
     if (callId && callId.startsWith('rev:')) return;
 
-    const { _activeCallId } = get();
+    const { _activeCallId, activeConversation, isStreaming } = get();
+
+    // Primary guard: callId matching
     if (_activeCallId && callId && callId !== _activeCallId) return;
 
-    const { activeConversation } = get();
+    // Secondary guard: when no call is active, reject stale events.
+    // During recovery (isStreaming=true, _activeCallId=null) we allow
+    // events through but only if they match the active conversation.
+    if (!_activeCallId) {
+      if (!isStreaming) return;
+      // Recovery mode — accept events only for the active conversation
+      if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
+    }
+
+    // Tertiary guard: conversationId mismatch (catches cross-book bleed
+    // even when callIds happen to match due to timing races)
+    if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
 
     switch (event.type) {
       case 'status':
@@ -583,6 +597,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Ensure the stream router points to main so events are processed
       streamRouter.target = 'main';
 
+      // Restore the callId from the active stream so the event guard
+      // scopes incoming events to this specific call — prevents bleed
+      // from other concurrent streams after a renderer refresh.
+      const recoveredCallId = active.callId || null;
+
       // The main process has an active stream — restore the streaming UI.
       // Load the conversation and its messages so the user sees context.
       const conversations = get().conversations;
@@ -599,6 +618,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           thinkingBuffer: active.thinkingBuffer ?? '',
           statusMessage: randomRespondingStatus(),
           progressStage: active.progressStage ?? 'idle',
+          _activeCallId: recoveredCallId,
         });
       } else {
         // Conversation not in the loaded list (e.g. different book) — just flag streaming
@@ -609,6 +629,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           thinkingBuffer: active.thinkingBuffer ?? '',
           statusMessage: randomRespondingStatus(),
           progressStage: active.progressStage ?? 'idle',
+          _activeCallId: recoveredCallId,
         });
       }
 

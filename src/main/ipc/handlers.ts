@@ -204,7 +204,7 @@ export function registerIpcHandlers(services: {
      * freshly-registered `ipcRenderer.on('chat:streamEvent')` listener
      * receives events — enabling true live re-subscription.
      */
-    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string }) => {
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string }) => {
       for (const w of BrowserWindow.getAllWindows()) {
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
@@ -216,13 +216,15 @@ export function registerIpcHandlers(services: {
 
     await services.chat.sendMessage({
       ...params,
+      callId,
       onEvent: (streamEvent) => {
         if (streamEvent.type === 'error') {
           hadError = true;
           errorText = streamEvent.message;
         }
-        // Inject callId so the renderer can distinguish concurrent calls
-        broadcastStreamEvent({ ...streamEvent, callId });
+        // Inject callId + conversationId so the renderer can scope events
+        // to the correct call and conversation, preventing cross-book bleed
+        broadcastStreamEvent({ ...streamEvent, callId, conversationId: params.conversationId });
       },
     });
 
