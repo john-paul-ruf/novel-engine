@@ -3,6 +3,7 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
+import { MakerRpm } from '@electron-forge/maker-rpm';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 
@@ -30,27 +31,41 @@ const config: ForgeConfig = {
       },
     }),
 
-    // Ignore dev-only files from the app bundle.
-    // NOTE: Do NOT ignore all .md files — agent .md files are needed at runtime.
-    // Agent files are bundled via extraResource (above), so the ignore pattern
-    // only affects the app's source directory, not extra resources.
+    // Ignore dev-only files from the app bundle
     ignore: [
       /^\/scripts$/,
       /^\/docs$/,
       /^\/prompts$/,
       /^\/prep-work$/,
+      /^\/screenshots$/,
       /^\/\.git/,
+      /^\/\.github$/,
       /^\/README\.md$/,
+      /^\/AGENTS\.md$/,
     ],
   },
 
   makers: [
+    // macOS
     new MakerZIP({}, ['darwin']),
-    new MakerDMG({ format: 'ULFO' }),
+    new MakerDMG({
+      format: 'ULFO',
+      icon: './assets/icon.icns',
+      overwrite: true,
+    }),
+
+    // Windows
     new MakerSquirrel({
       name: 'NovelEngine',
       setupIcon: './assets/icon.ico',
+      // Windows code signing (if cert available)
+      ...(process.env.WINDOWS_CERTIFICATE_FILE && {
+        certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+        certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+      }),
     }),
+
+    // Linux
     new MakerDeb({
       options: {
         name: 'novel-engine',
@@ -58,6 +73,19 @@ const config: ForgeConfig = {
         genericName: 'AI Writing Tool',
         description: 'Multi-agent AI system for writing novels',
         categories: ['Office', 'TextEditor'],
+        section: 'text',
+        icon: './assets/icon.png',
+        mimeType: ['application/x-novel-engine'],
+      },
+    }),
+    new MakerRpm({
+      options: {
+        name: 'novel-engine',
+        productName: 'Novel Engine',
+        genericName: 'AI Writing Tool',
+        description: 'Multi-agent AI system for writing novels',
+        categories: ['Office', 'TextEditor'],
+        license: 'AGPL-3.0-only',
         icon: './assets/icon.png',
       },
     }),

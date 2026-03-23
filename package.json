@@ -12,6 +12,7 @@
     "publish": "electron-forge publish",
     "download-pandoc": "node scripts/download-pandoc.js",
     "generate-icons": "node scripts/generate-icons.js",
+    "ci-build": "node scripts/ci-build.js",
     "lint": "tsc --noEmit",
     "clean": "rm -rf out .vite dist"
   },

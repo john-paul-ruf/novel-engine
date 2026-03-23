@@ -38,6 +38,11 @@ const DOWNLOADS = {
     extract: 'tar',
     binary: 'pandoc',
   },
+  'linux-arm64': {
+    url: `https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-arm64.tar.gz`,
+    extract: 'tar',
+    binary: 'pandoc',
+  },
 };
 
 const platformKey = `${os.platform()}-${os.arch()}`;

@@ -3,33 +3,100 @@ name: Build & Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.2.3)'
+        required: false
+
+# Cancel any in-progress runs for the same ref
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: macos-14
-            platform: darwin
-            arch: arm64
-          - os: macos-13
-            platform: darwin
-            arch: x64
-          - os: windows-latest
-            platform: win32
-            arch: x64
-          - os: ubuntu-latest
-            platform: linux
-            arch: x64
-
-    runs-on: ${{ matrix.os }}
-
+  # ── macOS Apple Silicon ──────────────────────────────────────────
+  build-macos-arm64:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Pandoc (arm64)
+        run: npm run download-pandoc
+
+      - name: Verify icons exist
+        run: |
+          test -f assets/icon.png || { echo "Missing icon.png"; exit 1; }
+          test -f assets/icon.icns || { echo "Missing icon.icns"; exit 1; }
+
+      - name: Build installers
+        run: node scripts/ci-build.js
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-darwin-arm64
+          path: dist-installers/*
+          if-no-files-found: error
+
+  # ── macOS Intel ──────────────────────────────────────────────────
+  build-macos-x64:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Pandoc (x64)
+        run: npm run download-pandoc
+
+      - name: Verify icons exist
+        run: |
+          test -f assets/icon.png || { echo "Missing icon.png"; exit 1; }
+          test -f assets/icon.icns || { echo "Missing icon.icns"; exit 1; }
+
+      - name: Build installers
+        run: node scripts/ci-build.js
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-darwin-x64
+          path: dist-installers/*
+          if-no-files-found: error
+
+  # ── Windows ──────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
@@ -38,24 +105,93 @@ jobs:
       - name: Download Pandoc
         run: npm run download-pandoc
 
-      - name: Generate placeholder icons
-        run: node scripts/generate-icons.js
+      - name: Verify icons exist
+        run: |
+          if (!(Test-Path "assets/icon.png")) { Write-Error "Missing icon.png"; exit 1 }
+          if (!(Test-Path "assets/icon.ico")) { Write-Error "Missing icon.ico"; exit 1 }
 
-      - name: Build
-        run: npm run make
+      - name: Build installers
+        run: node scripts/ci-build.js
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE_FILE: ${{ secrets.WINDOWS_CERTIFICATE_FILE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.platform }}-${{ matrix.arch }}
-          path: out/make/**/*
+          name: installers-win32-x64
+          path: dist-installers/*
+          if-no-files-found: error
 
+  # ── Linux x64 ───────────────────────────────────────────────────
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg fakeroot rpm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Pandoc
+        run: npm run download-pandoc
+
+      - name: Build installers
+        run: node scripts/ci-build.js
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-linux-x64
+          path: dist-installers/*
+          if-no-files-found: error
+
+  # ── Linux arm64 ─────────────────────────────────────────────────
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg fakeroot rpm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Pandoc
+        run: npm run download-pandoc
+
+      - name: Build installers
+        run: node scripts/ci-build.js
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-linux-arm64
+          path: dist-installers/*
+          if-no-files-found: error
+
+  # ── Create GitHub Release ───────────────────────────────────────
   release:
-    needs: build
+    needs:
+      - build-macos-arm64
+      - build-macos-x64
+      - build-windows
+      - build-linux-x64
+      - build-linux-arm64
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,10 +199,57 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts/
+          path: all-artifacts/
+          merge-multiple: false
 
-      - name: Create Release
+      - name: Collect all installers
+        run: |
+          mkdir -p release-files
+          find all-artifacts -type f \( \
+            -name "*.dmg" -o -name "*.zip" -o -name "*.exe" \
+            -o -name "*.deb" -o -name "*.rpm" \
+            -o -name "*.sha256" -o -name "CHECKSUMS.txt" \
+            -o -name "*.nupkg" \
+          \) -exec cp {} release-files/ \;
+          ls -la release-files/
+
+      - name: Merge checksums
+        run: |
+          cd release-files
+          # Merge all individual CHECKSUMS.txt into one
+          cat */CHECKSUMS.txt CHECKSUMS.txt 2>/dev/null | sort -u > CHECKSUMS-all.txt || true
+          # Also combine all .sha256 files
+          for f in *.sha256; do
+            [ -f "$f" ] && cat "$f" >> CHECKSUMS-all.txt
+          done
+          sort -u -o CHECKSUMS-all.txt CHECKSUMS-all.txt
+          mv CHECKSUMS-all.txt CHECKSUMS.txt
+          # Remove individual sha256 files from release (keep only aggregated)
+          rm -f *.sha256
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: artifacts/**/*
+          generate_release_notes: true
+          files: release-files/*
+          body: |
+            ## Installation
+
+            | Platform | File | Architecture |
+            |----------|------|--------------|
+            | **macOS** (Apple Silicon) | `Novel-Engine-*-darwin-arm64.dmg` | ARM64 |
+            | **macOS** (Intel) | `Novel-Engine-*-darwin-x64.dmg` | x86_64 |
+            | **Windows** | `Novel-Engine-*-win32-x64.exe` | x86_64 |
+            | **Linux** (Debian/Ubuntu) | `Novel-Engine-*-linux-x64.deb` | x86_64 |
+            | **Linux** (Fedora/RHEL) | `Novel-Engine-*-linux-x64.rpm` | x86_64 |
+            | **Linux ARM** (Debian/Ubuntu) | `Novel-Engine-*-linux-arm64.deb` | ARM64 |
+            | **Linux ARM** (Fedora/RHEL) | `Novel-Engine-*-linux-arm64.rpm` | ARM64 |
+
+            ### Prerequisites
+            - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+
+            ### Verify Downloads
+            ```bash
+            sha256sum -c CHECKSUMS.txt
+            ```
