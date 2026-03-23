@@ -62,6 +62,9 @@ type ChatState = {
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
 
+  // External stream attachment (used by auto-draft, revision queue, etc.)
+  attachToExternalStream: (callId: string, conversationId: string, optimisticContent?: string) => void;
+
   // Pipeline lock actions
   setPipelineLock: (locked: boolean) => void;
   syncWithPipeline: (activePhase: PipelinePhase | null) => void;
@@ -237,6 +240,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   dismissInterrupted: () => set({ interruptedSession: null }),
+
+  attachToExternalStream: (callId: string, conversationId: string, optimisticContent?: string) => {
+    set((state) => ({
+      isStreaming: true,
+      isThinking: false,
+      streamBuffer: '',
+      thinkingBuffer: '',
+      statusMessage: randomRespondingStatus(),
+      toolActivity: [],
+      progressStage: 'idle' as ProgressStage,
+      thinkingSummary: '',
+      toolTimings: [],
+      _activeCallId: callId,
+      ...(optimisticContent
+        ? {
+            messages: [
+              ...state.messages,
+              {
+                id: 'ext-' + Date.now(),
+                role: 'user' as const,
+                content: optimisticContent,
+                thinking: '',
+                conversationId,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          }
+        : {}),
+    }));
+  },
 
   setPipelineLock: (locked: boolean) => {
     set({ pipelineLocked: locked });

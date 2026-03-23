@@ -215,12 +215,21 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
         const msgsBefore = await window.novelEngine.chat.getMessages(conversationId);
         const assistantCountBefore = msgsBefore.filter((m) => m.role === 'assistant').length;
 
-        // Route stream events away from chatStore during auto-draft.
-        // This prevents auto-draft events from polluting the user's chat view
-        // (setting isStreaming, appending to streamBuffer, etc.) when they are
-        // viewing a different conversation or book.
-        const prevTarget = streamRouter.target;
-        streamRouter.target = 'auto-draft';
+        // Determine if the user is currently viewing the auto-draft conversation.
+        // If so, let stream events flow to chatStore so thinking/text are visible.
+        // If not, suppress events so they don't pollute another conversation.
+        const callId = crypto.randomUUID();
+        const chatState = useChatStore.getState();
+        const userIsWatching = chatState.activeConversation?.id === conversationId;
+
+        if (userIsWatching) {
+          // Attach to chatStore — shows live thinking + text in the chat view
+          streamRouter.target = 'main';
+          useChatStore.getState().attachToExternalStream(callId, conversationId, AUTO_DRAFT_PROMPT);
+        } else {
+          // Suppress events — user is looking at something else
+          streamRouter.target = 'auto-draft';
+        }
 
         try {
           await window.novelEngine.chat.send({
@@ -228,15 +237,16 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
             message: AUTO_DRAFT_PROMPT,
             conversationId,
             bookSlug,
-            callId: crypto.randomUUID(),
+            callId,
           });
         } finally {
           // Restore stream router only if we still own it.
           // If the user started a manual chat while auto-draft was running,
           // their sendMessage() set target to 'main' — don't override that.
           if (streamRouter.target === 'auto-draft') {
-            streamRouter.target = prevTarget;
+            streamRouter.target = 'main';
           }
+          // If we were attached to chatStore, the done handler already cleaned up.
         }
 
         // Wait for async state to settle (DB writes, file-change events)
@@ -256,6 +266,11 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
 
         const countAfter = await getChapterCount(bookSlug);
         if (countAfter === -1) break; // FS unreadable — bail
+
+        // Check Verity's actual response text for the explicit DRAFT_COMPLETE signal
+        const lastAssistant = msgsAfter.filter((m) => m.role === 'assistant').pop();
+        const responseText = lastAssistant?.content ?? '';
+        const isDraftComplete = responseText.includes('DRAFT_COMPLETE');
 
         if (countAfter > countBefore) {
           // ✓ A new chapter was written — update progress and continue
@@ -295,10 +310,14 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           if (get().stopRequested) break;
 
           // Otherwise: resume was requested — retry the same chapter
-        } else {
-          // ✓ No error, no new chapter: Verity replied DRAFT_COMPLETE (or there
-          // was nothing left to write). The draft is done — exit cleanly.
+        } else if (isDraftComplete) {
+          // ✓ Verity explicitly signalled all chapters are written — exit cleanly.
           break;
+        } else {
+          // Got a response but no new chapter and no DRAFT_COMPLETE signal.
+          // Verity may have done prep work (story bible update, notes, etc.)
+          // Retry — the MAX_ITERATIONS guard prevents infinite loops.
+          await delay(INTER_CHAPTER_DELAY_MS);
         }
       }
     } catch (err) {
