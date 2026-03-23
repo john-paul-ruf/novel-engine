@@ -315,6 +315,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('Failed to load conversations for new book:', error);
     }
+
+    // Step 4: Check if this book has an active CLI stream (e.g. the user
+    // started a chat, switched away, and is now switching back). If so,
+    // recover the streaming UI so thinking/text deltas resume rendering.
+    try {
+      const active = await window.novelEngine.chat.getActiveStreamForBook(newBookSlug);
+      if (active) {
+        streamRouter.target = 'main';
+        const conversation = get().conversations.find((c) => c.id === active.conversationId) ?? null;
+        if (conversation) {
+          const messages = await window.novelEngine.chat.getMessages(active.conversationId);
+          set({
+            activeConversation: conversation,
+            messages,
+            isStreaming: true,
+            isThinking: (active.thinkingBuffer ?? '').length > 0 && !(active.textBuffer ?? ''),
+            streamBuffer: active.textBuffer ?? '',
+            thinkingBuffer: active.thinkingBuffer ?? '',
+            statusMessage: randomRespondingStatus(),
+            progressStage: active.progressStage ?? 'idle',
+            _activeCallId: active.callId || null,
+          });
+          // Persist so refresh also recovers to this conversation
+          localStorage.setItem('novel-engine-active-conversation', active.conversationId);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to recover active stream for book:', error);
+    }
   },
 
   _handleStreamEvent: (event: StreamEvent) => {

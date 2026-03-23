@@ -39,7 +39,8 @@ export class ChatService {
   private lastDiagnostics: ContextDiagnostics | null = null;
   private lastChangedFiles: string[] = [];
   private contextBuilder = new ContextBuilder();
-  private activeStream: ActiveStreamInfo | null = null;
+  /** Active CLI streams keyed by conversationId — supports concurrent streams across books. */
+  private activeStreams: Map<string, ActiveStreamInfo> = new Map();
   private recoveredOrphans: StreamSessionRecord[] = [];
 
   constructor(
@@ -200,8 +201,9 @@ export class ChatService {
       // Step 8: Store diagnostics
       this.lastDiagnostics = assembled.diagnostics;
 
-      // Step 8c: Track active stream so renderer can recover after refresh
-      this.activeStream = {
+      // Step 8c: Track active stream so renderer can recover after refresh.
+      // Uses a Map so concurrent streams across books don't clobber each other.
+      this.activeStreams.set(conversationId, {
         conversationId,
         agentName,
         model: appSettings.model,
@@ -213,7 +215,7 @@ export class ChatService {
         filesTouched: {},
         thinkingBuffer: '',
         textBuffer: '',
-      };
+      });
 
       // Step 8d: Emit callStart metadata so the activity monitor knows what's happening
       onEvent({ type: 'callStart', agentName, model: appSettings.model, bookSlug });
@@ -233,29 +235,31 @@ export class ChatService {
         sessionId,
         conversationId,
         onEvent: async (event: StreamEvent) => {
-          // Update activeStream with live progress data (Session E)
-          if (this.activeStream) {
+          // Update activeStream with live progress data (Session E).
+          // Look up by conversationId so we only touch OUR entry.
+          const stream = this.activeStreams.get(conversationId);
+          if (stream) {
             if (event.type === 'progressStage') {
-              this.activeStream.progressStage = event.stage;
+              stream.progressStage = event.stage;
             }
             if (event.type === 'toolDuration') {
               if (event.tool.filePath && (event.tool.toolName === 'Write' || event.tool.toolName === 'Edit')) {
-                const current = this.activeStream.filesTouched[event.tool.filePath] ?? 0;
-                this.activeStream.filesTouched[event.tool.filePath] = current + 1;
+                const current = stream.filesTouched[event.tool.filePath] ?? 0;
+                stream.filesTouched[event.tool.filePath] = current + 1;
               }
             }
             if (event.type === 'done') {
-              this.activeStream.filesTouched = event.filesTouched;
+              stream.filesTouched = event.filesTouched;
             }
           }
 
           // Accumulate response content (both local buffers and activeStream for recovery)
           if (event.type === 'textDelta') {
             responseBuffer += event.text;
-            if (this.activeStream) this.activeStream.textBuffer = responseBuffer;
+            if (stream) stream.textBuffer = responseBuffer;
           } else if (event.type === 'thinkingDelta') {
             thinkingBuffer += event.text;
-            if (this.activeStream) this.activeStream.thinkingBuffer = thinkingBuffer;
+            if (stream) stream.thinkingBuffer = thinkingBuffer;
           } else if (event.type === 'filesChanged') {
             // Capture files changed during this interaction
             this.lastChangedFiles = event.paths;
@@ -297,13 +301,12 @@ export class ChatService {
               console.error('Chapter validation error:', err);
             }
 
-            // Clear active stream — the CLI call is complete
-            this.activeStream = null;
+            // Clear THIS stream only — don't nuke other books' active streams
+            this.activeStreams.delete(conversationId);
           } else if (event.type === 'error') {
             // End session on error
             this.db.endStreamSession(sessionId, 'idle', {});
-            // Clear active stream on error as well
-            this.activeStream = null;
+            this.activeStreams.delete(conversationId);
           }
 
           // Forward ALL events to the caller (including toolUse and filesChanged)
@@ -312,7 +315,7 @@ export class ChatService {
       });
     } catch (err) {
       this.db.endStreamSession(sessionId, 'idle', {});
-      this.activeStream = null;
+      this.activeStreams.delete(conversationId);
       const errorMessage = err instanceof Error ? err.message : String(err);
       onEvent({ type: 'error', message: errorMessage });
     }
@@ -365,11 +368,27 @@ export class ChatService {
   }
 
   /**
-   * Returns info about the currently active CLI stream, or null if idle.
+   * Returns info about any active CLI stream, or null if idle.
    * Used by the renderer to restore streaming UI state after a window refresh.
+   * Returns the first active stream found (for backward compat).
    */
   getActiveStream(): ActiveStreamInfo | null {
-    return this.activeStream;
+    for (const stream of this.activeStreams.values()) {
+      return stream;
+    }
+    return null;
+  }
+
+  /**
+   * Returns the active CLI stream for a specific book, or null if that book
+   * has no active stream. Used when switching books to recover an in-flight
+   * stream without interfering with other books' streams.
+   */
+  getActiveStreamForBook(bookSlug: string): ActiveStreamInfo | null {
+    for (const stream of this.activeStreams.values()) {
+      if (stream.bookSlug === bookSlug) return stream;
+    }
+    return null;
   }
 
   /**
@@ -439,8 +458,8 @@ export class ChatService {
     const { mkdir } = await import('node:fs/promises');
     await mkdir(workingDir, { recursive: true });
 
-    // Track active stream
-    this.activeStream = {
+    // Track active stream (Map — supports concurrent streams across books)
+    this.activeStreams.set(conversationId, {
       conversationId,
       agentName,
       model: appSettings.model,
@@ -452,7 +471,7 @@ export class ChatService {
       filesTouched: {},
       thinkingBuffer: '',
       textBuffer: '',
-    };
+    });
 
     onEvent({ type: 'callStart', agentName, model: appSettings.model, bookSlug });
     onEvent({ type: 'status', message: randomWaitingStatus() });
@@ -471,28 +490,28 @@ export class ChatService {
       sessionId,
       conversationId,
       onEvent: (event: StreamEvent) => {
-        // Update activeStream with live progress data (Session E)
-        if (this.activeStream) {
+        const stream = this.activeStreams.get(conversationId);
+        if (stream) {
           if (event.type === 'progressStage') {
-            this.activeStream.progressStage = event.stage;
+            stream.progressStage = event.stage;
           }
           if (event.type === 'toolDuration') {
             if (event.tool.filePath && (event.tool.toolName === 'Write' || event.tool.toolName === 'Edit')) {
-              const current = this.activeStream.filesTouched[event.tool.filePath] ?? 0;
-              this.activeStream.filesTouched[event.tool.filePath] = current + 1;
+              const current = stream.filesTouched[event.tool.filePath] ?? 0;
+              stream.filesTouched[event.tool.filePath] = current + 1;
             }
           }
           if (event.type === 'done') {
-            this.activeStream.filesTouched = event.filesTouched;
+            stream.filesTouched = event.filesTouched;
           }
         }
 
         if (event.type === 'textDelta') {
           responseBuffer += event.text;
-          if (this.activeStream) this.activeStream.textBuffer = responseBuffer;
+          if (stream) stream.textBuffer = responseBuffer;
         } else if (event.type === 'thinkingDelta') {
           thinkingBuffer += event.text;
-          if (this.activeStream) this.activeStream.thinkingBuffer = thinkingBuffer;
+          if (stream) stream.thinkingBuffer = thinkingBuffer;
         } else if (event.type === 'filesChanged') {
           this.lastChangedFiles = event.paths;
         } else if (event.type === 'done') {
@@ -514,10 +533,10 @@ export class ChatService {
           });
 
           this.db.endStreamSession(sessionId, 'complete', event.filesTouched);
-          this.activeStream = null;
+          this.activeStreams.delete(conversationId);
         } else if (event.type === 'error') {
           this.db.endStreamSession(sessionId, 'idle', {});
-          this.activeStream = null;
+          this.activeStreams.delete(conversationId);
         }
 
         onEvent(event);

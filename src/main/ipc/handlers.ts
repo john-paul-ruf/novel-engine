@@ -348,6 +348,10 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('chat:getActiveStream', () => services.chat.getActiveStream());
 
+  ipcMain.handle('chat:getActiveStreamForBook', (_, bookSlug: string) =>
+    services.chat.getActiveStreamForBook(bookSlug),
+  );
+
   ipcMain.handle('chat:getOrphanedSessions', () =>
     services.chat.getRecoveredOrphans()
   );

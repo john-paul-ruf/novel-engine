@@ -115,6 +115,8 @@ const api = {
       ipcRenderer.invoke('chat:send', params),
     getActiveStream: (): Promise<ActiveStreamInfo | null> =>
       ipcRenderer.invoke('chat:getActiveStream'),
+    getActiveStreamForBook: (bookSlug: string): Promise<ActiveStreamInfo | null> =>
+      ipcRenderer.invoke('chat:getActiveStreamForBook', bookSlug),
     getOrphanedSessions: (): Promise<StreamSessionRecord[]> =>
       ipcRenderer.invoke('chat:getOrphanedSessions'),
     onStreamEvent: (callback: (event: StreamEvent) => void) => {
