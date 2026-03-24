@@ -8,6 +8,7 @@
 - [Cleartext](https://www.amazon.com/dp/B0GTN8DRM8)
 - [Junk Souls](https://www.amazon.com/dp/B0GTMGN843)
 - [Day One](https://www.amazon.com/dp/B0GTQKZQSY)
+- [The Last Compiler](https://www.amazon.com/dp/B0GTPJWFQ7)
 
 # Novel Engine
 
