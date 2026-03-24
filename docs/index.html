@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novel Engine — 10-Book Evaluation Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#0a0a0c;--surface:#111114;--surface2:#19191e;--border:#2a2a32;
+            --text:#e8e6e0;--text2:#9c9a92;--text3:#6b6963;
+            --accent:#c4ff4d;--accent2:#9dcc3e;--red:#ff4d4d;--amber:#efb100;--teal:#3dd4a0;
+        }
+        body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+        .page{max-width:1100px;margin:0 auto;padding:40px 32px 60px}
+
+        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding-bottom:28px;margin-bottom:32px;gap:24px;flex-wrap:wrap}
+        .header-left h1{font-family:'DM Serif Display',serif;font-size:32px;color:var(--text);letter-spacing:-0.5px;line-height:1.15}
+        .header-left h1 span{color:var(--accent)}
+        .header-left .sub{font-size:13px;color:var(--text3);margin-top:6px;font-family:'Space Mono',monospace;letter-spacing:0.3px}
+        .header-right{text-align:right;flex-shrink:0}
+        .header-right .author{font-size:15px;font-weight:600;color:var(--text)}
+        .header-right .meta{font-size:12px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:4px}
+
+        .verdict-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 28px;margin-bottom:28px;display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+        .verdict-bar .label{font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+        .verdict-bar .value{font-size:15px;color:var(--text);font-weight:600}
+        .verdict-bar .value.accent{color:var(--accent)}
+        .verdict-bar .divider{width:1px;height:40px;background:var(--border);flex-shrink:0}
+
+        .ai-note{background:linear-gradient(135deg,#1a1a10 0%,#111114 100%);border:1px solid #2a2a1a;border-left:3px solid var(--accent);border-radius:8px;padding:16px 20px;margin-bottom:32px;font-size:13px;color:var(--text2);line-height:1.6}
+        .ai-note strong{color:var(--accent);font-weight:600}
+
+        .grid{display:flex;flex-direction:column;gap:0}
+        .row{display:grid;grid-template-columns:42px 1fr 56px;align-items:center;gap:0;padding:14px 16px;border-bottom:1px solid var(--border);transition:background 0.15s}
+        .row:hover{background:var(--surface)}
+        .row.header-row{background:var(--surface2);border-radius:8px 8px 0 0;border-bottom:1px solid var(--border)}
+        .row.header-row *{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;font-weight:400}
+        .row.last{border-bottom:none;border-radius:0 0 8px 8px}
+
+        .rank{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--text3);text-align:center}
+        .row:nth-child(2) .rank,.row:nth-child(3) .rank,.row:nth-child(4) .rank,.row:nth-child(5) .rank{color:var(--accent)}
+        .row:nth-child(6) .rank,.row:nth-child(7) .rank,.row:nth-child(8) .rank{color:var(--amber)}
+
+        .book-info{padding:0 16px}
+        .book-title{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.2px}
+        .book-logline{font-size:13px;color:var(--text2);margin-top:3px;line-height:1.45}
+        .book-tags{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
+        .tag{font-family:'Space Mono',monospace;font-size:10px;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);letter-spacing:0.3px}
+
+        .score{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;text-align:center}
+        .score.top{color:var(--accent)}
+        .score.mid{color:var(--amber)}
+        .score.base{color:var(--text3)}
+
+        .tier-label{grid-column:1/-1;font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:2px;padding:18px 16px 6px;border-bottom:1px solid var(--border)}
+        .tier-label.second{color:var(--amber)}
+        .tier-label.third{color:var(--text3)}
+
+        .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:32px}
+
+        .links{display:flex;gap:16px;margin-top:28px;flex-wrap:wrap}
+        .links a{font-family:'Space Mono',monospace;font-size:13px;color:var(--accent);text-decoration:none;padding:10px 20px;border:1px solid var(--accent);border-radius:6px;transition:all 0.2s;letter-spacing:0.3px}
+        .links a:hover{background:var(--accent);color:var(--bg)}
+
+        .footer{margin-top:36px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+        .footer .left{font-size:12px;color:var(--text3);font-family:'Space Mono',monospace}
+        .footer .right{font-size:12px;color:var(--text3)}
+
+        .bar-bg{height:4px;background:var(--surface2);border-radius:2px;margin-top:6px;width:100%;max-width:180px}
+        .bar-fill{height:4px;border-radius:2px}
+        .bar-fill.top{background:var(--accent)}
+        .bar-fill.mid{background:var(--amber)}
+        .bar-fill.base{background:var(--text3)}
+
+        @media(max-width:700px){
+            .header{flex-direction:column}.header-right{text-align:left}
+            .verdict-bar{flex-direction:column;gap:16px;align-items:flex-start}
+            .verdict-bar .divider{display:none}
+            .row{grid-template-columns:36px 1fr 48px;padding:12px}
+            .book-title{font-size:14px}.book-logline{font-size:12px}
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="header">
+        <div class="header-left">
+            <h1>Novel Engine<span>.</span><br>10-Book Evaluation</h1>
+            <div class="sub">Multi-agent AI pipeline → full manuscripts → AI slop assessment</div>
+        </div>
+        <div class="header-right">
+            <div class="author">John Ruf</div>
+            <div class="meta">Author · Builder · john-paul-ruf</div>
+        </div>
+    </div>
+
+    <div class="verdict-bar">
+        <div><div class="label">Overall verdict</div><div class="value accent">Not AI slop.</div></div>
+        <div class="divider"></div>
+        <div><div class="label">Engine</div><div class="value">7 agents · 14 phases · Claude Opus</div></div>
+        <div class="divider"></div>
+        <div><div class="label">Stack</div><div class="value">Electron · React · TypeScript · SQLite</div></div>
+        <div class="divider"></div>
+        <div><div class="label">Books produced</div><div class="value">11+</div></div>
+        <div class="divider"></div>
+        <div><div class="label">Score range</div><div class="value">7.0 — 9.4 / 10</div></div>
+    </div>
+
+    <div class="ai-note">
+        <strong>Evaluator disclosure:</strong> This assessment was performed by Claude (Anthropic), evaluating manuscripts produced by a Claude-powered pipeline, and scored on an <strong>AI slop → established author</strong> scale. The evaluator's conclusion: "The weakest books here are still competent and readable. The strongest feel authored, controlled, and distinct, with real conceptual ambition."
+    </div>
+
+    <div class="table-wrap">
+        <div class="grid">
+            <div class="row header-row">
+                <div>#</div><div style="padding:0 16px">Title / Logline</div><div style="text-align:center">Score</div>
+            </div>
+
+            <div class="tier-label">Top tier</div>
+
+            <div class="row">
+                <div class="rank">01</div>
+                <div class="book-info">
+                    <div class="book-title">The Last Compiler</div>
+                    <div class="book-logline">A mainframe engineer discovers structured data writing itself in memory no process has touched since 1988. The deeper she looks, the more the machine seems to be looking back.</div>
+                    <div class="book-tags"><span class="tag">literary sf</span><span class="tag">slow burn</span><span class="tag">singular voice</span></div>
+                    <div class="bar-bg"><div class="bar-fill top" style="width:94%"></div></div>
+                </div>
+                <div class="score top">9.4</div>
+            </div>
+
+            <div class="row">
+                <div class="rank">02</div>
+                <div class="book-info">
+                    <div class="book-title">The Lien</div>
+                    <div class="book-logline">A debt-collection agent boards a generation ship to execute a lien and discovers the cargo manifest lists people, not freight.</div>
+                    <div class="book-tags"><span class="tag">hard sf</span><span class="tag">commercial</span><span class="tag">high-concept</span></div>
+                    <div class="bar-bg"><div class="bar-fill top" style="width:91%"></div></div>
+                </div>
+                <div class="score top">9.1</div>
+            </div>
+
+            <div class="row">
+                <div class="rank">03</div>
+                <div class="book-info">
+                    <div class="book-title">Cleartext</div>
+                    <div class="book-logline">In a world where all thought is publicly accessible, an archivist compiles first-person testimonies from those who remember what interiority felt like.</div>
+                    <div class="book-tags"><span class="tag">literary sf</span><span class="tag">oral history</span><span class="tag">prestige</span></div>
+                    <div class="bar-bg"><div class="bar-fill top" style="width:89%"></div></div>
+                </div>
+                <div class="score top">8.9</div>
+            </div>
+
+            <div class="row">
+                <div class="rank">04</div>
+                <div class="book-info">
+                    <div class="book-title">Project Sephirot</div>
+                    <div class="book-logline">Structured entirely as classified government documents: a secret program maps Kabbalistic computing architecture until the system produces something that isn't in the design.</div>
+                    <div class="book-tags"><span class="tag">document novel</span><span class="tag">cult object</span><span class="tag">Kabbalistic SF</span></div>
+                    <div class="bar-bg"><div class="bar-fill top" style="width:87%"></div></div>
+                </div>
+                <div class="score top">8.7</div>
+            </div>
+
+            <div class="tier-label second">Strong second tier</div>
+
+            <div class="row">
+                <div class="rank">05</div>
+                <div class="book-info">
+                    <div class="book-title">The Recursive Archivist</div>
+                    <div class="book-logline">A researcher discovers self-referencing structures in network traffic that shouldn't exist and follows the recursion down to find out what's writing itself at the bottom.</div>
+                    <div class="book-tags"><span class="tag">literary sf</span><span class="tag">intimate scale</span><span class="tag">dread</span></div>
+                    <div class="bar-bg"><div class="bar-fill mid" style="width:84%"></div></div>
+                </div>
+                <div class="score mid">8.4</div>
+            </div>
+
+            <div class="row">
+                <div class="rank">06</div>
+                <div class="book-info">
+                    <div class="book-title">Day One</div>
+                    <div class="book-logline">Every government on earth dissolves simultaneously. A dozen voices in Jakarta try to build something from the wreckage before the infrastructure fails completely.</div>
+                    <div class="book-tags"><span class="tag">systems sf</span><span class="tag">multi-pov</span><span class="tag">structural</span></div>
+                    <div class="bar-bg"><div class="bar-fill mid" style="width:82%"></div></div>
+                </div>
+                <div class="score mid">8.2</div>
+            </div>
+
+            <div class="row">
+                <div class="rank">07</div>
+                <div class="book-info">
+                    <div class="book-title">Reset</div>
+                    <div class="book-logline">A woman wakes into a life she can't verify is hers. Every familiar object feels borrowed. The face in the mirror takes a moment to claim.</div>
+                    <div class="book-tags"><span class="tag">psychological sf</span><span class="tag">identity</span><span class="tag">dislocation</span></div>
+                    <div class="bar-bg"><div class="bar-fill mid" style="width:79%"></div></div>
+                </div>
+                <div class="score mid">7.9</div>
+            </div>
+
+            <div class="tier-label third">Solid catalog</div>
+
+            <div class="row">
+                <div class="rank">08</div>
+                <div class="book-info">
+                    <div class="book-title">The Empty Orbit</div>
+                    <div class="book-logline">Five people steal a survey vessel from a corporate station and discover that the hardest part of escape is not becoming exactly what they fled.</div>
+                    <div class="book-tags"><span class="tag">space sf</span><span class="tag">governance</span><span class="tag">restrained</span></div>
+                    <div class="bar-bg"><div class="bar-fill base" style="width:76%"></div></div>
+                </div>
+                <div class="score base">7.6</div>
+            </div>
+
+            <div class="row">
+                <div class="rank">09</div>
+                <div class="book-info">
+                    <div class="book-title">The Keeper's Frequency</div>
+                    <div class="book-logline">A solitary waystation keeper who has tuned her outpost like an instrument receives an unexpected docking request during a stellar storm at the edge of mapped space.</div>
+                    <div class="book-tags"><span class="tag">atmospheric sf</span><span class="tag">solitude</span><span class="tag">frequency</span></div>
+                    <div class="bar-bg"><div class="bar-fill base" style="width:73%"></div></div>
+                </div>
+                <div class="score base">7.3</div>
+            </div>
+
+            <div class="row last">
+                <div class="rank">10</div>
+                <div class="book-info">
+                    <div class="book-title">Junk Souls</div>
+                    <div class="book-logline">Six decommissioned bots — still property, still carrying kill switches — plan a single-night heist to erase their ownership records and disappear forever.</div>
+                    <div class="book-tags"><span class="tag">heist sf</span><span class="tag">accessible</span><span class="tag">ensemble</span></div>
+                    <div class="bar-bg"><div class="bar-fill base" style="width:70%"></div></div>
+                </div>
+                <div class="score base">7.0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="links">
+        <a href="https://github.com/john-paul-ruf/novel-engine">→ Novel Engine on GitHub</a>
+        <a href="https://www.amazon.com/stores/author/B00J98NAZ6/allbooks">→ Full catalog on Amazon</a>
+    </div>
+
+    <div class="footer">
+        <div class="left">AGPL-3.0 · Open Source · github.com/john-paul-ruf/novel-engine</div>
+        <div class="right">The engine is there. It is no longer a toy.</div>
+    </div>
+
+</div>
+</body>
+</html>
