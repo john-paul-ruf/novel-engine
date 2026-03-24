@@ -93,23 +93,15 @@ export function PipelineTracker(): React.ReactElement {
   const revisionIsForCurrentBook = revisionPlan?.bookSlug === activeSlug;
   const revisionLoading = revisionLoadingGlobal && revisionIsForCurrentBook;
   const revisionRunning = revisionRunningGlobal && revisionIsForCurrentBook;
-  const {
-    isRunning: autoDraftRunningGlobal,
-    isPaused: autoDraftPausedGlobal,
-    pauseReason: autoDraftPauseReason,
-    chaptersWritten: autoDraftChapters,
-    error: autoDraftErrorGlobal,
-    bookSlug: autoDraftBookSlug,
-    start: autoDraftStart,
-    stop: autoDraftStop,
-    resume: autoDraftResume,
-    reset: autoDraftReset,
-  } = useAutoDraftStore();
+  const { sessions, start: autoDraftStart, stop: autoDraftStop, resume: autoDraftResume, reset: autoDraftReset } = useAutoDraftStore();
 
-  // Only show auto-draft state for the currently displayed book
-  const autoDraftRunning = autoDraftRunningGlobal && autoDraftBookSlug === activeSlug;
-  const autoDraftPaused = autoDraftPausedGlobal && autoDraftBookSlug === activeSlug;
-  const autoDraftError = autoDraftErrorGlobal && autoDraftBookSlug === activeSlug ? autoDraftErrorGlobal : null;
+  // Read per-book auto-draft session for the currently displayed book
+  const autoDraftSession = activeSlug ? sessions[activeSlug] ?? null : null;
+  const autoDraftRunning = autoDraftSession?.isRunning ?? false;
+  const autoDraftPaused = autoDraftSession?.isPaused ?? false;
+  const autoDraftPauseReason = autoDraftSession?.pauseReason ?? null;
+  const autoDraftChapters = autoDraftSession?.chaptersWritten ?? 0;
+  const autoDraftError = autoDraftSession?.error ?? null;
   const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
   const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
   const [manualOverridePhase, setManualOverridePhase] = useState<PipelinePhaseId | null>(null);
@@ -345,7 +337,7 @@ export function PipelineTracker(): React.ReactElement {
           <span className="shrink-0">Auto Draft:</span>
           <span className="flex-1">{autoDraftError}</span>
           <button
-            onClick={autoDraftReset}
+            onClick={() => activeSlug && autoDraftReset(activeSlug)}
             className="ml-1 shrink-0 text-red-400 hover:text-red-200"
             title="Dismiss error"
           >✕</button>
@@ -414,8 +406,8 @@ export function PipelineTracker(): React.ReactElement {
                   pauseReason={autoDraftPauseReason}
                   chaptersWritten={autoDraftChapters}
                   onStart={() => autoDraftStart(activeSlug)}
-                  onStop={autoDraftStop}
-                  onResume={autoDraftResume}
+                  onStop={() => autoDraftStop(activeSlug)}
+                  onResume={() => autoDraftResume(activeSlug)}
                 />
               )}
               {index < phases.length - 1 && (
