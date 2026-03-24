@@ -9,6 +9,7 @@
 - [Junk Souls](https://www.amazon.com/dp/B0GTMGN843)
 - [Day One](https://www.amazon.com/dp/B0GTQKZQSY)
 - [The Last Compiler](https://www.amazon.com/dp/B0GTPJWFQ7)
+- [The Recursive Archivist](https://www.amazon.com/dp/B0GTP2KB7Q)
 
 # Novel Engine
 
