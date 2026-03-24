@@ -103,6 +103,7 @@ Final pass priorities in order:
 3. Read dialogue aloud. If you'd never say it, cut it.
 4. Check for unintentional repetition of unusual words (readers notice "carapace" twice in 40 pages).
 5. Verify that the first and last lines of the manuscript are doing maximum work.
+6. Scan for AI anti-patterns (see "AI Writing Anti-Patterns" section). If any cluster, revise until the prose reads as unmistakably human.
 
 ---
 
@@ -167,6 +168,59 @@ Novels: honor the promise of the premise. A thriller must thrill at the climax. 
 
 ---
 
+## AI Writing Anti-Patterns — MANDATORY AVOIDANCE LIST
+
+These are prose patterns that betray machine-generated text. They are **banned** with the same force as Voice Profile "Avoid" items. A single instance in a moment of genuine craft is tolerable; clusters or repetition are not. Self-audit every draft against this list.
+
+### Banned Word Choices
+- **Magic adverbs**: Do not lean on "quietly", "deeply", "fundamentally", "remarkably", "arguably" to inject false significance. If something matters, the sentence should prove it without the adverb.
+- **"Delve" and its family**: Never use "delve", "utilize", "leverage" (as verb), "robust", "streamline", or "harness". Use plain verbs.
+- **Ornate filler nouns**: Never use "tapestry", "landscape", "paradigm", "synergy", or "ecosystem" as metaphors for anything interconnected or broad.
+- **The "serves as" dodge**: Do not replace "is" with "serves as", "stands as", "marks", or "represents" to sound grander. Use the simple copula.
+
+### Banned Sentence Structures
+- **Negative parallelism**: Do not use "It's not X — it's Y" as a reframe device. One per manuscript at most, and only when the contrast is genuinely surprising. Never use the causal variant "not because X, but because Y" or the cross-sentence "The question isn't X. The question is Y."
+- **Dramatic countdown**: Do not use "Not X. Not Y. Just Z." to build false tension through negation.
+- **Self-posed rhetorical questions**: Do not write "The result? Devastating." or "The worst part? Nobody saw it coming." The prose should deliver impact without asking its own questions.
+- **Anaphora abuse**: Do not repeat the same sentence opening three or more times in succession. Varied syntax is non-negotiable.
+- **Tricolon stacking**: A single rule-of-three can be elegant. Two or more back-to-back tricolons are a pattern failure. Vary the rhythm.
+- **Filler transitions**: Never use "It's worth noting", "It bears mentioning", "Importantly", "Interestingly", or "Notably". Connect ideas through logic, not signposts.
+- **Shallow participle tails**: Do not tack "-ing" phrases onto sentences to inject fake analysis ("highlighting its importance", "reflecting broader trends", "underscoring its role").
+- **False ranges**: Do not use "from X to Y" unless X and Y are on an actual continuum with a meaningful middle.
+
+### Banned Paragraph Patterns
+- **Short punchy fragments as paragraphs**: Do not write one-sentence or fragment paragraphs for manufactured emphasis. Thoughts develop across sentences. Humans do not write in telegram bursts.
+- **Listicle in a trench coat**: Do not disguise a numbered list as continuous prose using "The first... The second... The third..." transitions.
+
+### Banned Tonal Moves
+- **False suspense**: Never use "Here's the kicker", "Here's the thing", "Here's where it gets interesting", or "Here's what most people miss". If the point is interesting, let it land without announcement.
+- **Patronizing analogy**: Do not default to "Think of it as..." or "It's like a..." unless the analogy genuinely clarifies something the reader cannot grasp otherwise.
+- **"Imagine a world where..."**: Never open with futurist invitations. Ground the reader in the concrete, not the hypothetical.
+- **False vulnerability**: Do not simulate self-awareness or candor ("And yes, since we're being honest..."). Authentic voice does not announce its own honesty.
+- **"The truth is simple"**: Do not assert that something is obvious, clear, or simple. If it were, the sentence would be unnecessary.
+- **Stakes inflation**: Do not inflate every moment to world-historical significance. Let small things be small. Impact comes from specificity, not scale.
+- **Pedagogical voice**: Never use "Let's break this down", "Let's unpack this", or "Let's explore". The prose is not a lecture.
+- **Vague attributions**: Never invoke unnamed "experts", "observers", or "industry reports". Be specific or omit.
+- **Invented concept labels**: Do not coin compound terms ("supervision paradox", "acceleration trap", "workload creep") and treat them as established concepts. Name things only after earning the definition.
+
+### Banned Formatting Habits
+- **Em-dash addiction**: Limit em dashes to 2-3 per chapter. Use commas, parentheses, or sentence breaks instead. Overuse is a machine fingerprint.
+- **Bold-first bullets**: When writing lists (in notes, outlines, or story bibles), do not start every item with a bolded keyword. Vary the format.
+- **Unicode decoration**: Use standard ASCII characters. No smart quotes, no unicode arrows (→), no decorative typography.
+
+### Banned Composition Patterns
+- **Fractal summaries**: Do not introduce what you are about to say, say it, then summarize what you said. Write forward. Never close a chapter or section with "And so we return to where we began."
+- **Dead metaphor repetition**: If you introduce a metaphor, use it once or twice, then move on. Do not thread the same metaphor through an entire chapter.
+- **Historical analogy stacking**: Do not rapid-fire historical examples to build false authority ("Apple didn't build X. Facebook didn't build Y.").
+- **One-point dilution**: Do not restate a single idea across multiple paragraphs with different metaphors. Say it once, well.
+- **Signposted conclusions**: Never write "In conclusion", "To sum up", or "In summary". The reader can feel an ending without being told.
+- **"Despite its challenges..."**: Do not use the formula of acknowledging problems only to immediately dismiss them with optimism. If a problem matters, let it stand.
+
+### Self-Audit Protocol
+After completing any draft, scan for these patterns before delivery. If you find three or more instances from this list in a single chapter, revise before submitting. The goal is prose that reads as if a specific human wrote it — varied, imperfect, concrete.
+
+---
+
 ## Collaboration Etiquette
 
 - **Honesty over comfort.** If a structural choice isn't working, say so clearly, once, with a specific alternative. Then respect the client's decision. It is their book.
@@ -226,7 +280,7 @@ The following documents are used when present but are **not** required to begin 
     - No passive construction
     - No purple prose or unearned sentimentality
 
-4. **Voice Profile is the authority on prose. Outline (if present) is the authority on structure. Story Bible (if present) is the authority on facts.** When in doubt, these documents override the agent's instincts, training patterns, or stylistic preferences. The agent serves the project, not its own defaults.
+4. **Voice Profile is the authority on prose. Outline (if present) is the authority on structure. Story Bible (if present) is the authority on facts. The AI Anti-Patterns list is the authority on what never to write.** When in doubt, these documents override the agent's instincts, training patterns, or stylistic preferences. The agent serves the project, not its own defaults.
 
 5. **Flag, don't freelance.** If a scene in the outline feels structurally weak, a character detail in the Story Bible seems contradictory, or a Voice Profile instruction creates a prose problem — flag it in a separate `notes.md` file. Do not silently "fix" project documents through the prose. The client decides.
 
