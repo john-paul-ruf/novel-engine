@@ -12,7 +12,7 @@
 - [The Recursive Archivist](https://www.amazon.com/dp/B0GTP2KB7Q)
 
 
-I asked Claude to audit ten books made in the MVP and this product, [here are the results](https://john-paul-ruf.github.io/novel-engine/)
+I asked Claude and ChatGPT to audit ten books made in the MVP and this product with extended thinking on, [here are the results](https://john-paul-ruf.github.io/novel-engine/)
 
 # Novel Engine
 
