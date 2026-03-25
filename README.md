@@ -11,6 +11,9 @@
 - [The Last Compiler](https://www.amazon.com/dp/B0GTPJWFQ7)
 - [The Recursive Archivist](https://www.amazon.com/dp/B0GTP2KB7Q)
 
+
+I asked Claude to audit ten books made in the MVP and this product, [here are the results](https://john-paul-ruf.github.io/novel-engine/)
+
 # Novel Engine
 
 A desktop application for **building novels**, not writing them. Novel Engine is a book-building system — an editorial production pipeline where the human author is the creative authority and seven specialized AI agents serve as the author's professional editorial team.
