@@ -199,6 +199,12 @@ const api = {
       ipcRenderer.invoke('pitchRoom:discard', conversationId),
   },
 
+  // Hot Take
+  hotTake: {
+    start: (bookSlug: string): Promise<{ conversationId: string; callId: string }> =>
+      ipcRenderer.invoke('hot-take:start', bookSlug),
+  },
+
   // Usage
   usage: {
     summary: (bookSlug?: string): Promise<UsageSummary> =>

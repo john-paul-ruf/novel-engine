@@ -105,7 +105,7 @@ export type Message = {
   timestamp: string;       // ISO date
 };
 
-export type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile' | 'pitch-room';
+export type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile' | 'pitch-room' | 'hot-take';
 
 // === Pitch Room ===
 

@@ -423,6 +423,53 @@ export function registerIpcHandlers(services: {
     services.db.deleteConversation(convId);
   });
 
+  // === Hot Take ===
+
+  ipcMain.handle('hot-take:start', async (event, bookSlug: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    const dateStr = new Date().toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+
+    const conversation = services.db.createConversation({
+      id: randomUUID(),
+      bookSlug,
+      agentName: 'Ghostlight',
+      pipelinePhase: null,
+      purpose: 'hot-take',
+      title: `Hot Take — ${dateStr}`,
+    });
+
+    const callId = randomUUID();
+
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string }) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        try {
+          w.webContents.send('chat:streamEvent', streamEvent);
+        } catch {
+          // Window may be closing
+        }
+      }
+    };
+
+    services.chat.sendMessage({
+      agentName: 'Ghostlight',
+      message: 'Read the full manuscript and give me your honest reaction.',
+      conversationId: conversation.id,
+      bookSlug,
+      callId,
+      onEvent: (streamEvent) => {
+        broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id });
+      },
+    }).catch((err) => {
+      console.error('[hot-take] Stream error:', err);
+    });
+
+    return { conversationId: conversation.id, callId };
+  });
+
   // === Revision Queue ===
 
   ipcMain.handle('revision:loadPlan', async (_, bookSlug: string) => {

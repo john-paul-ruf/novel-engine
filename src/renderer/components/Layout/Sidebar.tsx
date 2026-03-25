@@ -1,6 +1,7 @@
 import { useViewStore } from '../../stores/viewStore';
 import { BookSelector } from '../Sidebar/BookSelector';
 import { VoiceSetupButton } from '../Sidebar/VoiceSetupButton';
+import { HotTakeButton } from '../Sidebar/HotTakeButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
 import { FileTree } from '../Sidebar/FileTree';
 import { CliActivityButton } from '../Sidebar/CliActivityButton';
@@ -82,6 +83,7 @@ export function Sidebar(): React.ReactElement {
         {currentView !== 'pitch-room' && (
           <>
             <PipelineTracker />
+            <HotTakeButton />
 
             {/* Divider */}
             <div className="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-800" />

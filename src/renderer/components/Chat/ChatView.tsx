@@ -6,6 +6,7 @@ import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
+import { streamRouter } from '../../stores/streamRouter';
 import { AgentHeader } from './AgentHeader';
 import { ChatInput } from './ChatInput';
 import { ChatTitleBar } from './ChatTitleBar';
@@ -101,12 +102,24 @@ export function ChatView(): React.ReactElement {
   }, [activeSlug, loadConversations]);
 
   const handleSend = useCallback(
-    (content: string) => {
+    async (content: string) => {
+      if (content === '__HOT_TAKE__') {
+        if (!activeSlug) return;
+        try {
+          const { conversationId, callId } = await window.novelEngine.hotTake.start(activeSlug);
+          streamRouter.target = 'main';
+          await loadConversations(activeSlug);
+          await setActiveConversation(conversationId);
+          useChatStore.getState().attachToExternalStream(callId, conversationId);
+        } catch (error) {
+          console.error('Failed to start hot take:', error);
+        }
+        return;
+      }
       sendMessage(content, thinkingBudget);
-      // Reset to agent default after sending
       setThinkingBudget(defaultThinkingBudget);
     },
-    [sendMessage, thinkingBudget, defaultThinkingBudget]
+    [sendMessage, thinkingBudget, defaultThinkingBudget, activeSlug, loadConversations, setActiveConversation]
   );
 
   return (

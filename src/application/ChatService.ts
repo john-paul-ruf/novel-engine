@@ -18,7 +18,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -150,6 +150,16 @@ export class ChatService {
       if (conversation?.purpose === 'pitch-room') {
         await this.handlePitchRoomMessage({
           conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId,
+          thinkingBudgetOverride: params.thinkingBudgetOverride,
+          callId: params.callId,
+        });
+        return;
+      }
+
+      // Hot Take branch — Ghostlight reads full manuscript in agent mode, no files written
+      if (conversation?.purpose === 'hot-take') {
+        await this.handleHotTake({
+          conversationId, bookSlug, appSettings, agent, onEvent, sessionId,
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
@@ -399,6 +409,128 @@ export class ChatService {
    */
   getLastDiagnostics(): ContextDiagnostics | null {
     return this.lastDiagnostics;
+  }
+
+  /**
+   * Handle a hot-take conversation: Ghostlight reads full manuscript via tool use,
+   * delivers a ~5 paragraph gut reaction. No files written. No pipeline state affected.
+   * Always uses Opus regardless of global model setting.
+   */
+  private async handleHotTake(params: {
+    conversationId: string;
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean };
+    agent: { systemPrompt: string; thinkingBudget: number };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+    thinkingBudgetOverride?: number;
+    callId?: string;
+  }): Promise<void> {
+    const { conversationId, bookSlug, appSettings, agent, onEvent, sessionId } = params;
+
+    onEvent({ type: 'status', message: randomPreparingStatus() });
+
+    const manifest = await this.fs.getProjectManifest(bookSlug);
+
+    const chapterListing = manifest.files
+      .filter((f) => f.path.startsWith('chapters/') && f.path.endsWith('/draft.md'))
+      .map((f) => `- \`${f.path}\` (${f.wordCount.toLocaleString()} words)`)
+      .join('\n');
+
+    let systemPrompt = agent.systemPrompt + '\n\n---\n\n' + HOT_TAKE_INSTRUCTIONS;
+    if (chapterListing) {
+      systemPrompt += `\n\n## Chapters to Read (in order)\n\n${chapterListing}`;
+    }
+
+    const syntheticMessage = 'Read the full manuscript and give me your honest reaction.';
+
+    const messages = this.db.getMessages(conversationId);
+    const conversationMessages = messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+
+    const thinkingBudget = (() => {
+      if (params.thinkingBudgetOverride !== undefined) {
+        return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
+      }
+      return appSettings.enableThinking ? agent.thinkingBudget : undefined;
+    })();
+
+    this.activeStreams.set(conversationId, {
+      conversationId,
+      agentName: 'Ghostlight',
+      model: HOT_TAKE_MODEL,
+      bookSlug,
+      startedAt: new Date().toISOString(),
+      sessionId,
+      callId: params.callId ?? '',
+      progressStage: 'idle',
+      filesTouched: {},
+      thinkingBuffer: '',
+      textBuffer: '',
+    });
+
+    onEvent({ type: 'callStart', agentName: 'Ghostlight', model: HOT_TAKE_MODEL, bookSlug });
+    onEvent({ type: 'status', message: randomWaitingStatus() });
+
+    let responseBuffer = '';
+    let thinkingBuffer = '';
+
+    await this.claude.sendMessage({
+      model: HOT_TAKE_MODEL,
+      systemPrompt,
+      messages: conversationMessages.length > 0
+        ? conversationMessages
+        : [{ role: 'user' as const, content: syntheticMessage }],
+      maxTokens: appSettings.maxTokens,
+      thinkingBudget,
+      bookSlug,
+      sessionId,
+      conversationId,
+      onEvent: (event: StreamEvent) => {
+        const stream = this.activeStreams.get(conversationId);
+        if (stream) {
+          if (event.type === 'progressStage') {
+            stream.progressStage = event.stage;
+          }
+          if (event.type === 'done') {
+            stream.filesTouched = event.filesTouched;
+          }
+        }
+
+        if (event.type === 'textDelta') {
+          responseBuffer += event.text;
+          if (stream) stream.textBuffer = responseBuffer;
+        } else if (event.type === 'thinkingDelta') {
+          thinkingBuffer += event.text;
+          if (stream) stream.thinkingBuffer = thinkingBuffer;
+        } else if (event.type === 'done') {
+          this.db.saveMessage({
+            conversationId,
+            role: 'assistant',
+            content: responseBuffer,
+            thinking: thinkingBuffer,
+          });
+
+          this.usage.recordUsage({
+            conversationId,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            model: HOT_TAKE_MODEL,
+          });
+
+          this.db.endStreamSession(sessionId, 'complete', event.filesTouched);
+          this.activeStreams.delete(conversationId);
+        } else if (event.type === 'error') {
+          this.db.endStreamSession(sessionId, 'idle', {});
+          this.activeStreams.delete(conversationId);
+        }
+
+        onEvent(event);
+      },
+    });
   }
 
   /**
