@@ -92,8 +92,8 @@ export class DatabaseService implements IDatabaseService {
     `);
 
     this.stmtInsertUsage = this.db.prepare(`
-      INSERT INTO token_usage (conversation_id, input_tokens, output_tokens, thinking_tokens, model, estimated_cost, timestamp)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO token_usage (conversation_id, input_tokens, output_tokens, thinking_tokens, model, timestamp)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
     `);
 
     this.stmtGetUsageSummaryAll = this.db.prepare(`
@@ -101,7 +101,6 @@ export class DatabaseService implements IDatabaseService {
         COALESCE(SUM(input_tokens), 0)    AS total_input_tokens,
         COALESCE(SUM(output_tokens), 0)   AS total_output_tokens,
         COALESCE(SUM(thinking_tokens), 0) AS total_thinking_tokens,
-        COALESCE(SUM(estimated_cost), 0)  AS total_cost,
         COUNT(DISTINCT conversation_id)    AS conversation_count
       FROM token_usage
     `);
@@ -111,7 +110,6 @@ export class DatabaseService implements IDatabaseService {
         COALESCE(SUM(tu.input_tokens), 0)    AS total_input_tokens,
         COALESCE(SUM(tu.output_tokens), 0)   AS total_output_tokens,
         COALESCE(SUM(tu.thinking_tokens), 0) AS total_thinking_tokens,
-        COALESCE(SUM(tu.estimated_cost), 0)  AS total_cost,
         COUNT(DISTINCT tu.conversation_id)    AS conversation_count
       FROM token_usage tu
       JOIN conversations c ON c.id = tu.conversation_id
@@ -119,7 +117,7 @@ export class DatabaseService implements IDatabaseService {
     `);
 
     this.stmtGetUsageByConversation = this.db.prepare(`
-      SELECT conversation_id, input_tokens, output_tokens, thinking_tokens, model, estimated_cost, timestamp
+      SELECT conversation_id, input_tokens, output_tokens, thinking_tokens, model, timestamp
       FROM token_usage WHERE conversation_id = ? ORDER BY timestamp ASC
     `);
 
@@ -234,7 +232,6 @@ export class DatabaseService implements IDatabaseService {
       record.outputTokens,
       record.thinkingTokens,
       record.model,
-      record.estimatedCost,
     );
   }
 
@@ -247,7 +244,6 @@ export class DatabaseService implements IDatabaseService {
       totalInputTokens: row.total_input_tokens,
       totalOutputTokens: row.total_output_tokens,
       totalThinkingTokens: row.total_thinking_tokens,
-      totalCost: row.total_cost,
       conversationCount: row.conversation_count,
     };
   }
@@ -354,7 +350,6 @@ type UsageSummaryRow = {
   total_input_tokens: number;
   total_output_tokens: number;
   total_thinking_tokens: number;
-  total_cost: number;
   conversation_count: number;
 };
 
@@ -364,7 +359,6 @@ type UsageRow = {
   output_tokens: number;
   thinking_tokens: number;
   model: string;
-  estimated_cost: number;
   timestamp: string;
 };
 
@@ -424,7 +418,6 @@ function mapUsageRow(row: UsageRow): UsageRecord {
     outputTokens: row.output_tokens,
     thinkingTokens: row.thinking_tokens,
     model: row.model,
-    estimatedCost: row.estimated_cost,
     timestamp: row.timestamp,
   };
 }

@@ -1,24 +1,18 @@
 import type { IDatabaseService } from '@domain/interfaces';
 import type { UsageRecord, UsageSummary } from '@domain/types';
-import { MODEL_PRICING } from '@domain/constants';
 
 /**
- * UsageService — Centralizes token tracking and cost estimation.
+ * UsageService — Centralizes token tracking.
  *
- * Wraps IDatabaseService usage methods and adds cost calculation
- * using MODEL_PRICING from domain constants. Callers (ChatService)
- * pass raw token counts; this service computes the estimated cost
- * before persisting.
+ * Wraps IDatabaseService usage methods. Since billing is handled by the
+ * Claude Code CLI subscription, no cost estimation is performed — we
+ * simply record raw token counts for informational purposes.
  */
 export class UsageService {
   constructor(private db: IDatabaseService) {}
 
   /**
-   * Record a usage event with automatic cost calculation.
-   *
-   * Looks up the model's pricing from MODEL_PRICING. Falls back to
-   * Opus pricing if the model isn't found (safest default — overestimates
-   * rather than underestimates).
+   * Record a usage event (token counts only — no cost calculation).
    */
   recordUsage(params: {
     conversationId: string;
@@ -27,19 +21,7 @@ export class UsageService {
     thinkingTokens: number;
     model: string;
   }): void {
-    const { conversationId, inputTokens, outputTokens, thinkingTokens, model } = params;
-
-    const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['claude-opus-4-20250514'];
-    const estimatedCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
-
-    this.db.recordUsage({
-      conversationId,
-      inputTokens,
-      outputTokens,
-      thinkingTokens,
-      model,
-      estimatedCost,
-    });
+    this.db.recordUsage(params);
   }
 
   /**

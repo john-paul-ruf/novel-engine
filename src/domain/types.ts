@@ -255,7 +255,6 @@ export type UsageRecord = {
   outputTokens: number;
   thinkingTokens: number;
   model: string;
-  estimatedCost: number;
   timestamp: string;
 };
 
@@ -263,7 +262,6 @@ export type UsageSummary = {
   totalInputTokens: number;
   totalOutputTokens: number;
   totalThinkingTokens: number;
-  totalCost: number;
   conversationCount: number;
 };
 

@@ -289,11 +289,6 @@ function UsageSection(): React.ReactElement {
       .finally(() => setLoading(false));
   }, []);
 
-  const formatCost = (cost: number): string => {
-    if (cost < 0.01) return '$0.00';
-    return `$${cost.toFixed(2)}`;
-  };
-
   const formatTokens = (tokens: number): string => {
     if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
     if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}K`;
@@ -349,15 +344,9 @@ function UsageSection(): React.ReactElement {
           </div>
           <div className="mt-2 border-t border-zinc-300 dark:border-zinc-700 pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">Estimated cost</span>
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {formatCost(summary.totalCost)}
-              </span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">Conversations</span>
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{summary.conversationCount}</span>
             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">Conversations</span>
-            <span className="text-sm text-zinc-700 dark:text-zinc-300">{summary.conversationCount}</span>
           </div>
         </div>
       )}

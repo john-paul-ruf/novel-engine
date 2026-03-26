@@ -32,7 +32,6 @@ export function initializeSchema(db: Database.Database): void {
       output_tokens   INTEGER NOT NULL DEFAULT 0,
       thinking_tokens INTEGER NOT NULL DEFAULT 0,
       model           TEXT NOT NULL,
-      estimated_cost  REAL NOT NULL DEFAULT 0,
       timestamp       TEXT NOT NULL DEFAULT (datetime('now'))
     );
 

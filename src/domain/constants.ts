@@ -97,12 +97,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   authorName: '',
 };
 
-// Model pricing (per million tokens)
-export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'claude-opus-4-20250514':   { input: 15, output: 75 },
-  'claude-sonnet-4-20250514': { input: 3,  output: 15 },
-};
-
 // Available models for the settings dropdown
 export const AVAILABLE_MODELS = [
   { id: 'claude-opus-4-20250514',   label: 'Claude Opus 4',   description: 'Best quality — recommended for all agents' },

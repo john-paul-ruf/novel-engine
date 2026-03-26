@@ -478,18 +478,13 @@ function CallHeader({ call }: { call: CliCall }): React.ReactElement {
           )}
         </div>
 
-        {/* Final token summary + cost (shown after done) */}
+        {/* Final token summary (shown after done) */}
         {isDone && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <TokenBadge label="IN" value={call.sessionInputTokens} color="bg-blue-500/10 text-blue-300" />
             <TokenBadge label="OUT" value={call.sessionOutputTokens} color="bg-green-500/10 text-green-300" />
             {call.sessionThinkingTokens > 0 && (
               <TokenBadge label="THINK" value={call.sessionThinkingTokens} color="bg-amber-500/10 text-amber-300" />
-            )}
-            {call.estimatedCost !== null && call.estimatedCost > 0 && (
-              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
-                ${call.estimatedCost.toFixed(4)}
-              </span>
             )}
           </div>
         )}

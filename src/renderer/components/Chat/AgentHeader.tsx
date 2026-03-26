@@ -23,9 +23,8 @@ export function AgentHeader(): React.ReactElement | null {
         inputTokens: acc.inputTokens + r.inputTokens,
         outputTokens: acc.outputTokens + r.outputTokens,
         thinkingTokens: acc.thinkingTokens + r.thinkingTokens,
-        estimatedCost: acc.estimatedCost + r.estimatedCost,
       }),
-      { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, estimatedCost: 0 }
+      { inputTokens: 0, outputTokens: 0, thinkingTokens: 0 }
     );
   }, [conversationUsage]);
 
@@ -67,12 +66,7 @@ export function AgentHeader(): React.ReactElement | null {
 
       {usageTotals && totalTokens > 0 && (
         <div className="text-right font-mono text-xs text-zinc-500">
-          <div>
-            {totalTokens.toLocaleString()} tokens
-          </div>
-          <div className="text-zinc-400 dark:text-zinc-600">
-            ${usageTotals.estimatedCost.toFixed(4)}
-          </div>
+          {totalTokens.toLocaleString()} tokens
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { StreamEvent, ToolUseInfo, ContextDiagnostics, AgentName } from '@domain/types';
-import { MODEL_PRICING, CHARS_PER_TOKEN, AGENT_REGISTRY } from '@domain/constants';
+import { CHARS_PER_TOKEN, AGENT_REGISTRY } from '@domain/constants';
 
 type CliActivityEntryKind =
   | 'spawn'
@@ -60,7 +60,6 @@ export type CliCall = {
   sessionInputTokens: number;
   sessionOutputTokens: number;
   sessionThinkingTokens: number;
-  estimatedCost: number | null;
   callElapsedMs: number;
   toolUseCount: number;
   toolUseBreakdown: Record<string, number>;
@@ -128,12 +127,6 @@ function getModelLabel(model: string): string {
   return model;
 }
 
-function estimateCost(model: string, input: number, output: number): number {
-  const pricing = MODEL_PRICING[model];
-  if (!pricing) return 0;
-  return (input / 1_000_000) * pricing.input + (output / 1_000_000) * pricing.output;
-}
-
 /** Format milliseconds into a human-readable duration */
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -158,7 +151,6 @@ function createCall(callId: string, meta: CallMeta): CliCall {
     sessionInputTokens: 0,
     sessionOutputTokens: 0,
     sessionThinkingTokens: 0,
-    estimatedCost: null,
     callElapsedMs: 0,
     toolUseCount: 0,
     toolUseBreakdown: {},
@@ -492,7 +484,6 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
 
       case 'done': {
         const finalElapsed = Date.now() - updated.callMeta.startedAt;
-        const cost = estimateCost(updated.callMeta.model, event.inputTokens, event.outputTokens);
 
         updated = {
           ...updated,
@@ -503,12 +494,10 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
           sessionOutputTokens: event.outputTokens,
           sessionThinkingTokens: event.thinkingTokens,
           callElapsedMs: finalElapsed,
-          estimatedCost: cost,
         };
 
         const durationStr = formatDuration(finalElapsed);
-        const costStr = cost > 0 ? ` \u00b7 $${cost.toFixed(4)}` : '';
-        updated = pushEntry(updated, 'done', `Complete in ${durationStr}${costStr}`, {
+        updated = pushEntry(updated, 'done', `Complete in ${durationStr}`, {
           tokens: {
             input: event.inputTokens,
             output: event.outputTokens,
