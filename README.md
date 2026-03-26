@@ -143,6 +143,25 @@ Every agent interaction assembles context intelligently using a token-budget-awa
 
 Agents run in full **agent mode** with tool use — they read and write files directly in the book directory using Claude Code CLI's Read, Write, Edit, and LS tools.
 
+### Auto-Draft
+
+The **Auto-Draft** system automates the first-draft phase. One click starts a loop where Verity writes one chapter at a time — reading the scene outline, finding the next unwritten chapter, drafting the full prose, and updating the story bible. The loop continues until every chapter in the outline has a draft or you click Stop.
+
+Features:
+- **Per-book sessions** — each book can run its own auto-draft loop independently
+- **Error resilience** — CLI errors pause the loop; you can resume or stop
+- **Chapter tracking** — shows how many chapters have been written during the current run
+- **Safety valve** — hard limit of 150 iterations prevents runaway loops
+- **Signal-based completion** — Verity signals `DRAFT_COMPLETE` when all chapters are drafted
+
+### Hot Take
+
+A quick, informal assessment from Ghostlight. One click launches a cold read of the full manuscript — no outline, no notes, no context. Ghostlight reads every chapter in order, then delivers a five-paragraph gut reaction: what grabbed them, what didn't, the biggest problem, and a one-sentence verdict. Always runs on Claude Opus regardless of the global model setting. No files are written — the response lives in chat only.
+
+### Direct Feedback
+
+Skip the pipeline and give Forge direct revision instructions. Describe what you want changed in plain language — Forge reads the manuscript, assesses the scope, and generates `project-tasks.md` and `revision-prompts.md` tailored to your feedback. Useful when you know exactly what needs fixing and don't need a formal assessment cycle.
+
 ### Revision Queue
 
 After Forge produces a revision plan (`project-tasks.md` + `revision-prompts.md`), the **Revision Queue** parses it into structured sessions and executes them. The queue uses a Wrangler call (Claude Sonnet) to parse Forge's output into JSON, then runs each session as a Verity conversation.
@@ -171,7 +190,7 @@ Features:
 
 ### Extended Thinking
 
-Enable **extended thinking** globally or override it per-message with the **thinking budget slider**. Each agent has a default thinking budget tuned to their task complexity. When enabled, the app passes `--effort high` to the Claude CLI.
+Enable **extended thinking** globally or override it per-message with the **thinking budget slider**. Each agent has a default thinking budget tuned to their task complexity. When enabled, the app passes `--effort high` to the Claude CLI. Thinking blocks are displayed in collapsible amber panels with auto-generated summaries (~200 characters).
 
 ### Quick Actions
 
@@ -197,7 +216,7 @@ A tabbed file viewer with three panels:
 - **Chapters** — chapter list with per-chapter word counts and draft/notes access
 - **Agent Output** — files recently written by agents during the current session
 
-The `about.json` card (title, author, cover image) is inline-editable. Files can be opened, edited, and saved directly.
+The `about.json` card (title, author, cover image) is inline-editable. Files can be opened, edited, deleted (with confirmation), and saved directly.
 
 ### CLI Activity Monitor
 
@@ -245,18 +264,13 @@ After every agent interaction, the `ChapterValidator` scans the chapters directo
 
 ### Usage Tracking
 
-Every Claude CLI call records input, output, and thinking token counts. The app tracks cumulative costs across conversations using per-million-token pricing:
-
-| Model | Input | Output |
-|-------|-------|--------|
-| Claude Opus 4 | $15 | $75 |
-| Claude Sonnet 4 | $3 | $15 |
+Every Claude CLI call records input, output, and thinking token counts. The app tracks cumulative token usage across conversations — viewable per-book or globally. Since billing is handled by the Claude Code CLI subscription, no cost estimation is performed; token counts are recorded for informational purposes.
 
 ### File Change Watching
 
 Two file system watchers run in the background:
-- **BookWatcher** — monitors the active book's directory for changes (triggers UI refresh when agents write files outside the app)
-- **BooksDirWatcher** — monitors the top-level books directory for new or removed book folders (triggers book list refresh)
+- **BookWatcher** — monitors the active book's directory for changes (triggers UI refresh when agents write files outside the app). Debounces rapid changes (500ms) and filters OS noise (.DS_Store, swap files, etc.)
+- **BooksDirWatcher** — monitors the top-level books directory for new or removed book folders (triggers book list refresh). Debounces at 800ms.
 
 ### Theme Support
 
@@ -308,7 +322,7 @@ npm run make
 Outputs land in `out/`. Supported platforms:
 - **macOS** — `.zip` + `.dmg` via `@electron-forge/maker-zip` and `@electron-forge/maker-dmg`
 - **Windows** — Squirrel installer via `@electron-forge/maker-squirrel`
-- **Linux** — `.deb` via `@electron-forge/maker-deb`
+- **Linux** — `.deb` via `@electron-forge/maker-deb`, `.rpm` via `@electron-forge/maker-rpm`
 
 macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` environment variables.
 
@@ -321,6 +335,7 @@ macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWOR
 | `npm run make` | Build platform-specific installers |
 | `npm run download-pandoc` | Download the platform-specific Pandoc binary to `resources/pandoc/` |
 | `npm run generate-icons` | Generate app icons from source image |
+| `npm run ci-build` | CI/CD build script |
 | `npm run lint` | Type-check with `tsc --noEmit` |
 | `npm run clean` | Remove `out/`, `.vite/`, and `dist/` directories |
 
@@ -330,14 +345,14 @@ macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWOR
 
 ### Source Code Architecture
 
-96 TypeScript/TSX source files across five clean architecture layers:
+102 TypeScript/TSX source files across five clean architecture layers:
 
 ```
 src/
 ├── domain/                              # LAYER 1: Pure types, zero imports
 │   ├── types.ts                         # All shared type definitions
 │   ├── interfaces.ts                    # Service contracts (ports)
-│   ├── constants.ts                     # Agent registry, pipeline phases, pricing, prompts
+│   ├── constants.ts                     # Agent registry, pipeline phases, prompts, status messages
 │   └── index.ts                         # Barrel export
 │
 ├── infrastructure/                      # LAYER 2: Implements domain interfaces
@@ -368,7 +383,7 @@ src/
 │   ├── ContextBuilder.ts                # Budget-aware context assembly with compaction
 │   ├── PipelineService.ts               # Phase detection with user confirmation gates
 │   ├── BuildService.ts                  # Pandoc execution for DOCX/EPUB
-│   ├── UsageService.ts                  # Token tracking and cost estimation
+│   ├── UsageService.ts                  # Token tracking
 │   ├── RevisionQueueService.ts          # Revision plan parsing, session execution, approval gates
 │   ├── ChapterValidator.ts              # Auto-corrects misplaced chapter files
 │   └── context/
@@ -398,25 +413,27 @@ src/
     │   ├── revisionQueueStore.ts        # Revision queue state
     │   ├── modalChatStore.ts            # Modal chat overlay state
     │   ├── cliActivityStore.ts          # CLI activity monitoring
-    │   ├── autoDraftStore.ts            # Auto-draft chapter tracking
+    │   ├── autoDraftStore.ts            # Auto-draft chapter loop
     │   ├── fileChangeStore.ts           # File change tracking from watchers
     │   └── streamRouter.ts              # Routes stream events to correct stores
     ├── components/
-    │   ├── Layout/                      # AppLayout, Sidebar, TitleBar
+    │   ├── Layout/                      # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                  # OnboardingWizard
     │   ├── Settings/                    # SettingsView
     │   ├── Sidebar/                     # BookSelector, PipelineTracker, FileTree,
     │   │                                #   VoiceSetupButton, ShelvedPitchesPanel,
     │   │                                #   PitchPreviewModal, CliActivityButton,
-    │   │                                #   RevisionQueueButton
+    │   │                                #   RevisionQueueButton, HotTakeButton,
+    │   │                                #   AdhocRevisionButton
     │   ├── Chat/                        # ChatView, ChatInput, ChatModal, ChatTitleBar,
     │   │                                #   MessageBubble, MessageList, StreamingMessage,
     │   │                                #   ThinkingBlock, ThinkingBudgetSlider, QuickActions,
-    │   │                                #   AgentHeader, ConversationList, PipelineLockBanner
+    │   │                                #   AgentHeader, ConversationList
     │   ├── PitchRoom/                   # PitchRoomView
     │   ├── Files/                       # FilesView, StructuredBrowser, FileBrowser,
     │   │                                #   FileEditor, SourcePanel, ChaptersPanel,
-    │   │                                #   AgentOutputPanel, FilesHeader
+    │   │                                #   AgentOutputPanel, FilesHeader,
+    │   │                                #   CollapsibleSection, DeleteConfirmModal
     │   ├── Build/                       # BuildView
     │   ├── RevisionQueue/               # RevisionQueueView, SessionCard, QueueControls,
     │   │                                #   TaskProgress, RevisionSessionPanel
@@ -521,19 +538,19 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 - **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence.
 - **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
-- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores, hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
+- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (13 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
 
 All services are constructor-injected. The only place concrete classes are instantiated is [`src/main/index.ts`](./src/main/index.ts).
 
 ### Database Schema
 
-Four SQLite tables (WAL mode, foreign keys enabled):
+Five SQLite tables (WAL mode, foreign keys enabled):
 
 | Table | Purpose |
 |-------|---------|
 | `conversations` | Tracks all agent conversations per book — agent, phase, purpose, timestamps |
 | `messages` | Individual messages with role, content, and thinking block text |
-| `token_usage` | Per-call token counts (input, output, thinking) with cost estimates |
+| `token_usage` | Per-call token counts (input, output, thinking) by model |
 | `stream_events` | Persisted stream events for session replay and recovery |
 | `stream_sessions` | Tracks CLI invocations for orphan detection and recovery |
 
