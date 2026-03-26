@@ -161,9 +161,11 @@ function StatusDropdown({
 function AboutJsonCard({
   content,
   activeSlug,
+  onContentChange,
 }: {
   content: string;
   activeSlug: string;
+  onContentChange: (updated: string) => void;
 }): React.ReactElement {
   const { loadBooks } = useBookStore();
   const [isSaving, setIsSaving] = useState(false);
@@ -189,6 +191,12 @@ function AboutJsonCard({
         await setActiveBook(updated.slug);
       }
       await loadBooks();
+      // Re-read the file so the card reflects the saved changes immediately
+      const refreshed = await window.novelEngine.files.read(
+        updated.slug !== activeSlug ? updated.slug : activeSlug,
+        'about.json',
+      );
+      onContentChange(refreshed);
     } catch (error) {
       console.error(`Failed to save ${field}:`, error);
     } finally {
@@ -534,6 +542,7 @@ export function FilesView(): React.ReactElement {
           readOnly={readOnly}
           onFileSelect={handleFileSelect}
           onClearFile={handleBackToBrowser}
+          onContentChange={setContent}
         />
       )}
 
@@ -558,6 +567,7 @@ export function FilesView(): React.ReactElement {
           readOnly={readOnly}
           onFileSelect={handleFileSelect}
           onClearFile={handleBackToBrowser}
+          onContentChange={setContent}
         />
       )}
     </div>
@@ -577,6 +587,7 @@ function ReaderContent({
   readOnly,
   onFileSelect,
   onClearFile,
+  onContentChange,
 }: {
   filePath: string | null;
   content: string;
@@ -586,6 +597,7 @@ function ReaderContent({
   readOnly?: boolean;
   onFileSelect: (path: string) => void;
   onClearFile: () => void;
+  onContentChange: (updated: string) => void;
 }): React.ReactElement {
   if (!filePath) {
     return (
@@ -638,7 +650,7 @@ function ReaderContent({
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
         {isAboutJson ? (
-          <AboutJsonCard content={content} activeSlug={activeSlug} />
+          <AboutJsonCard content={content} activeSlug={activeSlug} onContentChange={onContentChange} />
         ) : isMarkdown ? (
           <MarkdownViewer content={content} />
         ) : isJson ? (
