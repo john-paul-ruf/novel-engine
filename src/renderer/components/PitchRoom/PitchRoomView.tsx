@@ -155,13 +155,17 @@ export function PitchRoomView(): React.ReactElement {
   const clearOutcome = usePitchRoomStore((s) => s.clearOutcome);
 
   const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
+  const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
+  const globalThinkingBudget = useSettingsStore((s) => s.settings?.thinkingBudget ?? 5000);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
-  // Thinking budget slider state — Spark's default from the registry
-  const defaultThinkingBudget = enableThinking ? AGENT_REGISTRY.Spark.thinkingBudget : 0;
+  // Thinking budget slider state — uses global override when enabled, otherwise Spark's default
+  const defaultThinkingBudget = !enableThinking ? 0
+    : overrideThinkingBudget ? globalThinkingBudget
+    : AGENT_REGISTRY.Spark.thinkingBudget;
   const [thinkingBudget, setThinkingBudget] = useState(defaultThinkingBudget);
 
   useEffect(() => {

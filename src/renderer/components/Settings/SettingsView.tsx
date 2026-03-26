@@ -132,6 +132,7 @@ function ThinkingSection(): React.ReactElement {
 
   const enableThinking = settings?.enableThinking ?? false;
   const thinkingBudget = settings?.thinkingBudget ?? 10000;
+  const overrideThinkingBudget = settings?.overrideThinkingBudget ?? false;
   const autoCollapse = settings?.autoCollapseThinking ?? true;
 
   const formatBudget = (value: number): string => {
@@ -155,9 +156,31 @@ function ThinkingSection(): React.ReactElement {
         <span className="text-sm text-zinc-700 dark:text-zinc-300">Show agent thinking</span>
       </label>
 
+      <label className="flex cursor-pointer items-center gap-3">
+        <input
+          type="checkbox"
+          checked={overrideThinkingBudget}
+          onChange={(e) => update({ overrideThinkingBudget: e.target.checked })}
+          disabled={!enableThinking}
+          className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-40"
+        />
+        <div>
+          <span className={`text-sm ${enableThinking ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-600'}`}>
+            Override per-agent thinking budgets
+          </span>
+          <p className={`text-xs ${enableThinking && overrideThinkingBudget ? 'text-amber-500' : 'text-zinc-500'}`}>
+            {overrideThinkingBudget && enableThinking
+              ? `All agents will use ${thinkingBudget.toLocaleString()} tokens for thinking`
+              : 'Each agent uses its own default thinking budget (Spark 8K, Verity 10K, Lumen 16K, etc.)'}
+          </p>
+        </div>
+      </label>
+
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-700 dark:text-zinc-300">Default thinking budget</span>
+          <span className="text-sm text-zinc-700 dark:text-zinc-300">
+            {overrideThinkingBudget && enableThinking ? 'Global thinking budget' : 'Default thinking budget'}
+          </span>
           <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
             {thinkingBudget.toLocaleString()} tokens
           </span>

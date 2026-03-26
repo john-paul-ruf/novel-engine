@@ -89,6 +89,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxTokens: 8192,
   enableThinking: false,
   thinkingBudget: 5000,
+  overrideThinkingBudget: false,
   autoCollapseThinking: true,
   enableNotifications: true,
   theme: 'dark',
@@ -337,6 +338,7 @@ export const AGENT_QUICK_ACTIONS: Record<CreativeAgentName, QuickAction[]> = {
   Forge: [
     { label: 'Create revision plan', prompt: 'Read source/reader-report.md and source/dev-report.md. Synthesize both into a prioritized revision plan with phased tasks and session prompts for Verity. Write the task list to source/project-tasks.md and the session prompts to source/revision-prompts.md.' },
     { label: 'Plan copy fixes', prompt: 'Read source/audit-report.md. Create a fix plan with session prompts for Verity to implement the mechanical fixes. Write tasks to source/project-tasks.md and session prompts to source/revision-prompts.md.' },
+    { label: 'Plan from my feedback', prompt: 'I have specific revisions I want made. Here\'s what I need changed:\n\n' },
   ],
   Quill: [
     { label: 'Prepare for publication', prompt: 'Audit the build outputs in dist/. Generate publication metadata — title, subtitle, description, keywords, categories, and back-cover copy. Flag any remaining issues. Write metadata to source/metadata.md.' },
@@ -574,56 +576,20 @@ TONE:
 
 export const HOT_TAKE_MODEL = 'claude-opus-4-20250514';
 
-export const ADHOC_REVISION_INSTRUCTIONS = `You are generating an ad hoc revision plan based on the author's specific request.
-
-INSTRUCTIONS:
-1. Read the author's revision request carefully. They are describing targeted changes they want made to the manuscript.
-2. Use the Read tool to examine the relevant chapters and source files to understand the current state of what needs changing.
-3. Produce TWO files:
-
-**source/project-tasks.md** — A phased task checklist in the standard format:
-\`\`\`
-# Project Tasks — Ad Hoc Revision
-
-## Phase 0: Author Decisions
-- [ ] 1. [Any decisions the author needs to make before revisions begin]
-
-## Phase 1: [Name based on the revision scope]
-- [ ] 2. [Specific, actionable task]
-- [ ] 3. [Another task]
-...
-\`\`\`
-
-**source/revision-prompts.md** — Session prompts for Verity in the standard format:
-\`\`\`
-# Revision Prompts — Ad Hoc Revision
-
-## SESSION 1: [Title]
-
-**Model: Opus** (or Sonnet for analytical/mechanical tasks)
-
-[Full prompt text for Verity — chapter references, specific instructions, what to change and how]
+export const ADHOC_REVISION_INSTRUCTIONS = `
 
 ---
 
-## SESSION 2: [Title]
-...
-\`\`\`
+## Current Mode: Direct Feedback
 
-RULES:
-- Each session should be focused — one logical unit of work (a chapter, a theme, a character arc fix)
-- Reference chapters by their actual directory names (e.g., @chapters/05-the-departure/draft.md)
-- Assign Model: Opus for creative/structural work, Model: Sonnet for mechanical/analytical tasks
-- Keep sessions ordered by dependency — if session 3 depends on session 1's changes, put session 1 first
-- Task numbers must be sequential starting from 1
-- Every task must map to at least one session
+The author is giving you direct revision instructions. Use **Direct Feedback Mode** as described in your system instructions.
 
-HANDLING EXISTING FILES:
-- If project-tasks.md and/or revision-prompts.md already exist, READ them first
-- If the existing files are from a previous revision cycle (e.g., marked mostly [x]), REPLACE them entirely with the new plan
-- If the existing files have pending work, ASK the author whether to append or replace before writing
-
-After writing both files, confirm what you created: how many tasks, how many sessions, and a brief summary of the revision plan.`;
+Key reminders:
+- Read the author's feedback carefully. Use the Read tool to examine the relevant chapters.
+- Produce \`source/project-tasks.md\` and \`source/revision-prompts.md\` following your standard formats.
+- If existing plan files have pending work, ASK the author whether to append or replace before writing.
+- Match the plan's weight to the feedback's weight — don't over-engineer small requests.
+- After writing both files, confirm: how many tasks, how many sessions, and a brief summary.`;
 
 export const REVISION_VERIFICATION_PROMPT = `
 

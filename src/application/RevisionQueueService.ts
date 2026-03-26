@@ -618,7 +618,9 @@ export class RevisionQueueService implements IRevisionQueueService {
         systemPrompt,
         messages: conversationMessages,
         maxTokens: settings.maxTokens,
-        thinkingBudget: settings.enableThinking ? verity.thinkingBudget : undefined,
+        thinkingBudget: settings.enableThinking
+          ? (settings.overrideThinkingBudget ? settings.thinkingBudget : verity.thinkingBudget)
+          : undefined,
         onEvent: (event: StreamEvent) => {
           this.emit({ type: 'session:streamEvent', sessionId: session.id, event });
 

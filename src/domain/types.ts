@@ -239,6 +239,7 @@ export type AppSettings = {
   maxTokens: number;
   enableThinking: boolean;
   thinkingBudget: number;
+  overrideThinkingBudget: boolean; // when true, all agents use thinkingBudget instead of per-agent defaults
   autoCollapseThinking: boolean;
   enableNotifications: boolean; // OS notifications when agent calls complete
   theme: 'light' | 'dark' | 'system';

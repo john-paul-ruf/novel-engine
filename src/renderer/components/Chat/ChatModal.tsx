@@ -183,9 +183,13 @@ export function ChatModal(): React.ReactElement {
   const initStreamListener = useModalChatStore((s) => s.initStreamListener);
   const destroyStreamListener = useModalChatStore((s) => s.destroyStreamListener);
   const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
+  const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
+  const globalThinkingBudget = useSettingsStore((s) => s.settings?.thinkingBudget ?? 5000);
 
   // Modal always uses Verity — compute default thinking budget
-  const defaultThinkingBudget = enableThinking ? AGENT_REGISTRY.Verity.thinkingBudget : 0;
+  const defaultThinkingBudget = !enableThinking ? 0
+    : overrideThinkingBudget ? globalThinkingBudget
+    : AGENT_REGISTRY.Verity.thinkingBudget;
   const [thinkingBudget, setThinkingBudget] = useState(defaultThinkingBudget);
 
   // Reset when enableThinking changes

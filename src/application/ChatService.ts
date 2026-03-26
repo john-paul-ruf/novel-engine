@@ -9,6 +9,7 @@ import type {
 import type {
   ActiveStreamInfo,
   AgentName,
+  AppSettings,
   ContextDiagnostics,
   Conversation,
   ConversationPurpose,
@@ -21,6 +22,32 @@ import { nanoid } from 'nanoid';
 import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
+
+/**
+ * Resolve the effective thinking budget for a CLI call.
+ *
+ * Priority:
+ * 1. Per-message override (from the chat input slider)
+ * 2. Global override (settings.overrideThinkingBudget + settings.thinkingBudget)
+ * 3. Per-agent default (agent.thinkingBudget)
+ * 4. undefined (thinking disabled)
+ */
+function resolveThinkingBudget(
+  settings: Pick<AppSettings, 'enableThinking' | 'thinkingBudget' | 'overrideThinkingBudget'>,
+  agentThinkingBudget: number,
+  perMessageOverride?: number,
+): number | undefined {
+  // Per-message override takes highest priority
+  if (perMessageOverride !== undefined) {
+    return perMessageOverride > 0 ? perMessageOverride : undefined;
+  }
+  // Thinking disabled globally → no budget
+  if (!settings.enableThinking) return undefined;
+  // Global override → use settings slider value for all agents
+  if (settings.overrideThinkingBudget) return settings.thinkingBudget;
+  // Default → per-agent budget
+  return agentThinkingBudget;
+}
 
 /**
  * ChatService — Central orchestrator for the send→stream→save message flow.
@@ -198,13 +225,7 @@ export class ChatService {
       }
 
       // Step 7b: Determine thinking budget (needed for both context and CLI call)
-      // Per-message override takes priority over global settings
-      const thinkingBudget = (() => {
-        if (params.thinkingBudgetOverride !== undefined) {
-          return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
-        }
-        return appSettings.enableThinking ? agent.thinkingBudget : undefined;
-      })();
+      const thinkingBudget = resolveThinkingBudget(appSettings, agent.thinkingBudget, params.thinkingBudgetOverride);
 
       // Step 7c: Build context using the lean ContextBuilder (budget-aware compaction)
       const authorProfileAbsPath = this.fs.getAuthorProfilePath();
@@ -429,7 +450,7 @@ export class ChatService {
   private async handleHotTake(params: {
     conversationId: string;
     bookSlug: string;
-    appSettings: { model: string; maxTokens: number; enableThinking: boolean };
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
     agent: { systemPrompt: string; thinkingBudget: number };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
@@ -460,12 +481,7 @@ export class ChatService {
       content: m.content,
     }));
 
-    const thinkingBudget = (() => {
-      if (params.thinkingBudgetOverride !== undefined) {
-        return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
-      }
-      return appSettings.enableThinking ? agent.thinkingBudget : undefined;
-    })();
+    const thinkingBudget = resolveThinkingBudget(appSettings, agent.thinkingBudget, params.thinkingBudgetOverride);
 
     this.activeStreams.set(conversationId, {
       conversationId,
@@ -553,7 +569,7 @@ export class ChatService {
     conversationId: string;
     bookSlug: string;
     message: string;
-    appSettings: { model: string; maxTokens: number; enableThinking: boolean };
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
     agent: { systemPrompt: string; thinkingBudget: number };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
@@ -581,12 +597,7 @@ export class ChatService {
       content: m.content,
     }));
 
-    const thinkingBudget = (() => {
-      if (params.thinkingBudgetOverride !== undefined) {
-        return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
-      }
-      return appSettings.enableThinking ? agent.thinkingBudget : undefined;
-    })();
+    const thinkingBudget = resolveThinkingBudget(appSettings, agent.thinkingBudget, params.thinkingBudgetOverride);
 
     this.activeStreams.set(conversationId, {
       conversationId,
@@ -678,7 +689,7 @@ export class ChatService {
     conversationId: string;
     agentName: AgentName;
     bookSlug: string;
-    appSettings: { model: string; maxTokens: number; enableThinking: boolean };
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
     agent: { systemPrompt: string; thinkingBudget: number };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
@@ -712,13 +723,7 @@ export class ChatService {
       content: m.content,
     }));
 
-    // Per-message override takes priority over global settings
-    const thinkingBudget = (() => {
-      if (params.thinkingBudgetOverride !== undefined) {
-        return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
-      }
-      return appSettings.enableThinking ? agent.thinkingBudget : undefined;
-    })();
+    const thinkingBudget = resolveThinkingBudget(appSettings, agent.thinkingBudget, params.thinkingBudgetOverride);
 
     // Get the draft directory path — this is where Spark will write files
     const workingDir = this.fs.getPitchDraftPath(conversationId);

@@ -52,15 +52,19 @@ export function ChatView(): React.ReactElement {
   const { phases } = usePipelineStore();
   const { payload } = useViewStore();
   const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
+  const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
+  const globalThinkingBudget = useSettingsStore((s) => s.settings?.thinkingBudget ?? 5000);
   const [conversationsExpanded, setConversationsExpanded] = useState(false);
 
-  // Compute the default thinking budget from the current agent's registry entry
+  // Compute the default thinking budget — uses global override when enabled,
+  // otherwise falls back to the per-agent default from AGENT_REGISTRY.
   const defaultThinkingBudget = useMemo(() => {
     if (!activeConversation) return 0;
-    const agentMeta = AGENT_REGISTRY[activeConversation.agentName];
     if (!enableThinking) return 0;
+    if (overrideThinkingBudget) return globalThinkingBudget;
+    const agentMeta = AGENT_REGISTRY[activeConversation.agentName];
     return agentMeta?.thinkingBudget ?? 0;
-  }, [activeConversation, enableThinking]);
+  }, [activeConversation, enableThinking, overrideThinkingBudget, globalThinkingBudget]);
 
   const [thinkingBudget, setThinkingBudget] = useState<number>(defaultThinkingBudget);
 
