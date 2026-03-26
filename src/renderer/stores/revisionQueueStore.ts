@@ -25,6 +25,9 @@ type RevisionQueueState = {
   panelMessages: Message[];
   panelMessagesConvId: string | null;
 
+  /** When true, the session panel shows a full chat interface instead of the session view. */
+  panelChatMode: boolean;
+
   verificationConversationId: string | null;
   isVerifying: boolean;
 
@@ -46,6 +49,8 @@ type RevisionQueueState = {
   selectAllSessions: () => void;
   deselectAllSessions: () => void;
   setViewingSession: (sessionId: string | null) => void;
+  openPanelChat: (conversationId: string) => void;
+  closePanelChat: () => void;
   loadPanelMessages: (conversationId: string) => Promise<void>;
   startVerification: () => Promise<void>;
   reset: () => void;
@@ -70,6 +75,7 @@ type CachedBookState = {
   selectedSessionIds: Set<string>;
   panelMessages: Message[];
   panelMessagesConvId: string | null;
+  panelChatMode: boolean;
   verificationConversationId: string | null;
   isVerifying: boolean;
 };
@@ -97,6 +103,7 @@ function snapshotState(state: RevisionQueueState): CachedBookState {
     selectedSessionIds: new Set(state.selectedSessionIds),
     panelMessages: state.panelMessages,
     panelMessagesConvId: state.panelMessagesConvId,
+    panelChatMode: state.panelChatMode,
     verificationConversationId: state.verificationConversationId,
     isVerifying: state.isVerifying,
   };
@@ -119,6 +126,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   selectedSessionIds: new Set(),
   panelMessages: [],
   panelMessagesConvId: null,
+  panelChatMode: false,
   verificationConversationId: null,
   isVerifying: false,
 
@@ -189,6 +197,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       selectedSessionIds: new Set(),
       panelMessages: [],
       panelMessagesConvId: null,
+      panelChatMode: false,
       verificationConversationId: null,
       isVerifying: false,
     });
@@ -439,11 +448,11 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
 
   setViewingSession: (sessionId: string | null) => {
     if (!sessionId) {
-      set({ viewingSessionId: null, panelMessages: [], panelMessagesConvId: null });
+      set({ viewingSessionId: null, panelMessages: [], panelMessagesConvId: null, panelChatMode: false });
       return;
     }
 
-    set({ viewingSessionId: sessionId });
+    set({ viewingSessionId: sessionId, panelChatMode: false });
 
     if (sessionId === '__verification__') {
       const { verificationConversationId } = get();
@@ -462,6 +471,15 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
     } else {
       set({ panelMessages: [], panelMessagesConvId: null });
     }
+  },
+
+  openPanelChat: (conversationId: string) => {
+    set({ panelChatMode: true });
+    get().loadPanelMessages(conversationId);
+  },
+
+  closePanelChat: () => {
+    set({ panelChatMode: false });
   },
 
   loadPanelMessages: async (conversationId: string) => {
@@ -512,6 +530,7 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       selectedSessionIds: new Set(),
       panelMessages: [],
       panelMessagesConvId: null,
+      panelChatMode: false,
       verificationConversationId: null,
       isVerifying: false,
     });

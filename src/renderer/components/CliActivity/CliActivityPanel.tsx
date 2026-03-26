@@ -6,6 +6,7 @@ import { ResizeHandle } from '../Layout/ResizeHandle';
 import type { CliCall } from '../../stores/cliActivityStore';
 import type { AgentName } from '@domain/types';
 import { AGENT_REGISTRY } from '@domain/constants';
+import { KIND_ICONS, KIND_COLORS, formatTime } from './constants';
 
 /**
  * Hook component that keeps the CLI activity listener alive regardless of
@@ -25,49 +26,7 @@ export function CliActivityListener(): null {
   return null;
 }
 
-const KIND_ICONS: Record<string, string> = {
-  spawn: '\ud83d\ude80',
-  status: '\ud83d\udce1',
-  'thinking-start': '\ud83e\udde0',
-  'thinking-end': '\ud83e\udde0',
-  'text-start': '\ud83d\udcdd',
-  'text-end': '\ud83d\udcdd',
-  'tool-start': '\ud83d\udd27',
-  'tool-complete': '\u2705',
-  'tool-error': '\u274c',
-  'files-changed': '\ud83d\udcbe',
-  done: '\ud83c\udfc1',
-  error: '\ud83d\udd34',
-  'context-loaded': '\ud83d\udcca',
-};
-
-const KIND_COLORS: Record<string, string> = {
-  spawn: 'text-blue-600 dark:text-blue-400',
-  status: 'text-zinc-500 dark:text-zinc-400',
-  'thinking-start': 'text-amber-600 dark:text-amber-400',
-  'thinking-end': 'text-amber-600 dark:text-amber-400',
-  'text-start': 'text-zinc-700 dark:text-zinc-300',
-  'text-end': 'text-zinc-700 dark:text-zinc-300',
-  'tool-start': 'text-purple-600 dark:text-purple-400',
-  'tool-complete': 'text-green-600 dark:text-green-400',
-  'tool-error': 'text-red-600 dark:text-red-400',
-  'files-changed': 'text-cyan-600 dark:text-cyan-400',
-  done: 'text-green-600 dark:text-green-400',
-  error: 'text-red-600 dark:text-red-400',
-  'context-loaded': 'text-blue-300',
-};
-
 const CHARS_PER_TOKEN = 4;
-
-function formatTime(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

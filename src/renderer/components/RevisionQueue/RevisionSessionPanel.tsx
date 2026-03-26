@@ -2,16 +2,99 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 import { useBookStore } from '../../stores/bookStore';
-import { useViewStore } from '../../stores/viewStore';
+import { useCliActivityStore } from '../../stores/cliActivityStore';
+import { KIND_ICONS, KIND_COLORS, formatTime } from '../CliActivity/constants';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
 import type { RevisionSession, StreamEvent } from '@domain/types';
 
 marked.setOptions({ breaks: true, gfm: true });
 
+// ── CLI Activity Mini Viewer ──────────────────────────────────────────
+// Reads from the global cliActivityStore (which already receives revision
+// stream events via the `rev:${sessionId}` callId injected by the IPC layer).
+
+function CliActivityMini({ sessionId }: { sessionId: string }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeSessionId = useRevisionQueueStore(s => s.activeSessionId);
+
+  // The IPC layer tags revision stream events with callId `rev:${sessionId}`
+  const callId = `rev:${sessionId}`;
+  const call = useCliActivityStore(s => s.calls[callId]);
+  const entries = call?.entries ?? [];
+  const isActive = sessionId === activeSessionId && (call?.isActive ?? false);
+
+  // Auto-scroll to bottom when new entries arrive
+  useEffect(() => {
+    if (isExpanded && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [entries.length, isExpanded]);
+
+  if (!call && sessionId !== activeSessionId) return null;
+
+  return (
+    <div className="border-t border-zinc-200 dark:border-zinc-700 shrink-0">
+      <button
+        onClick={() => setIsExpanded(prev => !prev)}
+        className="flex w-full items-center gap-2 px-4 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3.5 w-3.5 shrink-0"
+          aria-hidden="true"
+        >
+          <rect x="1" y="2" width="14" height="12" rx="1.5" />
+          <polyline points="4,6 7,8 4,10" />
+          <line x1="8.5" y1="10" x2="11.5" y2="10" />
+        </svg>
+        <span className="font-medium">CLI Activity</span>
+        {isActive && (
+          <span className="flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+            <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-blue-400" />
+            Live
+          </span>
+        )}
+        {entries.length > 0 && (
+          <span className="text-[10px] text-zinc-400">{entries.length} events</span>
+        )}
+        <span className="ml-auto">{isExpanded ? '▾' : '▸'}</span>
+      </button>
+
+      {isExpanded && (
+        <div
+          ref={scrollRef}
+          className="max-h-40 overflow-y-auto bg-zinc-950 dark:bg-zinc-950 font-mono text-[11px] leading-relaxed px-3 py-1.5"
+        >
+          {entries.length === 0 ? (
+            <div className="py-2 text-center text-zinc-600">
+              {sessionId === activeSessionId ? 'Waiting for CLI events…' : 'No events recorded'}
+            </div>
+          ) : (
+            entries.map(entry => (
+              <div key={entry.id} className={`flex items-start gap-1.5 py-0.5 ${KIND_COLORS[entry.kind] ?? 'text-zinc-500 dark:text-zinc-400'}`}>
+                <span className="shrink-0 w-4 text-center">{KIND_ICONS[entry.kind] ?? '·'}</span>
+                <span className="text-zinc-600 dark:text-zinc-600 shrink-0">
+                  {formatTime(entry.timestamp)}
+                </span>
+                <span className="break-all">{entry.message}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PanelHeader({ session }: { session: RevisionSession }) {
-  const { setViewingSession } = useRevisionQueueStore();
-  const { navigate } = useViewStore();
+  const { setViewingSession, openPanelChat } = useRevisionQueueStore();
 
   return (
     <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-700 px-4 py-3 shrink-0">
@@ -44,7 +127,7 @@ function PanelHeader({ session }: { session: RevisionSession }) {
       </div>
       {session.conversationId && (
         <button
-          onClick={() => navigate('chat', { conversationId: session.conversationId! })}
+          onClick={() => openPanelChat(session.conversationId!)}
           className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-400 transition-colors shrink-0"
         >
           Open in Chat
@@ -225,9 +308,8 @@ function PromptCollapsible({ prompt }: { prompt: string }) {
 }
 
 function VerificationPanel() {
-  const { setViewingSession, verificationConversationId, panelMessages, loadPanelMessages } = useRevisionQueueStore();
+  const { setViewingSession, verificationConversationId, panelMessages, loadPanelMessages, openPanelChat } = useRevisionQueueStore();
   const { activeSlug } = useBookStore();
-  const { navigate } = useViewStore();
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -329,7 +411,7 @@ function VerificationPanel() {
         </div>
         {verificationConversationId && (
           <button
-            onClick={() => navigate('chat', { conversationId: verificationConversationId })}
+            onClick={() => openPanelChat(verificationConversationId)}
             className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-400 transition-colors shrink-0"
           >
             Open in Chat
@@ -401,8 +483,199 @@ function VerificationPanel() {
   );
 }
 
+function PanelChatView() {
+  const {
+    closePanelChat, panelMessages, panelMessagesConvId, loadPanelMessages,
+    viewingSessionId, plan,
+  } = useRevisionQueueStore();
+  const { activeSlug } = useBookStore();
+  const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [streamingThinkingText, setStreamingThinkingText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+
+  // Find the session for context in the header
+  const session = plan?.sessions.find(s => s.id === viewingSessionId);
+  const headerTitle = viewingSessionId === '__verification__'
+    ? 'Verification Chat'
+    : session
+      ? `Session ${session.index}: ${session.title}`
+      : 'Chat';
+
+  // Auto-scroll tracking
+  useEffect(() => {
+    const sentinel = bottomRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { isAtBottomRef.current = entry.isIntersecting; },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (isAtBottomRef.current && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [panelMessages, streamingText, streamingThinkingText]);
+
+  // Mutation observer for auto-scroll during streaming
+  useEffect(() => {
+    if (!isSending || !containerRef.current) return;
+    const container = containerRef.current;
+    const observer = new MutationObserver(() => {
+      if (isAtBottomRef.current && bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [isSending]);
+
+  // Subscribe to stream events while sending
+  useEffect(() => {
+    if (!isSending) return;
+    const cleanup = window.novelEngine.chat.onStreamEvent((event: StreamEvent) => {
+      if (event.type === 'textDelta') {
+        setStreamingText(prev => prev + event.text);
+      } else if (event.type === 'thinkingDelta') {
+        setStreamingThinkingText(prev => prev + event.text);
+      } else if (event.type === 'done' || event.type === 'error') {
+        setIsSending(false);
+        setStreamingText('');
+        setStreamingThinkingText('');
+        if (panelMessagesConvId) {
+          loadPanelMessages(panelMessagesConvId);
+        }
+      }
+    });
+    return () => { cleanup(); };
+  }, [isSending, panelMessagesConvId, loadPanelMessages]);
+
+  const handleSend = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || !panelMessagesConvId || !activeSlug || isSending) return;
+
+    setInput('');
+    setIsSending(true);
+    setStreamingText('');
+    setStreamingThinkingText('');
+
+    await window.novelEngine.chat.send({
+      agentName: 'Verity',
+      message: trimmed,
+      conversationId: panelMessagesConvId,
+      bookSlug: activeSlug,
+    });
+  }, [input, panelMessagesConvId, activeSlug, isSending]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
+
+  const renderedStreamHtml = useMemo(() => {
+    if (!streamingText) return '';
+    return String(marked.parse(streamingText));
+  }, [streamingText]);
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-950">
+      {/* Header with back button */}
+      <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-700 px-4 py-3 shrink-0">
+        <button
+          onClick={closePanelChat}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+        >
+          &#8592;
+        </button>
+        <div className="flex-1 min-w-0">
+          <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{headerTitle}</span>
+          <span className="text-xs text-zinc-500 ml-2">Verity</span>
+        </div>
+        <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-400">Chat</span>
+      </div>
+
+      {/* Messages */}
+      <div ref={containerRef} className="flex-1 overflow-y-auto py-4">
+        {panelMessages.map(msg => (
+          <MessageBubble key={msg.id} message={msg} />
+        ))}
+
+        {isSending && (
+          <div className="px-6 py-2">
+            <div className="max-w-3xl">
+              {!streamingThinkingText && !streamingText && (
+                <div className="flex items-center gap-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+                  Verity is working...
+                </div>
+              )}
+              {streamingThinkingText && (
+                <ThinkingBlock content={streamingThinkingText} isStreaming={true} />
+              )}
+              {streamingText && (
+                <div className="rounded-2xl bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-zinc-900 dark:text-zinc-100">
+                  <div
+                    className="prose dark:prose-invert prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: renderedStreamHtml }}
+                  />
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-zinc-400" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!isSending && panelMessages.length === 0 && (
+          <div className="flex items-center justify-center h-32 text-sm text-zinc-500">
+            No messages yet
+          </div>
+        )}
+
+        <div ref={bottomRef} className="h-1" />
+      </div>
+
+      {/* Input */}
+      <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-700 p-3">
+        <div className="flex gap-2">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Continue the conversation with Verity..."
+            rows={1}
+            disabled={isSending}
+            className="flex-1 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isSending}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white disabled:text-zinc-500 rounded-lg px-4 py-2 text-sm font-medium transition-colors shrink-0"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RevisionSessionPanel() {
   const viewingSessionId = useRevisionQueueStore(s => s.viewingSessionId);
+  const panelChatMode = useRevisionQueueStore(s => s.panelChatMode);
+
+  if (panelChatMode) {
+    return <PanelChatView />;
+  }
 
   if (viewingSessionId === '__verification__') {
     return <VerificationPanel />;
@@ -481,6 +754,7 @@ function SessionPanel() {
         <div ref={bottomRef} className="h-1" />
       </div>
 
+      <CliActivityMini sessionId={session.id} />
       <ChatInput sessionId={session.id} />
     </div>
   );
