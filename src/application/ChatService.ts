@@ -433,6 +433,39 @@ export class ChatService {
   }
 
   /**
+   * Immediately abort an active CLI stream for the given conversation.
+   *
+   * Kills the child process, saves any partial response accumulated so far,
+   * marks the stream session as interrupted, and cleans up active stream state.
+   * No-op if no active stream exists for the given conversationId.
+   */
+  abortStream(conversationId: string): void {
+    // Kill the CLI child process
+    this.claude.abortStream(conversationId);
+
+    // Clean up active stream state and save partial response
+    const stream = this.activeStreams.get(conversationId);
+    if (stream) {
+      // Save whatever was accumulated so far (if anything)
+      if (stream.textBuffer || stream.thinkingBuffer) {
+        this.db.saveMessage({
+          conversationId,
+          role: 'assistant',
+          content: stream.textBuffer
+            ? stream.textBuffer + '\n\n---\n*[Aborted by user]*'
+            : '*[Aborted by user — no response received]*',
+          thinking: stream.thinkingBuffer,
+        });
+      }
+
+      // Mark the session as interrupted
+      this.db.endStreamSession(stream.sessionId, stream.progressStage, stream.filesTouched);
+
+      this.activeStreams.delete(conversationId);
+    }
+  }
+
+  /**
    * Returns the ContextDiagnostics from the most recent sendMessage call.
    *
    * Used by the IPC layer to expose context assembly diagnostics to the UI,

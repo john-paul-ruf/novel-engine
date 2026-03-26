@@ -589,6 +589,8 @@ function AutoDraftSubButton({
   onStop: () => void;
   onResume: () => void;
 }): React.ReactElement {
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+
   // ── Paused on error ────────────────────────────────────────────────────────
   if (isPaused) {
     // Truncate long error messages to fit the narrow sidebar
@@ -637,21 +639,33 @@ function AutoDraftSubButton({
   // ── Actively running ───────────────────────────────────────────────────────
   if (isRunning) {
     return (
-      <button
-        onClick={onStop}
-        className="ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md bg-purple-500/15 px-2 py-1 text-[11px] font-medium text-purple-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
-        title={`Auto Draft running — click to stop after the current chapter (${chaptersWritten} chapter${chaptersWritten !== 1 ? 's' : ''} written)`}
-      >
-        <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
-          <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
-          <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
-        </span>
-        <span>Auto Draft</span>
-        <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
-          {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
-        </span>
-        <span className="ml-1 text-[9px] text-red-400/70">■ stop</span>
-      </button>
+      <>
+        <button
+          onClick={() => setShowStopConfirm(true)}
+          className="ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md bg-purple-500/15 px-2 py-1 text-[11px] font-medium text-purple-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+          title={`Auto Draft running — click to stop (${chaptersWritten} chapter${chaptersWritten !== 1 ? 's' : ''} written)`}
+        >
+          <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+            <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
+            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+          </span>
+          <span>Auto Draft</span>
+          <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
+            {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
+          </span>
+          <span className="ml-1 text-[9px] text-red-400/70">■ stop</span>
+        </button>
+        {showStopConfirm && (
+          <AutoDraftStopConfirm
+            chaptersWritten={chaptersWritten}
+            onConfirm={() => {
+              setShowStopConfirm(false);
+              onStop();
+            }}
+            onCancel={() => setShowStopConfirm(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -665,6 +679,46 @@ function AutoDraftSubButton({
       <span className="text-purple-500 text-xs">▶</span>
       <span>Auto Draft</span>
     </button>
+  );
+}
+
+/** Confirmation dialog for stopping auto-draft. */
+function AutoDraftStopConfirm({ chaptersWritten, onConfirm, onCancel }: {
+  chaptersWritten: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={onCancel}>
+      <div
+        className="mx-4 w-full max-w-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Stop Auto Draft?</h3>
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+          This will kill the running CLI call immediately and stop the auto-draft loop.
+          {chaptersWritten > 0
+            ? ` ${chaptersWritten} chapter${chaptersWritten !== 1 ? 's have' : ' has'} been written so far — those are safe.`
+            : ''
+          }
+          {' '}The current in-progress chapter may be partially written.
+        </p>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 transition-colors"
+          >
+            Stop Now
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

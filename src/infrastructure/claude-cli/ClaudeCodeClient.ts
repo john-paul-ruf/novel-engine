@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'node:path';
@@ -14,9 +14,15 @@ const execFileAsync = promisify(execFile);
 const CLI_NOT_FOUND_MESSAGE =
   'Claude Code CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-code';
 
+/** Grace period (ms) between SIGTERM and SIGKILL on abort. */
+const ABORT_KILL_GRACE_MS = 2000;
+
 export class ClaudeCodeClient implements IClaudeClient {
   /** Cached availability result — CLI presence doesn't change during a session. */
   private _available: boolean | null = null;
+
+  /** Active child processes keyed by conversationId for abort support. */
+  private activeProcesses: Map<string, ChildProcess> = new Map();
 
   constructor(
     private booksDir: string,
@@ -38,6 +44,39 @@ export class ClaudeCodeClient implements IClaudeClient {
   /** Force re-check on next isAvailable() call (e.g. after user installs the CLI). */
   invalidateAvailabilityCache(): void {
     this._available = null;
+  }
+
+  /**
+   * Immediately kill the CLI child process for the given conversation.
+   *
+   * Sends SIGTERM first, then SIGKILL after a 2-second grace period if
+   * the process hasn't exited. No-op if no process is active.
+   */
+  abortStream(conversationId: string): void {
+    const child = this.activeProcesses.get(conversationId);
+    if (!child) return;
+
+    // Remove from map immediately to prevent double-abort
+    this.activeProcesses.delete(conversationId);
+
+    // Graceful termination first
+    child.kill('SIGTERM');
+
+    // Force kill after grace period if still running
+    const forceKillTimer = setTimeout(() => {
+      try {
+        if (!child.killed) {
+          child.kill('SIGKILL');
+        }
+      } catch {
+        // Process already exited — ignore
+      }
+    }, ABORT_KILL_GRACE_MS);
+
+    // Clear the timer if the process exits on its own
+    child.once('close', () => {
+      clearTimeout(forceKillTimer);
+    });
   }
 
   async sendMessage(params: {
@@ -112,6 +151,11 @@ export class ClaudeCodeClient implements IClaudeClient {
         cwd,
       });
 
+      // Track the child process for abort support
+      if (conversationId) {
+        this.activeProcesses.set(conversationId, child);
+      }
+
       let stdoutBuffer = '';
       let stderrBuffer = '';
       let settled = false;
@@ -162,6 +206,11 @@ export class ClaudeCodeClient implements IClaudeClient {
       });
 
       child.on('close', (code) => {
+        // Remove from active processes map
+        if (conversationId) {
+          this.activeProcesses.delete(conversationId);
+        }
+
         // Process any remaining data in the stdout buffer
         if (stdoutBuffer.trim()) {
           try {

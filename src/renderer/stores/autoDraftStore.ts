@@ -367,6 +367,12 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       sessions: patchSession(state.sessions, bookSlug, { stopRequested: true }),
     }));
 
+    // Kill the in-flight CLI call immediately so the user doesn't have to
+    // wait for the current chapter to finish.
+    if (session.conversationId) {
+      window.novelEngine.chat.abort(session.conversationId).catch(() => {});
+    }
+
     // If paused, unblock so the loop can check stopRequested and exit
     if (session.isPaused && session._resumeResolve) {
       session._resumeResolve();

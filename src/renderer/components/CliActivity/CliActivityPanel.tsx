@@ -363,8 +363,44 @@ function CallList(): React.ReactElement | null {
 
 // === Call Detail (header, phases, tools, entries for the selected call) ===
 
+/** Confirmation dialog for destructive actions (abort, stop). */
+function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={onCancel}>
+      <div
+        className="mx-4 w-full max-w-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{message}</p>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 transition-colors"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CallHeader({ call }: { call: CliCall }): React.ReactElement {
   const updateElapsed = useCliActivityStore((s) => s.updateElapsed);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
   const { callMeta: meta, isActive, callElapsedMs } = call;
 
   // Tick the elapsed time every 100ms while active
@@ -435,7 +471,33 @@ function CallHeader({ call }: { call: CliCall }): React.ReactElement {
               {call.toolUseCount} tool{call.toolUseCount !== 1 ? 's' : ''}
             </span>
           )}
+          {/* Abort button — only shown for active calls with a valid conversationId */}
+          {isActive && call.conversationId && (
+            <button
+              onClick={() => setShowAbortConfirm(true)}
+              className="ml-auto inline-flex items-center gap-1 rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+              title="Kill this CLI call immediately"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+                <path fillRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm2.78-4.22a.75.75 0 0 1-1.06 0L8 9.06l-1.72 1.72a.75.75 0 1 1-1.06-1.06L6.94 8 5.22 6.28a.75.75 0 0 1 1.06-1.06L8 6.94l1.72-1.72a.75.75 0 1 1 1.06 1.06L9.06 8l1.72 1.72a.75.75 0 0 1 0 1.06Z" clipRule="evenodd" />
+              </svg>
+              Kill
+            </button>
+          )}
         </div>
+        {/* Abort confirmation dialog */}
+        {showAbortConfirm && (
+          <ConfirmDialog
+            title={`Kill ${meta.agentName} call?`}
+            message={`This will immediately terminate the running ${meta.agentName} CLI process. Any partial response will be saved, but the agent's work may be incomplete — files could be partially written.`}
+            confirmLabel="Kill Process"
+            onConfirm={() => {
+              setShowAbortConfirm(false);
+              window.novelEngine.chat.abort(call.conversationId);
+            }}
+            onCancel={() => setShowAbortConfirm(false)}
+          />
+        )}
 
         {/* Final token summary (shown after done) */}
         {isDone && (

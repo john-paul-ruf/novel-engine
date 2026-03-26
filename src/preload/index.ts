@@ -115,6 +115,8 @@ const api = {
       ipcRenderer.invoke('chat:deleteConversation', conversationId),
     send: (params: SendMessageParams): Promise<void> =>
       ipcRenderer.invoke('chat:send', params),
+    abort: (conversationId: string): Promise<void> =>
+      ipcRenderer.invoke('chat:abort', conversationId),
     getActiveStream: (): Promise<ActiveStreamInfo | null> =>
       ipcRenderer.invoke('chat:getActiveStream'),
     getActiveStreamForBook: (bookSlug: string): Promise<ActiveStreamInfo | null> =>

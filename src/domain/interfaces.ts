@@ -154,6 +154,15 @@ export interface IClaudeClient {
     onEvent: (event: StreamEvent) => void;
   }): Promise<void>;
 
+  /**
+   * Immediately kill the CLI child process for the given conversation.
+   *
+   * Sends SIGTERM first, then SIGKILL after a 2-second grace period if
+   * the process hasn't exited. No-op if no process is active for the
+   * given conversationId.
+   */
+  abortStream(conversationId: string): void;
+
   isAvailable(): Promise<boolean>;
   invalidateAvailabilityCache(): void;
 }

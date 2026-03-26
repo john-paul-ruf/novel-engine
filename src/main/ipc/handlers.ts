@@ -184,6 +184,12 @@ export function registerIpcHandlers(services: {
     services.db.deleteConversation(conversationId),
   );
 
+  // === Chat (abort) ===
+
+  ipcMain.handle('chat:abort', (_, conversationId: string) =>
+    services.chat.abortStream(conversationId),
+  );
+
   // === Chat (streaming) ===
 
   ipcMain.handle('chat:send', async (event, params: SendMessageParams) => {

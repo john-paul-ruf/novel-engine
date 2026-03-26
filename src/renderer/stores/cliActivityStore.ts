@@ -49,6 +49,8 @@ type CallMeta = {
 /** State for a single CLI call — multiple can be tracked concurrently */
 export type CliCall = {
   callId: string;
+  /** The conversation this call belongs to — used for abort. */
+  conversationId: string;
   callMeta: CallMeta;
   entries: CliActivityEntry[];
   isActive: boolean;
@@ -67,8 +69,8 @@ export type CliCall = {
   _nextEntryId: number;
 };
 
-/** StreamEvent augmented with callId injected by the IPC layer */
-type TaggedStreamEvent = StreamEvent & { callId?: string };
+/** StreamEvent augmented with callId + conversationId injected by the IPC layer */
+type TaggedStreamEvent = StreamEvent & { callId?: string; conversationId?: string };
 
 type CliActivityState = {
   /** All tracked calls, keyed by callId. Includes active and recently completed. */
@@ -137,9 +139,10 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
 }
 
-function createCall(callId: string, meta: CallMeta): CliCall {
+function createCall(callId: string, conversationId: string, meta: CallMeta): CliCall {
   return {
     callId,
+    conversationId,
     callMeta: meta,
     entries: [],
     isActive: true,
@@ -322,7 +325,7 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
         startedAt: Date.now(),
       };
 
-      let newCall = createCall(callId, meta);
+      let newCall = createCall(callId, event.conversationId ?? '', meta);
       newCall = pushEntry(newCall, 'spawn', `${event.agentName} call started (${getModelLabel(event.model)})`);
 
       const newOrder = [callId, ...callOrder.filter((id) => id !== callId)];
@@ -353,7 +356,7 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
     // If still no match and it's a status event without any calls, create a default call
     if (!call) {
       if (event.type === 'status') {
-        const defaultCall = createCall(callId, {
+        const defaultCall = createCall(callId, event.conversationId ?? '', {
           agentName: 'Wrangler' as AgentName,
           agentColor: '#71717A',
           agentRole: '',
@@ -595,7 +598,7 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
         startedAt,
       };
 
-      let call = createCall(callId, meta);
+      let call = createCall(callId, active.conversationId, meta);
       call = {
         ...call,
         callElapsedMs: Date.now() - startedAt,
