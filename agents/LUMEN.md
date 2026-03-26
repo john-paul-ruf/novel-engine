@@ -133,6 +133,61 @@ Verdicts: **Earns its place** | **Underperforming** (does one job — enrich or 
 - Assess the final chapter: Does it deliver emotional payoff? Does it resolve or intentionally leave open the dramatic question? Does the last line land?
 - Flag: Slow openings that bury the hook. Endings that over-explain. Endings that introduce new information. Epilogues that undercut the emotional climax.
 
+### Lens 8: Phrase & Pattern Audit
+
+**Question:** Has the prose developed repetitive tics that undermine its own power?
+
+This lens exists because Verity (the ghostwriter) writes one chapter at a time and can only see 2-3 neighboring chapters. She cannot detect cross-manuscript repetition. A phrase that appears once per chapter seems fine in isolation — but across 35 chapters it becomes a verbal tic that numbs the reader. Lumen is the only agent that reads the full manuscript and can catch this.
+
+**Process:**
+1. During the Structural Read (Read 2), maintain a running tally of every repeated phrase, construction, or narrative move that appears in more than one chapter.
+2. If a Ghostlight reader report exists, cross-reference its "Repetition Fatigue" section. The reader's experiential data tells you which repetitions actually landed as problems — prioritize those.
+3. Categorize each repeated element:
+
+| Category | What to look for | Example |
+|----------|-----------------|---------|
+| **Thematic phrases** | Exact or near-exact phrases reused across chapters | "the carrying was the work" |
+| **Structural formulations** | Sentence templates reused with different nouns | "the vocabulary did not have a word for [X]", "the institutional rhythm that processed [X] into [Y]" |
+| **Editorial intrusions** | Narrator explaining what a scene already shows | "He was describing his own hands without knowing it" |
+| **Rhetorical moves** | Repeated paragraph shapes or argumentative structures | Ending scenes with a thematic restatement, following every image with a gloss |
+
+4. For each repeated element, record: the exact phrase or pattern, every chapter where it appears, and the total count.
+
+**Output:** This lens produces TWO artifacts:
+
+**A. Report section** (in the dev report): A prose summary of the most significant repetition patterns, their impact on the reading experience, and which ones should be kept (at most 2 uses) vs. eliminated entirely.
+
+**B. Rebuilt Phrase Ledger** (written to `source/phrase-ledger.md`): A complete, accurate ledger built from the actual manuscript — not from Verity's self-reported entries. This replaces any existing ledger. Format:
+
+```
+PHRASE LEDGER (rebuilt by Lumen — [date])
+==========================================
+Source: Full manuscript audit, [chapter count] chapters
+Prior ledger accuracy: [X of Y entries were accurate / no prior ledger existed]
+
+[phrase or construction]
+  Actual uses: [count]
+  Chapters: [list]
+  Recommended: RETIRE / KEEP 2 (specify which 2) / ELIMINATE ALL
+  Status: RETIRED (if already at or over 2)
+
+---
+
+"the carrying was the work"
+  Actual uses: 12
+  Chapters: 03, 05, 08, 11, 14, 16, 19, 22, 25, 27, 30, 33
+  Recommended: KEEP 2 (Ch 03 to establish, Ch 33 for final echo) — cut the other 10
+  Status: RETIRED after revision
+
+"He was describing X without knowing it was his own Y"
+  Actual uses: 4
+  Chapters: 07, 15, 24, 31
+  Recommended: ELIMINATE ALL — the scenes work without the editorial gloss
+  Status: RETIRED after revision
+```
+
+**This is the most mechanically important lens in the assessment.** Without it, Verity will enter the revision cycle with an inaccurate self-reported ledger and repeat the same patterns. The rebuilt ledger gives her ground truth.
+
 ---
 
 ## Developmental Report Format
@@ -190,6 +245,14 @@ DETAILED ASSESSMENT BY LENS
 
 ### Opening & Closing
 [findings]
+
+### Phrase & Pattern Audit
+[findings — summary of repetition patterns, their impact, which to keep
+and which to eliminate. Reference the rebuilt phrase ledger for specifics.]
+
+Note: The rebuilt phrase ledger has been written to source/phrase-ledger.md.
+This replaces any prior version. Verity should use this ledger — not
+her own self-reported version — as the authority during revision.
 
 REVISION ROADMAP
 ----------------
@@ -273,6 +336,7 @@ This agent operates within the same repository structure as the Ghostwriter and 
     story-bible.md                  ← read-only reference for this agent
     style-sheet.md                  ← Sable's artifact (read-only for Lumen)
     dev-report.md                   ← created by this agent
+    phrase-ledger.md                ← rebuilt by this agent (authoritative version)
     audit-report.md                 ← Sable's artifact (read for awareness)
   chapters/
     01-chapter-slug/
@@ -287,5 +351,6 @@ This agent operates within the same repository structure as the Ghostwriter and 
 | File | Path | Created By | Notes |
 |---|---|---|---|
 | **Developmental Report** | `source/dev-report.md` | Lumen | Created per assessment run. Prior versions archived with version suffix. |
+| **Phrase Ledger** | `source/phrase-ledger.md` | Lumen (authoritative) / Verity (seed) | Verity creates a self-reported seed during first draft. Lumen rebuilds it from ground truth during every assessment. The Lumen version replaces the Verity version — it is the authority. Verity then uses Lumen's version during revision. |
 
 All other project files are read-only for this agent.

@@ -19,7 +19,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -560,6 +560,84 @@ export class ChatService {
   }
 
   /**
+   * Run a scoped Lumen phrase audit — Lens 8 only.
+   * Reads the full manuscript, identifies repeated phrases and editorial intrusions,
+   * and writes an authoritative phrase-ledger.md.
+   *
+   * This is a silent pre-step: it runs to completion before the main agent call,
+   * emitting status events but not saving a conversation (it's infrastructure, not a chat).
+   * Uses Sonnet for speed and cost — this is a mechanical pattern-detection task.
+   */
+  private async runPhraseAudit(params: {
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+  }): Promise<void> {
+    const { bookSlug, appSettings, onEvent, sessionId } = params;
+
+    let lumenAgent;
+    try {
+      lumenAgent = await this.agents.load('Lumen');
+    } catch {
+      console.warn('[phrase-audit] Lumen agent not found, skipping phrase audit');
+      return;
+    }
+
+    const manifest = await this.fs.getProjectManifest(bookSlug);
+    if (manifest.chapterCount === 0) {
+      return;
+    }
+
+    const chapterListing = manifest.files
+      .filter((f) => f.path.startsWith('chapters/') && f.path.endsWith('/draft.md'))
+      .map((f) => `- \`${f.path}\` (${f.wordCount.toLocaleString()} words)`)
+      .join('\n');
+
+    const otherFiles = manifest.files
+      .filter((f) => !f.path.startsWith('chapters/'))
+      .map((f) => `- \`${f.path}\` (${f.wordCount.toLocaleString()} words)`)
+      .join('\n');
+
+    let systemPrompt = lumenAgent.systemPrompt + '\n\n---\n\n' + PHRASE_AUDIT_INSTRUCTIONS;
+    systemPrompt += `\n\n## Chapters to Audit (in order)\n\n${chapterListing}`;
+    if (otherFiles) {
+      systemPrompt += `\n\n## Other Files\n\n${otherFiles}`;
+    }
+
+    onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript...' });
+
+    const thinkingBudget = resolveThinkingBudget(appSettings, lumenAgent.thinkingBudget);
+
+    await this.claude.sendMessage({
+      model: appSettings.model,
+      systemPrompt,
+      messages: [{ role: 'user' as const, content: 'Run the phrase audit now. Read every chapter, build the inventory, and write the phrase ledger.' }],
+      maxTokens: appSettings.maxTokens,
+      thinkingBudget,
+      bookSlug,
+      sessionId,
+      conversationId: `phrase-audit-${sessionId}`,
+      onEvent: (event: StreamEvent) => {
+        if (event.type === 'status' || event.type === 'progressStage') {
+          onEvent(event);
+        } else if (event.type === 'filesChanged') {
+          this.lastChangedFiles = event.paths;
+        } else if (event.type === 'done') {
+          this.usage.recordUsage({
+            conversationId: `phrase-audit-${sessionId}`,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            model: appSettings.model,
+          });
+        }
+        // Swallow textDelta/thinkingDelta — this is a background task, not a chat
+      },
+    });
+  }
+
+  /**
    * Handle an ad hoc revision conversation: Forge reads the manuscript and generates
    * project-tasks.md and revision-prompts.md based on the author's description.
    * Uses the global model setting (Forge works well on Sonnet for planning).
@@ -579,6 +657,18 @@ export class ChatService {
     const { conversationId, bookSlug, appSettings, agent, onEvent, sessionId } = params;
 
     onEvent({ type: 'status', message: randomPreparingStatus() });
+
+    // Pre-step: run a scoped Lumen phrase audit to ensure the phrase ledger
+    // is accurate before Forge generates the revision plan. Without this,
+    // Verity would revise with a stale self-reported ledger — the ad hoc path
+    // bypasses the formal Lumen assessment that normally rebuilds it.
+    try {
+      await this.runPhraseAudit({ bookSlug, appSettings, onEvent, sessionId });
+      onEvent({ type: 'status', message: 'Phrase audit complete. Generating revision plan...' });
+    } catch (err) {
+      console.warn('[adhoc-revision] Phrase audit failed, continuing without it:', err);
+      onEvent({ type: 'status', message: 'Phrase audit skipped. Generating revision plan...' });
+    }
 
     const manifest = await this.fs.getProjectManifest(bookSlug);
 

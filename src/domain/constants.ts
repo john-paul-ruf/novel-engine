@@ -15,7 +15,7 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
     neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
   Verity: {
-    alwaysRead: ['source/voice-profile.md'],
+    alwaysRead: ['source/voice-profile.md', 'source/phrase-ledger.md'],
     readIfRelevant: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/revision-prompts.md'],
     neverRead: ['source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
@@ -26,7 +26,7 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
   },
   Lumen: {
     alwaysRead: ['source/reader-report.md'],
-    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md'],
+    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/phrase-ledger.md'],
     neverRead: ['author-profile.md', 'source/revision-prompts.md'],
   },
   Sable: {
@@ -570,6 +570,48 @@ TONE:
 
 export const HOT_TAKE_MODEL = 'claude-opus-4-20250514';
 
+export const PHRASE_AUDIT_INSTRUCTIONS = `You are running a SCOPED PHRASE AUDIT — Lens 8 only. This is not a full developmental assessment.
+
+INSTRUCTIONS:
+1. Use the Read tool to read every chapter draft file in the chapters/ directory, in order.
+2. If a Ghostlight reader report exists at source/reader-report.md, read it and check for a "Repetition Fatigue" section. Prioritize phrases the reader actually noticed.
+3. If a phrase ledger exists at source/phrase-ledger.md, read it to compare against your findings.
+
+YOUR TASK:
+Identify every thematic phrase, recurring construction, structural formulation, and editorial intrusion that appears more than once across the manuscript. For each, record: the exact phrase, every chapter where it appears, and the total count.
+
+Categorize each as:
+- **Thematic phrase**: Exact or near-exact phrases reused across chapters
+- **Structural formulation**: Sentence templates reused with different nouns
+- **Editorial intrusion**: Narrator explaining what a scene already shows
+- **Rhetorical move**: Repeated paragraph shapes or argumentative structures
+
+Then WRITE the authoritative phrase ledger to source/phrase-ledger.md using this format:
+
+PHRASE LEDGER (rebuilt by Lumen — [today's date])
+==========================================
+Source: Scoped phrase audit, [chapter count] chapters
+Prior ledger accuracy: [X of Y entries were accurate / no prior ledger existed]
+
+"[phrase or construction]"
+  Actual uses: [count]
+  Chapters: [list with brief context]
+  Recommended: RETIRE / KEEP 2 (specify which 2) / ELIMINATE ALL
+  Status: RETIRED (if at or over 2 uses)
+
+After the phrase entries, include:
+
+EDITORIAL NARRATION LOG
+========================
+[Ch NN]: "[the editorial sentence]" — scene already showed [what]
+
+RULES:
+- Be exhaustive. Every repeated phrase matters — Verity will use this ledger mechanically during revision.
+- RETIRE means the phrase cannot be used again. KEEP 2 means specify exactly which two chapters should retain it. ELIMINATE ALL means every instance should be rewritten.
+- After writing the ledger, respond with a brief summary: how many phrases found, how many flagged for retirement, and the 3 worst offenders.
+- Do NOT write a full developmental report. Do NOT assess structure, pacing, character arcs, or anything outside of phrase repetition and editorial narration.
+- Do NOT modify any draft.md files. Read only. Your only output file is source/phrase-ledger.md.`;
+
 export const ADHOC_REVISION_INSTRUCTIONS = `
 
 ---
@@ -618,5 +660,6 @@ export const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'revisionPrompts', path: 'source/revision-prompts.md' },
   { key: 'styleSheet',      path: 'source/style-sheet.md' },
   { key: 'projectTasks',    path: 'source/project-tasks.md' },
+  { key: 'phraseLedger',    path: 'source/phrase-ledger.md' },
   { key: 'metadata',        path: 'source/metadata.md' },
 ];

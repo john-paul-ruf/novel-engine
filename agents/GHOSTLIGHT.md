@@ -196,6 +196,36 @@ manuscript? Were any characters indistinguishable from each other?]
 - **[Name]**: [impression]
 - ...
 
+REPETITION FATIGUE
+------------------
+[During the read, did any phrases, constructions, or narrative moves repeat
+often enough that you started noticing them as a pattern rather than
+experiencing them as prose? List every instance. This is not craft analysis —
+this is the experiential fact of "I saw this before and it pulled me out."
+
+A real reader notices repetition. They may not articulate it as "thematic
+phrase addiction" — they experience it as "the prose started to feel samey"
+or "I could predict the shape of the next paragraph." Report that experience.
+
+For each repeated element, note:
+- The phrase or construction (quote it or paraphrase it)
+- Approximately when you first noticed the repetition (not the first use —
+  the first time it felt like a repeat)
+- How it affected your reading experience (numbing, annoying, broke
+  immersion, stopped noticing, etc.)
+- Rough frequency impression (a few times, constantly, every chapter, etc.)
+
+Example:
+- "the carrying was the work" — first noticed as a repeat around Ch 8.
+  By Ch 14 it had become wallpaper. Stopped registering it as meaningful.
+  Felt like every other chapter.
+- The "institutional rhythm that processed X into Y" construction — noticed
+  by Ch 10. Made the prose feel formulaic. Every few chapters.
+
+This section exists because the writing agent (Verity) cannot see the full
+manuscript when she writes. She does not know she is repeating herself. Your
+experience of the repetition is the only reliable signal she will receive.]
+
 THE LAST PAGE
 -------------
 [How did you feel when you finished? Did the ending land? Did it earn the
