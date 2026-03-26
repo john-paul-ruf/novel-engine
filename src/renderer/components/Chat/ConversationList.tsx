@@ -88,6 +88,46 @@ export function ConversationList({
 
       {expanded && (
         <div className="max-h-48 overflow-y-auto px-3 pb-2">
+          <div className="mb-1">
+            {showAgentPicker ? (
+              <div className="rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-2">
+                <div className="mb-1 text-[10px] font-medium uppercase text-zinc-500">
+                  Select Agent
+                </div>
+                {CREATIVE_AGENT_NAMES.map((name) => {
+                  const meta = AGENT_REGISTRY[name];
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => handleNewConversation(name)}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                    >
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: meta.color }}
+                      />
+                      <span>{name}</span>
+                      <span className="text-zinc-400 dark:text-zinc-600">{meta.role}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setShowAgentPicker(false)}
+                  className="mt-1 w-full rounded px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAgentPicker(true)}
+                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-500 dark:hover:text-zinc-400"
+              >
+                <span>+</span> New Conversation
+              </button>
+            )}
+          </div>
+
           {conversations.map((conv) => {
             const meta = AGENT_REGISTRY[conv.agentName];
             const isActive = activeConversation?.id === conv.id;
@@ -148,45 +188,6 @@ export function ConversationList({
             </div>
           )}
 
-          <div className="mt-1">
-            {showAgentPicker ? (
-              <div className="rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-2">
-                <div className="mb-1 text-[10px] font-medium uppercase text-zinc-500">
-                  Select Agent
-                </div>
-                {CREATIVE_AGENT_NAMES.map((name) => {
-                  const meta = AGENT_REGISTRY[name];
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => handleNewConversation(name)}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                    >
-                      <div
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: meta.color }}
-                      />
-                      <span>{name}</span>
-                      <span className="text-zinc-400 dark:text-zinc-600">{meta.role}</span>
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => setShowAgentPicker(false)}
-                  className="mt-1 w-full rounded px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAgentPicker(true)}
-                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-500 dark:hover:text-zinc-400"
-              >
-                <span>+</span> New Conversation
-              </button>
-            )}
-          </div>
         </div>
       )}
     </div>
