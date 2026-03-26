@@ -128,9 +128,8 @@ export function PipelineTracker(): React.ReactElement {
 
   if (!activeSlug || phases.length === 0) {
     return (
-      <div className="px-3 py-3">
-        <div className="text-xs font-medium uppercase tracking-wider text-zinc-500">Pipeline</div>
-        <div className="mt-1 text-xs text-zinc-500">No book selected</div>
+      <div className="px-3 pb-3">
+        <div className="text-xs text-zinc-500">No book selected</div>
       </div>
     );
   }
@@ -303,10 +302,8 @@ export function PipelineTracker(): React.ReactElement {
   };
 
   return (
-    <div className="px-3 py-3">
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
-        Pipeline
-      </div>
+    <div className="px-3 pb-3">
+
       {buildForQuillError && (
         <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
           {buildForQuillError}

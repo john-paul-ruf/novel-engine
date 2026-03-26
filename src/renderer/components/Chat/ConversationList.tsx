@@ -40,23 +40,9 @@ export function ConversationList({
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
   const deleteConversation = useChatStore((s) => s.deleteConversation);
   const createConversation = useChatStore((s) => s.createConversation);
-  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
-  const lockedAgentName = useChatStore((s) => s.lockedAgentName);
-  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
   const { activeSlug } = useBookStore();
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const filteredConversations = pipelineLocked && lockedAgentName && lockedPhaseId
-    ? conversations.filter(
-        (c) =>
-          // Match the locked phase
-          (c.agentName === lockedAgentName && c.pipelinePhase === lockedPhaseId && c.purpose === 'pipeline') ||
-          // Always show special-purpose conversations
-          c.purpose === 'voice-setup' ||
-          c.purpose === 'author-profile',
-      )
-    : conversations;
 
   const handleDelete = useCallback(
     async (e: React.MouseEvent, conversationId: string) => {
@@ -95,17 +81,14 @@ export function ConversationList({
         className="flex w-full items-center justify-between px-6 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400"
       >
         <span>
-          Conversations ({filteredConversations.length}
-          {pipelineLocked && filteredConversations.length !== conversations.length && (
-            <span className="text-zinc-400 dark:text-zinc-600">/{conversations.length}</span>
-          )})
+          Conversations ({conversations.length})
         </span>
         <span>{expanded ? '▼' : '▶'}</span>
       </button>
 
       {expanded && (
         <div className="max-h-48 overflow-y-auto px-3 pb-2">
-          {filteredConversations.map((conv) => {
+          {conversations.map((conv) => {
             const meta = AGENT_REGISTRY[conv.agentName];
             const isActive = activeConversation?.id === conv.id;
             const isConfirmingDelete = deletingId === conv.id;
@@ -159,21 +142,14 @@ export function ConversationList({
             );
           })}
 
-          {filteredConversations.length === 0 && (
+          {conversations.length === 0 && (
             <div className="px-3 py-2 text-xs text-zinc-400 dark:text-zinc-600">
               No conversations yet
             </div>
           )}
 
           <div className="mt-1">
-            {pipelineLocked && lockedAgentName && lockedPhaseId ? (
-              <button
-                onClick={() => handleNewConversation(lockedAgentName, lockedPhaseId)}
-                className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-500 dark:hover:text-zinc-400"
-              >
-                <span>+</span> New {lockedAgentName} Conversation
-              </button>
-            ) : showAgentPicker ? (
+            {showAgentPicker ? (
               <div className="rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-2">
                 <div className="mb-1 text-[10px] font-medium uppercase text-zinc-500">
                   Select Agent

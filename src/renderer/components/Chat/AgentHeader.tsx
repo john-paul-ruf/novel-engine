@@ -6,9 +6,6 @@ export function AgentHeader(): React.ReactElement | null {
   // Granular selectors — bare useChatStore() re-renders on every streaming delta.
   const activeConversation = useChatStore((s) => s.activeConversation);
   const conversationUsage = useChatStore((s) => s.conversationUsage);
-  const pipelineLocked = useChatStore((s) => s.pipelineLocked);
-  const lockedPhaseId = useChatStore((s) => s.lockedPhaseId);
-
   const agentMeta = activeConversation
     ? AGENT_REGISTRY[activeConversation.agentName]
     : null;
@@ -62,11 +59,6 @@ export function AgentHeader(): React.ReactElement | null {
             {activeConversation.purpose === 'author-profile' && (
               <span className="ml-2 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300">
                 Author Profile
-              </span>
-            )}
-            {pipelineLocked && lockedPhaseId && activeConversation.purpose === 'pipeline' && activeConversation.pipelinePhase !== lockedPhaseId && (
-              <span className="ml-2 rounded bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
-                Past Phase
               </span>
             )}
           </p>

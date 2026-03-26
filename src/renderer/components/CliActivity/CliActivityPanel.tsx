@@ -1,5 +1,8 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
+import { useResizeHandle } from '../../hooks/useResizeHandle';
+import { useVerticalResize } from '../../hooks/useVerticalResize';
+import { ResizeHandle } from '../Layout/ResizeHandle';
 import type { CliCall } from '../../stores/cliActivityStore';
 import type { AgentName } from '@domain/types';
 import { AGENT_REGISTRY } from '@domain/constants';
@@ -97,14 +100,57 @@ function TokenBadge({ label, value, color }: { label: string; value: number; col
   );
 }
 
-/** Compact collapsible wrapper for CLI panel sections */
-function CollapsiblePanel({ title, defaultExpanded = true, badge, children }: {
+/** Thin horizontal drag handle for vertical resizing between sections */
+function VerticalDragHandle({ isDragging, onMouseDown, onDoubleClick }: {
+  isDragging: boolean;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onDoubleClick?: () => void;
+}): React.ReactElement {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
+      className="group relative z-10 flex h-[5px] shrink-0 cursor-row-resize items-center justify-center"
+      title="Drag to resize · Double-click to reset"
+    >
+      <div
+        className={`h-px w-full transition-colors duration-150 ${
+          isDragging
+            ? 'bg-blue-500'
+            : 'bg-transparent group-hover:bg-blue-400/60'
+        }`}
+      />
+    </div>
+  );
+}
+
+/** Compact collapsible wrapper for CLI panel sections with optional vertical resize */
+function CollapsiblePanel({ title, defaultExpanded = true, isActive, badge, resizable, children }: {
   title: string;
   defaultExpanded?: boolean;
+  isActive?: boolean;
   badge?: React.ReactNode;
+  /** When provided, the section becomes vertically resizable */
+  resizable?: {
+    storageKey: string;
+    initialHeight: number;
+    minHeight: number;
+    maxHeight: number;
+  };
   children: React.ReactNode;
 }): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
+
+  const { height, isDragging, onMouseDown, resetHeight } = useVerticalResize({
+    initialHeight: resizable?.initialHeight ?? 120,
+    minHeight: resizable?.minHeight ?? 40,
+    maxHeight: resizable?.maxHeight ?? 500,
+    storageKey: resizable?.storageKey,
+  });
+
+  useEffect(() => {
+    if (isActive === false) setExpanded(false);
+  }, [isActive]);
 
   return (
     <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50">
@@ -125,7 +171,24 @@ function CollapsiblePanel({ title, defaultExpanded = true, badge, children }: {
         </span>
         {badge && <span className="ml-auto">{badge}</span>}
       </button>
-      {expanded && children}
+      {expanded && (
+        <>
+          {resizable ? (
+            <div className="overflow-y-auto" style={{ height }}>
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+          {resizable && (
+            <VerticalDragHandle
+              isDragging={isDragging}
+              onMouseDown={onMouseDown}
+              onDoubleClick={resetHeight}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -366,7 +429,9 @@ function CallHeader({ call }: { call: CliCall }): React.ReactElement {
     <CollapsiblePanel
       title={`${meta.agentName} — ${meta.agentRole}`}
       defaultExpanded={true}
+      isActive={isActive}
       badge={durationBadge}
+      resizable={{ storageKey: 'novel-engine:cli-header-height', initialHeight: 100, minHeight: 50, maxHeight: 300 }}
     >
       <div className="bg-zinc-50 dark:bg-zinc-900/80 px-3 pb-2">
         {/* Agent + Model row */}
@@ -449,7 +514,7 @@ function PhaseTimeline({ call }: { call: CliCall }): React.ReactElement | null {
   );
 
   return (
-    <CollapsiblePanel title="Phases" defaultExpanded={true} badge={phaseBadge}>
+    <CollapsiblePanel title="Phases" defaultExpanded={false} isActive={call.isActive} badge={phaseBadge} resizable={{ storageKey: 'novel-engine:cli-phases-height', initialHeight: 80, minHeight: 40, maxHeight: 300 }}>
       <div className="px-3 pb-1.5">
         <div className="flex flex-wrap gap-1">
           {completedPhases.map((phase, i) => {
@@ -490,7 +555,7 @@ function ToolBreakdown({ call }: { call: CliCall }): React.ReactElement | null {
   );
 
   return (
-    <CollapsiblePanel title="Tool Usage" defaultExpanded={true} badge={toolBadge}>
+    <CollapsiblePanel title="Tool Usage" defaultExpanded={false} isActive={call.isActive} badge={toolBadge} resizable={{ storageKey: 'novel-engine:cli-tools-height', initialHeight: 80, minHeight: 40, maxHeight: 300 }}>
       <div className="px-3 pb-1.5">
         <div className="flex flex-wrap gap-1.5">
           {entries.map(([name, count]) => (
@@ -514,7 +579,7 @@ function DiagnosticsSection({ call }: { call: CliCall }): React.ReactElement | n
   );
 
   return (
-    <CollapsiblePanel title="Context Diagnostics" defaultExpanded={false} badge={diagBadge}>
+    <CollapsiblePanel title="Context Diagnostics" defaultExpanded={false} badge={diagBadge} resizable={{ storageKey: 'novel-engine:cli-diag-height', initialHeight: 100, minHeight: 40, maxHeight: 300 }}>
       <div className="px-3 pb-2">
         <div className="space-y-1 text-xs">
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
@@ -555,14 +620,17 @@ function DiagnosticsSection({ call }: { call: CliCall }): React.ReactElement | n
 
 function EntryList({ call }: { call: CliCall }): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(true);
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
-    if (scrollRef.current && expanded) {
+    if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [call.entries.length, expanded]);
+  }, [call.entries.length]);
+
+  const entryBadge = (
+    <span className="text-[10px] tabular-nums text-zinc-500">{call.entries.length}</span>
+  );
 
   if (call.entries.length === 0) {
     return (
@@ -575,74 +643,62 @@ function EntryList({ call }: { call: CliCall }): React.ReactElement {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* Collapsible header */}
-      <button
-        onClick={() => setExpanded((prev) => !prev)}
-        className="flex shrink-0 items-center gap-1.5 border-b border-zinc-300 dark:border-zinc-700/50 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 16 16"
-          fill="currentColor"
-          className={`h-2.5 w-2.5 shrink-0 text-zinc-400 dark:text-zinc-600 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
-        >
-          <path d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" />
-        </svg>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
-          Activity Log
-        </span>
-        <span className="ml-auto text-[10px] tabular-nums text-zinc-500">{call.entries.length}</span>
-      </button>
-
-      {/* Scrollable entries */}
-      {expanded && (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-1 py-1">
-          {call.entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-start gap-2 rounded px-2 py-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
-            >
-              <span className="mt-px shrink-0 text-xs">{KIND_ICONS[entry.kind] ?? '\u2022'}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-xs leading-tight ${KIND_COLORS[entry.kind] ?? 'text-zinc-500 dark:text-zinc-400'}`}>
-                    {entry.message}
-                  </span>
-                  <span className="shrink-0 font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
-                    {formatRelativeTime(entry.timestamp, call.callMeta.startedAt)}
-                  </span>
-                </div>
-                {entry.tokens && (
-                  <div className="mt-0.5 flex gap-1.5">
-                    <span className="text-[10px] text-blue-600 dark:text-blue-400/70">
-                      {formatTokens(entry.tokens.input)} in
-                    </span>
-                    <span className="text-[10px] text-green-600 dark:text-green-400/70">
-                      {formatTokens(entry.tokens.output)} out
-                    </span>
-                    {entry.tokens.thinking > 0 && (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400/70">
-                        {formatTokens(entry.tokens.thinking)} think
-                      </span>
-                    )}
-                  </div>
-                )}
-                {entry.detail && (
-                  <pre className="mt-0.5 max-h-16 overflow-auto whitespace-pre-wrap font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
-                    {entry.detail}
-                  </pre>
-                )}
+    <CollapsiblePanel
+      title="Activity Log"
+      defaultExpanded={false}
+      isActive={call.isActive}
+      badge={entryBadge}
+      resizable={{ storageKey: 'novel-engine:cli-activity-height', initialHeight: 200, minHeight: 60, maxHeight: 600 }}
+    >
+      <div ref={scrollRef} className="h-full overflow-y-auto px-1 py-1">
+        {call.entries.map((entry) => (
+          <div
+            key={entry.id}
+            className="flex items-start gap-2 rounded px-2 py-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+          >
+            <span className="mt-px shrink-0 text-xs">{KIND_ICONS[entry.kind] ?? '\u2022'}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className={`text-xs leading-tight ${KIND_COLORS[entry.kind] ?? 'text-zinc-500 dark:text-zinc-400'}`}>
+                  {entry.message}
+                </span>
+                <span className="shrink-0 font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
+                  {formatRelativeTime(entry.timestamp, call.callMeta.startedAt)}
+                </span>
               </div>
+              {entry.tokens && (
+                <div className="mt-0.5 flex gap-1.5">
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400/70">
+                    {formatTokens(entry.tokens.input)} in
+                  </span>
+                  <span className="text-[10px] text-green-600 dark:text-green-400/70">
+                    {formatTokens(entry.tokens.output)} out
+                  </span>
+                  {entry.tokens.thinking > 0 && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400/70">
+                      {formatTokens(entry.tokens.thinking)} think
+                    </span>
+                  )}
+                </div>
+              )}
+              {entry.detail && (
+                <pre className="mt-0.5 max-h-16 overflow-auto whitespace-pre-wrap font-mono text-[10px] text-zinc-400 dark:text-zinc-600">
+                  {entry.detail}
+                </pre>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+          </div>
+        ))}
+      </div>
+    </CollapsiblePanel>
   );
 }
 
 // === Main Panel ===
+
+const CLI_PANEL_DEFAULT = 380;
+const CLI_PANEL_MIN = 280;
+const CLI_PANEL_MAX = 700;
 
 export function CliActivityPanel(): React.ReactElement {
   const calls = useCliActivityStore((s) => s.calls);
@@ -653,13 +709,24 @@ export function CliActivityPanel(): React.ReactElement {
   const close = useCliActivityStore((s) => s.close);
   const clear = useCliActivityStore((s) => s.clear);
 
+  const { width, isDragging, onMouseDown, resetWidth } = useResizeHandle({
+    direction: 'right',
+    initialWidth: CLI_PANEL_DEFAULT,
+    minWidth: CLI_PANEL_MIN,
+    maxWidth: CLI_PANEL_MAX,
+    storageKey: 'novel-engine:cli-panel-width',
+  });
+
   const activeCount = Object.values(calls).filter((c) => c.isActive).length;
   const selectedCall = selectedCallId ? calls[selectedCallId] : null;
   const hasFilters = filterAgent !== null || filterBook !== null;
   const filteredOrder = useCliActivityStore((s) => s.getFilteredCallOrder)();
 
   return (
-    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+    <div
+      className="relative flex h-full shrink-0 flex-col border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900"
+      style={{ width }}
+    >
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-300 dark:border-zinc-700 px-3 py-2">
         <div className="flex items-center gap-2">
@@ -697,15 +764,15 @@ export function CliActivityPanel(): React.ReactElement {
       {/* Call list (only shown when multiple calls exist) */}
       <CallList />
 
-      {/* Selected call detail */}
+      {/* Selected call detail — scrollable container for resizable sections */}
       {selectedCall ? (
-        <>
+        <div key={selectedCallId} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <CallHeader call={selectedCall} />
           <PhaseTimeline call={selectedCall} />
           <ToolBreakdown call={selectedCall} />
           <DiagnosticsSection call={selectedCall} />
           <EntryList call={selectedCall} />
-        </>
+        </div>
       ) : callOrder.length === 0 ? (
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
@@ -729,6 +796,14 @@ export function CliActivityPanel(): React.ReactElement {
           <p className="text-sm text-zinc-500">Select a call to view details</p>
         </div>
       )}
+
+      {/* Resize handle on left edge */}
+      <ResizeHandle
+        side="left"
+        isDragging={isDragging}
+        onMouseDown={onMouseDown}
+        onDoubleClick={resetWidth}
+      />
     </div>
   );
 }

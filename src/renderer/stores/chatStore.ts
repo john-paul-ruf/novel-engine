@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhase, PipelinePhaseId, ProgressStage, StreamEvent, StreamSessionRecord, TimestampedToolUse, UsageRecord } from '@domain/types';
+import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhaseId, ProgressStage, StreamEvent, StreamSessionRecord, TimestampedToolUse, UsageRecord } from '@domain/types';
 import { randomRespondingStatus } from '@domain/constants';
 import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
@@ -51,11 +51,6 @@ type ChatState = {
   // Call scoping — prevents cross-book stream bleed
   _activeCallId: string | null;
 
-  // Pipeline lock state
-  pipelineLocked: boolean;
-  lockedAgentName: AgentName | null;
-  lockedPhaseId: PipelinePhaseId | null;
-
   loadConversations: (bookSlug: string) => Promise<void>;
   createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose?: ConversationPurpose) => Promise<void>;
   setActiveConversation: (conversationId: string) => Promise<void>;
@@ -65,9 +60,6 @@ type ChatState = {
   // External stream attachment (used by auto-draft, revision queue, etc.)
   attachToExternalStream: (callId: string, conversationId: string, optimisticContent?: string) => void;
 
-  // Pipeline lock actions
-  setPipelineLock: (locked: boolean) => void;
-  syncWithPipeline: (activePhase: PipelinePhase | null) => void;
   switchBook: (newBookSlug: string) => Promise<void>;
 
   _handleStreamEvent: (event: StreamEvent) => void;
@@ -96,9 +88,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toolTimings: [],
   interruptedSession: null,
   _activeCallId: null,
-  pipelineLocked: true,
-  lockedAgentName: null,
-  lockedPhaseId: null,
   _cleanupListener: null,
   _cleanupFilesChanged: null,
 
@@ -269,43 +258,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         : {}),
     }));
-  },
-
-  setPipelineLock: (locked: boolean) => {
-    set({ pipelineLocked: locked });
-  },
-
-  syncWithPipeline: (activePhase: PipelinePhase | null) => {
-    const lockedAgentName = activePhase?.agent ?? null;
-    const lockedPhaseId = activePhase?.id ?? null;
-
-    set({ lockedAgentName, lockedPhaseId });
-
-    const { pipelineLocked, activeConversation, conversations } = get();
-
-    // If locked and current conversation doesn't match the active phase, auto-switch
-    if (pipelineLocked && lockedAgentName && lockedPhaseId) {
-      const currentMatchesPhase =
-        activeConversation?.agentName === lockedAgentName &&
-        activeConversation?.pipelinePhase === lockedPhaseId &&
-        activeConversation?.purpose === 'pipeline';
-
-      if (!currentMatchesPhase) {
-        // Find the most recent conversation for this agent + phase
-        const match = conversations.find(
-          (c) =>
-            c.agentName === lockedAgentName &&
-            c.pipelinePhase === lockedPhaseId &&
-            c.purpose === 'pipeline',
-        );
-        if (match) {
-          get().setActiveConversation(match.id);
-        } else {
-          // No existing conversation — clear active so the empty state shows
-          set({ activeConversation: null, messages: [] });
-        }
-      }
-    }
   },
 
   switchBook: async (newBookSlug: string) => {

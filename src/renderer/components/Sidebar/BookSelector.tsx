@@ -3,6 +3,7 @@ import type { BookStatus, BookSummary } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useChatStore } from '../../stores/chatStore';
+import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { ShelvedPitchesPanel } from './ShelvedPitchesPanel';
 import { PitchPreviewModal } from './PitchPreviewModal';
@@ -305,6 +306,12 @@ export function BookSelector(): React.ReactElement {
     setIsOpen(false);
     if (slug !== activeSlug) {
       await setActiveBook(slug);
+    } else {
+      // Re-selecting the current book while in pitch-room → return to chat so pipeline reappears
+      const { currentView, navigate } = useViewStore.getState();
+      if (currentView === 'pitch-room') {
+        navigate('chat');
+      }
     }
   };
 

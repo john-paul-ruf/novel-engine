@@ -8,6 +8,7 @@ type FilesHeaderProps = {
   onBrowse: (dirPath: string) => void;
   onBackToBrowser: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   /** When true the file belongs to Verity — hide the Edit button and show a lock badge instead. */
   readOnly?: boolean;
 };
@@ -85,6 +86,7 @@ export function FilesHeader({
   onBrowse,
   onBackToBrowser,
   onEdit,
+  onDelete,
   readOnly,
 }: FilesHeaderProps): React.ReactElement {
   const breadcrumbs =
@@ -119,10 +121,20 @@ export function FilesHeader({
 
       {/* Right: Edit button + View mode switcher */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Delete button — visible in reader/editor mode for any file */}
+        {filePath && (viewMode === 'reader' || viewMode === 'editor') && onDelete && (
+          <button
+            onClick={onDelete}
+            className="rounded px-2.5 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            title="Delete file"
+          >
+            🗑 Delete
+          </button>
+        )}
+
         {/* Edit button — only for editable .md files in reader/editor mode */}
         {filePath?.endsWith('.md') && (viewMode === 'reader' || viewMode === 'editor') && (
           readOnly ? (
-            /* Verity-authored draft — show a lock badge instead of the Edit button */
             <span
               className="flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 cursor-default select-none"
               title="Verity's draft — chat with Verity to make changes"

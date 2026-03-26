@@ -102,6 +102,62 @@ function InlineEditField({
   );
 }
 
+const ALL_STATUSES: BookStatus[] = [
+  'scaffolded', 'outlining', 'first-draft', 'revision-1', 'revision-2', 'copy-edit', 'final', 'published',
+];
+
+function StatusDropdown({
+  value,
+  onSave,
+}: {
+  value: BookStatus;
+  onSave: (newValue: string) => void;
+}): React.ReactElement {
+  const [editing, setEditing] = useState(false);
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const statusClass = STATUS_COLORS[value] ?? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200';
+
+  useEffect(() => {
+    if (editing && selectRef.current) {
+      selectRef.current.focus();
+    }
+  }, [editing]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value;
+    setEditing(false);
+    if (newStatus !== value) {
+      onSave(newStatus);
+    }
+  };
+
+  if (editing) {
+    return (
+      <select
+        ref={selectRef}
+        value={value}
+        onChange={handleChange}
+        onBlur={() => setEditing(false)}
+        className="rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-800 dark:text-zinc-200 outline-none focus:border-blue-500"
+      >
+        {ALL_STATUSES.map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <span
+      onClick={() => setEditing(true)}
+      className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium ${statusClass} hover:ring-2 hover:ring-blue-500/50`}
+      title="Click to change status"
+    >
+      {value}
+    </span>
+  );
+}
+
 function AboutJsonCard({
   content,
   activeSlug,
@@ -124,7 +180,7 @@ function AboutJsonCard({
     );
   }
 
-  const handleSaveField = async (field: 'title' | 'author', value: string) => {
+  const handleSaveField = async (field: 'title' | 'author' | 'status', value: string) => {
     setIsSaving(true);
     try {
       const updated = await window.novelEngine.books.updateMeta(activeSlug, { [field]: value });
@@ -200,11 +256,17 @@ function AboutJsonCard({
       </div>
 
       {/* Status */}
-      <div className="flex items-center gap-3">
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
-          {meta.status}
-        </span>
+      <div className="mb-4 flex items-center gap-3">
+        <StatusDropdown
+          value={meta.status}
+          onSave={(v) => handleSaveField('status', v)}
+        />
         {createdDate && <span className="text-sm text-zinc-500">Created {createdDate}</span>}
+      </div>
+
+      {/* Slug (read-only info) */}
+      <div className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">
+        {activeSlug}
       </div>
     </div>
   );
@@ -401,13 +463,35 @@ export function FilesView(): React.ReactElement {
     async (newContent: string) => {
       if (!filePath || !activeSlug) return;
       await window.novelEngine.files.write(activeSlug, filePath, newContent);
-      // Refresh the in-memory content so reader mode shows the latest text
       setContent(newContent);
     },
     [filePath, activeSlug],
   );
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+
+  const handleDeleteFile = useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!filePath || !activeSlug) return;
+    setDeleteInProgress(true);
+    try {
+      await window.novelEngine.files.delete(activeSlug, filePath);
+      setShowDeleteConfirm(false);
+      handleBackToBrowser();
+    } catch (err) {
+      console.error('Failed to delete file:', err);
+    } finally {
+      setDeleteInProgress(false);
+    }
+  }, [filePath, activeSlug, handleBackToBrowser]);
+
   const readOnly = !!filePath && isVerityDraft(filePath);
+
+  const deleteFileName = filePath ? filePath.split('/').pop() ?? filePath : '';
 
   return (
     <div className="flex h-full flex-col">
@@ -420,6 +504,7 @@ export function FilesView(): React.ReactElement {
         onBrowse={handleBrowse}
         onBackToBrowser={handleBackToBrowser}
         onEdit={handleEdit}
+        onDelete={filePath ? handleDeleteFile : undefined}
         readOnly={readOnly}
       />
 
@@ -535,6 +620,7 @@ function ReaderContent({
 
   const isMarkdown = filePath.endsWith('.md');
   const isJson = filePath.endsWith('.json');
+  const isAboutJson = filePath === 'about.json';
 
   return (
     <>
@@ -551,7 +637,9 @@ function ReaderContent({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        {isMarkdown ? (
+        {isAboutJson ? (
+          <AboutJsonCard content={content} activeSlug={activeSlug} />
+        ) : isMarkdown ? (
           <MarkdownViewer content={content} />
         ) : isJson ? (
           <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{formatJson(content)}</pre>

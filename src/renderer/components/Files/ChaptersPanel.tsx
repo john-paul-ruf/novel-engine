@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { DeleteConfirmModal, useDeleteFile } from './DeleteConfirmModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -91,16 +92,26 @@ export function ChaptersPanel({
   onFileSelect,
 }: ChaptersPanelProps): React.ReactElement {
   const fileRevision = useFileChangeStore((s) => s.revision);
+  const notifyChange = useFileChangeStore((s) => s.notifyChange);
 
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  // Incremented after user-initiated changes (e.g. adding a back matter chapter)
+  // Incremented after user-initiated changes (e.g. adding a back matter chapter, deleting)
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Back matter addition state
   const [addingBackMatter, setAddingBackMatter] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [addingInProgress, setAddingInProgress] = useState(false);
+
+  // Delete hook
+  const handleDeleted = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    notifyChange();
+  }, [notifyChange]);
+
+  const { pendingDelete, deleting, requestDelete, confirmDelete, cancelDelete } =
+    useDeleteFile(activeSlug, handleDeleted);
 
   // ── Load chapters ────────────────────────────────────────────────────────
 
@@ -211,6 +222,29 @@ export function ChaptersPanel({
     }
   };
 
+  // ── Delete helper ─────────────────────────────────────────────────────────
+
+  /** Build a delete target for a chapter folder with appropriate warnings. */
+  const requestChapterDelete = useCallback(
+    (chapter: ChapterInfo, e: React.MouseEvent) => {
+      const isBody = chapter.kind === 'body';
+      const extraWarning = isBody && chapter.hasDraft
+        ? "This is a Verity-authored draft. Deleting it will require re-generation via chat."
+        : undefined;
+
+      requestDelete(
+        {
+          path: `chapters/${chapter.slug}`,
+          name: chapter.title,
+          isDirectory: true,
+          extraWarning,
+        },
+        e,
+      );
+    },
+    [requestDelete],
+  );
+
   // ── Render helpers ───────────────────────────────────────────────────────
 
   /**
@@ -271,6 +305,17 @@ export function ChaptersPanel({
           title={chapter.hasNotes ? 'Open notes' : 'No notes yet'}
         >
           Notes
+        </button>
+      </div>
+
+      {/* Delete button — hover reveal */}
+      <div className="w-8 shrink-0">
+        <button
+          onClick={(e) => requestChapterDelete(chapter, e)}
+          className="rounded p-1 text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all"
+          title={`Delete ${chapter.title}`}
+        >
+          ✕
         </button>
       </div>
     </div>
@@ -348,6 +393,17 @@ export function ChaptersPanel({
           Notes
         </button>
       </div>
+
+      {/* Delete button — hover reveal */}
+      <div className="w-8 shrink-0">
+        <button
+          onClick={(e) => requestChapterDelete(chapter, e)}
+          className="rounded p-1 text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all"
+          title={`Delete ${chapter.title}`}
+        >
+          ✕
+        </button>
+      </div>
     </div>
   );
 
@@ -369,134 +425,149 @@ export function ChaptersPanel({
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
 
-      {/* ── Front Matter ─────────────────────────────────────────────────── */}
-      {frontMatter.length > 0 && (
-        <div>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Front Matter
-          </div>
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
-            {frontMatter.map((chapter) => {
-              if (chapter.kind === 'copyright') {
-                // Copyright page is auto-generated — display only, no edit affordance
-                return (
-                  <div
-                    key={chapter.slug}
-                    className="flex items-center gap-4 px-4 py-3"
-                  >
-                    <div className="w-10 shrink-0 text-right font-mono text-sm text-zinc-400 dark:text-zinc-600">
-                      00
+        {/* ── Front Matter ─────────────────────────────────────────────────── */}
+        {frontMatter.length > 0 && (
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Front Matter
+            </div>
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              {frontMatter.map((chapter) => {
+                if (chapter.kind === 'copyright') {
+                  // Copyright page is auto-generated — display only, no edit or delete affordance
+                  return (
+                    <div
+                      key={chapter.slug}
+                      className="flex items-center gap-4 px-4 py-3"
+                    >
+                      <div className="w-10 shrink-0 text-right font-mono text-sm text-zinc-400 dark:text-zinc-600">
+                        00
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-zinc-400 dark:text-zinc-500">
+                        {chapter.title}
+                      </span>
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500">
+                        Auto-generated
+                      </span>
+                      {/* No delete button for copyright — placeholder for alignment */}
+                      <div className="w-8 shrink-0" />
                     </div>
-                    <span className="flex-1 text-sm font-medium text-zinc-400 dark:text-zinc-500">
-                      {chapter.title}
-                    </span>
-                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500">
-                      Auto-generated
-                    </span>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              // Dedication — fully editable (title is always "Dedication")
-              return renderEditableRow(chapter);
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Story Chapters (body) ─────────────────────────────────────────── */}
-      <div>
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Story Chapters
-        </div>
-        {bodyChapters.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 py-8 text-center">
-            <div className="text-zinc-500">No story chapters yet</div>
-            <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
-              Chapters will appear here as Verity writes the first draft
+                // Dedication — fully editable (title is always "Dedication")
+                return renderEditableRow(chapter);
+              })}
             </div>
           </div>
-        ) : (
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
-            {bodyChapters.map(renderBodyChapterRow)}
-          </div>
         )}
-      </div>
 
-      {/* ── Back Matter ──────────────────────────────────────────────────── */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Back Matter
+        {/* ── Story Chapters (body) ─────────────────────────────────────────── */}
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Story Chapters
           </div>
-          {!addingBackMatter && (
-            <button
-              onClick={() => setAddingBackMatter(true)}
-              className="text-xs text-blue-500 hover:text-blue-400 transition-colors"
-            >
-              + Add Chapter
-            </button>
+          {bodyChapters.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 py-8 text-center">
+              <div className="text-zinc-500">No story chapters yet</div>
+              <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
+                Chapters will appear here as Verity writes the first draft
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              {bodyChapters.map(renderBodyChapterRow)}
+            </div>
           )}
         </div>
 
-        {backMatter.length > 0 && (
-          <div className="mb-3 divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
-            {backMatter.map(renderEditableRow)}
-          </div>
-        )}
-
-        {/* Inline form for adding a new back matter chapter */}
-        {addingBackMatter && (
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
-            <input
-              type="text"
-              value={newChapterTitle}
-              onChange={(e) => setNewChapterTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleAddBackMatterChapter();
-                if (e.key === 'Escape') { setAddingBackMatter(false); setNewChapterTitle(''); }
-              }}
-              placeholder="Chapter title (e.g. Acknowledgments)"
-              className="flex-1 bg-transparent text-sm text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 outline-none"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-            <button
-              onClick={() => void handleAddBackMatterChapter()}
-              disabled={!newChapterTitle.trim() || addingInProgress}
-              className="rounded px-2.5 py-1 text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingInProgress ? 'Adding…' : 'Add'}
-            </button>
-            <button
-              onClick={() => { setAddingBackMatter(false); setNewChapterTitle(''); }}
-              className="rounded px-2 py-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {backMatter.length === 0 && !addingBackMatter && (
-          <div className="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 py-6 text-center">
-            <div className="text-sm text-zinc-400 dark:text-zinc-600">No back matter yet</div>
-            <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
-              Add acknowledgments, author's notes, or other closing material
+        {/* ── Back Matter ──────────────────────────────────────────────────── */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Back Matter
             </div>
+            {!addingBackMatter && (
+              <button
+                onClick={() => setAddingBackMatter(true)}
+                className="text-xs text-blue-500 hover:text-blue-400 transition-colors"
+              >
+                + Add Chapter
+              </button>
+            )}
           </div>
-        )}
+
+          {backMatter.length > 0 && (
+            <div className="mb-3 divide-y divide-zinc-200 dark:divide-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              {backMatter.map(renderEditableRow)}
+            </div>
+          )}
+
+          {/* Inline form for adding a new back matter chapter */}
+          {addingBackMatter && (
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2">
+              <input
+                type="text"
+                value={newChapterTitle}
+                onChange={(e) => setNewChapterTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleAddBackMatterChapter();
+                  if (e.key === 'Escape') { setAddingBackMatter(false); setNewChapterTitle(''); }
+                }}
+                placeholder="Chapter title (e.g. Acknowledgments)"
+                className="flex-1 bg-transparent text-sm text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 outline-none"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+              />
+              <button
+                onClick={() => void handleAddBackMatterChapter()}
+                disabled={!newChapterTitle.trim() || addingInProgress}
+                className="rounded px-2.5 py-1 text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingInProgress ? 'Adding…' : 'Add'}
+              </button>
+              <button
+                onClick={() => { setAddingBackMatter(false); setNewChapterTitle(''); }}
+                className="rounded px-2 py-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {backMatter.length === 0 && !addingBackMatter && (
+            <div className="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 py-6 text-center">
+              <div className="text-sm text-zinc-400 dark:text-zinc-600">No back matter yet</div>
+              <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
+                Add acknowledgments, author's notes, or other closing material
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Summary footer ──────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between text-xs text-zinc-500">
+          <span>
+            {bodyChapters.length} story chapter{bodyChapters.length !== 1 ? 's' : ''}
+            {backMatter.length > 0 && ` · ${backMatter.length} back matter`}
+          </span>
+          <span>{bodyWordCount.toLocaleString()} manuscript words</span>
+        </div>
       </div>
 
-      {/* ── Summary footer ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-xs text-zinc-500">
-        <span>
-          {bodyChapters.length} story chapter{bodyChapters.length !== 1 ? 's' : ''}
-          {backMatter.length > 0 && ` · ${backMatter.length} back matter`}
-        </span>
-        <span>{bodyWordCount.toLocaleString()} manuscript words</span>
-      </div>
-    </div>
+      {pendingDelete && (
+        <DeleteConfirmModal
+          name={pendingDelete.name}
+          isDirectory={pendingDelete.isDirectory}
+          deleting={deleting}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          extraWarning={pendingDelete.extraWarning}
+        />
+      )}
+    </>
   );
 }

@@ -159,6 +159,10 @@ export function registerIpcHandlers(services: {
     services.fs.listDirectory(bookSlug, path),
   );
 
+  ipcMain.handle('files:delete', (_, bookSlug: string, relativePath: string) =>
+    services.fs.deletePath(bookSlug, relativePath),
+  );
+
   // === Conversations ===
 
   ipcMain.handle('chat:createConversation', (_, params: {
@@ -465,6 +469,66 @@ export function registerIpcHandlers(services: {
       },
     }).catch((err) => {
       console.error('[hot-take] Stream error:', err);
+    });
+
+    return { conversationId: conversation.id, callId };
+  });
+
+  // === Ad Hoc Revision ===
+
+  ipcMain.handle('adhoc-revision:start', async (event, bookSlug: string, description: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    const dateStr = new Date().toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+
+    const conversation = services.db.createConversation({
+      id: randomUUID(),
+      bookSlug,
+      agentName: 'Forge',
+      pipelinePhase: null,
+      purpose: 'adhoc-revision',
+      title: `Ad Hoc Revision — ${dateStr}`,
+    });
+
+    const callId = randomUUID();
+
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string }) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        try {
+          w.webContents.send('chat:streamEvent', streamEvent);
+        } catch {
+          // Window may be closing
+        }
+      }
+    };
+
+    services.chat.sendMessage({
+      agentName: 'Forge',
+      message: description,
+      conversationId: conversation.id,
+      bookSlug,
+      callId,
+      onEvent: (streamEvent) => {
+        broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id });
+
+        if (streamEvent.type === 'done' || streamEvent.type === 'error') {
+          const changedFiles = services.chat.getLastChangedFiles();
+          if (changedFiles.length > 0) {
+            for (const w of BrowserWindow.getAllWindows()) {
+              try {
+                w.webContents.send('chat:filesChanged', changedFiles, bookSlug);
+              } catch {
+                // Window may be closing
+              }
+            }
+          }
+        }
+      },
+    }).catch((err) => {
+      console.error('[adhoc-revision] Stream error:', err);
     });
 
     return { conversationId: conversation.id, callId };

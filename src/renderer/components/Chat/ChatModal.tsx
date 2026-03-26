@@ -37,6 +37,11 @@ const PURPOSE_LABELS: Record<ConversationPurpose, { title: string; subtitle: str
     subtitle: 'Ghostlight reads the full manuscript',
     badge: 'Hot Take',
   },
+  'adhoc-revision': {
+    title: 'Ad Hoc Revision',
+    subtitle: 'Forge generates a revision plan from your request',
+    badge: 'Ad Hoc Revision',
+  },
 };
 
 function ModalHeader(): React.ReactElement {

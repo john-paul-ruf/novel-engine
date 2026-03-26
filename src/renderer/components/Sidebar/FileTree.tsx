@@ -167,19 +167,7 @@ export function FileTree(): React.ReactElement {
   }
 
   return (
-    <div className="px-3 py-2">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-wider text-zinc-500">Files</div>
-        <button
-          onClick={() => loadTree(false)}
-          disabled={loading}
-          className="no-drag rounded p-0.5 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-          title="Refresh file tree"
-        >
-          🔄
-        </button>
-      </div>
-
+    <div className="px-3 pb-2">
       {loading ? (
         <div className="text-xs text-zinc-500">Loading…</div>
       ) : entries.length === 0 ? (

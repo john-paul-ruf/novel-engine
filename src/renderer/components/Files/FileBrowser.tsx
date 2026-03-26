@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { FileEntry } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { DeleteConfirmModal, useDeleteFile } from './DeleteConfirmModal';
 
 type FileBrowserProps = {
   currentPath: string;
@@ -70,12 +71,14 @@ function FileCardGrid({
   isChaptersDir,
   onNavigate,
   onFileSelect,
+  onDelete,
 }: {
   entries: FileEntry[];
   metadata: Map<string, FileMetadata>;
   isChaptersDir: boolean;
   onNavigate: (path: string) => void;
   onFileSelect: (path: string) => void;
+  onDelete: (entry: FileEntry, e: React.MouseEvent) => void;
 }): React.ReactElement {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
@@ -89,6 +92,7 @@ function FileCardGrid({
             entry.isDirectory ? onNavigate(entry.path) : onFileSelect(entry.path)
           }
           onFileSelect={onFileSelect}
+          onDelete={onDelete}
         />
       ))}
     </div>
@@ -101,12 +105,14 @@ function FileCard({
   isChaptersDir,
   onClick,
   onFileSelect,
+  onDelete,
 }: {
   entry: FileEntry;
   metadata: FileMetadata | null;
   isChaptersDir: boolean;
   onClick: () => void;
   onFileSelect: (path: string) => void;
+  onDelete: (entry: FileEntry, e: React.MouseEvent) => void;
 }): React.ReactElement {
   const icon = getFileIcon(entry.name, entry.isDirectory);
   const chapterInfo = isChaptersDir && entry.isDirectory ? parseChapterName(entry.name) : null;
@@ -141,6 +147,13 @@ function FileCard({
             ↗
           </button>
         )}
+        <button
+          onClick={(e) => onDelete(entry, e)}
+          className="rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+          title={`Delete ${entry.isDirectory ? 'folder' : 'file'}`}
+        >
+          ✕
+        </button>
       </div>
 
       {/* Icon and name */}
@@ -217,12 +230,14 @@ function FileListView({
   isChaptersDir,
   onNavigate,
   onFileSelect,
+  onDelete,
 }: {
   entries: FileEntry[];
   metadata: Map<string, FileMetadata>;
   isChaptersDir: boolean;
   onNavigate: (path: string) => void;
   onFileSelect: (path: string) => void;
+  onDelete: (entry: FileEntry, e: React.MouseEvent) => void;
 }): React.ReactElement {
   return (
     <div className="w-full">
@@ -232,6 +247,7 @@ function FileListView({
         <div className="flex-1">Name</div>
         <div className="w-24 text-right">Type</div>
         <div className="w-24 text-right">Words</div>
+        <div className="w-8" />
       </div>
 
       {/* Rows */}
@@ -265,6 +281,15 @@ function FileListView({
                   ? `${entry.children?.length ?? 0} items`
                   : '—'}
             </div>
+            <div className="w-8 shrink-0">
+              <button
+                onClick={(e) => onDelete(entry, e)}
+                className="rounded p-1 text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all"
+                title={`Delete ${entry.isDirectory ? 'folder' : 'file'}`}
+              >
+                ✕
+              </button>
+            </div>
           </div>
         );
       })}
@@ -284,8 +309,16 @@ export function FileBrowser({
   const [error, setError] = useState<string | null>(null);
   const [layout, setLayout] = useState<BrowserLayout>('grid');
   const [metadata, setMetadata] = useState<Map<string, FileMetadata>>(new Map());
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const isChaptersDir = currentPath === 'chapters' || currentPath.endsWith('/chapters');
+
+  const handleDeleted = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  const { pendingDelete, deleting, requestDelete, confirmDelete, cancelDelete } =
+    useDeleteFile(activeSlug, handleDeleted);
 
   // Load directory listing (re-runs when files change on disk)
   useEffect(() => {
@@ -343,7 +376,7 @@ export function FileBrowser({
     return () => {
       cancelled = true;
     };
-  }, [activeSlug, currentPath, isChaptersDir, revision]);
+  }, [activeSlug, currentPath, isChaptersDir, revision, refreshKey]);
 
   if (loading) {
     return (
@@ -409,6 +442,7 @@ export function FileBrowser({
             isChaptersDir={isChaptersDir}
             onNavigate={onNavigate}
             onFileSelect={onFileSelect}
+            onDelete={requestDelete}
           />
         ) : (
           <FileListView
@@ -417,9 +451,20 @@ export function FileBrowser({
             isChaptersDir={isChaptersDir}
             onNavigate={onNavigate}
             onFileSelect={onFileSelect}
+            onDelete={requestDelete}
           />
         )}
       </div>
+
+      {pendingDelete && (
+        <DeleteConfirmModal
+          name={pendingDelete.name}
+          isDirectory={pendingDelete.isDirectory}
+          deleting={deleting}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        />
+      )}
     </div>
   );
 }

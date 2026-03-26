@@ -91,6 +91,7 @@ export interface IFileSystemService {
   readFile(bookSlug: string, relativePath: string): Promise<string>;
   writeFile(bookSlug: string, relativePath: string, content: string): Promise<void>;
   deleteFile(bookSlug: string, relativePath: string): Promise<void>;
+  deletePath(bookSlug: string, relativePath: string): Promise<void>;
   renameFile(bookSlug: string, oldPath: string, newPath: string): Promise<void>;
   fileExists(bookSlug: string, relativePath: string): Promise<boolean>;
   listDirectory(bookSlug: string, relativePath?: string): Promise<FileEntry[]>;

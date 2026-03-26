@@ -94,6 +94,8 @@ const api = {
       ipcRenderer.invoke('files:exists', bookSlug, path),
     listDir: (bookSlug: string, path?: string): Promise<FileEntry[]> =>
       ipcRenderer.invoke('files:listDir', bookSlug, path),
+    delete: (bookSlug: string, relativePath: string): Promise<void> =>
+      ipcRenderer.invoke('files:delete', bookSlug, relativePath),
   },
 
   // Chat
@@ -203,6 +205,12 @@ const api = {
   hotTake: {
     start: (bookSlug: string): Promise<{ conversationId: string; callId: string }> =>
       ipcRenderer.invoke('hot-take:start', bookSlug),
+  },
+
+  // Ad Hoc Revision
+  adhocRevision: {
+    start: (bookSlug: string, description: string): Promise<{ conversationId: string; callId: string }> =>
+      ipcRenderer.invoke('adhoc-revision:start', bookSlug, description),
   },
 
   // Usage

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AGENT_REGISTRY } from '@domain/constants';
 import type { AgentName } from '@domain/types';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { DeleteConfirmModal, useDeleteFile } from './DeleteConfirmModal';
+import type { DeleteTarget } from './DeleteConfirmModal';
 
 type AgentOutputFile = {
   path: string;
@@ -67,13 +69,17 @@ function AgentOutputCard({
   wordCount,
   agentColor,
   onSelect,
+  onDelete,
 }: {
   file: { path: string; label: string; description: string };
   exists: boolean;
   wordCount: number;
   agentColor: string;
   onSelect: () => void;
+  onDelete: (target: DeleteTarget, e: React.MouseEvent) => void;
 }): React.ReactElement {
+  const fileName = file.path.split('/').pop() ?? file.path;
+
   if (!exists) {
     return (
       <div
@@ -92,6 +98,20 @@ function AgentOutputCard({
       className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 border-l-2 bg-zinc-50 dark:bg-zinc-900 p-3 transition-colors hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
       style={{ borderLeftColor: agentColor }}
     >
+      {/* Delete button — hover reveal */}
+      <button
+        onClick={(e) =>
+          onDelete(
+            { path: file.path, name: fileName, isDirectory: false },
+            e,
+          )
+        }
+        className="absolute right-2 top-2 rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity"
+        title={`Delete ${file.label}`}
+      >
+        ✕
+      </button>
+
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{file.label}</span>
         <span className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
@@ -108,8 +128,18 @@ export function AgentOutputPanel({
   onFileSelect,
 }: AgentOutputPanelProps): React.ReactElement {
   const revision = useFileChangeStore((s) => s.revision);
+  const notifyChange = useFileChangeStore((s) => s.notifyChange);
   const [fileStatuses, setFileStatuses] = useState<Record<string, FileStatus>>({});
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleDeleted = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    notifyChange();
+  }, [notifyChange]);
+
+  const { pendingDelete, deleting, requestDelete, confirmDelete, cancelDelete } =
+    useDeleteFile(activeSlug, handleDeleted);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +181,7 @@ export function AgentOutputPanel({
     return () => {
       cancelled = true;
     };
-  }, [activeSlug, revision]);
+  }, [activeSlug, revision, refreshKey]);
 
   if (loading) {
     return (
@@ -174,37 +204,51 @@ export function AgentOutputPanel({
   }
 
   return (
-    <div className="space-y-4">
-      {AGENT_OUTPUTS.map((group) => {
-        const agentMeta = AGENT_REGISTRY[group.agent];
-        return (
-          <div key={group.agent}>
-            {/* Agent header */}
-            <div className="mb-2 flex items-center gap-2">
-              <div
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: agentMeta.color }}
-              />
-              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{group.agent}</span>
-              <span className="text-xs text-zinc-400 dark:text-zinc-600">— {agentMeta.role}</span>
-            </div>
-
-            {/* File cards */}
-            <div className="grid grid-cols-2 gap-3">
-              {group.files.map((file) => (
-                <AgentOutputCard
-                  key={file.path}
-                  file={file}
-                  exists={fileStatuses[file.path]?.exists ?? false}
-                  wordCount={fileStatuses[file.path]?.wordCount ?? 0}
-                  agentColor={agentMeta.color}
-                  onSelect={() => onFileSelect(file.path)}
+    <>
+      <div className="space-y-4">
+        {AGENT_OUTPUTS.map((group) => {
+          const agentMeta = AGENT_REGISTRY[group.agent];
+          return (
+            <div key={group.agent}>
+              {/* Agent header */}
+              <div className="mb-2 flex items-center gap-2">
+                <div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: agentMeta.color }}
                 />
-              ))}
+                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{group.agent}</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-600">— {agentMeta.role}</span>
+              </div>
+
+              {/* File cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {group.files.map((file) => (
+                  <AgentOutputCard
+                    key={file.path}
+                    file={file}
+                    exists={fileStatuses[file.path]?.exists ?? false}
+                    wordCount={fileStatuses[file.path]?.wordCount ?? 0}
+                    agentColor={agentMeta.color}
+                    onSelect={() => onFileSelect(file.path)}
+                    onDelete={requestDelete}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {pendingDelete && (
+        <DeleteConfirmModal
+          name={pendingDelete.name}
+          isDirectory={pendingDelete.isDirectory}
+          deleting={deleting}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          extraWarning={pendingDelete.extraWarning}
+        />
+      )}
+    </>
   );
 }

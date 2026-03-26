@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { DeleteConfirmModal, useDeleteFile } from './DeleteConfirmModal';
 
 const SOURCE_FILES = [
   { path: 'source/voice-profile.md', label: 'Voice Profile', icon: '🎤', description: 'Your writing voice DNA' },
@@ -27,8 +28,18 @@ export function SourcePanel({
   onFileSelect,
 }: SourcePanelProps): React.ReactElement {
   const revision = useFileChangeStore((s) => s.revision);
+  const notifyChange = useFileChangeStore((s) => s.notifyChange);
   const [statuses, setStatuses] = useState<Record<string, FileStatus>>({});
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleDeleted = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    notifyChange();
+  }, [notifyChange]);
+
+  const { pendingDelete, deleting, requestDelete, confirmDelete, cancelDelete } =
+    useDeleteFile(activeSlug, handleDeleted);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +80,7 @@ export function SourcePanel({
     return () => {
       cancelled = true;
     };
-  }, [activeSlug, revision]);
+  }, [activeSlug, revision, refreshKey]);
 
   if (loading) {
     return (
@@ -85,39 +96,69 @@ export function SourcePanel({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {SOURCE_FILES.map((file) => {
-        const status = statuses[file.path];
-        const fileExists = status?.exists ?? false;
-        const wordCount = status?.wordCount ?? 0;
+    <>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {SOURCE_FILES.map((file) => {
+          const status = statuses[file.path];
+          const fileExists = status?.exists ?? false;
+          const wordCount = status?.wordCount ?? 0;
+          const fileName = file.path.split('/').pop() ?? file.path;
 
-        return (
-          <div
-            key={file.path}
-            onClick={() => onFileSelect(file.path)}
-            className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 transition-colors hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
-          >
-            <div className="mb-2 text-2xl">{file.icon}</div>
-            <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{file.label}</div>
-            <div className="mt-0.5 text-xs text-zinc-500">{file.description}</div>
-
-            {/* Status line */}
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              {fileExists ? (
-                <>
-                  <span className="text-green-600 dark:text-green-400">✓</span>
-                  <span className="text-zinc-500 dark:text-zinc-400">{wordCount.toLocaleString()} words</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-zinc-400 dark:text-zinc-600">○</span>
-                  <span className="text-zinc-400 dark:text-zinc-600">Not created yet</span>
-                </>
+          return (
+            <div
+              key={file.path}
+              onClick={() => onFileSelect(file.path)}
+              className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 transition-colors hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
+            >
+              {/* Delete button — only when file exists */}
+              {fileExists && (
+                <button
+                  onClick={(e) =>
+                    requestDelete(
+                      { path: file.path, name: fileName, isDirectory: false },
+                      e,
+                    )
+                  }
+                  className="absolute right-2 top-2 rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={`Delete ${file.label}`}
+                >
+                  ✕
+                </button>
               )}
+
+              <div className="mb-2 text-2xl">{file.icon}</div>
+              <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{file.label}</div>
+              <div className="mt-0.5 text-xs text-zinc-500">{file.description}</div>
+
+              {/* Status line */}
+              <div className="mt-3 flex items-center gap-2 text-xs">
+                {fileExists ? (
+                  <>
+                    <span className="text-green-600 dark:text-green-400">✓</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">{wordCount.toLocaleString()} words</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-zinc-400 dark:text-zinc-600">○</span>
+                    <span className="text-zinc-400 dark:text-zinc-600">Not created yet</span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {pendingDelete && (
+        <DeleteConfirmModal
+          name={pendingDelete.name}
+          isDirectory={pendingDelete.isDirectory}
+          deleting={deleting}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          extraWarning={pendingDelete.extraWarning}
+        />
+      )}
+    </>
   );
 }

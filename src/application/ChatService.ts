@@ -18,7 +18,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -160,6 +160,16 @@ export class ChatService {
       if (conversation?.purpose === 'hot-take') {
         await this.handleHotTake({
           conversationId, bookSlug, appSettings, agent, onEvent, sessionId,
+          thinkingBudgetOverride: params.thinkingBudgetOverride,
+          callId: params.callId,
+        });
+        return;
+      }
+
+      // Ad Hoc Revision branch — Forge generates project-tasks.md and revision-prompts.md
+      if (conversation?.purpose === 'adhoc-revision') {
+        await this.handleAdhocRevision({
+          conversationId, bookSlug, message, appSettings, agent, onEvent, sessionId,
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
@@ -519,6 +529,133 @@ export class ChatService {
             outputTokens: event.outputTokens,
             thinkingTokens: event.thinkingTokens,
             model: HOT_TAKE_MODEL,
+          });
+
+          this.db.endStreamSession(sessionId, 'complete', event.filesTouched);
+          this.activeStreams.delete(conversationId);
+        } else if (event.type === 'error') {
+          this.db.endStreamSession(sessionId, 'idle', {});
+          this.activeStreams.delete(conversationId);
+        }
+
+        onEvent(event);
+      },
+    });
+  }
+
+  /**
+   * Handle an ad hoc revision conversation: Forge reads the manuscript and generates
+   * project-tasks.md and revision-prompts.md based on the author's description.
+   * Uses the global model setting (Forge works well on Sonnet for planning).
+   * Runs in full agent mode with tool use so Forge can read chapters and write plan files.
+   */
+  private async handleAdhocRevision(params: {
+    conversationId: string;
+    bookSlug: string;
+    message: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean };
+    agent: { systemPrompt: string; thinkingBudget: number };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+    thinkingBudgetOverride?: number;
+    callId?: string;
+  }): Promise<void> {
+    const { conversationId, bookSlug, appSettings, agent, onEvent, sessionId } = params;
+
+    onEvent({ type: 'status', message: randomPreparingStatus() });
+
+    const manifest = await this.fs.getProjectManifest(bookSlug);
+
+    const fileListing = manifest.files
+      .map((f) => `- \`${f.path}\` (${f.wordCount.toLocaleString()} words)`)
+      .join('\n');
+
+    let systemPrompt = agent.systemPrompt + '\n\n---\n\n' + ADHOC_REVISION_INSTRUCTIONS;
+    if (fileListing) {
+      systemPrompt += `\n\n## Project Manifest\n\n${fileListing}\n\nTotal chapters: ${manifest.chapterCount}\nTotal words: ${manifest.totalWordCount.toLocaleString()}`;
+    }
+
+    const messages = this.db.getMessages(conversationId);
+    const conversationMessages = messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+
+    const thinkingBudget = (() => {
+      if (params.thinkingBudgetOverride !== undefined) {
+        return params.thinkingBudgetOverride > 0 ? params.thinkingBudgetOverride : undefined;
+      }
+      return appSettings.enableThinking ? agent.thinkingBudget : undefined;
+    })();
+
+    this.activeStreams.set(conversationId, {
+      conversationId,
+      agentName: 'Forge',
+      model: appSettings.model,
+      bookSlug,
+      startedAt: new Date().toISOString(),
+      sessionId,
+      callId: params.callId ?? '',
+      progressStage: 'idle',
+      filesTouched: {},
+      thinkingBuffer: '',
+      textBuffer: '',
+    });
+
+    onEvent({ type: 'callStart', agentName: 'Forge', model: appSettings.model, bookSlug });
+    onEvent({ type: 'status', message: randomWaitingStatus() });
+
+    let responseBuffer = '';
+    let thinkingBuffer = '';
+
+    await this.claude.sendMessage({
+      model: appSettings.model,
+      systemPrompt,
+      messages: conversationMessages,
+      maxTokens: appSettings.maxTokens,
+      thinkingBudget,
+      bookSlug,
+      sessionId,
+      conversationId,
+      onEvent: (event: StreamEvent) => {
+        const stream = this.activeStreams.get(conversationId);
+        if (stream) {
+          if (event.type === 'progressStage') {
+            stream.progressStage = event.stage;
+          }
+          if (event.type === 'toolDuration') {
+            if (event.tool.filePath && (event.tool.toolName === 'Write' || event.tool.toolName === 'Edit')) {
+              const current = stream.filesTouched[event.tool.filePath] ?? 0;
+              stream.filesTouched[event.tool.filePath] = current + 1;
+            }
+          }
+          if (event.type === 'done') {
+            stream.filesTouched = event.filesTouched;
+          }
+        }
+
+        if (event.type === 'textDelta') {
+          responseBuffer += event.text;
+          if (stream) stream.textBuffer = responseBuffer;
+        } else if (event.type === 'thinkingDelta') {
+          thinkingBuffer += event.text;
+          if (stream) stream.thinkingBuffer = thinkingBuffer;
+        } else if (event.type === 'filesChanged') {
+          this.lastChangedFiles = event.paths;
+        } else if (event.type === 'done') {
+          this.db.saveMessage({
+            conversationId,
+            role: 'assistant',
+            content: responseBuffer,
+            thinking: thinkingBuffer,
+          });
+
+          this.usage.recordUsage({
+            conversationId,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            model: appSettings.model,
           });
 
           this.db.endStreamSession(sessionId, 'complete', event.filesTouched);

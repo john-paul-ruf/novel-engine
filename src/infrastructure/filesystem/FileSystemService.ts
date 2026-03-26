@@ -360,6 +360,22 @@ export class FileSystemService implements IFileSystemService {
     }
   }
 
+  async deletePath(bookSlug: string, relativePath: string): Promise<void> {
+    const fullPath = path.join(this.booksDir, bookSlug, relativePath);
+    try {
+      const stat = await fs.stat(fullPath);
+      if (stat.isDirectory()) {
+        await fs.rm(fullPath, { recursive: true, force: true });
+      } else {
+        await fs.unlink(fullPath);
+      }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
   async renameFile(bookSlug: string, oldPath: string, newPath: string): Promise<void> {
     const sourcePath = path.join(this.booksDir, bookSlug, oldPath);
     const destPath = path.join(this.booksDir, bookSlug, newPath);
