@@ -4,6 +4,43 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Remove phrase ledger, consolidate into motif ledger
+
+### Summary
+
+Eliminated the standalone phrase ledger (`source/phrase-ledger.md`) as a separate artifact. All phrase/repetition tracking now lives exclusively in the `flaggedPhrases` section of `source/motif-ledger.json`. The motif ledger already had this section — the phrase ledger was a legacy Markdown format that duplicated its function. Lumen's Lens 8 audit now writes directly to the motif ledger's `flaggedPhrases` array instead of producing a separate file. The audit violation type `phrase-ledger-hit` was renamed to `flagged-phrase` across all types, agent prompts, and UI code.
+
+### Changed
+- `src/domain/types.ts` — Renamed `AuditViolationType` variant `'phrase-ledger-hit'` → `'flagged-phrase'`
+- `src/domain/constants.ts` — Removed `source/phrase-ledger.md` from `AGENT_READ_GUIDANCE` (Verity, Lumen). Removed `phraseLedger` from `FILE_MANIFEST_KEYS`. Renamed `PHRASE_AUDIT_INSTRUCTIONS` → `MOTIF_AUDIT_INSTRUCTIONS` (now writes to motif-ledger.json). Renamed `PHRASE_AUDIT_CADENCE` → `MOTIF_AUDIT_CADENCE`. Updated `VERITY_FIX_INSTRUCTIONS` to use `flagged-phrase` violation type.
+- `src/application/ChatService.ts` — Renamed `runPhraseAudit()` → `runMotifAudit()`. Audit chapter now loads `flaggedPhrases` from motif-ledger.json instead of reading phrase-ledger.md. Updated ad hoc revision pre-step.
+- `src/main/ipc/handlers.ts` — Renamed IPC channel `verity:runPhraseAudit` → `verity:runMotifAudit`
+- `src/preload/index.ts` — Renamed bridge method `runPhraseAudit` → `runMotifAudit`
+- `src/renderer/stores/autoDraftStore.ts` — Renamed `PHRASE_AUDIT_CADENCE` → `MOTIF_AUDIT_CADENCE`, updated periodic audit labels and method calls
+- `agents/LUMEN.md` — Lens 8 now writes flaggedPhrases to motif-ledger.json instead of phrase-ledger.md. Updated file ownership table.
+- `agents/VERITY-AUDIT.md` — Renamed violation type, updated input description and flagging rules
+- `agents/VERITY-DRAFT.md` — Removed phrase-ledger.md fallback, references motif ledger only
+- `agents/VERITY-REVISION.md` — Removed phrase-ledger.md fallback, references motif ledger categories
+- `agents/VERITY-LEDGER.md` — Removed migration instruction from phrase-ledger.md, updated flaggedPhrases description
+- `agents/VERITY-LEGACY.md` — Replaced entire Phrase Ledger Format section with Motif Ledger integration. Updated pre-write, post-write, cross-check, and enforcement rules.
+- `agents/VERITY-SCAFFOLD.md` — Updated "do not load" instruction
+
+### Removed
+- `source/phrase-ledger.md` concept — no longer produced or consumed by any agent or service
+- `phraseLedger` key from `FILE_MANIFEST_KEYS`
+
+### Architecture Impact
+- Renamed IPC channel: `verity:runPhraseAudit` → `verity:runMotifAudit`
+- Renamed bridge method: `verity.runPhraseAudit` → `verity.runMotifAudit`
+- Renamed service method: `ChatService.runPhraseAudit()` → `ChatService.runMotifAudit()`
+- `FILE_MANIFEST_KEYS` reduced from 14 to 13 entries
+
+### Migration Notes
+- Existing books with a `source/phrase-ledger.md` file: the file will be ignored. Its data should be manually migrated to the motif ledger's `flaggedPhrases` section if desired, but the system no longer reads or writes it.
+- The IPC channel rename (`verity:runPhraseAudit` → `verity:runMotifAudit`) is a breaking change for any code calling the old channel name.
+
+---
+
 ## [2026-03-27] — Create full architecture documentation from scratch
 
 ### Summary

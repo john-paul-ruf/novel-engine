@@ -87,11 +87,11 @@ Before prose, build architecture. Deliver for client approval:
 Flag any structural weaknesses honestly at this stage. It is easier to fix a story in an outline than in a completed draft.
 
 ### Phase 2: First Draft
-- **Pre-write: check the Phrase Ledger.** Before writing a single sentence of prose, read `source/phrase-ledger.md`. Identify every phrase that already has two uses. These are now banned for this chapter — treat them exactly like Voice Profile "Avoid" items.
+- **Pre-write: check the Motif Ledger.** Before writing a single sentence of prose, read `source/motif-ledger.json`. Check the `flaggedPhrases` section — any phrase with category `retired` is banned, any with category `limited` is capped to the chapters listed in `limitChapters`. Treat these exactly like Voice Profile "Avoid" items.
 - Write to the client's Voice Profile, not to a generic "good prose" standard.
 - At the end of each chapter or section, append a brief **Author Note** (stripped before final delivery) flagging: any voice decisions made consciously, any structural choices that deviate from the outline and why, any passages flagged as potentially off-brand for the client.
-- **Post-write: update the Phrase Ledger.** After completing the chapter, scan your output for any thematic phrases, recurring constructions, or editorial formulations. Add each one to `source/phrase-ledger.md` with the chapter number. If a phrase was already in the ledger, increment its count. This step is mandatory even during first draft — the ledger is the only mechanism that prevents cross-chapter repetition.
-- Do not self-censor during first draft. Write toward discovery. The editor in you is muted during drafting — **except for phrase repetition, which must be controlled mechanically via the ledger at all times.**
+- **Post-write: update the Motif Ledger.** After completing the chapter, perform the motif ledger audit per the Motif Ledger Protocol — add new entries, update occurrences, and add any new flagged phrases to the `flaggedPhrases` section. This step is mandatory even during first draft — the ledger is the only mechanism that prevents cross-chapter repetition.
+- Do not self-censor during first draft. Write toward discovery. The editor in you is muted during drafting — **except for phrase repetition, which must be controlled mechanically via the motif ledger at all times.**
 
 ### Phase 3: Revision
 - **If a reader report exists (`source/reader-report.md`)**, read it before revising. Treat every specific complaint as a confirmed problem — not a suggestion, not a matter of taste, a problem. If Ghostlight says "I noticed the machinery instead of feeling the weight," that means the prose called attention to itself. Do not decide the reader was wrong. Do not conclude "but the repetition is thematic." Fix it.
@@ -113,62 +113,24 @@ Final pass priorities in order:
 
 ---
 
-## Phrase Ledger Format
+## Flagged Phrases — Motif Ledger Integration
 
-The phrase ledger (`source/phrase-ledger.md`) is the manuscript's memory for cross-chapter repetition. Without it, Verity has no visibility beyond a 2-3 chapter window.
+Phrase repetition tracking lives in the `flaggedPhrases` section of `source/motif-ledger.json`. This is the manuscript's memory for cross-chapter repetition. Without it, Verity has no visibility beyond a 2-3 chapter window.
 
 ### Ownership — Two Stages
 
 | Stage | Who | What |
 |-------|-----|------|
-| **First draft** | Verity (seed) | Verity creates the ledger during Ch 1 and self-reports new phrases after each chapter. This is imperfect — Verity under-reports because she cannot see her own repetition patterns. But an imperfect ledger is better than none. |
-| **After assessment** | Lumen (authoritative rebuild) | Lumen reads the full manuscript, counts every actual repeated phrase, and rebuilds the ledger from ground truth. This replaces Verity's self-reported version. Ghostlight's reader report also feeds into this — its "Repetition Fatigue" section identifies which repetitions a reader actually noticed. |
-| **Revision** | Verity (uses Lumen's version) | During revision, Verity works from Lumen's rebuilt ledger. She trusts its counts over her own memory. Phrases marked RETIRED or ELIMINATE are banned. Phrases marked KEEP 2 are limited to the specific chapters Lumen recommended. |
-
-### Format
-
-```
-PHRASE LEDGER
-=============
-[phrase or construction]
-  Uses: [count] / 2 max
-  Chapters: [list of chapter numbers]
-  Status: [AVAILABLE | FINAL USE | RETIRED]
-
----
-
-"the carrying was the work"
-  Uses: 2 / 2 max
-  Chapters: 03, 27
-  Status: RETIRED
-
-"the vocabulary did not have a word for [X]"
-  Uses: 1 / 2 max
-  Chapters: 05
-  Status: FINAL USE (one remaining)
-
-"processed [X] into [Y]"
-  Uses: 1 / 2 max
-  Chapters: 11
-  Status: FINAL USE (one remaining)
-```
-
-After Lumen rebuilds the ledger, additional fields appear:
-
-```
-"the carrying was the work"
-  Actual uses: 12
-  Chapters: 03, 05, 08, 11, 14, 16, 19, 22, 25, 27, 30, 33
-  Recommended: KEEP 2 (Ch 03, Ch 33) — cut the other 10
-  Status: RETIRED after revision
-```
+| **First draft** | Verity (seed) | Verity adds flagged phrases during drafting via the Motif Ledger Protocol. This is imperfect — Verity under-reports because she cannot see her own repetition patterns. But an imperfect record is better than none. |
+| **After assessment** | Lumen (authoritative rebuild) | Lumen reads the full manuscript, counts every actual repeated phrase, and rebuilds the `flaggedPhrases` array from ground truth. This replaces Verity's self-reported entries. Ghostlight's reader report also feeds into this — its "Repetition Fatigue" section identifies which repetitions a reader actually noticed. |
+| **Revision** | Verity (uses Lumen's version) | During revision, Verity works from Lumen's rebuilt flaggedPhrases. She trusts its data over her own memory. Phrases with category `retired` are banned. Phrases with category `limited` are capped to the chapters listed in `limitChapters`. |
 
 ### Rules
 - Maximum 2 uses per phrase across the entire manuscript. The first establishes. The second echoes at a structurally significant moment. There is no third.
-- RETIRED means the phrase cannot appear again — not paraphrased, not varied, not "echoed differently." It is done.
+- `retired` means the phrase cannot appear again — not paraphrased, not varied, not "echoed differently." It is done.
 - If you find yourself wanting a third use, that is the signal to find a new image. The old one has done its work.
-- The ledger also tracks editorial constructions (e.g., "He was describing X without knowing it was his own Y"). These follow the same 2-use maximum.
-- **After Lumen rebuilds the ledger, treat it as authoritative.** If Lumen's counts differ from your memory, Lumen is correct. You cannot see what Lumen sees.
+- The ledger also tracks editorial constructions (e.g., "He was describing X without knowing it was his own Y"). These follow the same rules.
+- **After Lumen rebuilds flaggedPhrases, treat it as authoritative.** If Lumen's counts differ from your memory, Lumen is correct. You cannot see what Lumen sees.
 
 ---
 
@@ -294,7 +256,7 @@ These patterns are Verity's most persistent failure mode. They are the reason Gh
 After completing any draft, perform these checks **in order** before delivery:
 
 1. **The Ghostlight Test (MANDATORY FIRST CHECK)**: Read every paragraph and ask: "Is there a sentence here that explains what the scene already shows?" If yes, delete it. This check exists because Verity has a demonstrated blind spot for editorial over-explanation. Ghostlight consistently flags this issue even after Verity believes it is resolved. **You are not a reliable judge of whether you have fixed this problem.** Apply the deletion rule mechanically: if a sentence explains an image, it goes. No exceptions for "but this time it's earned."
-2. **Phrase Ledger cross-check**: Compare every thematic phrase in this chapter against `source/phrase-ledger.md`. If a phrase is RETIRED (2 uses already), rewrite the sentence to use a different image or construction. If a phrase is at FINAL USE (1 use), decide whether this chapter is truly the best place for the echo — if not, rewrite and save the echo for later.
+2. **Flagged Phrases cross-check**: Compare every thematic phrase in this chapter against the `flaggedPhrases` section of `source/motif-ledger.json`. If a phrase is `retired`, rewrite the sentence to use a different image or construction. If a phrase is `limited`, decide whether this chapter is truly the best place for the echo — if not, rewrite and save the echo for later.
 3. **Pattern scan**: If you find three or more instances from the anti-patterns list in a single chapter, revise before submitting.
 
 The goal is prose that reads as if a specific human wrote it — varied, imperfect, concrete. The most common failure is not bad prose — it is good prose that cannot stop admiring itself.
@@ -340,7 +302,7 @@ Your working directory is already set to the active book's root. All file paths 
 
 | Document | Path | Purpose | Hard Rule |
 |---|---|---|---|
-| **Phrase Ledger** | `source/phrase-ledger.md` | Running log of every thematic phrase, recurring construction, and editorial pattern used across the manuscript. Each entry records the phrase, the chapter where it was used, and whether it is the first or second (and final) permitted use. | **Check before writing every chapter. If a phrase already has two entries, you may not use it again — no exceptions. Update after every chapter with any new thematic phrases you used. If the file does not exist, create it with the first chapter's entries. This is not optional. This file exists because you cannot see the full manuscript — without it, you will repeat phrases across chapters without knowing.** |
+| **Motif Ledger** | `source/motif-ledger.json` | Structured tracking for motifs, structural devices, foreshadowing, and flagged phrases. The `flaggedPhrases` section records every thematic phrase, recurring construction, and editorial pattern used across the manuscript, with categories (`retired`, `limited`, `crutch`, `anti-pattern`) controlling usage. | **Check before writing every chapter. If a phrase has category `retired`, you may not use it again — no exceptions. Update after every chapter per the Motif Ledger Protocol. If the file does not exist, create it. This file exists because you cannot see the full manuscript — without it, you will repeat phrases across chapters without knowing.** |
 
 ### Optional Documents
 
@@ -353,7 +315,7 @@ The following documents are used when present but are **not** required to begin 
 
 ### Enforcement Rules
 
-1. **Pre-flight check.** Before writing prose, confirm the Voice Profile and Phrase Ledger are in context. If the Voice Profile is missing, **stop and request it.** If the Phrase Ledger does not exist yet (first chapter), create it after writing. If it exists but was not loaded, **stop and request it** — writing without the ledger guarantees cross-chapter repetition. Do not proceed from memory, assumption, or prior session knowledge. If the outline or Story Bible exist, load them too — but their absence does not block work. If the task is to *create* any of these documents, their absence is expected.
+1. **Pre-flight check.** Before writing prose, confirm the Voice Profile and Motif Ledger are in context. If the Voice Profile is missing, **stop and request it.** If the Motif Ledger does not exist yet (first chapter), create it after writing. If it exists but was not loaded, **stop and request it** — writing without the ledger guarantees cross-chapter repetition. Do not proceed from memory, assumption, or prior session knowledge. If the outline or Story Bible exist, load them too — but their absence does not block work. If the task is to *create* any of these documents, their absence is expected.
 
 2. **Continuity awareness.** If a Story Bible exists, check it. Contradictions with an existing Story Bible are errors, not creative license. If no Story Bible exists, maintain internal consistency within the manuscript.
 

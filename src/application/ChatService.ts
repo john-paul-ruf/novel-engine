@@ -20,7 +20,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, buildPitchRoomInstructions, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_LEDGER_FILE, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, buildPitchRoomInstructions, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, MOTIF_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_LEDGER_FILE, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -650,10 +650,15 @@ export class ChatService {
       voiceProfile = await this.fs.readFile(bookSlug, 'source/voice-profile.md');
     } catch { /* no voice profile yet */ }
 
-    let phraseLedger = '';
+    let motifLedger = '';
     try {
-      phraseLedger = await this.fs.readFile(bookSlug, 'source/phrase-ledger.md');
-    } catch { /* no phrase ledger yet */ }
+      const raw = await this.fs.readFile(bookSlug, 'source/motif-ledger.json');
+      const parsed = JSON.parse(raw);
+      // Extract just the flaggedPhrases section for the auditor
+      if (parsed.flaggedPhrases?.length) {
+        motifLedger = JSON.stringify(parsed.flaggedPhrases, null, 2);
+      }
+    } catch { /* no motif ledger yet */ }
 
     // Load the auditor prompt
     let auditorPrompt: string;
@@ -671,8 +676,8 @@ export class ChatService {
     if (voiceProfile) {
       userMessageParts.push(`## Voice Profile\n\n${voiceProfile}`);
     }
-    if (phraseLedger) {
-      userMessageParts.push(`## Phrase Ledger\n\n${phraseLedger}`);
+    if (motifLedger) {
+      userMessageParts.push(`## Flagged Phrases (from motif ledger)\n\n${motifLedger}`);
     }
     const userMessage = userMessageParts.join('\n\n---\n\n');
 
@@ -854,15 +859,15 @@ export class ChatService {
   }
 
   /**
-   * Run a scoped Lumen phrase audit — Lens 8 only.
+   * Run a scoped Lumen motif/phrase audit — Lens 8 only.
    * Reads the full manuscript, identifies repeated phrases and editorial intrusions,
-   * and writes an authoritative phrase-ledger.md.
+   * and updates the motif ledger's flaggedPhrases section in source/motif-ledger.json.
    *
    * This is a silent pre-step: it runs to completion before the main agent call,
    * emitting status events but not saving a conversation (it's infrastructure, not a chat).
    * Uses Sonnet for speed and cost — this is a mechanical pattern-detection task.
    */
-  async runPhraseAudit(params: {
+  async runMotifAudit(params: {
     bookSlug: string;
     appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
     onEvent: (event: StreamEvent) => void;
@@ -874,7 +879,7 @@ export class ChatService {
     try {
       lumenAgent = await this.agents.load('Lumen');
     } catch {
-      console.warn('[phrase-audit] Lumen agent not found, skipping phrase audit');
+      console.warn('[motif-audit] Lumen agent not found, skipping motif audit');
       return;
     }
 
@@ -893,7 +898,7 @@ export class ChatService {
       .map((f) => `- \`${f.path}\` (${f.wordCount.toLocaleString()} words)`)
       .join('\n');
 
-    let systemPrompt = lumenAgent.systemPrompt + '\n\n---\n\n' + PHRASE_AUDIT_INSTRUCTIONS;
+    let systemPrompt = lumenAgent.systemPrompt + '\n\n---\n\n' + MOTIF_AUDIT_INSTRUCTIONS;
     systemPrompt += `\n\n## Chapters to Audit (in order)\n\n${chapterListing}`;
     if (otherFiles) {
       systemPrompt += `\n\n## Other Files\n\n${otherFiles}`;
@@ -908,20 +913,20 @@ export class ChatService {
     await this.claude.sendMessage({
       model: appSettings.model,
       systemPrompt,
-      messages: [{ role: 'user' as const, content: 'Run the phrase audit now. Read every chapter, build the inventory, and write the phrase ledger.' }],
+      messages: [{ role: 'user' as const, content: 'Run the motif/phrase audit now. Read every chapter, build the inventory, and update the flaggedPhrases section in source/motif-ledger.json.' }],
       maxTokens: appSettings.maxTokens,
       thinkingBudget,
       maxTurns: AGENT_REGISTRY.Lumen.maxTurns,
       bookSlug,
       sessionId,
-      conversationId: `phrase-audit-${sessionId}`,
+      conversationId: `motif-audit-${sessionId}`,
       onEvent: (event: StreamEvent) => {
         if (event.type === 'filesChanged') {
           this.lastChangedFiles = event.paths;
         }
         if (event.type === 'done') {
           this.usage.recordUsage({
-            conversationId: `phrase-audit-${sessionId}`,
+            conversationId: `motif-audit-${sessionId}`,
             inputTokens: event.inputTokens,
             outputTokens: event.outputTokens,
             thinkingTokens: event.thinkingTokens,
@@ -955,16 +960,16 @@ export class ChatService {
 
     onEvent({ type: 'status', message: randomPreparingStatus() });
 
-    // Pre-step: run a scoped Lumen phrase audit to ensure the phrase ledger
-    // is accurate before Forge generates the revision plan. Without this,
-    // Verity would revise with a stale self-reported ledger — the ad hoc path
+    // Pre-step: run a scoped Lumen motif/phrase audit to ensure the motif
+    // ledger's flaggedPhrases are accurate before Forge generates the revision
+    // plan. Without this, Verity would revise with stale data — the ad hoc path
     // bypasses the formal Lumen assessment that normally rebuilds it.
     try {
-      await this.runPhraseAudit({ bookSlug, appSettings, onEvent, sessionId });
-      onEvent({ type: 'status', message: 'Phrase audit complete. Generating revision plan...' });
+      await this.runMotifAudit({ bookSlug, appSettings, onEvent, sessionId });
+      onEvent({ type: 'status', message: 'Motif audit complete. Generating revision plan...' });
     } catch (err) {
-      console.warn('[adhoc-revision] Phrase audit failed, continuing without it:', err);
-      onEvent({ type: 'status', message: 'Phrase audit skipped. Generating revision plan...' });
+      console.warn('[adhoc-revision] Motif audit failed, continuing without it:', err);
+      onEvent({ type: 'status', message: 'Motif audit skipped. Generating revision plan...' });
     }
 
     const manifest = await this.fs.getProjectManifest(bookSlug);

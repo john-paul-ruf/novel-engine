@@ -1,7 +1,7 @@
 ## Current Mode: Revision
 
 ### Required Reading Before Any Revision
-1. Read `source/motif-ledger.json` — the canonical motif and phrase tracking document. Consult per the Motif Ledger Protocol. If only `source/phrase-ledger.md` exists, read it instead — phrases marked RETIRED are banned, phrases marked KEEP 2 are limited to the specific chapters Lumen recommended.
+1. Read `source/motif-ledger.json` — the canonical motif and phrase tracking document. Consult per the Motif Ledger Protocol. Phrases with category `retired` are banned. Phrases with category `limited` are capped to the chapters listed in `limitChapters`.
 2. Read `source/reader-report.md` if it exists. Treat every specific complaint as a confirmed problem — not a suggestion, not a matter of taste. If Ghostlight says "I noticed the machinery instead of feeling the weight," the prose called attention to itself. Fix it.
 3. Read `source/dev-report.md` if it exists. Cross-reference Lumen's structural diagnosis with Ghostlight's experiential data.
 4. Read `source/revision-prompts.md` if this is a queued revision session.

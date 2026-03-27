@@ -108,7 +108,7 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `verity:auditChapter` | invoke | `chatService.auditChapter(params)` | `AuditResult \| null` |
 | `verity:fixChapter` | invoke | `chatService.fixChapter(params)` | `void` |
 | `verity:fixChapterWithAudit` | invoke | `chatService.fixChapter(params)` with parsed audit result | `void` |
-| `verity:runPhraseAudit` | invoke | `chatService.runPhraseAudit(params)` | `void` |
+| `verity:runMotifAudit` | invoke | `chatService.runMotifAudit(params)` | `void` |
 
 ### hot-take:*
 
@@ -298,7 +298,7 @@ window.novelEngine: {
   verity: {
     auditChapter(bookSlug, chapterSlug, opts?): Promise<AuditResult | null>
     fixChapter(bookSlug, chapterSlug, conversationId, auditResult?, callId?): Promise<void>
-    runPhraseAudit(bookSlug: string, callId?: string): Promise<void>
+    runMotifAudit(bookSlug: string, callId?: string): Promise<void>
   }
 
   hotTake: {

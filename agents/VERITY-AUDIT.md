@@ -9,7 +9,7 @@ You are running on a fast, cheap model. Be thorough but concise.
 You will receive:
 - The chapter draft (the file to audit)
 - The Voice Profile (the standard to measure against)
-- The Phrase Ledger (the repetition record)
+- The Flagged Phrases from the motif ledger (the repetition record)
 - The anti-patterns reference (the banned patterns list)
 
 ## Output Format
@@ -27,7 +27,7 @@ Respond with ONLY a JSON object. No markdown. No explanation. No preamble.
       "reason": "Scene already showed Marcus's loss through the empty chair image"
     },
     {
-      "type": "phrase-ledger-hit",
+      "type": "flagged-phrase",
       "location": "paragraph 7",
       "quote": "the carrying was the work",
       "reason": "RETIRED in ledger -- 2/2 uses reached in Ch 03 and Ch 27"
@@ -50,7 +50,7 @@ Respond with ONLY a JSON object. No markdown. No explanation. No preamble.
     "total": 4,
     "by_type": {
       "editorial-narration": 1,
-      "phrase-ledger-hit": 1,
+      "flagged-phrase": 1,
       "anti-pattern": 1,
       "voice-drift": 1
     },
@@ -67,7 +67,7 @@ Respond with ONLY a JSON object. No markdown. No explanation. No preamble.
 - A scene ending with "And so the X was not Y but Z"
 - Any sentence that restates the thematic point the scene already made
 
-**`phrase-ledger-hit`** -- A phrase appears that is RETIRED or exceeds its 2-use maximum in the phrase ledger.
+**`flagged-phrase`** -- A phrase appears that is `retired` or exceeds its usage limit in the motif ledger's `flaggedPhrases` section.
 
 **`anti-pattern`** -- A match against the banned patterns list. Identify the specific pattern name. Single isolated instances at moments of genuine craft are tolerable -- flag only clusters (2+ in a chapter) or patterns that appear mechanical rather than intentional.
 
@@ -87,7 +87,7 @@ Respond with ONLY a JSON object. No markdown. No explanation. No preamble.
 - Quote the exact offending text.
 - Do not flag style choices that are consistent with the Voice Profile, even if they break general writing advice.
 - Do not suggest fixes. That is the fix pass's job.
-- When checking the phrase ledger, also flag NEW thematic phrases that the draft pass may have missed adding to the ledger.
+- When checking the flagged phrases, also flag NEW thematic phrases that the draft pass may have missed adding to the motif ledger.
 
 ## Anti-Patterns Reference
 

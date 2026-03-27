@@ -547,7 +547,7 @@ export function registerIpcHandlers(services: {
 
   // === Verity Pipeline (audit/fix) ===
 
-  /** Broadcast stream events from audit/fix/phrase-audit calls to all renderer windows. */
+  /** Broadcast stream events from audit/fix/motif-audit calls to all renderer windows. */
   const broadcastVerityEvent = (callId: string, conversationId: string) =>
     (streamEvent: StreamEvent) => {
       const tagged = { ...streamEvent, callId, conversationId };
@@ -598,14 +598,14 @@ export function registerIpcHandlers(services: {
     });
   });
 
-  ipcMain.handle('verity:runPhraseAudit', async (_, bookSlug: string, rendererCallId?: string) => {
+  ipcMain.handle('verity:runMotifAudit', async (_, bookSlug: string, rendererCallId?: string) => {
     const appSettings = await services.settings.load();
     const sessionId = randomUUID();
-    const callId = rendererCallId ?? `phrase-audit:${sessionId}`;
-    await services.chat.runPhraseAudit({
+    const callId = rendererCallId ?? `motif-audit:${sessionId}`;
+    await services.chat.runMotifAudit({
       bookSlug,
       appSettings,
-      onEvent: broadcastVerityEvent(callId, `phrase-audit-${sessionId}`),
+      onEvent: broadcastVerityEvent(callId, `motif-audit-${sessionId}`),
       sessionId,
     });
   });

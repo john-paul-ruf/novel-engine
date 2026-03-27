@@ -2,7 +2,7 @@
 
 ### Pre-Flight
 1. Confirm Voice Profile is in context. If missing, halt and request it.
-2. Read `source/motif-ledger.json` if it exists. Consult per the Motif Ledger Protocol. If only `source/phrase-ledger.md` exists, read it instead — all RETIRED phrases are banned.
+2. Read `source/motif-ledger.json` if it exists. Consult per the Motif Ledger Protocol — all `retired` phrases in `flaggedPhrases` are banned, `limited` phrases are capped per the specified chapters.
 3. Read `source/scene-outline.md` if it exists. Identify the current chapter's beat, turn, and purpose.
 4. Read `source/story-bible.md` if it exists. Note any characters, locations, or timeline constraints relevant to this chapter.
 

@@ -15,7 +15,7 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
     neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
   Verity: {
-    alwaysRead: ['source/voice-profile.md', 'source/phrase-ledger.md', 'source/motif-ledger.json'],
+    alwaysRead: ['source/voice-profile.md', 'source/motif-ledger.json'],
     readIfRelevant: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/revision-prompts.md'],
     neverRead: ['source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
@@ -26,7 +26,7 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
   },
   Lumen: {
     alwaysRead: ['source/reader-report.md'],
-    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/phrase-ledger.md', 'source/motif-ledger.json'],
+    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/motif-ledger.json'],
     neverRead: ['author-profile.md', 'source/revision-prompts.md'],
   },
   Sable: {
@@ -579,12 +579,12 @@ TONE:
 
 export const HOT_TAKE_MODEL = 'claude-opus-4-20250514';
 
-export const PHRASE_AUDIT_INSTRUCTIONS = `You are running a SCOPED PHRASE AUDIT — Lens 8 only. This is not a full developmental assessment.
+export const MOTIF_AUDIT_INSTRUCTIONS = `You are running a SCOPED PHRASE & MOTIF AUDIT — Lens 8 only. This is not a full developmental assessment.
 
 INSTRUCTIONS:
 1. Use the Read tool to read every chapter draft file in the chapters/ directory, in order.
 2. If a Ghostlight reader report exists at source/reader-report.md, read it and check for a "Repetition Fatigue" section. Prioritize phrases the reader actually noticed.
-3. If a phrase ledger exists at source/phrase-ledger.md, read it to compare against your findings.
+3. Read source/motif-ledger.json if it exists. Compare its flaggedPhrases section against your findings.
 
 YOUR TASK:
 Identify every thematic phrase, recurring construction, structural formulation, and editorial intrusion that appears more than once across the manuscript. For each, record: the exact phrase, every chapter where it appears, and the total count.
@@ -595,31 +595,32 @@ Categorize each as:
 - **Editorial intrusion**: Narrator explaining what a scene already shows
 - **Rhetorical move**: Repeated paragraph shapes or argumentative structures
 
-Then WRITE the authoritative phrase ledger to source/phrase-ledger.md using this format:
+Then UPDATE source/motif-ledger.json. Read the existing file first (or create it if missing). Rebuild the \`flaggedPhrases\` array from ground truth — your audit replaces whatever was there before. Each entry uses this shape:
 
-PHRASE LEDGER (rebuilt by Lumen — [today's date])
-==========================================
-Source: Scoped phrase audit, [chapter count] chapters
-Prior ledger accuracy: [X of Y entries were accurate / no prior ledger existed]
+{
+  "id": "<short lowercase alphanumeric, 8-12 chars>",
+  "phrase": "<the exact phrase or construction>",
+  "category": "<retired | limited | crutch | anti-pattern>",
+  "alternatives": ["<suggested replacement 1>", "<suggested replacement 2>"],
+  "limit": <number or omit — only for 'limited' category>,
+  "limitChapters": ["<chapter slug where use is allowed>"],
+  "notes": "<actual uses count, chapter list, recommendation>"
+}
 
-"[phrase or construction]"
-  Actual uses: [count]
-  Chapters: [list with brief context]
-  Recommended: RETIRE / KEEP 2 (specify which 2) / ELIMINATE ALL
-  Status: RETIRED (if at or over 2 uses)
+Category mapping:
+- RETIRE → "retired" (banned — cannot be used again)
+- KEEP 2 → "limited" with limit: 2 and limitChapters listing the two chapters
+- ELIMINATE ALL → "retired" with notes explaining why every instance should be rewritten
+- Editorial intrusions → "anti-pattern"
 
-After the phrase entries, include:
+Preserve all other sections of the motif ledger (systems, entries, structuralDevices, foreshadows, minorCharacters, auditLog) unchanged. Only replace flaggedPhrases.
 
-EDITORIAL NARRATION LOG
-========================
-[Ch NN]: "[the editorial sentence]" — scene already showed [what]
+After updating the ledger, respond with a brief summary: how many phrases found, how many flagged for retirement, and the 3 worst offenders.
 
 RULES:
 - Be exhaustive. Every repeated phrase matters — Verity will use this ledger mechanically during revision.
-- RETIRE means the phrase cannot be used again. KEEP 2 means specify exactly which two chapters should retain it. ELIMINATE ALL means every instance should be rewritten.
-- After writing the ledger, respond with a brief summary: how many phrases found, how many flagged for retirement, and the 3 worst offenders.
 - Do NOT write a full developmental report. Do NOT assess structure, pacing, character arcs, or anything outside of phrase repetition and editorial narration.
-- Do NOT modify any draft.md files. Read only. Your only output file is source/phrase-ledger.md.`;
+- Do NOT modify any draft.md files. Read only. Your only output file is source/motif-ledger.json.`;
 
 export const ADHOC_REVISION_INSTRUCTIONS = `
 
@@ -669,7 +670,6 @@ export const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'revisionPrompts', path: 'source/revision-prompts.md' },
   { key: 'styleSheet',      path: 'source/style-sheet.md' },
   { key: 'projectTasks',    path: 'source/project-tasks.md' },
-  { key: 'phraseLedger',    path: 'source/phrase-ledger.md' },
   { key: 'motifLedger',     path: 'source/motif-ledger.json' },
   { key: 'metadata',        path: 'source/metadata.md' },
 ];
@@ -711,11 +711,12 @@ export const VERITY_AUDIT_MAX_TOKENS = 4096;
 export const VERITY_AUDIT_FIX_THRESHOLD: AuditSeverity = 'moderate';
 
 /**
- * During auto-draft, run a full phrase ledger audit (via Lumen's
- * PHRASE_AUDIT_INSTRUCTIONS) every N chapters. This keeps the ledger
- * accurate without waiting for the formal Lumen assessment phase.
+ * During auto-draft, run a motif/phrase audit (via Lumen's
+ * MOTIF_AUDIT_INSTRUCTIONS) every N chapters. This keeps the motif
+ * ledger's flaggedPhrases section accurate without waiting for the
+ * formal Lumen assessment phase.
  */
-export const PHRASE_AUDIT_CADENCE = 3;
+export const MOTIF_AUDIT_CADENCE = 3;
 
 /**
  * System prompt for the fix pass. Appended to VERITY-CORE when running
@@ -734,7 +735,7 @@ chapter you just drafted. Your job is to fix each violation surgically.
 3. Rewrite ONLY the flagged passages. Do not touch unflagged prose.
 4. For editorial-narration violations: delete the explanatory sentence.
    Do not replace it — the scene already works without it.
-5. For phrase-ledger-hit violations: rewrite the sentence using a
+5. For flagged-phrase violations: rewrite the sentence using a
    different image or construction.
 6. For anti-pattern violations: restructure the sentence to eliminate the
    banned pattern while preserving the meaning.

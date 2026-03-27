@@ -222,7 +222,6 @@ BooksDirWatcher(booksDir, callback)
 │       │   ├── project-tasks.md
 │       │   ├── revision-prompts.md
 │       │   ├── style-sheet.md
-│       │   ├── phrase-ledger.md
 │       │   ├── motif-ledger.json
 │       │   └── metadata.md
 │       ├── chapters/

@@ -329,7 +329,7 @@ export type RevisionQueueEvent =
 
 export type AuditViolationType =
   | 'editorial-narration'
-  | 'phrase-ledger-hit'
+  | 'flagged-phrase'
   | 'anti-pattern'
   | 'voice-drift'
   | 'continuity-error';

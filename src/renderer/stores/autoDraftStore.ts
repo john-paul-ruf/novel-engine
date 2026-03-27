@@ -23,8 +23,8 @@ Instructions:
 /** Safety valve: stop automatically after this many iterations regardless. */
 const MAX_ITERATIONS = 150;
 
-/** Phrase audit cadence — run a full ledger audit every N chapters. */
-const PHRASE_AUDIT_CADENCE = 3;
+/** Motif/phrase audit cadence — run a full ledger audit every N chapters. */
+const MOTIF_AUDIT_CADENCE = 3;
 
 /**
  * Determine whether the fix pass should run based on audit severity.
@@ -401,21 +401,21 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           // during the post-chapter housekeeping steps below.
           patch({ stageLabel: `Preparing next chapter…` });
 
-          // ── Periodic phrase audit ─────────────────────────────────
+          // ── Periodic motif/phrase audit ──────────────────────────────
           const totalChapters = session()?.chaptersWritten ?? 0;
-          if (totalChapters > 0 && totalChapters % PHRASE_AUDIT_CADENCE === 0) {
+          if (totalChapters > 0 && totalChapters % MOTIF_AUDIT_CADENCE === 0) {
             if (!session()?.stopRequested) {
               try {
                 await waitForCliIdle(bookSlug);
-                patch({ stageLabel: 'Running phrase audit…' });
-                const phraseCallId = crypto.randomUUID();
-                const userIsWatchingPhrase = useChatStore.getState().activeConversation?.id === conversationId;
-                if (userIsWatchingPhrase) {
-                  useChatStore.getState().attachToExternalStream(phraseCallId, conversationId, '[Running phrase audit…]');
+                patch({ stageLabel: 'Running motif audit…' });
+                const auditCallId = crypto.randomUUID();
+                const userIsWatchingAudit = useChatStore.getState().activeConversation?.id === conversationId;
+                if (userIsWatchingAudit) {
+                  useChatStore.getState().attachToExternalStream(auditCallId, conversationId, '[Running motif audit…]');
                 }
-                await window.novelEngine.verity.runPhraseAudit(bookSlug, phraseCallId);
+                await window.novelEngine.verity.runMotifAudit(bookSlug, auditCallId);
               } catch {
-                console.warn('[auto-draft] Periodic phrase audit failed');
+                console.warn('[auto-draft] Periodic motif audit failed');
               }
             }
           }

@@ -215,8 +215,8 @@ const api = {
       auditResult
         ? ipcRenderer.invoke('verity:fixChapterWithAudit', bookSlug, chapterSlug, conversationId, JSON.stringify(auditResult), callId)
         : ipcRenderer.invoke('verity:fixChapter', bookSlug, chapterSlug, conversationId, callId),
-    runPhraseAudit: (bookSlug: string, callId?: string): Promise<void> =>
-      ipcRenderer.invoke('verity:runPhraseAudit', bookSlug, callId),
+    runMotifAudit: (bookSlug: string, callId?: string): Promise<void> =>
+      ipcRenderer.invoke('verity:runMotifAudit', bookSlug, callId),
   },
 
   // Hot Take

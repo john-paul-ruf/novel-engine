@@ -21,4 +21,4 @@ Use the Story Bible format from your core instructions. Populate from the pitch 
 ### What NOT To Do
 - Do not write prose. This is structure, not draft.
 - Do not create `source/scene-outline.md` if you are Spark's scaffolding pass — only Verity creates the outline during the scaffold phase.
-- Do not load the anti-pattern list, phrase ledger rules, or revision instructions. They are irrelevant to scaffolding.
+- Do not load the anti-pattern list, motif ledger, or revision instructions. They are irrelevant to scaffolding.

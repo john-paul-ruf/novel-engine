@@ -30,7 +30,7 @@ Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeC
 | `getRecoveredOrphans()` | Returns sessions marked as interrupted |
 | `auditChapter(params)` | Runs Verity audit agent on a single chapter |
 | `fixChapter(params)` | Runs Verity fix pass using audit findings |
-| `runPhraseAudit(params)` | Runs Lumen phrase audit (Lens 8) |
+| `runMotifAudit(params)` | Runs Lumen motif/phrase audit (Lens 8, updates motif-ledger.json flaggedPhrases) |
 
 **Flow (sendMessage):**
 1. Load agent (with phase-specific composite prompt for Verity)

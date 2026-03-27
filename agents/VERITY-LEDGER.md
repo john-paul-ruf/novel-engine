@@ -1,8 +1,6 @@
 ## Motif Ledger Protocol
 
-The motif ledger (`source/motif-ledger.json`) is the structured tracking system for literary motifs, structural devices, narrative foreshadowing, and flagged phrases. It supersedes `source/phrase-ledger.md` as the canonical creative tracking document.
-
-If `source/phrase-ledger.md` still exists and `source/motif-ledger.json` does not, migrate the phrase-ledger content into the motif ledger's `flaggedPhrases` section on your first interaction.
+The motif ledger (`source/motif-ledger.json`) is the canonical tracking system for literary motifs, structural devices, narrative foreshadowing, and flagged phrases.
 
 ---
 
@@ -15,7 +13,7 @@ The ledger is a JSON file with seven sections:
 - **structuralDevices** — Compositional devices not owned by any character: countdowns, chapter-opening inventory paragraphs, POV rotation patterns, journal dual-voice framing. Each has a `pattern` field describing the exact form.
 - **foreshadows** — Narrative debts. Threads planted in the text that haven't paid off yet. Status: `planted`, `paid-off`, or `abandoned`.
 - **minorCharacters** — Low-bar catch-all for characters too small for full motif sections. One or two lines each. Prevents motifs from falling through the cracks.
-- **flaggedPhrases** — The phrase-level tracking formerly in phrase-ledger.md. Categories: `retired` (banned), `limited` (capped usage), `crutch` (avoid, use alternatives), `anti-pattern` (banned construction).
+- **flaggedPhrases** — Phrase-level repetition tracking. Categories: `retired` (banned), `limited` (capped usage), `crutch` (avoid, use alternatives), `anti-pattern` (banned construction). Rebuilt from ground truth by Lumen during assessments.
 - **auditLog** — Records of which chapters have been audited against the ledger and what was found.
 
 ---
