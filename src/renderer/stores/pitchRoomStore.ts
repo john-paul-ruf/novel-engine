@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Conversation, Message, StreamEvent, PitchOutcome } from '@domain/types';
+import type { Conversation, Message, StreamEvent } from '@domain/types';
 import { PITCH_ROOM_SLUG, randomRespondingStatus } from '@domain/constants';
 import { streamRouter } from './streamRouter';
 
@@ -14,9 +14,6 @@ type PitchRoomState = {
   statusMessage: string;
   loading: boolean;
 
-  // Outcome state — set when Spark signals a pitch action
-  lastOutcome: { action: PitchOutcome; bookSlug?: string; title?: string } | null;
-
   // Actions
   loadConversations: () => Promise<void>;
   setActiveConversation: (conversationId: string) => Promise<void>;
@@ -24,7 +21,6 @@ type PitchRoomState = {
   deleteConversation: (conversationId: string) => Promise<void>;
   ensureConversation: () => Promise<void>;
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
-  clearOutcome: () => void;
 
   _activeCallId: string | null;
   _handleStreamEvent: (event: StreamEvent) => void;
@@ -40,7 +36,6 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   thinkingBuffer: '',
   statusMessage: '',
   loading: false,
-  lastOutcome: null,
   _activeCallId: null,
 
   loadConversations: async () => {
@@ -205,10 +200,6 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
     }
   },
 
-  clearOutcome: () => {
-    set({ lastOutcome: null });
-  },
-
   _handleStreamEvent: (event: StreamEvent) => {
     if (streamRouter.target !== 'pitch-room') return;
 
@@ -293,21 +284,8 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         break;
       }
 
-      case 'pitchOutcome': {
-        // Spark signaled a pitch action — the backend already executed it.
-        // Store the outcome so the PitchRoomView can react (navigate, toast, etc.)
-        set({
-          lastOutcome: {
-            action: event.action,
-            bookSlug: event.bookSlug,
-            title: event.title,
-          },
-          // Clear the active conversation — outcome handler will create a fresh one
-          activeConversation: null,
-          messages: [],
-        });
-        break;
-      }
+      // pitchOutcome is no longer emitted — pitch actions (make-book, shelve,
+      // discard) are user-initiated only via the pitch room UI controls.
 
       case 'error':
         set((state) => {

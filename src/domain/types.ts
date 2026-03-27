@@ -117,8 +117,6 @@ export type PitchDraft = {
   updatedAt: string;          // ISO date (last message timestamp)
 };
 
-export type PitchOutcome = 'make-book' | 'shelve' | 'discard';
-
 export type Conversation = {
   id: string;
   bookSlug: string;
@@ -207,7 +205,6 @@ export type StreamEvent =
   | { type: 'toolUse'; tool: ToolUseInfo }
   | { type: 'filesChanged'; paths: string[] }
   | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number; filesTouched: FileTouchMap }
-  | { type: 'pitchOutcome'; action: PitchOutcome; bookSlug?: string; pitchSlug?: string; title?: string }
   | { type: 'progressStage'; stage: ProgressStage }
   | { type: 'thinkingSummary'; summary: ThinkingSummary }
   | { type: 'toolDuration'; tool: TimestampedToolUse }

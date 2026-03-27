@@ -3,8 +3,6 @@ import { marked } from 'marked';
 import { AGENT_REGISTRY, randomPitchRoomFlavor } from '@domain/constants';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { useBookStore } from '../../stores/bookStore';
-import { useViewStore } from '../../stores/viewStore';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
 import { ChatInput } from '../Chat/ChatInput';
@@ -151,8 +149,6 @@ export function PitchRoomView(): React.ReactElement {
   const isStreaming = usePitchRoomStore((s) => s.isStreaming);
   const sendMessage = usePitchRoomStore((s) => s.sendMessage);
   const handleStreamEvent = usePitchRoomStore((s) => s._handleStreamEvent);
-  const lastOutcome = usePitchRoomStore((s) => s.lastOutcome);
-  const clearOutcome = usePitchRoomStore((s) => s.clearOutcome);
 
   const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
   const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
@@ -184,23 +180,6 @@ export function PitchRoomView(): React.ReactElement {
   useEffect(() => {
     ensureConversation();
   }, [ensureConversation]);
-
-  // React to pitch outcomes from the agent
-  useEffect(() => {
-    if (!lastOutcome) return;
-
-    const { action, bookSlug } = lastOutcome;
-
-    if (action === 'make-book' && bookSlug) {
-      // Switch to the new book and navigate to the chat view
-      useBookStore.getState().setActiveBook(bookSlug);
-      useViewStore.getState().navigate('chat');
-    }
-
-    // For all outcomes, clear state and re-create a fresh pitch room conversation
-    clearOutcome();
-    ensureConversation();
-  }, [lastOutcome, clearOutcome, ensureConversation]);
 
   // Register stream event listener for the pitch room
   useEffect(() => {
