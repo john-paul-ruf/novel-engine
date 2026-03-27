@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="Novel Engine — Architecture & Technical Docs">
+    <meta property="og:description" content="5-layer clean architecture. Electron + React + TypeScript + Claude Code CLI. Dependency injection. Streaming AI.">
+    <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
+    <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/architecture.html">
+    <meta property="og:type" content="website">
+    <title>Novel Engine — Architecture & Technical Docs</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#0a0a0c;--surface:#111114;--surface2:#19191e;--surface3:#151519;
+            --border:#2a2a32;--text:#e8e6e0;--text2:#b6b3ab;--text3:#7d7a73;
+            --accent:#c4ff4d;--accent2:#9dcc3e;--amber:#efb100;--teal:#3dd4a0;
+            --blue:#6fb8ff;--magenta:#d4a0ff;--red:#ff6b6b;--orange:#ff9f43;--slate:#94a3b8;
+        }
+        body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+        .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,12,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px}
+        .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+        .nav-brand-name{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-0.3px}
+        .nav-brand-name span{color:var(--accent)}
+        .nav-version{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);border:1px solid var(--border);padding:2px 7px;border-radius:4px}
+        .nav-links{display:flex;align-items:center;gap:6px}
+        .nav-links a{font-size:13px;color:var(--text2);text-decoration:none;padding:6px 12px;border-radius:6px;transition:all 0.2s}
+        .nav-links a:hover{color:var(--text);background:var(--surface2)}
+        .nav-links a.active{color:var(--accent);border-bottom:2px solid var(--accent);border-radius:6px 6px 0 0}
+        .nav-gh{color:var(--text2)!important;display:flex;align-items:center}
+        .nav-gh svg{width:20px;height:20px;fill:currentColor}
+        .hamburger{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:8px}
+        .hamburger svg{width:24px;height:24px;fill:currentColor}
+        .mobile-menu{display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 32px}
+        .mobile-menu a{display:block;padding:10px 0;color:var(--text2);text-decoration:none;font-size:14px;border-bottom:1px solid var(--border)}
+        .mobile-menu a:last-child{border-bottom:none}
+        .mobile-menu.open{display:block}
+        .page{max-width:1200px;margin:0 auto;padding:44px 32px 64px}
+        .breadcrumb{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:24px}
+        .breadcrumb a{color:var(--accent);text-decoration:none}
+        h1{font-family:'DM Serif Display',serif;font-size:36px;letter-spacing:-0.6px;line-height:1.1;margin-bottom:12px}
+        h1 span{color:var(--accent)}
+        h2{font-family:'DM Serif Display',serif;font-size:28px;letter-spacing:-0.4px;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border)}
+        h2:first-of-type{margin-top:32px}
+        h3{font-size:18px;font-weight:600;margin:24px 0 12px;color:var(--text)}
+        p{color:var(--text2);margin-bottom:12px;font-size:14px;line-height:1.7}
+        a{color:var(--accent);text-decoration:none}
+        a:hover{text-decoration:underline}
+        code{font-family:'Space Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:4px;color:var(--accent)}
+        pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;overflow-x:auto;margin:16px 0;font-family:'Space Mono',monospace;font-size:12px;line-height:1.6;color:var(--text2)}
+        .layers{display:flex;gap:4px;margin:20px 0 32px;flex-wrap:wrap}
+        .layer{flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+        .layer-name{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+        .layer-path{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:6px}
+        .layer-desc{font-size:12px;color:var(--text2);line-height:1.5}
+        .layer-arrow{display:flex;align-items:center;color:var(--accent);font-size:20px;flex-shrink:0}
+        table{width:100%;border-collapse:collapse;margin:16px 0;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+        th{text-align:left;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
+        td{padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:top}
+        tr:last-child td{border-bottom:none}
+        tr:hover{background:var(--surface2)}
+        .decision-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin:16px 0}
+        .decision-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px}
+        .decision-card h4{font-size:14px;font-weight:700;margin-bottom:8px;color:var(--text)}
+        .decision-card p{font-size:13px;color:var(--text2);margin-bottom:0}
+        .dep-tree{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 0;font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;color:var(--text2);overflow-x:auto;white-space:pre}
+        .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
+        .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
+        .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
+        .footer-col p,.footer-col a{font-size:13px;color:var(--text2);line-height:1.8}
+        .footer-col a{text-decoration:none}
+        .footer-col a:hover{color:var(--accent)}
+        .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+        .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
+        @media(max-width:1050px){.footer-inner{grid-template-columns:1fr 1fr}}
+        @media(max-width:760px){
+            .nav-inner{padding:0 14px}.nav-links{display:none}.hamburger{display:block}
+            .mobile-menu{padding:12px 14px}.page{padding:24px 14px 40px}
+            h1{font-size:28px}.layers{flex-direction:column}.layer-arrow{transform:rotate(90deg);justify-content:center}
+            .decision-grid{grid-template-columns:1fr}
+            .footer-inner{grid-template-columns:1fr;padding:0 14px}.footer-bottom{padding:16px 14px 0}
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="index.html" class="nav-brand"><span class="nav-brand-name">Novel Engine<span>.</span></span><span class="nav-version">v0.1.0</span></a>
+        <div class="nav-links">
+            <a href="index.html">Home</a><a href="architecture.html" class="active">Architecture</a><a href="changelog.html">Changelog</a><a href="evaluation.html">Evaluation</a><a href="press.html">Press</a><a href="contact.html">Contact</a>
+            <a href="https://github.com/john-paul-ruf/novel-engine" class="nav-gh" target="_blank" rel="noopener"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        </div>
+        <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg></button>
+    </div>
+    <div class="mobile-menu"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="changelog.html">Changelog</a><a href="evaluation.html">Evaluation</a><a href="press.html">Press</a><a href="contact.html">Contact</a><a href="https://github.com/john-paul-ruf/novel-engine" target="_blank" rel="noopener">GitHub</a></div>
+</nav>
+
+<div class="page">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Architecture</div>
+    <h1>Architecture<span>.</span></h1>
+    <p>Novel Engine follows Clean Architecture with five strict layers. Every file belongs to exactly one layer. Import rules are enforced by convention and code review.</p>
+
+    <h2>The Five Layers</h2>
+    <div class="layers">
+        <div class="layer"><div class="layer-name">Domain</div><div class="layer-path">src/domain/</div><div class="layer-desc">Pure types, interfaces, constants. Zero imports. Everything depends on this.</div></div>
+        <div class="layer-arrow">&#8592;</div>
+        <div class="layer"><div class="layer-name">Infrastructure</div><div class="layer-path">src/infrastructure/</div><div class="layer-desc">Concrete implementations. SQLite, filesystem, CLI wrapper, watchers.</div></div>
+        <div class="layer-arrow">&#8592;</div>
+        <div class="layer"><div class="layer-name">Application</div><div class="layer-path">src/application/</div><div class="layer-desc">Business logic. Orchestrates infrastructure through injected interfaces.</div></div>
+        <div class="layer-arrow">&#8592;</div>
+        <div class="layer"><div class="layer-name">IPC / Main</div><div class="layer-path">src/main/ + src/preload/</div><div class="layer-desc">Composition root. Thin IPC adapters. One-liner handler delegations.</div></div>
+        <div class="layer-arrow">&#8592;</div>
+        <div class="layer"><div class="layer-name">Renderer</div><div class="layer-path">src/renderer/</div><div class="layer-desc">React + Zustand. Talks to backend only through the preload bridge.</div></div>
+    </div>
+    <p>Import rule: each layer may only import from layers to its <strong>left</strong>. Domain imports nothing. Infrastructure imports domain. Application imports domain interfaces. Renderer accesses backend only through <code>window.novelEngine</code>.</p>
+
+    <h2>Technology Stack</h2>
+    <table>
+        <thead><tr><th>Layer</th><th>Technology</th><th>Version</th></tr></thead>
+        <tbody>
+            <tr><td>Shell</td><td>Electron (via Electron Forge)</td><td>33.4.0</td></tr>
+            <tr><td>Bundler</td><td>Vite</td><td>^5.4.21</td></tr>
+            <tr><td>UI</td><td>React</td><td>^18.3.0</td></tr>
+            <tr><td>Language</td><td>TypeScript</td><td>~5.5.0</td></tr>
+            <tr><td>Styling</td><td>Tailwind CSS</td><td>^4.0.0</td></tr>
+            <tr><td>State</td><td>Zustand</td><td>^5.0.0</td></tr>
+            <tr><td>Database</td><td>better-sqlite3</td><td>^11.0.0</td></tr>
+            <tr><td>AI Backend</td><td>Claude Code CLI</td><td>(system-installed)</td></tr>
+            <tr><td>Manuscript Export</td><td>Pandoc</td><td>(bundled binary)</td></tr>
+            <tr><td>IDs</td><td>nanoid</td><td>3</td></tr>
+            <tr><td>Markdown</td><td>marked</td><td>^15.0.0</td></tr>
+            <tr><td>Archive</td><td>archiver</td><td>^7.0.1</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Service Dependency Graph</h2>
+    <p>All services are composed in <code>src/main/index.ts</code> &#8212; the only file that instantiates concrete classes.</p>
+    <div class="dep-tree">ChatService
+&#9500;&#9472;&#9472; ISettingsService (SettingsService)
+&#9500;&#9472;&#9472; IAgentService (AgentService)
+&#9500;&#9472;&#9472; IDatabaseService (DatabaseService)
+&#9500;&#9472;&#9472; IClaudeClient (ClaudeCodeClient)
+&#9500;&#9472;&#9472; IFileSystemService (FileSystemService)
+&#9500;&#9472;&#9472; IPitchRoomService (PitchRoomService)
+&#9500;&#9472;&#9472; IHotTakeService (HotTakeService)
+&#9500;&#9472;&#9472; IAdhocRevisionService (AdhocRevisionService)
+&#9500;&#9472;&#9472; StreamManager
+&#9492;&#9472;&#9472; ChapterValidator
+
+PipelineService
+&#9492;&#9472;&#9472; IFileSystemService (FileSystemService)
+
+BuildService
+&#9500;&#9472;&#9472; IFileSystemService (FileSystemService)
+&#9500;&#9472;&#9472; pandocPath: string
+&#9492;&#9472;&#9472; booksDir: string
+
+RevisionQueueService
+&#9500;&#9472;&#9472; IFileSystemService (FileSystemService)
+&#9500;&#9472;&#9472; IClaudeClient (ClaudeCodeClient)
+&#9500;&#9472;&#9472; IAgentService (AgentService)
+&#9500;&#9472;&#9472; IDatabaseService (DatabaseService)
+&#9492;&#9472;&#9472; ISettingsService (SettingsService)
+
+AuditService
+&#9500;&#9472;&#9472; IClaudeClient (ClaudeCodeClient)
+&#9500;&#9472;&#9472; IAgentService (AgentService)
+&#9500;&#9472;&#9472; IDatabaseService (DatabaseService)
+&#9500;&#9472;&#9472; ISettingsService (SettingsService)
+&#9492;&#9472;&#9472; IFileSystemService (FileSystemService)
+
+MotifLedgerService
+&#9492;&#9472;&#9472; IFileSystemService (FileSystemService)
+
+UsageService
+&#9492;&#9472;&#9472; IDatabaseService (DatabaseService)</div>
+
+    <h2>Key Design Decisions</h2>
+    <div class="decision-grid">
+        <div class="decision-card"><h4>Constructor Injection (No DI Container)</h4><p>Services receive dependencies as constructor parameters. The composition root in <code>src/main/index.ts</code> is the only place concrete classes are instantiated.</p></div>
+        <div class="decision-card"><h4>No API Keys</h4><p>The Claude Code CLI handles authentication through the user's Anthropic subscription. The app stores zero secrets.</p></div>
+        <div class="decision-card"><h4>Streaming CLI Integration</h4><p>The Claude CLI is spawned as a child process emitting NDJSON events on stdout &#8212; text deltas, thinking blocks, tool use, results. Streamed to UI in real time.</p></div>
+        <div class="decision-card"><h4>Budget-Aware Context Assembly</h4><p>Every agent call builds context with a token budget. ContextBuilder assembles a file manifest, applies per-agent read guidance, and compacts conversation history.</p></div>
+        <div class="decision-card"><h4>Phase-Gated Pipeline</h4><p>14 phases with file-existence completion gates. No automatic advancement &#8212; the author explicitly confirms each phase.</p></div>
+        <div class="decision-card"><h4>Verity Audit Pipeline</h4><p>Automated quality pass after every agent interaction. Sonnet-powered audit scans for anti-patterns; moderate+ severity triggers automatic fixes.</p></div>
+    </div>
+
+    <h2>Database Schema</h2>
+    <p>Five SQLite tables. WAL mode. Foreign keys enforced. Forward-only migrations via <code>migrations.ts</code>.</p>
+    <table>
+        <thead><tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr></thead>
+        <tbody>
+            <tr><td><code>conversations</code></td><td>Agent conversations per book</td><td>id, book_slug, agent_name, pipeline_phase, purpose, title, timestamps</td></tr>
+            <tr><td><code>messages</code></td><td>Individual messages</td><td>id, conversation_id, role, content, thinking, tokens_in/out/thinking</td></tr>
+            <tr><td><code>token_usage</code></td><td>Per-call token counts</td><td>id, conversation_id, model, input/output/thinking tokens</td></tr>
+            <tr><td><code>stream_events</code></td><td>Persisted stream events for replay</td><td>id, session_id, event_type, data, timestamp</td></tr>
+            <tr><td><code>stream_sessions</code></td><td>CLI invocation tracking</td><td>id, conversation_id, book_slug, agent, status, started_at, ended_at</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Source Tree</h2>
+    <p>121 TypeScript/TSX source files across five layers:</p>
+    <pre>src/
+&#9500;&#9472;&#9472; domain/                         # Pure types, zero imports
+&#9474;   &#9500;&#9472;&#9472; types.ts                    # All shared type definitions
+&#9474;   &#9500;&#9472;&#9472; interfaces.ts               # Service contracts (ports)
+&#9474;   &#9500;&#9472;&#9472; constants.ts                # Agent registry, pipeline phases, defaults
+&#9474;   &#9500;&#9472;&#9472; statusMessages.ts           # Rotating status messages for UI
+&#9474;   &#9492;&#9472;&#9472; index.ts                    # Barrel export
+&#9500;&#9472;&#9472; infrastructure/                 # Implements domain interfaces
+&#9474;   &#9500;&#9472;&#9472; settings/SettingsService.ts # Settings persistence, CLI detection
+&#9474;   &#9500;&#9472;&#9472; database/schema.ts         # SQLite schema, WAL, foreign keys
+&#9474;   &#9500;&#9472;&#9472; database/migrations.ts     # Forward-only migration system
+&#9474;   &#9500;&#9472;&#9472; database/DatabaseService.ts# All query methods, prepared statements
+&#9474;   &#9500;&#9472;&#9472; agents/AgentService.ts     # Agent .md prompt loader
+&#9474;   &#9500;&#9472;&#9472; filesystem/FileSystemService.ts # Book CRUD, file I/O
+&#9474;   &#9500;&#9472;&#9472; filesystem/BookWatcher.ts  # Active book file watcher
+&#9474;   &#9500;&#9472;&#9472; filesystem/BooksDirWatcher.ts # Books directory watcher
+&#9474;   &#9500;&#9472;&#9472; claude-cli/ClaudeCodeClient.ts # CLI spawn, NDJSON streaming
+&#9474;   &#9500;&#9472;&#9472; claude-cli/StreamSessionTracker.ts
+&#9474;   &#9492;&#9472;&#9472; pandoc/index.ts             # Binary path resolution
+&#9500;&#9472;&#9472; application/                    # Business logic
+&#9474;   &#9500;&#9472;&#9472; ChatService.ts              # Router: send &#8594; stream &#8594; save
+&#9474;   &#9500;&#9472;&#9472; ContextBuilder.ts           # Budget-aware context assembly
+&#9474;   &#9500;&#9472;&#9472; PipelineService.ts          # Phase detection + gates
+&#9474;   &#9500;&#9472;&#9472; BuildService.ts             # Pandoc execution
+&#9474;   &#9500;&#9472;&#9472; UsageService.ts             # Token tracking
+&#9474;   &#9500;&#9472;&#9472; RevisionQueueService.ts     # Revision plan parsing + execution
+&#9474;   &#9500;&#9472;&#9472; AuditService.ts             # Verity audit/fix pipeline
+&#9474;   &#9500;&#9472;&#9472; PitchRoomService.ts         # Pitch Room conversations
+&#9474;   &#9500;&#9472;&#9472; HotTakeService.ts           # Hot-take orchestration
+&#9474;   &#9500;&#9472;&#9472; AdhocRevisionService.ts     # Direct feedback mode
+&#9474;   &#9500;&#9472;&#9472; StreamManager.ts            # Stream lifecycle
+&#9474;   &#9500;&#9472;&#9472; MotifLedgerService.ts       # Motif ledger CRUD
+&#9474;   &#9500;&#9472;&#9472; ChapterValidator.ts         # Auto-correct chapter placement
+&#9474;   &#9492;&#9472;&#9472; thinkingBudget.ts           # Budget resolution logic
+&#9500;&#9472;&#9472; main/                           # Electron main process
+&#9474;   &#9500;&#9472;&#9472; index.ts                    # COMPOSITION ROOT
+&#9474;   &#9500;&#9472;&#9472; bootstrap.ts                # First-run setup
+&#9474;   &#9500;&#9472;&#9472; notifications.ts            # OS notifications
+&#9474;   &#9492;&#9472;&#9472; ipc/handlers.ts             # Thin IPC adapters
+&#9500;&#9472;&#9472; preload/index.ts                # contextBridge typed API
+&#9492;&#9472;&#9472; renderer/                       # React UI
+    &#9500;&#9472;&#9472; App.tsx                     # Root component
+    &#9500;&#9472;&#9472; stores/ (14 stores)         # Zustand state
+    &#9500;&#9472;&#9472; components/ (12 groups)     # 50+ React components
+    &#9492;&#9472;&#9472; hooks/ (5 hooks)</pre>
+
+    <h2>Contributing</h2>
+    <h3>Prerequisites</h3>
+    <p>Node.js 20+, npm 9+, and the <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code CLI</a> installed and authenticated.</p>
+    <h3>Getting Started</h3>
+    <pre>git clone https://github.com/john-paul-ruf/novel-engine.git
+cd novel-engine
+npm install
+npm run download-pandoc
+npm start</pre>
+    <h3>Architecture Rules</h3>
+    <ul style="padding-left:20px;color:var(--text2);font-size:14px;line-height:2">
+        <li>Never put business logic in IPC handlers &#8212; they are one-liner delegations</li>
+        <li>Never import concrete classes in application services &#8212; use injected interfaces</li>
+        <li>Never let the renderer import from main process modules &#8212; only through the preload bridge</li>
+        <li>Never store API keys &#8212; the Claude Code CLI handles auth</li>
+        <li>Always use parameterized SQL queries &#8212; never interpolate values</li>
+        <li>Every infrastructure subdirectory gets a barrel <code>index.ts</code></li>
+    </ul>
+    <h3>Detailed Architecture Docs</h3>
+    <ul style="padding-left:20px;color:var(--text2);font-size:14px;line-height:2">
+        <li><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/docs/architecture/ARCHITECTURE.md">ARCHITECTURE.md</a> &#8212; Master overview</li>
+        <li><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/docs/architecture/DOMAIN.md">DOMAIN.md</a> &#8212; Types, interfaces, constants</li>
+        <li><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/docs/architecture/INFRASTRUCTURE.md">INFRASTRUCTURE.md</a> &#8212; Database, filesystem, CLI, settings</li>
+        <li><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/docs/architecture/APPLICATION.md">APPLICATION.md</a> &#8212; Services and orchestration</li>
+        <li><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/docs/architecture/IPC.md">IPC.md</a> &#8212; 80+ channels, preload bridge</li>
+        <li><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/docs/architecture/RENDERER.md">RENDERER.md</a> &#8212; 14 stores, 50+ components</li>
+    </ul>
+</div>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-col"><h4>Novel Engine</h4><p>v0.1.0 &#183; AGPL-3.0</p><p>Built with Claude Code CLI, Electron, React, and Pandoc.</p></div>
+        <div class="footer-col"><h4>Links</h4><p><a href="https://github.com/john-paul-ruf/novel-engine">GitHub Repository</a></p><p><a href="https://github.com/john-paul-ruf/novel-engine/releases">Releases &amp; Installers</a></p><p><a href="https://www.amazon.com/stores/author/B00J98NAZ6/allbooks">Books on Amazon</a></p></div>
+        <div class="footer-col"><h4>Contact</h4><p>John Ruf</p><p><a href="mailto:john.paul.ruf@gmail.com">john.paul.ruf@gmail.com</a></p><p><a href="https://github.com/john-paul-ruf" target="_blank" rel="noopener">github.com/john-paul-ruf</a></p></div>
+    </div>
+    <div class="footer-bottom"><p>No tracking. No cookies. No analytics.</p><p>Seven agents. Fourteen phases. One manuscript.</p></div>
+</footer>
+
+<script>document.querySelector('.hamburger').addEventListener('click',function(){document.querySelector('.mobile-menu').classList.toggle('open')});</script>
+</body>
+</html>

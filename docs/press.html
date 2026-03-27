@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="Novel Engine — Press Kit">
+    <meta property="og:description" content="Press resources for Novel Engine. Differentiators, published books, quotable facts, and contact info.">
+    <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
+    <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/press.html">
+    <meta property="og:type" content="website">
+    <title>Novel Engine — Press Kit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#19191e;--surface3:#151519;--border:#2a2a32;--text:#e8e6e0;--text2:#b6b3ab;--text3:#7d7a73;--accent:#c4ff4d;--accent2:#9dcc3e;--amber:#efb100;--teal:#3dd4a0;--blue:#6fb8ff;--magenta:#d4a0ff;--red:#ff6b6b;--orange:#ff9f43;--slate:#94a3b8}
+        body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+        .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,12,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px}
+        .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+        .nav-brand-name{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-0.3px}
+        .nav-brand-name span{color:var(--accent)}
+        .nav-version{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);border:1px solid var(--border);padding:2px 7px;border-radius:4px}
+        .nav-links{display:flex;align-items:center;gap:6px}
+        .nav-links a{font-size:13px;color:var(--text2);text-decoration:none;padding:6px 12px;border-radius:6px;transition:all 0.2s}
+        .nav-links a:hover{color:var(--text);background:var(--surface2)}
+        .nav-links a.active{color:var(--accent);border-bottom:2px solid var(--accent);border-radius:6px 6px 0 0}
+        .nav-gh{color:var(--text2)!important;display:flex;align-items:center}
+        .nav-gh svg{width:20px;height:20px;fill:currentColor}
+        .hamburger{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:8px}
+        .hamburger svg{width:24px;height:24px;fill:currentColor}
+        .mobile-menu{display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 32px}
+        .mobile-menu a{display:block;padding:10px 0;color:var(--text2);text-decoration:none;font-size:14px;border-bottom:1px solid var(--border)}
+        .mobile-menu a:last-child{border-bottom:none}
+        .mobile-menu.open{display:block}
+        .page{max-width:1200px;margin:0 auto;padding:44px 32px 64px}
+        .breadcrumb{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:24px}
+        .breadcrumb a{color:var(--accent);text-decoration:none}
+        h1{font-family:'DM Serif Display',serif;font-size:36px;letter-spacing:-0.6px;line-height:1.1;margin-bottom:12px}
+        h1 span{color:var(--accent)}
+        h2{font-family:'DM Serif Display',serif;font-size:28px;letter-spacing:-0.4px;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border)}
+        h2:first-of-type{margin-top:32px}
+        p{color:var(--text2);margin-bottom:12px;font-size:14px;line-height:1.7}
+        a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+        .pitch-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:24px;margin:20px 0}
+        .pitch-box p{font-size:16px;color:var(--text);line-height:1.7;margin-bottom:12px}
+        .pitch-box p:last-child{margin-bottom:0}
+        .diff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin:20px 0}
+        .diff-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px}
+        .diff-card h4{font-size:14px;font-weight:700;margin-bottom:8px;color:var(--accent)}
+        .diff-card p{font-size:13px;color:var(--text2);margin-bottom:0}
+        .numbers{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin:20px 0}
+        .num-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
+        .num-value{font-family:'Space Mono',monospace;font-size:32px;font-weight:700;color:var(--accent)}
+        .num-label{font-size:12px;color:var(--text3);margin-top:4px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+        .quote-list{margin:20px 0}
+        .quote{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:12px;font-size:15px;color:var(--text);font-style:italic}
+        .books-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin:20px 0}
+        .book-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center;text-decoration:none;color:var(--text);display:block;transition:border-color 0.2s}
+        .book-card:hover{border-color:var(--accent);text-decoration:none}
+        .book-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:8px}
+        .book-link{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
+        .contact-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin:20px 0}
+        .contact-box p{font-size:14px;color:var(--text2);margin-bottom:8px}
+        .contact-box a{color:var(--accent)}
+        .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
+        .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
+        .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
+        .footer-col p,.footer-col a{font-size:13px;color:var(--text2);line-height:1.8}
+        .footer-col a{text-decoration:none}.footer-col a:hover{color:var(--accent)}
+        .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+        .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
+        @media(max-width:1050px){.footer-inner{grid-template-columns:1fr 1fr}}
+        @media(max-width:760px){.nav-inner{padding:0 14px}.nav-links{display:none}.hamburger{display:block}.mobile-menu{padding:12px 14px}.page{padding:24px 14px 40px}h1{font-size:28px}.diff-grid{grid-template-columns:1fr}.numbers{grid-template-columns:repeat(2,1fr)}.footer-inner{grid-template-columns:1fr;padding:0 14px}.footer-bottom{padding:16px 14px 0}}
+    </style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"><a href="index.html" class="nav-brand"><span class="nav-brand-name">Novel Engine<span>.</span></span><span class="nav-version">v0.1.0</span></a><div class="nav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="changelog.html">Changelog</a><a href="evaluation.html">Evaluation</a><a href="press.html" class="active">Press</a><a href="contact.html">Contact</a><a href="https://github.com/john-paul-ruf/novel-engine" class="nav-gh" target="_blank" rel="noopener"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a></div><button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg></button></div><div class="mobile-menu"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="changelog.html">Changelog</a><a href="evaluation.html">Evaluation</a><a href="press.html">Press</a><a href="contact.html">Contact</a><a href="https://github.com/john-paul-ruf/novel-engine" target="_blank" rel="noopener">GitHub</a></div></nav>
+
+<div class="page">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Press Kit</div>
+    <h1>Press Kit<span>.</span></h1>
+    <p style="color:var(--text3);font-size:14px">For journalists, reviewers, newsletter writers, and anyone writing about the project.</p>
+
+    <h2>The Pitch</h2>
+    <div class="pitch-box">
+        <p>Novel Engine is to book-writing what a build system is to software. It&#8217;s not a chatbot. It&#8217;s not an AI ghostwriter. It&#8217;s an editorial production pipeline where the human author retains creative authority and seven specialized AI agents serve as the author&#8217;s professional editorial team.</p>
+        <p>The pipeline takes a book from pitch to polished manuscript in 14 structured phases. Each phase has a designated agent, clear inputs and outputs, and a completion gate the author explicitly confirms. The result: five published novels on Amazon, independently scored 7.0&#8211;9.4 out of 10 on an &#8220;AI slop vs. established author&#8221; scale by both Claude and ChatGPT.</p>
+    </div>
+
+    <h2>What Makes This Different</h2>
+    <div class="diff-grid">
+        <div class="diff-card"><h4>Build system, not chatbot</h4><p>14-phase pipeline with completion gates, not freeform prompting. Each phase has defined inputs, outputs, and a designated specialist agent.</p></div>
+        <div class="diff-card"><h4>7 specialized agents</h4><p>Not one general AI, but a team with distinct roles: ideator, ghostwriter, first reader, developmental editor, copy editor, task master, query crafter.</p></div>
+        <div class="diff-card"><h4>Voice capture</h4><p>Writes in the author&#8217;s voice via a detailed profile interview. Sentence rhythm, vocabulary register, dialogue style, emotional temperature &#8212; all captured before a single word of prose.</p></div>
+        <div class="diff-card"><h4>Local-first</h4><p>Everything runs on your machine. No cloud backend. No API key storage. The Claude Code CLI handles authentication through the user&#8217;s own subscription.</p></div>
+        <div class="diff-card"><h4>Open source</h4><p>AGPL-3.0 licensed. Fully inspectable. 121 TypeScript source files across five clean architecture layers.</p></div>
+        <div class="diff-card"><h4>Ships real books</h4><p>5+ published novels on Amazon built with this system. Not a prototype &#8212; a production tool with published proof.</p></div>
+        <div class="diff-card"><h4>Quality automation</h4><p>Every chapter runs through an automated audit pipeline. A Sonnet-powered agent scans for anti-patterns; moderate+ issues trigger automatic fixes.</p></div>
+    </div>
+
+    <h2>Published Works</h2>
+    <div class="books-grid">
+        <a href="https://www.amazon.com/dp/B0GTN8DRM8" class="book-card" target="_blank" rel="noopener"><div class="book-title">Cleartext</div><div class="book-link">Amazon &#8594;</div></a>
+        <a href="https://www.amazon.com/dp/B0GTMGN843" class="book-card" target="_blank" rel="noopener"><div class="book-title">Junk Souls</div><div class="book-link">Amazon &#8594;</div></a>
+        <a href="https://www.amazon.com/dp/B0GTQKZQSY" class="book-card" target="_blank" rel="noopener"><div class="book-title">Day One</div><div class="book-link">Amazon &#8594;</div></a>
+        <a href="https://www.amazon.com/dp/B0GTPJWFQ7" class="book-card" target="_blank" rel="noopener"><div class="book-title">The Last Compiler</div><div class="book-link">Amazon &#8594;</div></a>
+        <a href="https://www.amazon.com/dp/B0GTP2KB7Q" class="book-card" target="_blank" rel="noopener"><div class="book-title">The Recursive Archivist</div><div class="book-link">Amazon &#8594;</div></a>
+    </div>
+    <p><a href="evaluation.html">Read the full 10-book dual AI evaluation &#8594;</a> Not AI slop. Scores: 7.0&#8211;9.4 / 10.</p>
+
+    <h2>By The Numbers</h2>
+    <div class="numbers">
+        <div class="num-card"><div class="num-value">7</div><div class="num-label">AI Agents</div></div>
+        <div class="num-card"><div class="num-value">14</div><div class="num-label">Pipeline Phases</div></div>
+        <div class="num-card"><div class="num-value">80+</div><div class="num-label">IPC Channels</div></div>
+        <div class="num-card"><div class="num-value">121</div><div class="num-label">Source Files</div></div>
+        <div class="num-card"><div class="num-value">14</div><div class="num-label">Zustand Stores</div></div>
+        <div class="num-card"><div class="num-value">5+</div><div class="num-label">Published Books</div></div>
+        <div class="num-card"><div class="num-value">50+</div><div class="num-label">React Components</div></div>
+        <div class="num-card"><div class="num-value">23</div><div class="num-label">Agent Prompt Files</div></div>
+    </div>
+
+    <h2>Quotable Lines</h2>
+    <div class="quote-list">
+        <div class="quote">&#8220;You bring the story. The agents build it into a book.&#8221;</div>
+        <div class="quote">&#8220;The pipeline is a build process: source material goes in, a production-ready manuscript comes out.&#8221;</div>
+        <div class="quote">&#8220;Seven agents. Fourteen phases. One manuscript.&#8221;</div>
+        <div class="quote">&#8220;Build is both metaphor and literal &#8212; the final phase compiles chapters via Pandoc.&#8221;</div>
+        <div class="quote">&#8220;Not AI slop. Scores: 7.0&#8211;9.4 / 10.&#8221;</div>
+    </div>
+
+    <h2>Assets</h2>
+    <ul style="padding-left:20px;color:var(--text2);font-size:14px;line-height:2">
+        <li><a href="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/first-draft.png">Screenshot: First Draft</a> &#8212; Verity ghostwriting with pipeline tracker</li>
+        <li><a href="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/pitch-room.png">Screenshot: Pitch Room</a> &#8212; Spark brainstorming interface</li>
+        <li><a href="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/revision-queue.png">Screenshot: Revision Queue</a> &#8212; Revision management</li>
+        <li><a href="https://john-paul-ruf.github.io/novel-engine/og-image.png">OG Image</a></li>
+        <li><a href="https://github.com/john-paul-ruf/novel-engine">GitHub Repository</a></li>
+    </ul>
+
+    <h2>Contact</h2>
+    <div class="contact-box">
+        <p><strong>John Ruf</strong></p>
+        <p>Email: <a href="mailto:john.paul.ruf@gmail.com">john.paul.ruf@gmail.com</a></p>
+        <p>GitHub: <a href="https://github.com/john-paul-ruf" target="_blank" rel="noopener">john-paul-ruf</a></p>
+    </div>
+</div>
+
+<footer class="site-footer"><div class="footer-inner"><div class="footer-col"><h4>Novel Engine</h4><p>v0.1.0 &#183; AGPL-3.0</p><p>Built with Claude Code CLI, Electron, React, and Pandoc.</p></div><div class="footer-col"><h4>Links</h4><p><a href="https://github.com/john-paul-ruf/novel-engine">GitHub Repository</a></p><p><a href="https://github.com/john-paul-ruf/novel-engine/releases">Releases</a></p></div><div class="footer-col"><h4>Contact</h4><p>John Ruf</p><p><a href="mailto:john.paul.ruf@gmail.com">john.paul.ruf@gmail.com</a></p></div></div><div class="footer-bottom"><p>No tracking. No cookies. No analytics.</p><p>Seven agents. Fourteen phases. One manuscript.</p></div></footer>
+<script>document.querySelector('.hamburger').addEventListener('click',function(){document.querySelector('.mobile-menu').classList.toggle('open')});</script>
+</body>
+</html>

@@ -4,6 +4,31 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Build multi-page GitHub Pages website
+
+### Summary
+
+Built a full 6-page GitHub Pages website in `docs/`. Migrated the existing 10-book evaluation from `docs/index.html` to `docs/evaluation.html` (content preserved verbatim) and replaced `docs/index.html` with a new landing page. Created 4 additional pages: architecture (technical docs for developers), changelog (formatted project history), press kit (differentiators, published books, quotable facts), and contact (contributing guide, bug reports, tester callout). All pages share a consistent dark-theme design system with sticky nav, responsive breakpoints, agent color coding, and shared footer. No external JS, no tracking, no analytics.
+
+### Added
+- `docs/index.html` — Landing page: hero, 7 agent cards, 14-phase pipeline visualization, getting started guide, screenshots, published books grid
+- `docs/evaluation.html` — 10-book dual AI evaluation (migrated from old index.html with nav/footer added)
+- `docs/architecture.html` — Technical architecture: 5-layer diagram, tech stack, service dependency graph, design decisions, database schema, source tree, contributing guide
+- `docs/changelog.html` — Formatted changelog with summary stats, highlight reel, collapsible entries for all 18 changelog entries
+- `docs/press.html` — Press kit: quotable pitch, 7 differentiator cards, published works, by-the-numbers stats, quotable lines, asset links
+- `docs/contact.html` — Contact info, contribution guide with architecture rules, bug reporting template, testers-wanted callout with platform badges
+
+### Changed
+- `docs/index.html` — Replaced single-page evaluation site with full landing page (evaluation content moved to evaluation.html)
+
+### Architecture Impact
+- None — no source code changes, website assets only
+
+### Migration Notes
+- The old `docs/index.html` (10-book evaluation) is now at `docs/evaluation.html`. Any external links to the old page will land on the new landing page instead, which links to the evaluation.
+
+---
+
 ## [2026-03-27] — README deep update: comprehensive rewrite from codebase analysis
 
 ### Summary

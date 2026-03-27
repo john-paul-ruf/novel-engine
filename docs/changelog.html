@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="Novel Engine — Changelog">
+    <meta property="og:description" content="Full development history of Novel Engine. Every feature, fix, and architectural decision documented.">
+    <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
+    <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/changelog.html">
+    <meta property="og:type" content="website">
+    <title>Novel Engine — Changelog</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#19191e;--surface3:#151519;--border:#2a2a32;--text:#e8e6e0;--text2:#b6b3ab;--text3:#7d7a73;--accent:#c4ff4d;--accent2:#9dcc3e;--amber:#efb100;--teal:#3dd4a0;--blue:#6fb8ff;--magenta:#d4a0ff;--red:#ff6b6b;--orange:#ff9f43;--slate:#94a3b8}
+        body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+        .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,12,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px}
+        .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+        .nav-brand-name{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-0.3px}
+        .nav-brand-name span{color:var(--accent)}
+        .nav-version{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);border:1px solid var(--border);padding:2px 7px;border-radius:4px}
+        .nav-links{display:flex;align-items:center;gap:6px}
+        .nav-links a{font-size:13px;color:var(--text2);text-decoration:none;padding:6px 12px;border-radius:6px;transition:all 0.2s}
+        .nav-links a:hover{color:var(--text);background:var(--surface2)}
+        .nav-links a.active{color:var(--accent);border-bottom:2px solid var(--accent);border-radius:6px 6px 0 0}
+        .nav-gh{color:var(--text2)!important;display:flex;align-items:center}
+        .nav-gh svg{width:20px;height:20px;fill:currentColor}
+        .hamburger{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:8px}
+        .hamburger svg{width:24px;height:24px;fill:currentColor}
+        .mobile-menu{display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 32px}
+        .mobile-menu a{display:block;padding:10px 0;color:var(--text2);text-decoration:none;font-size:14px;border-bottom:1px solid var(--border)}
+        .mobile-menu a:last-child{border-bottom:none}
+        .mobile-menu.open{display:block}
+        .page{max-width:1200px;margin:0 auto;padding:44px 32px 64px}
+        .breadcrumb{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:24px}
+        .breadcrumb a{color:var(--accent);text-decoration:none}
+        h1{font-family:'DM Serif Display',serif;font-size:36px;letter-spacing:-0.6px;line-height:1.1;margin-bottom:12px}
+        h1 span{color:var(--accent)}
+        .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0 36px}
+        .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+        .stat-label{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:4px}
+        .stat-value{font-size:20px;font-weight:700;color:var(--accent)}
+        .highlights{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:36px}
+        .highlights h3{font-family:'Space Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:16px}
+        .highlight-group{margin-bottom:16px}
+        .highlight-group h4{font-size:13px;font-weight:700;color:var(--amber);margin-bottom:8px}
+        .highlight-group ul{padding-left:20px}
+        .highlight-group li{font-size:13px;color:var(--text2);margin-bottom:4px;line-height:1.5}
+        .entry{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden}
+        .entry summary{padding:16px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:600;color:var(--text);list-style:none}
+        .entry summary::-webkit-details-marker{display:none}
+        .entry summary::before{content:'\25B6';font-size:10px;color:var(--text3);transition:transform 0.2s}
+        .entry[open] summary::before{transform:rotate(90deg)}
+        .entry summary:hover{background:var(--surface2)}
+        .entry-date{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);flex-shrink:0}
+        .entry-body{padding:0 20px 20px;border-top:1px solid var(--border)}
+        .entry-body p{font-size:13px;color:var(--text2);margin:12px 0;line-height:1.6}
+        .entry-body h4{font-size:12px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:16px 0 8px}
+        .entry-body ul{padding-left:20px;margin:0}
+        .entry-body li{font-size:13px;color:var(--text2);margin-bottom:4px;line-height:1.5}
+        .entry-body code{font-family:'Space Mono',monospace;font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--accent)}
+        .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
+        .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
+        .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
+        .footer-col p,.footer-col a{font-size:13px;color:var(--text2);line-height:1.8}
+        .footer-col a{text-decoration:none}
+        .footer-col a:hover{color:var(--accent)}
+        .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+        .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
+        @media(max-width:1050px){.stats{grid-template-columns:repeat(2,1fr)}.footer-inner{grid-template-columns:1fr 1fr}}
+        @media(max-width:760px){.nav-inner{padding:0 14px}.nav-links{display:none}.hamburger{display:block}.mobile-menu{padding:12px 14px}.page{padding:24px 14px 40px}h1{font-size:28px}.stats{grid-template-columns:1fr}.footer-inner{grid-template-columns:1fr;padding:0 14px}.footer-bottom{padding:16px 14px 0}}
+    </style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"><a href="index.html" class="nav-brand"><span class="nav-brand-name">Novel Engine<span>.</span></span><span class="nav-version">v0.1.0</span></a><div class="nav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="changelog.html" class="active">Changelog</a><a href="evaluation.html">Evaluation</a><a href="press.html">Press</a><a href="contact.html">Contact</a><a href="https://github.com/john-paul-ruf/novel-engine" class="nav-gh" target="_blank" rel="noopener"><svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a></div><button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg></button></div><div class="mobile-menu"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="changelog.html">Changelog</a><a href="evaluation.html">Evaluation</a><a href="press.html">Press</a><a href="contact.html">Contact</a><a href="https://github.com/john-paul-ruf/novel-engine" target="_blank" rel="noopener">GitHub</a></div></nav>
+
+<div class="page">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Changelog</div>
+    <h1>Changelog<span>.</span></h1>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:24px">Full development history. Every feature, fix, and architectural decision.</p>
+
+    <div class="stats">
+        <div class="stat"><div class="stat-label">Entries</div><div class="stat-value">18</div></div>
+        <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27</div></div>
+        <div class="stat"><div class="stat-label">Features Added</div><div class="stat-value">12+</div></div>
+        <div class="stat"><div class="stat-label">Architecture Changes</div><div class="stat-value">14</div></div>
+    </div>
+
+    <div class="highlights">
+        <h3>Highlight Reel</h3>
+        <div class="highlight-group"><h4>Major Features</h4><ul><li>Motif Ledger &#8212; full-stack feature with 7 CRUD tab panels, IPC wiring, and Zustand store</li><li>Phrase ledger consolidated into motif ledger &#8212; single source of truth for motif tracking</li></ul></div>
+        <div class="highlight-group"><h4>Architecture Milestones</h4><ul><li>ChatService decomposed from 1,218 lines to 403 &#8212; extracted 5 sub-services</li><li>IChatService and IUsageService interfaces added &#8212; IPC handlers fully interface-dependent</li><li>Database migration system &#8212; forward-only versioned migrations</li><li>Full architecture documentation &#8212; 6 docs covering all 5 layers</li></ul></div>
+        <div class="highlight-group"><h4>Quality &amp; Stability</h4><ul><li>9 bug fixes from repo evaluation &#8212; stream isolation, error cleanup, event forwarding</li><li>Shared stream handler factory &#8212; deduplicated logic across 3 stores</li><li>Comprehensive audit of 115 catch blocks</li></ul></div>
+    </div>
+
+    <details class="entry" open><summary><span class="entry-date">2026-03-27</span> README deep update: comprehensive rewrite from codebase analysis</summary><div class="entry-body"><p>Rewrote <code>README.md</code> from full source analysis. Updated file count (102&#8594;121), corrected agent budgets, added Verity Audit Pipeline and Motif Ledger features, updated source tree.</p><h4>Changed</h4><ul><li><code>README.md</code> &#8212; Full rewrite with verified features, agent registry, source tree</li></ul></div></details>
+
+    <details class="entry" open><summary><span class="entry-date">2026-03-27</span> Issue fixes r002: 9 bug fixes from repo evaluation</summary><div class="entry-body"><p>Fixed error path cleanup, revision event forwarding, missing callStart events, duplicate polling, silent errors, extracted shared stream handler, abort-on-switchBook, modal close-on-stream-end, system prompt guard.</p><h4>Added</h4><ul><li><code>src/renderer/stores/streamHandler.ts</code> &#8212; Shared createStreamHandler() factory</li></ul><h4>Changed</h4><ul><li><code>chatStore.ts</code>, <code>modalChatStore.ts</code>, <code>pitchRoomStore.ts</code> &#8212; Error cleanup, shared handler</li><li><code>cliActivityStore.ts</code> &#8212; Module-level timer refs</li><li><code>ClaudeCodeClient.ts</code> &#8212; EPIPE logging, 500KB prompt guard</li></ul></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> Repo evaluation: comprehensive audit</summary><div class="entry-body"><p>Full audit of stream event isolation, CLI activity monitor, latent bugs. No critical chat bleed. 12 findings identified.</p><h4>Added</h4><ul><li><code>issues.md</code> &#8212; Full evaluation report</li></ul></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-12: Audit silent error swallowing</summary><div class="entry-body"><p>Audited 115 bare catch blocks. Added comments to 12 uncommented catches in priority files.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-09: Slim ChatService to router</summary><div class="entry-body"><p>ChatService now 403 lines (from 1,218 &#8212; 67% reduction). Removed unused dependencies.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-07 &amp; 08: Extract HotTakeService and AdhocRevisionService</summary><div class="entry-body"><p>Two new services: HotTakeService (98 lines) and AdhocRevisionService (105 lines).</p><h4>Added</h4><ul><li><code>src/application/HotTakeService.ts</code></li><li><code>src/application/AdhocRevisionService.ts</code></li></ul></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-06: Extract PitchRoomService</summary><div class="entry-body"><p>PitchRoomService (109 lines). StreamManager now externally shared between services.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-05: Extract AuditService</summary><div class="entry-body"><p>AuditService (350 lines) with auditChapter, fixChapter, runMotifAudit. ChatService: 1,121&#8594;637 lines.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-04: Extract StreamManager</summary><div class="entry-body"><p>StreamManager owns active-streams map and stream lifecycle. All four patterns delegate to startStream().</p><h4>Added</h4><ul><li><code>src/application/StreamManager.ts</code></li><li><code>src/application/thinkingBudget.ts</code></li></ul></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-03: Add IChatService and IUsageService</summary><div class="entry-body"><p>IChatService (14 methods) and IUsageService (3 methods). IPC handlers now fully interface-dependent.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-13: Database migration system</summary><div class="entry-body"><p>Forward-only SQLite migrations. schema_version table. Converted ad hoc ALTER TABLE to v1 migration.</p><h4>Added</h4><ul><li><code>src/infrastructure/database/migrations.ts</code></li></ul></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-14: Standardize agent filenames</summary><div class="entry-body"><p>FORGE.MD&#8594;FORGE.md, Quill.md&#8594;QUILL.md. Bootstrap auto-rename migration.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-11: Clean up Wrangler vestige</summary><div class="entry-body"><p>Wrangler role: 'Context Planner'&#8594;'Revision Plan Parser' (reflects actual usage).</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-10: Document renderer value imports exception</summary><div class="entry-body"><p>Formalized exception: renderer may import pure data constants from domain.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-02: Extract status messages</summary><div class="entry-body"><p>~190 lines moved to statusMessages.ts. constants.ts: 755&#8594;273 lines.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> ARCH-01: Extract prompt templates</summary><div class="entry-body"><p>9 prompt templates moved to .md files in agents/. constants.ts: 755&#8594;466 lines.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> Remove phrase ledger, consolidate into motif ledger</summary><div class="entry-body"><p>Phrase ledger eliminated. All tracking now in motif-ledger.json. Renamed violation type, IPC channel, bridge method, and service method.</p></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> Motif Ledger: full-stack feature</summary><div class="entry-body"><p>7-section structured tracking system. IPC wiring, preload bridge, Zustand store, 7 CRUD tab panels. New view: motif-ledger.</p><h4>Added</h4><ul><li><code>src/renderer/stores/motifLedgerStore.ts</code></li><li><code>src/renderer/components/MotifLedger/</code> &#8212; 8 files</li><li>3 IPC channels</li></ul></div></details>
+
+    <details class="entry"><summary><span class="entry-date">2026-03-27</span> Full architecture documentation</summary><div class="entry-body"><p>All 6 architecture docs created: ARCHITECTURE.md, DOMAIN.md, INFRASTRUCTURE.md, APPLICATION.md, IPC.md, RENDERER.md. 60+ types, 11 interfaces, 80+ channels, 14 stores.</p></div></details>
+</div>
+
+<footer class="site-footer"><div class="footer-inner"><div class="footer-col"><h4>Novel Engine</h4><p>v0.1.0 &#183; AGPL-3.0</p><p>Built with Claude Code CLI, Electron, React, and Pandoc.</p></div><div class="footer-col"><h4>Links</h4><p><a href="https://github.com/john-paul-ruf/novel-engine">GitHub Repository</a></p><p><a href="https://github.com/john-paul-ruf/novel-engine/releases">Releases</a></p></div><div class="footer-col"><h4>Contact</h4><p>John Ruf</p><p><a href="mailto:john.paul.ruf@gmail.com">john.paul.ruf@gmail.com</a></p></div></div><div class="footer-bottom"><p>No tracking. No cookies. No analytics.</p><p>Seven agents. Fourteen phases. One manuscript.</p></div></footer>
+<script>document.querySelector('.hamburger').addEventListener('click',function(){document.querySelector('.mobile-menu').classList.toggle('open')});</script>
+</body>
+</html>
