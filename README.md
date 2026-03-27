@@ -52,7 +52,7 @@ Novel Engine is a workshop for constructing books. It replaces a scattered multi
 The author drives every creative decision. The agents are your editorial staff — each one a specialist who does their job at the right moment in the build process:
 
 - **Spark** develops the story concept and produces the pitch document
-- **Verity** drafts prose in the author's voice (captured through a Voice Profile interview), builds scaffolding documents, and implements revisions
+- **Verity** drafts prose in the author's voice (captured through a Voice Profile interview), builds scaffolding documents, and implements revisions — with phase-aware prompt assembly that loads specialized instructions for scaffolding, drafting, revision, and mechanical fixes
 - **Ghostlight** reads the manuscript cold and reports the raw reader experience
 - **Lumen** runs a deep structural assessment across seven diagnostic lenses
 - **Forge** synthesizes all feedback into a prioritized revision task list with session-by-session execution prompts
@@ -68,14 +68,14 @@ The pipeline takes a book from **pitch → polished manuscript** in 14 structure
 | Agent | Role | What They Do |
 |-------|------|--------------|
 | **Spark** | Story Pitch | Explores your idea through conversation, then produces a full pitch card — premise, themes, characters, emotional engine, opening hook |
-| **Verity** | Ghostwriter | The only agent that writes prose. Drafts chapters using your captured voice profile, builds the scene outline and story bible, implements revision changes |
+| **Verity** | Ghostwriter | The only agent that writes prose. Drafts chapters using your captured voice profile, builds the scene outline and story bible, implements revision changes. Runs phase-specific sub-prompts (scaffold, draft, revision, mechanical fixes) and integrates with the motif ledger |
 | **Ghostlight** | First Reader | Reads the manuscript cold — no notes, no context — and reports the unfiltered reader experience |
 | **Lumen** | Developmental Editor | Seven-lens structural analysis: protagonist arc, supporting cast, pacing, scene necessity, theme, narrative logic, and a revision roadmap |
 | **Sable** | Copy Editor | Line-level polish: grammar, style consistency, mechanical errors. Produces the audit report and maintains the style sheet |
 | **Forge** | Task Master | Synthesizes reader and dev reports into a prioritized, phased revision plan with session prompts for Verity |
 | **Quill** | Publisher | Audits build outputs, generates publication metadata — title, description, keywords, BISAC categories, back-cover copy |
 
-Default thinking budgets: Spark 8K, Verity 10K, Ghostlight 6K, Lumen 16K, Sable 4K, Forge 8K, Quill 4K tokens.
+Default thinking budgets: Spark 4K, Verity 10K, Ghostlight 6K, Lumen 16K, Sable 4K, Forge 8K, Quill 4K tokens.
 
 ---
 
@@ -153,6 +153,30 @@ Features:
 - **Chapter tracking** — shows how many chapters have been written during the current run
 - **Safety valve** — hard limit of 150 iterations prevents runaway loops
 - **Signal-based completion** — Verity signals `DRAFT_COMPLETE` when all chapters are drafted
+- **Integrated quality checks** — every chapter runs through the Verity Audit pipeline (audit → fix if needed), and a motif/phrase audit runs every 3 chapters to keep the motif ledger accurate
+
+### Verity Audit Pipeline
+
+An automated quality assurance system that runs after every agent interaction and during auto-draft:
+
+- **Audit pass** — a Sonnet-powered audit agent scans each chapter for editorial narration, flagged phrases, anti-patterns, voice drift, and continuity errors
+- **Fix pass** — if the audit severity reaches "moderate" or "heavy," a targeted fix agent automatically corrects the issues
+- **Motif audit** — runs periodically during auto-draft (every 3 chapters) to keep the motif ledger's flagged phrases section accurate
+- **Non-blocking** — audit/fix results stream to the CLI Activity Monitor without interrupting the main workflow
+
+### Motif Ledger
+
+A structured tracking system for recurring literary elements across the manuscript:
+
+- **Motif Systems** — named clusters of motifs with arc trajectories (e.g., "Water Imagery" escalating through chapters)
+- **Motif Entries** — individual phrases or images tied to characters, with first appearances and occurrence tracking
+- **Structural Devices** — narrative techniques (callbacks, parallels, frame structures) with chapter references
+- **Foreshadowing Tracker** — planted seeds with expected payoffs and status (planted, paid-off, abandoned)
+- **Minor Character Motifs** — per-character motif assignments for the supporting cast
+- **Flagged Phrases** — words and constructions to retire, limit, or avoid — with alternatives and per-chapter limits
+- **Audit Log** — records of which chapters have been audited and what was found
+
+The ledger is stored as `source/motif-ledger.json` per book and is editable through a tabbed interface with seven panels. Verity reads the ledger during drafting and revision to maintain motif consistency.
 
 ### Hot Take
 
@@ -345,7 +369,7 @@ macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWOR
 
 ### Source Code Architecture
 
-102 TypeScript/TSX source files across five clean architecture layers:
+121 TypeScript/TSX source files across five clean architecture layers:
 
 ```
 src/
@@ -353,6 +377,7 @@ src/
 │   ├── types.ts                         # All shared type definitions
 │   ├── interfaces.ts                    # Service contracts (ports)
 │   ├── constants.ts                     # Agent registry, pipeline phases, prompts, status messages
+│   ├── statusMessages.ts               # Rotating fun status messages for UI
 │   └── index.ts                         # Barrel export
 │
 ├── infrastructure/                      # LAYER 2: Implements domain interfaces
@@ -361,10 +386,11 @@ src/
 │   │   └── index.ts
 │   ├── database/
 │   │   ├── schema.ts                    # SQLite schema (conversations, messages, usage, streams)
+│   │   ├── migrations.ts               # Schema migration logic
 │   │   ├── DatabaseService.ts           # All query methods with prepared statements
 │   │   └── index.ts
 │   ├── agents/
-│   │   ├── AgentService.ts              # Loads agent .md prompts from disk
+│   │   ├── AgentService.ts              # Loads agent .md prompts from disk, composite prompt assembly
 │   │   └── index.ts
 │   ├── filesystem/
 │   │   ├── FileSystemService.ts         # Book CRUD, file I/O, pitches, covers, archiving
@@ -381,11 +407,19 @@ src/
 ├── application/                         # LAYER 3: Business logic via injected interfaces
 │   ├── ChatService.ts                   # Send → stream → save orchestration
 │   ├── ContextBuilder.ts                # Budget-aware context assembly with compaction
-│   ├── PipelineService.ts               # Phase detection with user confirmation gates
+│   ├── PipelineService.ts              # Phase detection with user confirmation gates
 │   ├── BuildService.ts                  # Pandoc execution for DOCX/EPUB
 │   ├── UsageService.ts                  # Token tracking
 │   ├── RevisionQueueService.ts          # Revision plan parsing, session execution, approval gates
 │   ├── ChapterValidator.ts              # Auto-corrects misplaced chapter files
+│   ├── AuditService.ts                  # Verity audit/fix pipeline, motif audit
+│   ├── PitchRoomService.ts              # Pitch Room message handling
+│   ├── HotTakeService.ts                # Ghostlight hot-take orchestration
+│   ├── AdhocRevisionService.ts          # Direct feedback → Forge revision plan
+│   ├── StreamManager.ts                 # Stream lifecycle, session tracking, file change detection
+│   ├── MotifLedgerService.ts            # Motif ledger CRUD and unaudited chapter detection
+│   ├── thinkingBudget.ts                # Thinking budget resolution logic
+│   ├── index.ts                         # Barrel export
 │   └── context/
 │       └── TokenEstimator.ts            # ~4 chars/token estimation
 │
@@ -413,18 +447,19 @@ src/
     │   ├── revisionQueueStore.ts        # Revision queue state
     │   ├── modalChatStore.ts            # Modal chat overlay state
     │   ├── cliActivityStore.ts          # CLI activity monitoring
-    │   ├── autoDraftStore.ts            # Auto-draft chapter loop
+    │   ├── autoDraftStore.ts            # Auto-draft chapter loop with audit integration
     │   ├── fileChangeStore.ts           # File change tracking from watchers
-    │   └── streamRouter.ts              # Routes stream events to correct stores
+    │   ├── motifLedgerStore.ts          # Motif ledger CRUD and tab state
+    │   └── streamHandler.ts             # Routes stream events to correct stores
     ├── components/
     │   ├── Layout/                      # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                  # OnboardingWizard
     │   ├── Settings/                    # SettingsView
     │   ├── Sidebar/                     # BookSelector, PipelineTracker, FileTree,
     │   │                                #   VoiceSetupButton, ShelvedPitchesPanel,
-    │   │                                #   PitchPreviewModal, CliActivityButton,
-    │   │                                #   RevisionQueueButton, HotTakeButton,
-    │   │                                #   AdhocRevisionButton
+    │   │                                #   PitchPreviewModal, PitchHistory,
+    │   │                                #   CliActivityButton, RevisionQueueButton,
+    │   │                                #   HotTakeButton, AdhocRevisionButton
     │   ├── Chat/                        # ChatView, ChatInput, ChatModal, ChatTitleBar,
     │   │                                #   MessageBubble, MessageList, StreamingMessage,
     │   │                                #   ThinkingBlock, ThinkingBudgetSlider, QuickActions,
@@ -437,12 +472,18 @@ src/
     │   ├── Build/                       # BuildView
     │   ├── RevisionQueue/               # RevisionQueueView, SessionCard, QueueControls,
     │   │                                #   TaskProgress, RevisionSessionPanel
+    │   ├── MotifLedger/                 # MotifLedgerView, SystemsTab, EntriesTab,
+    │   │                                #   StructuralTab, ForeshadowTab,
+    │   │                                #   MinorCharactersTab, FlaggedPhrasesTab,
+    │   │                                #   AuditLogTab
     │   ├── CliActivity/                 # CliActivityPanel
     │   └── ErrorBoundary/               # ErrorBoundary
     ├── hooks/
     │   ├── useTheme.ts                  # Dark/light/system theme sync
     │   ├── useRotatingStatus.ts         # Fun rotating status messages
-    │   └── useRevisionQueueEvents.ts    # Revision queue event subscription
+    │   ├── useRevisionQueueEvents.ts    # Revision queue event subscription
+    │   ├── useResizeHandle.ts           # Horizontal sidebar resize
+    │   └── useVerticalResize.ts         # Vertical panel resize
     └── styles/
         └── globals.css                  # Tailwind v4 import + minimal custom styles
 ```
@@ -475,6 +516,7 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
 │   │   │   ├── project-tasks.md      # (+ project-tasks-v1.md after revision)
 │   │   │   ├── revision-prompts.md   # (+ revision-prompts-v1.md after revision)
 │   │   │   ├── metadata.md
+│   │   │   ├── motif-ledger.json     # Motif tracking (systems, entries, foreshadows, phrases)
 │   │   │   ├── revision-plan-cache.json   # Wrangler parse cache
 │   │   │   └── revision-queue-state.json  # Session progress state
 │   │   ├── chapters/
@@ -494,13 +536,28 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
 │       └── drafts/{conversationId}/
 │           └── source/pitch.md
 └── custom-agents/
-    ├── SPARK.md
-    ├── VERITY.md
+    ├── SPARK.md                      # Core agent prompts (7 creative agents)
+    ├── VERITY-CORE.md                # Verity base prompt
+    ├── VERITY-SCAFFOLD.md            # Phase: scaffolding
+    ├── VERITY-DRAFT.md               # Phase: first draft
+    ├── VERITY-REVISION.md            # Phase: revision
+    ├── VERITY-MECHANICAL.md          # Phase: mechanical fixes
+    ├── VERITY-LEDGER.md              # Motif ledger integration
+    ├── VERITY-AUDIT.md               # Quality audit agent
+    ├── VERITY-FIX.md                 # Automated fix agent
     ├── GHOSTLIGHT.md
     ├── LUMEN.md
     ├── SABLE.md
-    ├── FORGE.MD
-    └── Quill.md
+    ├── FORGE.md
+    ├── QUILL.md
+    ├── VOICE-SETUP.md                # Voice profile interview
+    ├── AUTHOR-PROFILE.md             # Author profile setup
+    ├── PITCH-ROOM.md                 # Spark in pitch room mode
+    ├── HOT-TAKE.md                   # Ghostlight hot take
+    ├── MOTIF-AUDIT.md                # Motif/phrase audit
+    ├── ADHOC-REVISION.md             # Direct feedback → Forge
+    ├── REVISION-VERIFICATION.md      # Post-revision verification
+    └── WRANGLER-PARSE.md             # Revision plan parser
 ```
 
 Agent system prompts live in `custom-agents/` and are fully editable — customize any agent's behavior by modifying its `.md` file. Missing agents are automatically restored from the bundled copies on startup (without overwriting your customizations).
@@ -536,9 +593,9 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 
 - **Domain** ([`src/domain/`](./src/domain/)) — Pure TypeScript types, interfaces, and constants. Zero imports. Every other layer depends on this.
 - **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence.
-- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, UsageService, ChapterValidator.
+- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
-- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (13 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
+- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (14 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
 
 All services are constructor-injected. The only place concrete classes are instantiated is [`src/main/index.ts`](./src/main/index.ts).
 
