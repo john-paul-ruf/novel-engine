@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { AGENT_REGISTRY, randomPitchRoomFlavor } from '@domain/constants';
+import { AGENT_REGISTRY } from '@domain/constants';
+import { randomPitchRoomFlavor } from '@domain/statusMessages';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { MessageBubble } from '../Chat/MessageBubble';

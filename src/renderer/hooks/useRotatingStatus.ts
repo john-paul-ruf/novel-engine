@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { randomRespondingStatus } from '@domain/constants';
+import { randomRespondingStatus } from '@domain/statusMessages';
 
 /**
  * Returns a status string that automatically cycles through random fun messages

@@ -5,6 +5,8 @@ import { createWriteStream } from 'node:fs';
 import * as path from 'node:path';
 import archiver from 'archiver';
 import type {
+  IAuditService,
+  IChatService,
   ISettingsService,
   IAgentService,
   IDatabaseService,
@@ -13,6 +15,7 @@ import type {
   IBuildService,
   IRevisionQueueService,
   IMotifLedgerService,
+  IUsageService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -28,8 +31,6 @@ import type {
   StreamEvent,
 } from '@domain/types';
 import { AVAILABLE_MODELS } from '@domain/constants';
-import type { ChatService } from '@app/ChatService';
-import type { UsageService } from '@app/UsageService';
 import type { NotificationManager } from '../notifications';
 
 export function registerIpcHandlers(services: {
@@ -37,10 +38,11 @@ export function registerIpcHandlers(services: {
   agents: IAgentService;
   db: IDatabaseService;
   fs: IFileSystemService;
-  chat: ChatService;
+  chat: IChatService;
+  audit: IAuditService;
   pipeline: IPipelineService;
   build: IBuildService;
-  usage: UsageService;
+  usage: IUsageService;
   revisionQueue: IRevisionQueueService;
   motifLedger: IMotifLedgerService;
   notifications: NotificationManager;
@@ -383,6 +385,7 @@ export function registerIpcHandlers(services: {
     try {
       return await fsPromises.readFile(profilePath, 'utf-8');
     } catch {
+      // ENOENT — no author profile yet
       return '';
     }
   });
@@ -563,7 +566,7 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('verity:auditChapter', async (_, bookSlug: string, chapterSlug: string, rendererCallId?: string, rendererConversationId?: string) => {
     const callId = rendererCallId ?? `audit:${randomUUID()}`;
     const broadcastConversationId = rendererConversationId ?? `audit-${randomUUID()}`;
-    return services.chat.auditChapter({
+    return services.audit.auditChapter({
       bookSlug,
       chapterSlug,
       conversationId: rendererConversationId,
@@ -574,7 +577,7 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('verity:fixChapter', async (_, bookSlug: string, chapterSlug: string, conversationId: string, rendererCallId?: string) => {
     const sessionId = randomUUID();
     const callId = rendererCallId ?? `fix:${sessionId}`;
-    await services.chat.fixChapter({
+    await services.audit.fixChapter({
       bookSlug,
       chapterSlug,
       auditResult: { chapter: chapterSlug, violations: [], summary: { total: 0, by_type: {}, severity: 'clean' } },
@@ -588,7 +591,7 @@ export function registerIpcHandlers(services: {
     const sessionId = randomUUID();
     const callId = rendererCallId ?? `fix:${sessionId}`;
     const auditResult = JSON.parse(auditResultJson);
-    await services.chat.fixChapter({
+    await services.audit.fixChapter({
       bookSlug,
       chapterSlug,
       auditResult,
@@ -602,7 +605,7 @@ export function registerIpcHandlers(services: {
     const appSettings = await services.settings.load();
     const sessionId = randomUUID();
     const callId = rendererCallId ?? `motif-audit:${sessionId}`;
-    await services.chat.runMotifAudit({
+    await services.audit.runMotifAudit({
       bookSlug,
       appSettings,
       onEvent: broadcastVerityEvent(callId, `motif-audit-${sessionId}`),

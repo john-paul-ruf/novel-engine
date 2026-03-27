@@ -26,6 +26,7 @@ export class SettingsService implements ISettingsService {
       this._cache = { ...DEFAULT_SETTINGS, ...stored };
       return this._cache;
     } catch {
+      // ENOENT or malformed JSON — use defaults for first launch
       this._cache = { ...DEFAULT_SETTINGS };
       return this._cache;
     }
@@ -48,6 +49,7 @@ export class SettingsService implements ISettingsService {
       await this.update({ hasClaudeCli: found });
       return found;
     } catch {
+      // CLI not found or timed out
       await this.update({ hasClaudeCli: false });
       return false;
     }

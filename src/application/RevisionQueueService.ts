@@ -22,7 +22,6 @@ import type {
   ISettingsService,
 } from '@domain/interfaces';
 import {
-  WRANGLER_SESSION_PARSE_PROMPT,
   WRANGLER_MODEL,
   AGENT_REGISTRY,
 } from '@domain/constants';
@@ -146,10 +145,11 @@ export class RevisionQueueService implements IRevisionQueueService {
         // Migrate legacy file to new path
         if (p === LEGACY_CACHE_PATH) {
           await this.writeCache(bookSlug, cache);
-          try { await this.fs.deleteFile(bookSlug, LEGACY_CACHE_PATH); } catch { /* best-effort */ }
+          try { await this.fs.deleteFile(bookSlug, LEGACY_CACHE_PATH); } catch { /* best-effort cleanup */ }
         }
         return cache;
       } catch {
+        // ENOENT or malformed JSON — try next path
         continue;
       }
     }
@@ -182,6 +182,7 @@ export class RevisionQueueService implements IRevisionQueueService {
         }
         return state;
       } catch {
+        // ENOENT or malformed JSON — try next path
         continue;
       }
     }
@@ -371,7 +372,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       const wranglerThinkingBudget = wranglerSettings.enableThinking ? 4000 : undefined;
       await this.claude.sendMessage({
         model: WRANGLER_MODEL,
-        systemPrompt: WRANGLER_SESSION_PARSE_PROMPT,
+        systemPrompt: await this.agents.loadRaw('WRANGLER-PARSE.md'),
         messages: [{ role: 'user' as const, content: userMessage }],
         maxTokens: 8192,
         thinkingBudget: wranglerThinkingBudget,

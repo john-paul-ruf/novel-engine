@@ -4,6 +4,304 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — ARCH-12: Audit and fix silent error swallowing
+
+### Summary
+
+Audited all 115 bare `catch {}` blocks across the codebase. Added explanatory comments to 12 uncommented catches in priority files (SettingsService, FileSystemService, MotifLedgerService, RevisionQueueService, bootstrap, handlers). Found that 82 catches already had comments, and the remaining 33 are clearly ENOENT-expected patterns or already log with `console.warn`. No behavioral changes — visibility only.
+
+### Changed
+- `src/infrastructure/settings/SettingsService.ts` — Added comments to 2 catches (settings load, CLI detection)
+- `src/infrastructure/filesystem/FileSystemService.ts` — Added comments to 2 catches (books dir, active book)
+- `src/application/MotifLedgerService.ts` — Added comments to 2 catches (load, getUnauditedChapters)
+- `src/application/RevisionQueueService.ts` — Added comments to 2 catches (readCache, readState)
+- `src/main/bootstrap.ts` — Added comment to 1 catch (needsBootstrap)
+- `src/main/ipc/handlers.ts` — Added comment to 1 catch (author profile load)
+
+### Architecture Impact
+- None — comments only
+
+---
+
+## [2026-03-27] — ARCH-09: Slim ChatService to router
+
+### Summary
+
+Final cleanup of ChatService after all extractions. Removed unused `IAuditService` and `IUsageService` dependencies (StreamManager handles usage recording). ChatService is now a clean router at 403 lines (down from 1,218 — 67% reduction).
+
+### Changed
+- `src/application/ChatService.ts` — Removed `audit: IAuditService` and `usage: IUsageService` constructor params (no longer directly needed). Final line count: 403.
+- `src/main/index.ts` — Updated ChatService constructor call.
+
+### Architecture Impact
+- ChatService decomposition complete: from god object (1,218 lines) to clean router (403 lines)
+- Extracted services: StreamManager (232), AuditService (350), PitchRoomService (109), HotTakeService (98), AdhocRevisionService (105)
+
+---
+
+## [2026-03-27] — ARCH-07 & ARCH-08: Extract HotTakeService and AdhocRevisionService
+
+### Summary
+
+Extracted `handleHotTake()` into HotTakeService and `handleAdhocRevision()` into AdhocRevisionService. Both implement domain interfaces. ChatService now delegates all three special-purpose conversation flows (pitch-room, hot-take, adhoc-revision) to their own services.
+
+### Added
+- `src/application/HotTakeService.ts` — `HotTakeService` implementing `IHotTakeService` (98 lines)
+- `src/application/AdhocRevisionService.ts` — `AdhocRevisionService` implementing `IAdhocRevisionService` (105 lines)
+- `src/domain/interfaces.ts` — `IHotTakeService`, `IAdhocRevisionService` interfaces
+
+### Changed
+- `src/application/ChatService.ts` — Removed `handleHotTake()` and `handleAdhocRevision()`. Added `hotTake: IHotTakeService` and `adhocRevision: IAdhocRevisionService` constructor params. ChatService: 559→407 lines.
+- `src/main/index.ts` — Instantiate HotTakeService and AdhocRevisionService, inject into ChatService.
+
+### Architecture Impact
+- New interfaces: `IHotTakeService`, `IAdhocRevisionService` in domain layer
+- New services: `HotTakeService`, `AdhocRevisionService` in application layer
+- ChatService reduced from 1,218→407 lines (67% reduction)
+
+### Migration Notes
+- None — internal refactor only
+
+---
+
+## [2026-03-27] — ARCH-06: Extract PitchRoomService from ChatService
+
+### Summary
+
+Extracted `handlePitchRoomMessage()` from ChatService into a new `PitchRoomService` behind an `IPitchRoomService` interface. StreamManager is now instantiated externally in main/index.ts and shared between ChatService and PitchRoomService (required for correct active-stream tracking).
+
+### Added
+- `src/application/PitchRoomService.ts` — `PitchRoomService` class implementing `IPitchRoomService` (109 lines)
+- `src/domain/interfaces.ts` — `IPitchRoomService` interface (handleMessage)
+
+### Changed
+- `src/application/ChatService.ts` — Removed `handlePitchRoomMessage()`. Added `pitchRoom: IPitchRoomService` and `streamManager: StreamManager` constructor params. StreamManager no longer created internally. ChatService: 637→559 lines.
+- `src/main/index.ts` — StreamManager created externally and injected into both ChatService and PitchRoomService. PitchRoomService instantiated and passed to ChatService.
+
+### Architecture Impact
+- New interface: `IPitchRoomService` in domain layer
+- New service: `PitchRoomService` in application layer
+- StreamManager now externally owned (shared across services)
+
+### Migration Notes
+- None — internal refactor only
+
+---
+
+## [2026-03-27] — ARCH-05: Extract AuditService from ChatService
+
+### Summary
+
+Extracted `auditChapter()`, `fixChapter()`, and `runMotifAudit()` from ChatService into a new `AuditService` behind an `IAuditService` interface. These three methods form a cohesive audit-and-fix subsystem. ChatService's `handleAdhocRevision` now delegates to `this.audit.runMotifAudit()`. IPC handlers route audit channels directly to the audit service.
+
+### Added
+- `src/application/AuditService.ts` — `AuditService` class implementing `IAuditService` (350 lines)
+- `src/domain/interfaces.ts` — `IAuditService` interface (auditChapter, fixChapter, runMotifAudit)
+
+### Changed
+- `src/application/ChatService.ts` — Removed 3 method implementations (~320 lines). Added `audit: IAuditService` constructor param. ChatService reduced from 1,121→637 lines.
+- `src/domain/interfaces.ts` — Moved audit methods from `IChatService` to new `IAuditService`
+- `src/main/ipc/handlers.ts` — Added `audit: IAuditService` to services param. Routed verity:auditChapter, verity:fixChapter, verity:fixChapterWithAudit, verity:runMotifAudit to `services.audit`
+- `src/main/index.ts` — Instantiate `AuditService`, inject into ChatService and registerIpcHandlers
+
+### Architecture Impact
+- New interface: `IAuditService` in domain layer
+- New service: `AuditService` in application layer
+- ChatService no longer owns audit/fix logic
+
+### Migration Notes
+- None — internal refactor only
+
+---
+
+## [2026-03-27] — ARCH-04: Extract StreamManager from ChatService
+
+### Summary
+
+Extracted `StreamManager` and `resolveThinkingBudget()` from ChatService. StreamManager owns the active-streams map and the repetitive register → accumulate → save → record usage → cleanup lifecycle. All four manual stream patterns in ChatService (`sendMessage`, `handleHotTake`, `handleAdhocRevision`, `handlePitchRoomMessage`) now delegate to `StreamManager.startStream()`.
+
+### Added
+- `src/application/StreamManager.ts` — `StreamManager` class: `startStream()`, `resetChangedFiles()`, `getActiveStream()`, `getActiveStreamForBook()`, `getLastChangedFiles()`, `cleanupAbortedStream()`, `cleanupErroredStream()`
+- `src/application/thinkingBudget.ts` — `resolveThinkingBudget()` pure function (per-message override → global override → per-agent default → undefined)
+
+### Changed
+- `src/application/ChatService.ts` — Removed `private activeStreams` and `private lastChangedFiles` fields. Added `private streamManager: StreamManager`. All four stream handler methods now use `streamManager.startStream()` instead of manual buffer/cleanup patterns. Replaced inline `resolveThinkingBudget` with import from `./thinkingBudget`.
+
+### Architecture Impact
+- New classes: `StreamManager` (application layer), `resolveThinkingBudget` (application layer)
+- ChatService stream code reduced by ~250 lines of duplicated buffer/cleanup logic
+- `handlePitchRoomMessage` dead `streamSucceeded` flag eliminated
+
+### Migration Notes
+- None — internal refactor only
+
+---
+
+## [2026-03-27] — ARCH-03: Add IChatService and IUsageService interfaces
+
+### Summary
+
+Added `IChatService` (14 methods) and `IUsageService` (3 methods) interfaces to the domain layer. The IPC handlers now depend on these abstractions instead of concrete application classes. ChatService's constructor now takes `IUsageService` instead of `UsageService`. Both concrete classes have `implements` clauses.
+
+### Added
+- `src/domain/interfaces.ts` — `IChatService` interface (sendMessage, createConversation, getConversations, getMessages, abortStream, getActiveStream, getActiveStreamForBook, getLastDiagnostics, getLastChangedFiles, isCliIdle, recoverOrphanedSessions, getRecoveredOrphans, auditChapter, fixChapter, runMotifAudit)
+- `src/domain/interfaces.ts` — `IUsageService` interface (recordUsage, getSummary, getByConversation)
+
+### Changed
+- `src/domain/interfaces.ts` — Added imports: `ActiveStreamInfo`, `AuditResult`, `ContextDiagnostics`, `ConversationPurpose`
+- `src/application/ChatService.ts` — `implements IChatService`. Constructor param `usage: UsageService` → `usage: IUsageService`. Removed concrete `UsageService` import.
+- `src/application/UsageService.ts` — `implements IUsageService`
+- `src/main/ipc/handlers.ts` — Replaced `import type { ChatService }` and `import type { UsageService }` with `IChatService` and `IUsageService` from `@domain/interfaces`. Updated `registerIpcHandlers` signature.
+
+### Architecture Impact
+- New interfaces: `IChatService`, `IUsageService` in domain layer
+- IPC handlers no longer import from `@app/` — fully interface-dependent
+- ChatService constructor dependency: `UsageService` → `IUsageService`
+
+### Migration Notes
+- None — purely additive interface extraction
+
+---
+
+## [2026-03-27] — ARCH-13: Add database migration system
+
+### Summary
+
+Added a forward-only SQLite migration system. Migrations are defined as sequential versioned entries in `migrations.ts`, each running in its own transaction. The system tracks applied versions in a `schema_version` table. Converted the existing ad hoc ALTER TABLE check (conversations.purpose column) into a proper v1 migration.
+
+### Added
+- `src/infrastructure/database/migrations.ts` — `Migration` type, `MIGRATIONS` array (v0 baseline + v1 purpose column), `runMigrations()` function
+
+### Changed
+- `src/infrastructure/database/schema.ts` — Replaced ad hoc ALTER TABLE check with `runMigrations(db)` call. Added import of `runMigrations`.
+
+### Architecture Impact
+- New table: `schema_version` (version INTEGER, applied_at TEXT, description TEXT)
+- Future schema changes go in `MIGRATIONS` array instead of ad hoc ALTER TABLE checks
+
+### Migration Notes
+- Existing databases get the `schema_version` table created automatically and v0+v1 recorded on next startup. No data loss.
+
+---
+
+## [2026-03-27] — ARCH-14: Standardize agent filenames
+
+### Summary
+
+Standardized all agent prompt filenames to `UPPER-CASE.md` convention. Renamed `FORGE.MD` → `FORGE.md` (extension casing) and `Quill.md` → `QUILL.md` (name casing). Added a rename migration in `bootstrap.ts` so existing user installations get their files renamed automatically on next startup.
+
+### Changed
+- `agents/FORGE.MD` → `agents/FORGE.md` — Extension casing standardized
+- `agents/Quill.md` → `agents/QUILL.md` — Name casing standardized
+- `src/domain/constants.ts` — `AGENT_REGISTRY.Forge.filename`: `'FORGE.MD'` → `'FORGE.md'`, `.Quill.filename`: `'Quill.md'` → `'QUILL.md'`
+- `src/main/bootstrap.ts` — Added agent rename migration step in `ensureAgents()` (runs before file copy)
+- `docs/architecture/DOMAIN.md` — Agent registry table updated with correct filenames
+
+### Architecture Impact
+- None — cosmetic filename change + migration
+
+### Migration Notes
+- Users with existing `custom-agents/` directories: `FORGE.MD` is renamed to `FORGE.md` and `Quill.md` is renamed to `QUILL.md` automatically via the bootstrap migration on next startup
+
+---
+
+## [2026-03-27] — ARCH-11: Clean up Wrangler vestige
+
+### Summary
+
+Updated the Wrangler agent's role from 'Context Planner' to 'Revision Plan Parser' to accurately reflect its actual usage. The Wrangler is only used by `RevisionQueueService` for parsing Forge's revision plan output — the two-call context planning pattern was never implemented.
+
+### Changed
+- `src/domain/constants.ts` — `AGENT_REGISTRY.Wrangler.role`: `'Context Planner'` → `'Revision Plan Parser'`
+- `docs/architecture/DOMAIN.md` — Updated Wrangler role in Agent Registry table
+
+### Architecture Impact
+- None — cosmetic label change only
+
+### Migration Notes
+- None
+
+---
+
+## [2026-03-27] — ARCH-10: Document renderer value imports exception
+
+### Summary
+
+Documented the formal exception that allows the renderer layer to import pure data constants and pure functions from `@domain/constants` and `@domain/statusMessages`. These are statically defined values with zero Node.js dependencies — routing them through the IPC bridge would add complexity for no safety benefit.
+
+### Changed
+- `src/domain/constants.ts` — Added header comment noting the renderer value import exception
+- `docs/architecture/ARCHITECTURE.md` — Added "Renderer Value Import Exception" section with criteria, allowed imports list, and exclusions
+- `docs/architecture/RENDERER.md` — Added callout noting the exception with link to ARCHITECTURE.md
+
+### Architecture Impact
+- Formalized existing practice as a documented exception to the "import type only" rule for renderer↔domain
+
+### Migration Notes
+- None — no code changes, documentation only
+
+---
+
+## [2026-03-27] — ARCH-02: Extract status messages from constants.ts
+
+### Summary
+
+Moved ~190 lines of status message arrays and helper functions from `src/domain/constants.ts` into a new `src/domain/statusMessages.ts` file. The new file has zero imports — pure functions over static data. constants.ts is now 273 lines (from 466 after ARCH-01, originally 755).
+
+### Added
+- `src/domain/statusMessages.ts` — STATUS_PREPARING, STATUS_WAITING, STATUS_RESPONDING, PITCH_ROOM_FLAVOR arrays and their public accessor functions
+
+### Changed
+- `src/domain/constants.ts` — Removed all status message arrays and functions (~190 lines)
+- `src/domain/index.ts` — Added `export * from './statusMessages'` to barrel export
+- `src/application/ChatService.ts` — Import `randomPreparingStatus`, `randomWaitingStatus` from `@domain/statusMessages`
+- `src/renderer/hooks/useRotatingStatus.ts` — Import `randomRespondingStatus` from `@domain/statusMessages`
+- `src/renderer/stores/chatStore.ts` — Import `randomRespondingStatus` from `@domain/statusMessages`
+- `src/renderer/stores/modalChatStore.ts` — Import `randomRespondingStatus` from `@domain/statusMessages`
+- `src/renderer/stores/pitchRoomStore.ts` — Split import: `PITCH_ROOM_SLUG` from constants, `randomRespondingStatus` from statusMessages
+- `src/renderer/components/PitchRoom/PitchRoomView.tsx` — Split import: `AGENT_REGISTRY` from constants, `randomPitchRoomFlavor` from statusMessages
+
+### Architecture Impact
+- New domain file: `src/domain/statusMessages.ts` (zero imports, pure functions)
+- No wiring, IPC, or DI changes
+
+### Migration Notes
+- None
+
+---
+
+## [2026-03-27] — ARCH-01: Extract prompt templates from constants.ts
+
+### Summary
+
+Moved 9 long-form prompt template strings out of `src/domain/constants.ts` into standalone `.md` files in the `agents/` directory. These are now loaded at runtime via `AgentService.loadRaw()`. Reduces constants.ts from 755 lines to 466 lines. The domain layer no longer contains natural language prompt text — only pure configuration data.
+
+### Added
+- `agents/VOICE-SETUP.md` — Voice profile setup instructions (was `VOICE_SETUP_INSTRUCTIONS`)
+- `agents/AUTHOR-PROFILE.md` — Author profile setup instructions (was `AUTHOR_PROFILE_INSTRUCTIONS`)
+- `agents/PITCH-ROOM.md` — Pitch room brainstorming instructions with `{{BOOKS_PATH}}` placeholder (was `buildPitchRoomInstructions()`)
+- `agents/HOT-TAKE.md` — Hot take assessment instructions (was `HOT_TAKE_INSTRUCTIONS`)
+- `agents/MOTIF-AUDIT.md` — Scoped phrase & motif audit instructions (was `MOTIF_AUDIT_INSTRUCTIONS`)
+- `agents/ADHOC-REVISION.md` — Direct feedback mode instructions (was `ADHOC_REVISION_INSTRUCTIONS`)
+- `agents/REVISION-VERIFICATION.md` — Post-revision verification prompt (was `REVISION_VERIFICATION_PROMPT`)
+- `agents/VERITY-FIX.md` — Audit fix mode instructions (was `VERITY_FIX_INSTRUCTIONS`)
+- `agents/WRANGLER-PARSE.md` — Revision plan JSON parsing prompt (was `WRANGLER_SESSION_PARSE_PROMPT`)
+
+### Changed
+- `src/domain/constants.ts` — Removed 9 exported prompt constants/functions (~289 lines). Updated MOTIF_AUDIT_CADENCE comment to reference agent file instead of deleted constant.
+- `src/application/ChatService.ts` — Replaced all 8 prompt constant references with `await this.agents.loadRaw()` calls. `buildPitchRoomInstructions()` replaced with template load + `{{BOOKS_PATH}}` regex replace.
+- `src/application/RevisionQueueService.ts` — Replaced `WRANGLER_SESSION_PARSE_PROMPT` with `await this.agents.loadRaw('WRANGLER-PARSE.md')`.
+
+### Architecture Impact
+- No new IPC channels, stores, or DI wiring changes
+- 9 prompt constants moved from compile-time domain constants to runtime-loaded agent files
+- `AgentService.loadRaw()` now used for 9 additional files beyond its original audit-agent use case
+
+### Migration Notes
+- Users with existing `custom-agents/` directories will get the new files automatically on next startup via `ensureAgents()` (COPYFILE_EXCL — won't overwrite existing files)
+
+---
+
 ## [2026-03-27] — Architecture refactor prompt suite
 
 ### Summary

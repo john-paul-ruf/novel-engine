@@ -32,6 +32,7 @@ export class MotifLedgerService implements IMotifLedgerService {
         auditLog: parsed.auditLog ?? [],
       };
     } catch {
+      // ENOENT or malformed JSON — return empty ledger for new/corrupted books
       return structuredClone(EMPTY_LEDGER);
     }
   }
@@ -52,6 +53,7 @@ export class MotifLedgerService implements IMotifLedgerService {
         .sort();
       return chapterSlugs.filter((slug) => !auditedSlugs.has(slug));
     } catch {
+      // ENOENT — chapters directory doesn't exist yet
       return [];
     }
   }

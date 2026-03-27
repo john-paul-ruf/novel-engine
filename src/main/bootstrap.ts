@@ -1,4 +1,4 @@
-import { mkdir, readdir, copyFile, writeFile, access } from 'node:fs/promises';
+import { mkdir, readdir, copyFile, writeFile, access, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { constants as fsConstants } from 'node:fs';
 
@@ -19,6 +19,7 @@ export async function needsBootstrap(userDataPath: string): Promise<boolean> {
     await access(path.join(userDataPath, INITIALIZED_FLAG), fsConstants.F_OK);
     return false;
   } catch {
+    // ENOENT — flag file doesn't exist, bootstrap needed
     return true;
   }
 }
@@ -36,6 +37,29 @@ export async function needsBootstrap(userDataPath: string): Promise<boolean> {
 export async function ensureAgents(agentsDir: string, agentsSourceDir: string): Promise<void> {
   // Ensure the destination directory exists (idempotent).
   await mkdir(agentsDir, { recursive: true });
+
+  // One-time rename migration: standardize agent filenames to UPPER-CASE.md
+  const AGENT_RENAMES: [string, string][] = [
+    ['FORGE.MD', 'FORGE.md'],
+    ['Quill.md', 'QUILL.md'],
+  ];
+  for (const [oldName, newName] of AGENT_RENAMES) {
+    const oldPath = path.join(agentsDir, oldName);
+    const newPath = path.join(agentsDir, newName);
+    try {
+      await access(oldPath, fsConstants.F_OK);
+      // Old file exists — check if new file already exists
+      try {
+        await access(newPath, fsConstants.F_OK);
+        // Both exist — leave it alone (user may have both from a partial migration)
+      } catch {
+        // New file doesn't exist — rename
+        await rename(oldPath, newPath);
+      }
+    } catch {
+      // Old file doesn't exist — nothing to migrate
+    }
+  }
 
   let entries: string[];
   try {

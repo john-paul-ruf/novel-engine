@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhaseId, ProgressStage, StreamEvent, StreamSessionRecord, TimestampedToolUse, UsageRecord } from '@domain/types';
-import { randomRespondingStatus } from '@domain/constants';
+import { randomRespondingStatus } from '@domain/statusMessages';
 import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
 import { usePipelineStore } from './pipelineStore';

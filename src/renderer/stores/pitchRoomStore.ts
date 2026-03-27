@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Conversation, Message, StreamEvent } from '@domain/types';
-import { PITCH_ROOM_SLUG, randomRespondingStatus } from '@domain/constants';
+import { PITCH_ROOM_SLUG } from '@domain/constants';
+import { randomRespondingStatus } from '@domain/statusMessages';
 
 type PitchRoomState = {
   conversations: Conversation[];

@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { runMigrations } from './migrations';
 
 export function initializeSchema(db: Database.Database): void {
   db.pragma('journal_mode = WAL');
@@ -76,9 +77,6 @@ export function initializeSchema(db: Database.Database): void {
       ON stream_sessions(ended_at) WHERE ended_at IS NULL;
   `);
 
-  // Safety check: ensure purpose column exists (defensive for early dev builds)
-  const columns = db.pragma('table_info(conversations)') as { name: string }[];
-  if (!columns.some((c) => c.name === 'purpose')) {
-    db.exec(`ALTER TABLE conversations ADD COLUMN purpose TEXT NOT NULL DEFAULT 'pipeline'`);
-  }
+  // Run forward-only migrations (handles schema evolution)
+  runMigrations(db);
 }

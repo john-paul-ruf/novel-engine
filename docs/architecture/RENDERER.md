@@ -4,6 +4,8 @@
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
+> **Value Import Exception:** Pure data constants and pure functions from `@domain/constants` and `@domain/statusMessages` may be imported as values (not just types). See [ARCHITECTURE.md](./ARCHITECTURE.md) for criteria.
+
 ---
 
 ## Stores

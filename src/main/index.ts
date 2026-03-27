@@ -57,7 +57,12 @@ import { ClaudeCodeClient } from '@infra/claude-cli';
 import { resolvePandocPath } from '@infra/pandoc';
 
 // Application
+import { AuditService } from '@app/AuditService';
 import { ChatService } from '@app/ChatService';
+import { HotTakeService } from '@app/HotTakeService';
+import { AdhocRevisionService } from '@app/AdhocRevisionService';
+import { PitchRoomService } from '@app/PitchRoomService';
+import { StreamManager } from '@app/StreamManager';
 import { ChapterValidator } from '@app/ChapterValidator';
 import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
@@ -221,7 +226,12 @@ async function initializeApp(): Promise<void> {
   // 4. Instantiate application services
   const usage = new UsageService(db);
   const chapterValidator = new ChapterValidator(booksDir);
-  const chat = new ChatService(settings, agents, db, claudeClient, fs, usage, chapterValidator);
+  const streamManager = new StreamManager(db, usage);
+  const audit = new AuditService(settings, agents, claudeClient, db, fs, usage);
+  const pitchRoom = new PitchRoomService(agents, claudeClient, db, fs, streamManager);
+  const hotTake = new HotTakeService(agents, claudeClient, db, fs, streamManager);
+  const adhocRevision = new AdhocRevisionService(agents, audit, claudeClient, db, fs, streamManager);
+  const chat = new ChatService(settings, agents, db, claudeClient, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
@@ -299,7 +309,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, motifLedger, notifications },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

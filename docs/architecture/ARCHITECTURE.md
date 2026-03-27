@@ -196,6 +196,26 @@ BooksDirWatcher(booksDir, callback)
 - Stores: `camelCaseStore.ts`
 - Barrel exports: `index.ts` in every infrastructure subdirectory
 
+### Renderer Value Import Exception
+
+The renderer layer normally uses `import type` only from domain. However, **pure data constants and pure functions with zero Node.js dependencies** may be imported as values. This avoids routing static configuration through the IPC bridge unnecessarily.
+
+**Criteria for allowed value imports:**
+- Zero Node.js imports (no `fs`, `path`, `child_process`, etc.)
+- No side effects (no I/O, no global state mutation)
+- Statically defined data or pure functions
+
+**Allowed imports from `@domain/constants`:**
+- `AGENT_REGISTRY`, `PIPELINE_PHASES`, `CREATIVE_AGENT_NAMES`
+- `AGENT_QUICK_ACTIONS`, `AVAILABLE_MODELS`
+- `CHARS_PER_TOKEN`, `PITCH_ROOM_SLUG`
+
+**Allowed imports from `@domain/statusMessages`:**
+- `randomRespondingStatus()`, `randomPitchRoomFlavor()`
+
+**NOT allowed from renderer:**
+- Infrastructure classes, application services, or any module with I/O
+
 ### Security
 
 - `contextIsolation: true` — always

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Conversation, ConversationPurpose, Message, StreamEvent } from '@domain/types';
-import { randomRespondingStatus } from '@domain/constants';
+import { randomRespondingStatus } from '@domain/statusMessages';
 
 type ModalChatState = {
   // Visibility

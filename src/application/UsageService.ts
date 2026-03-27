@@ -1,4 +1,4 @@
-import type { IDatabaseService } from '@domain/interfaces';
+import type { IDatabaseService, IUsageService } from '@domain/interfaces';
 import type { UsageRecord, UsageSummary } from '@domain/types';
 
 /**
@@ -8,7 +8,7 @@ import type { UsageRecord, UsageSummary } from '@domain/types';
  * Claude Code CLI subscription, no cost estimation is performed — we
  * simply record raw token counts for informational purposes.
  */
-export class UsageService {
+export class UsageService implements IUsageService {
   constructor(private db: IDatabaseService) {}
 
   /**

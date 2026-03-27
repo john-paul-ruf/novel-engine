@@ -1,12 +1,16 @@
 import type {
+  ActiveStreamInfo,
   Agent,
   AgentName,
   AppSettings,
   ApprovalAction,
+  AuditResult,
   BookMeta,
   BookSummary,
   BuildResult,
+  ContextDiagnostics,
   Conversation,
+  ConversationPurpose,
   FileEntry,
   FileTouchMap,
   Message,
@@ -325,4 +329,117 @@ export interface IChapterValidator {
    * - Nested chapter directories with incorrect structure
    */
   validateAndCorrect(bookSlug: string): Promise<string[]>;
+}
+
+export interface IUsageService {
+  recordUsage(params: {
+    conversationId: string;
+    inputTokens: number;
+    outputTokens: number;
+    thinkingTokens: number;
+    model: string;
+  }): void;
+  getSummary(bookSlug?: string): UsageSummary;
+  getByConversation(conversationId: string): UsageRecord[];
+}
+
+export interface IChatService {
+  sendMessage(params: {
+    agentName: AgentName;
+    message: string;
+    conversationId: string;
+    bookSlug: string;
+    thinkingBudgetOverride?: number;
+    callId?: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<void>;
+
+  createConversation(params: {
+    bookSlug: string;
+    agentName: AgentName;
+    pipelinePhase: PipelinePhaseId | null;
+    purpose?: ConversationPurpose;
+  }): Promise<Conversation>;
+
+  getConversations(bookSlug: string): Promise<Conversation[]>;
+  getMessages(conversationId: string): Promise<Message[]>;
+
+  abortStream(conversationId: string): void;
+  getActiveStream(): ActiveStreamInfo | null;
+  getActiveStreamForBook(bookSlug: string): ActiveStreamInfo | null;
+
+  getLastDiagnostics(): ContextDiagnostics | null;
+  getLastChangedFiles(): string[];
+
+  isCliIdle(bookSlug?: string): boolean;
+
+  recoverOrphanedSessions(): Promise<StreamSessionRecord[]>;
+  getRecoveredOrphans(): StreamSessionRecord[];
+
+}
+
+export interface IAuditService {
+  auditChapter(params: {
+    bookSlug: string;
+    chapterSlug: string;
+    conversationId?: string;
+    onEvent?: (event: StreamEvent) => void;
+  }): Promise<AuditResult | null>;
+
+  fixChapter(params: {
+    bookSlug: string;
+    chapterSlug: string;
+    auditResult: AuditResult;
+    conversationId: string;
+    sessionId: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<void>;
+
+  runMotifAudit(params: {
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+  }): Promise<void>;
+}
+
+export interface IPitchRoomService {
+  handleMessage(params: {
+    conversationId: string;
+    agentName: AgentName;
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    agent: { systemPrompt: string; thinkingBudget: number };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+    thinkingBudgetOverride?: number;
+    callId?: string;
+  }): Promise<void>;
+}
+
+export interface IHotTakeService {
+  handleMessage(params: {
+    conversationId: string;
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    agent: { systemPrompt: string; thinkingBudget: number };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+    thinkingBudgetOverride?: number;
+    callId?: string;
+  }): Promise<void>;
+}
+
+export interface IAdhocRevisionService {
+  handleMessage(params: {
+    conversationId: string;
+    bookSlug: string;
+    message: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    agent: { systemPrompt: string; thinkingBudget: number };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+    thinkingBudgetOverride?: number;
+    callId?: string;
+  }): Promise<void>;
 }

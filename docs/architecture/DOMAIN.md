@@ -318,6 +318,38 @@ Implemented by: `ChapterValidator` (`src/application/`)
 |--------|-----------|---------|
 | `validateAndCorrect` | `(bookSlug) => Promise<string[]>` | List of corrected file paths |
 
+### IUsageService
+
+Implemented by: `UsageService` (`src/application/`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `recordUsage` | `(params: { conversationId, inputTokens, outputTokens, thinkingTokens, model }) => void` | Records token usage |
+| `getSummary` | `(bookSlug?) => UsageSummary` | Aggregated usage stats |
+| `getByConversation` | `(conversationId) => UsageRecord[]` | Usage records for a conversation |
+
+### IChatService
+
+Implemented by: `ChatService` (`src/application/`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `sendMessage` | `(params: { agentName, message, conversationId, bookSlug, thinkingBudgetOverride?, callId?, onEvent }) => Promise<void>` | Streams agent response |
+| `createConversation` | `(params: { bookSlug, agentName, pipelinePhase, purpose? }) => Promise<Conversation>` | New conversation |
+| `getConversations` | `(bookSlug) => Promise<Conversation[]>` | Conversations for a book |
+| `getMessages` | `(conversationId) => Promise<Message[]>` | Messages in a conversation |
+| `abortStream` | `(conversationId) => void` | Kill active CLI stream |
+| `getActiveStream` | `() => ActiveStreamInfo \| null` | First active stream |
+| `getActiveStreamForBook` | `(bookSlug) => ActiveStreamInfo \| null` | Active stream for a book |
+| `getLastDiagnostics` | `() => ContextDiagnostics \| null` | Last context assembly diagnostics |
+| `getLastChangedFiles` | `() => string[]` | Files changed in last interaction |
+| `isCliIdle` | `(bookSlug?) => boolean` | Whether CLI has no active processes |
+| `recoverOrphanedSessions` | `() => Promise<StreamSessionRecord[]>` | Recover interrupted sessions |
+| `getRecoveredOrphans` | `() => StreamSessionRecord[]` | Cached recovered orphans |
+| `auditChapter` | `(params: { bookSlug, chapterSlug, conversationId?, onEvent? }) => Promise<AuditResult \| null>` | Run audit pass |
+| `fixChapter` | `(params: { bookSlug, chapterSlug, auditResult, conversationId, sessionId, onEvent }) => Promise<void>` | Run fix pass |
+| `runMotifAudit` | `(params: { bookSlug, appSettings, onEvent, sessionId }) => Promise<void>` | Run motif/phrase audit |
+
 ---
 
 ## Constants
@@ -333,9 +365,9 @@ Implemented by: `ChapterValidator` (`src/application/`)
 | Ghostlight | GHOSTLIGHT.md | First Reader | #06B6D4 | 6000 | 15 |
 | Lumen | LUMEN.md | Developmental Editor | #10B981 | 16000 | 15 |
 | Sable | SABLE.md | Copy Editor | #EF4444 | 4000 | 20 |
-| Forge | FORGE.MD | Task Master | #F97316 | 8000 | 10 |
-| Quill | Quill.md | Publisher | #6366F1 | 4000 | 8 |
-| Wrangler | WRANGLER.md | Context Planner | #71717A | 4000 | 3 |
+| Forge | FORGE.md | Task Master | #F97316 | 8000 | 10 |
+| Quill | QUILL.md | Publisher | #6366F1 | 4000 | 8 |
+| Wrangler | WRANGLER.md | Revision Plan Parser | #71717A | 4000 | 3 |
 
 ### PIPELINE_PHASES
 
@@ -375,23 +407,25 @@ Implemented by: `ChapterValidator` (`src/application/`)
 | `VERITY_AUDIT_FIX_THRESHOLD` | `'moderate'` | Severity threshold for auto-fix |
 | `MOTIF_AUDIT_CADENCE` | 3 | Run motif/phrase audit every N chapters |
 
-### Prompt Templates
+### Prompt Templates (Extracted to Agent Files)
 
-Long-form instruction constants appended to agent system prompts for specific purposes:
+Prompt templates formerly in constants.ts have been extracted to `agents/*.md` files, loaded at runtime via `AgentService.loadRaw()`:
 
-- `VOICE_SETUP_INSTRUCTIONS` — Verity voice profile interview
-- `AUTHOR_PROFILE_INSTRUCTIONS` — Spark author profile creation
-- `HOT_TAKE_INSTRUCTIONS` — Ghostlight informal assessment
-- `MOTIF_AUDIT_INSTRUCTIONS` — Lumen motif/phrase audit (Lens 8, writes to motif-ledger.json)
-- `ADHOC_REVISION_INSTRUCTIONS` — Forge direct feedback mode
-- `REVISION_VERIFICATION_PROMPT` — Post-revision verification
-- `WRANGLER_SESSION_PARSE_PROMPT` — Revision plan parsing
-- `VERITY_FIX_INSTRUCTIONS` — Audit fix pass
-- `buildPitchRoomInstructions(booksPath)` — Spark pitch room mode (function, takes booksPath)
+| Agent File | Purpose | Loaded By |
+|-----------|---------|-----------|
+| `VOICE-SETUP.md` | Voice profile interview | ChatService |
+| `AUTHOR-PROFILE.md` | Author profile creation | ChatService |
+| `PITCH-ROOM.md` | Pitch room brainstorming (uses `{{BOOKS_PATH}}` placeholder) | ChatService |
+| `HOT-TAKE.md` | Informal manuscript assessment | ChatService |
+| `MOTIF-AUDIT.md` | Scoped phrase & motif audit (Lens 8) | ChatService |
+| `ADHOC-REVISION.md` | Direct feedback revision mode | ChatService |
+| `REVISION-VERIFICATION.md` | Post-revision verification | ChatService |
+| `VERITY-FIX.md` | Audit fix pass (audit JSON appended at runtime) | ChatService |
+| `WRANGLER-PARSE.md` | Revision plan JSON parsing | RevisionQueueService |
 
-### Status Message Pools
+### Status Message Pools — `src/domain/statusMessages.ts`
 
-Three pools of rotating status messages for UI variety:
+Extracted to a separate file. Zero imports — pure functions over static arrays.
 
 - `randomPreparingStatus()` — 45+ messages for context preparation phase
 - `randomWaitingStatus()` — 45+ messages for waiting phase

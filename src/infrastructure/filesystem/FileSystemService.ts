@@ -48,6 +48,7 @@ export class FileSystemService implements IFileSystemService {
     try {
       entries = await fs.readdir(this.booksDir);
     } catch {
+      // ENOENT — books directory doesn't exist yet
       return [];
     }
 
@@ -106,6 +107,7 @@ export class FileSystemService implements IFileSystemService {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       return String(parsed.book ?? '');
     } catch {
+      // ENOENT or malformed JSON — no active book selected
       return '';
     }
   }

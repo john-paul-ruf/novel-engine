@@ -12,7 +12,9 @@ Everything in `src/application/`. Business logic that orchestrates infrastructur
 
 File: `src/application/ChatService.ts`
 
-Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IFileSystemService`, `UsageService`, `ChapterValidator`
+Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IFileSystemService`, `IChapterValidator`, `IPitchRoomService`, `IHotTakeService`, `IAdhocRevisionService`, `StreamManager`
+
+Clean router (403 lines). Delegates special-purpose flows to sub-services. Only the default pipeline flow (context assembly + CLI call) remains inline. Uses `resolveThinkingBudget()` for CLI call configuration.
 
 | Method | What It Does |
 |--------|-------------|
@@ -28,9 +30,9 @@ Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeC
 | `getLastDiagnostics()` | Context assembly diagnostics from last call |
 | `recoverOrphanedSessions()` | Startup recovery — marks interrupted sessions |
 | `getRecoveredOrphans()` | Returns sessions marked as interrupted |
-| `auditChapter(params)` | Runs Verity audit agent on a single chapter |
-| `fixChapter(params)` | Runs Verity fix pass using audit findings |
-| `runMotifAudit(params)` | Runs Lumen motif/phrase audit (Lens 8, updates motif-ledger.json flaggedPhrases) |
+| ~~`auditChapter`~~ | *Moved to AuditService (ARCH-05)* |
+| ~~`fixChapter`~~ | *Moved to AuditService (ARCH-05)* |
+| ~~`runMotifAudit`~~ | *Moved to AuditService (ARCH-05)* |
 
 **Flow (sendMessage):**
 1. Load agent (with phase-specific composite prompt for Verity)
@@ -42,12 +44,114 @@ Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeC
 7. On `done`: save assistant message, record usage, run chapter validation
 8. On `error`: emit error event
 
-**Special modes:**
-- `voice-setup`: Appends `VOICE_SETUP_INSTRUCTIONS` to Verity's prompt
-- `author-profile`: Appends `AUTHOR_PROFILE_INSTRUCTIONS` to Spark's prompt
-- `pitch-room`: Appends `buildPitchRoomInstructions(booksPath)` to Spark's prompt, sets working dir to pitch draft path
-- `hot-take`: Uses `HOT_TAKE_INSTRUCTIONS` with `HOT_TAKE_MODEL` (Opus)
-- `adhoc-revision`: Appends `ADHOC_REVISION_INSTRUCTIONS` to Forge's prompt
+**Special modes** (prompt templates loaded at runtime via `AgentService.loadRaw()`):
+- `voice-setup`: Appends `VOICE-SETUP.md` to Verity's prompt
+- `author-profile`: Appends `AUTHOR-PROFILE.md` to Spark's prompt (with path substitution)
+- `pitch-room`: *Delegated to PitchRoomService (ARCH-06)*
+- `hot-take`: *Delegated to HotTakeService (ARCH-07)*
+- `adhoc-revision`: *Delegated to AdhocRevisionService (ARCH-08)*
+
+### HotTakeService
+
+File: `src/application/HotTakeService.ts`
+
+Dependencies: `IAgentService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
+
+Implements: `IHotTakeService`
+
+Handles Ghostlight "hot take" conversations. Always uses Opus (`HOT_TAKE_MODEL`). Cold-reads the full manuscript and delivers a gut reaction. No files written.
+
+| Method | What It Does |
+|--------|-------------|
+| `handleMessage(params)` | Builds chapter listing, loads HOT-TAKE.md instructions, streams via Ghostlight with `trackFilesChanged: false` |
+
+### AdhocRevisionService
+
+File: `src/application/AdhocRevisionService.ts`
+
+Dependencies: `IAgentService`, `IAuditService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
+
+Implements: `IAdhocRevisionService`
+
+Handles ad hoc revision conversations with Forge. Runs a motif audit pre-step, then Forge reads the manuscript and generates project-tasks.md and revision-prompts.md.
+
+| Method | What It Does |
+|--------|-------------|
+| `handleMessage(params)` | Runs motif audit (non-fatal), builds project manifest, loads ADHOC-REVISION.md, streams via Forge |
+
+### PitchRoomService
+
+File: `src/application/PitchRoomService.ts`
+
+Dependencies: `IAgentService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
+
+Implements: `IPitchRoomService`
+
+Handles pitch-room conversations with the Spark agent. Unique concerns: custom working directory, author profile loading, books path injection for scaffolding.
+
+| Method | What It Does |
+|--------|-------------|
+| `handleMessage(params)` | Loads author profile, builds Pitch Room prompt with `{{BOOKS_PATH}}` replacement, creates draft directory, streams via Spark agent |
+
+### AuditService
+
+File: `src/application/AuditService.ts`
+
+Dependencies: `ISettingsService`, `IAgentService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `IUsageService`
+
+Implements: `IAuditService`
+
+Owns the chapter audit/fix subsystem — three cohesive operations that were extracted from ChatService.
+
+| Method | What It Does |
+|--------|-------------|
+| `auditChapter(params)` | Runs Verity audit agent on a single chapter draft. Returns parsed `AuditResult` or null. Uses Sonnet for speed/cost. |
+| `fixChapter(params)` | Runs Verity fix pass using audit findings. Edits draft in-place. Uses Opus for creative judgment. |
+| `runMotifAudit(params)` | Runs Lumen's phrase/motif audit (Lens 8) across the full manuscript. Updates motif-ledger.json flaggedPhrases. |
+
+**Audit flow:**
+1. Read chapter draft + voice profile + motif ledger (non-fatal if missing)
+2. Load auditor prompt via `agents.loadRaw(VERITY_AUDIT_AGENT_FILE)`
+3. Spawn CLI with Sonnet, 120s timeout
+4. Parse JSON response → `AuditResult`
+
+**Fix flow:**
+1. Load Verity core prompt + VERITY-FIX.md template + audit JSON
+2. Spawn CLI with Opus, 5min timeout
+3. Verity edits the draft file in-place
+
+### StreamManager
+
+File: `src/application/StreamManager.ts`
+
+Dependencies: `IDatabaseService`, `IUsageService`
+
+Owns the `activeStreams` map and the repetitive stream lifecycle pattern used by every CLI agent call. Every stream handler in the app should use `startStream()` instead of manually managing buffers, active stream entries, and done/error cleanup.
+
+| Method | What It Does |
+|--------|-------------|
+| `startStream(params, options?)` | Registers active stream, returns `{ onEvent, getResponseBuffer, getThinkingBuffer }` — caller passes `onEvent` to `claude.sendMessage()` |
+| `resetChangedFiles()` | Clears the changed-files tracker before a new interaction |
+| `getActiveStream()` | Returns info about any active CLI stream, or null |
+| `getActiveStreamForBook(bookSlug)` | Returns active stream for a specific book, or null |
+| `getLastChangedFiles()` | File paths changed during the last interaction |
+| `cleanupAbortedStream(conversationId)` | Returns partial state for abort handling, removes active stream |
+| `cleanupErroredStream(conversationId, sessionId)` | Ends session as idle, removes active stream |
+
+**Stream lifecycle (handled by `startStream` callback):**
+1. Register active stream in Map
+2. Emit `callStart` event
+3. Accumulate `textDelta` / `thinkingDelta` into buffers
+4. Track `progressStage` and `toolDuration` on active stream
+5. On `done`: save assistant message, record usage, end session, delete active stream, call optional `onDone` hook
+6. On `error`: end session as idle, delete active stream
+7. Forward all events to caller's `onEvent`
+
+### resolveThinkingBudget
+
+File: `src/application/thinkingBudget.ts`
+
+Pure function. Resolves the effective thinking budget for a CLI call with priority: per-message override → global override (settings) → per-agent default → undefined (disabled).
 
 ### ContextBuilder
 
@@ -165,7 +269,7 @@ Dependencies: `IFileSystemService`, `IClaudeClient`, `IAgentService`, `IDatabase
 | `onEvent(callback)` | Subscribes to revision queue events |
 
 **Plan parsing:**
-Uses Wrangler model (Sonnet) with `WRANGLER_SESSION_PARSE_PROMPT` to parse Forge's markdown output into structured JSON. Caches the parsed result on disk.
+Uses Wrangler model (Sonnet) with `WRANGLER-PARSE.md` (loaded via `AgentService.loadRaw()`) to parse Forge's markdown output into structured JSON. Caches the parsed result on disk.
 
 **Queue modes:**
 - `manual`: pause after every session for approval
