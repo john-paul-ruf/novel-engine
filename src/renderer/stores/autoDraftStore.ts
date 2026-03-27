@@ -58,6 +58,9 @@ type AutoDraftSession = {
   /** Error message that triggered the pause. Null when not paused. */
   pauseReason: string | null;
 
+  /** Human-readable label for what the loop is doing right now. */
+  stageLabel: string | null;
+
   /** Number of new chapters written during the current run. */
   chaptersWritten: number;
 
@@ -79,6 +82,7 @@ function defaultSession(): AutoDraftSession {
     isRunning: false,
     isPaused: false,
     pauseReason: null,
+    stageLabel: null,
     chaptersWritten: 0,
     conversationId: null,
     error: null,
@@ -274,6 +278,8 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
         const msgsBefore = await window.novelEngine.chat.getMessages(conversationId);
         const assistantCountBefore = msgsBefore.filter((m) => m.role === 'assistant').length;
 
+        patch({ stageLabel: `Drafting chapter ${iteration}…` });
+
         // Each CLI call gets a unique callId — this is the primary isolation
         // mechanism. No two concurrent auto-draft loops will ever share a callId.
         const callId = crypto.randomUUID();
@@ -331,6 +337,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
 
           if (newChapterSlug && !session()?.stopRequested) {
             try {
+              patch({ stageLabel: `Auditing ${newChapterSlug}…` });
               const auditResult = await window.novelEngine.verity.auditChapter(
                 bookSlug,
                 newChapterSlug,
@@ -339,10 +346,12 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
               if (auditResult && shouldFix(auditResult.summary.severity)) {
                 // ── Pass 3: Fix ──────────────────────────────────────
                 if (!session()?.stopRequested) {
+                  patch({ stageLabel: `Fixing ${auditResult.summary.total} violations in ${newChapterSlug}…` });
                   await window.novelEngine.verity.fixChapter(
                     bookSlug,
                     newChapterSlug,
                     conversationId,
+                    auditResult,
                   );
                 }
               }
@@ -357,6 +366,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           if (totalChapters > 0 && totalChapters % PHRASE_AUDIT_CADENCE === 0) {
             if (!session()?.stopRequested) {
               try {
+                patch({ stageLabel: 'Running phrase audit…' });
                 await window.novelEngine.verity.runPhraseAudit(bookSlug);
               } catch {
                 console.warn('[auto-draft] Periodic phrase audit failed');
@@ -405,7 +415,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       const message = err instanceof Error ? err.message : String(err);
       patch({ error: message, isPaused: false, pauseReason: null, _resumeResolve: null });
     } finally {
-      patch({ isRunning: false, stopRequested: false });
+      patch({ isRunning: false, stopRequested: false, stageLabel: null });
 
       // Final pipeline + word count refresh
       usePipelineStore.getState().loadPipeline(bookSlug);

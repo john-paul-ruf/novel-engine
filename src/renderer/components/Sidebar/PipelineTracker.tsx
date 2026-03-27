@@ -101,6 +101,7 @@ export function PipelineTracker(): React.ReactElement {
   const autoDraftPaused = autoDraftSession?.isPaused ?? false;
   const autoDraftPauseReason = autoDraftSession?.pauseReason ?? null;
   const autoDraftChapters = autoDraftSession?.chaptersWritten ?? 0;
+  const autoDraftStageLabel = autoDraftSession?.stageLabel ?? null;
   const autoDraftError = autoDraftSession?.error ?? null;
   const [isBuildingForQuill, setIsBuildingForQuill] = useState(false);
   const [buildForQuillError, setBuildForQuillError] = useState<string | null>(null);
@@ -402,6 +403,7 @@ export function PipelineTracker(): React.ReactElement {
                   isPaused={autoDraftPaused}
                   pauseReason={autoDraftPauseReason}
                   chaptersWritten={autoDraftChapters}
+                  stageLabel={autoDraftStageLabel}
                   onStart={() => autoDraftStart(activeSlug)}
                   onStop={() => autoDraftStop(activeSlug)}
                   onResume={() => autoDraftResume(activeSlug)}
@@ -577,6 +579,7 @@ function AutoDraftSubButton({
   isPaused,
   pauseReason,
   chaptersWritten,
+  stageLabel,
   onStart,
   onStop,
   onResume,
@@ -585,6 +588,7 @@ function AutoDraftSubButton({
   isPaused: boolean;
   pauseReason: string | null;
   chaptersWritten: number;
+  stageLabel: string | null;
   onStart: () => void;
   onStop: () => void;
   onResume: () => void;
@@ -642,18 +646,25 @@ function AutoDraftSubButton({
       <>
         <button
           onClick={() => setShowStopConfirm(true)}
-          className="ml-7 flex w-[calc(100%-1.75rem)] items-center gap-1.5 rounded-md bg-purple-500/15 px-2 py-1 text-[11px] font-medium text-purple-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+          className="ml-7 flex w-[calc(100%-1.75rem)] flex-col gap-0.5 rounded-md bg-purple-500/15 px-2 py-1 text-[11px] font-medium text-purple-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
           title={`Auto Draft running — click to stop (${chaptersWritten} chapter${chaptersWritten !== 1 ? 's' : ''} written)`}
         >
-          <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
-            <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
-            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+          <span className="flex w-full items-center gap-1.5">
+            <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+              <span className="absolute h-3 w-3 animate-ping rounded-full bg-purple-500 opacity-40" />
+              <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+            </span>
+            <span>Auto Draft</span>
+            <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
+              {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
+            </span>
+            <span className="ml-1 text-[9px] text-red-400/70">■ stop</span>
           </span>
-          <span>Auto Draft</span>
-          <span className="ml-auto text-[9px] text-purple-400/80 animate-pulse">
-            {chaptersWritten > 0 ? `${chaptersWritten} ch written` : 'writing…'}
-          </span>
-          <span className="ml-1 text-[9px] text-red-400/70">■ stop</span>
+          {stageLabel && (
+            <span className="w-full truncate text-[9px] font-normal text-purple-400/60 pl-[18px]">
+              {stageLabel}
+            </span>
+          )}
         </button>
         {showStopConfirm && (
           <AutoDraftStopConfirm

@@ -85,6 +85,7 @@ export class ClaudeCodeClient implements IClaudeClient {
     messages: { role: MessageRole; content: string }[];
     maxTokens: number;
     thinkingBudget?: number;
+    maxTurns?: number;
     bookSlug?: string;
     workingDir?: string;
     sessionId?: string;
@@ -125,7 +126,7 @@ export class ClaudeCodeClient implements IClaudeClient {
       '--output-format', 'stream-json',
       '--verbose',
       '--model', model,
-      '--max-turns', '15',
+      '--max-turns', String(params.maxTurns ?? 30),
       '--system-prompt', systemPrompt,
       '--allowedTools', 'Read,Write,Edit,LS',
     ];

@@ -208,8 +208,10 @@ const api = {
   verity: {
     auditChapter: (bookSlug: string, chapterSlug: string): Promise<AuditResult | null> =>
       ipcRenderer.invoke('verity:auditChapter', bookSlug, chapterSlug),
-    fixChapter: (bookSlug: string, chapterSlug: string, conversationId: string): Promise<void> =>
-      ipcRenderer.invoke('verity:fixChapter', bookSlug, chapterSlug, conversationId),
+    fixChapter: (bookSlug: string, chapterSlug: string, conversationId: string, auditResult?: AuditResult): Promise<void> =>
+      auditResult
+        ? ipcRenderer.invoke('verity:fixChapterWithAudit', bookSlug, chapterSlug, conversationId, JSON.stringify(auditResult))
+        : ipcRenderer.invoke('verity:fixChapter', bookSlug, chapterSlug, conversationId),
     runPhraseAudit: (bookSlug: string): Promise<void> =>
       ipcRenderer.invoke('verity:runPhraseAudit', bookSlug),
   },

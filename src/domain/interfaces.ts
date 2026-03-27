@@ -164,6 +164,7 @@ export interface IClaudeClient {
     messages: { role: MessageRole; content: string }[];
     maxTokens: number;
     thinkingBudget?: number;
+    maxTurns?: number;           // CLI --max-turns (default 30)
     bookSlug?: string;
     workingDir?: string;
     sessionId?: string;          // caller-provided session ID for tracking
