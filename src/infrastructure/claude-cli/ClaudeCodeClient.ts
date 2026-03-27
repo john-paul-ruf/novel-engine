@@ -123,29 +123,59 @@ export class ClaudeCodeClient implements IClaudeClient {
     // clean up activeStreams and reset isStreaming.
     let doneEmitted = false;
 
-    // Wrap onEvent to persist every emitted event
+    // Wrap onEvent to persist emitted events in batches for reduced I/O pressure.
+    // Non-critical events (deltas, status) are buffered and flushed periodically.
+    // Critical events (done, error, callStart, filesChanged) trigger an immediate flush.
     let persistErrorLogged = false;
+
+    const BATCH_FLUSH_INTERVAL_MS = 100;
+    const BATCH_MAX_SIZE = 20;
+    const CRITICAL_EVENT_TYPES = new Set(['done', 'error', 'callStart', 'filesChanged']);
+
+    type EventRecord = { sessionId: string; conversationId: string; sequenceNumber: number; eventType: string; payload: string; timestamp: string };
+    let eventBatch: EventRecord[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushBatch = () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      if (eventBatch.length === 0) return;
+      const toFlush = eventBatch;
+      eventBatch = [];
+      try {
+        this.db.persistStreamEventBatch(toFlush);
+      } catch (err) {
+        if (!persistErrorLogged) {
+          console.error(`[ClaudeCodeClient] Stream event batch persistence failed (conversationId=${conversationId}):`, err);
+          persistErrorLogged = true;
+        }
+      }
+    };
+
     const wrappedOnEvent = (streamEvent: StreamEvent) => {
       if (streamEvent.type === 'done') {
         doneEmitted = true;
       }
-      try {
-        this.db.persistStreamEvent({
-          sessionId,
-          conversationId,
-          sequenceNumber: tracker.nextSequence(),
-          eventType: streamEvent.type,
-          payload: JSON.stringify(streamEvent),
-          timestamp: new Date().toISOString(),
-        });
-      } catch (err) {
-        // Event persistence is best-effort — don't fail the stream.
-        // Log the first failure per session to aid diagnostics.
-        if (!persistErrorLogged) {
-          console.error(`[ClaudeCodeClient] Stream event persistence failed (conversationId=${conversationId}):`, err);
-          persistErrorLogged = true;
-        }
+
+      eventBatch.push({
+        sessionId,
+        conversationId,
+        sequenceNumber: tracker.nextSequence(),
+        eventType: streamEvent.type,
+        payload: JSON.stringify(streamEvent),
+        timestamp: new Date().toISOString(),
+      });
+
+      // Critical events flush immediately (done, error must be persisted NOW)
+      if (CRITICAL_EVENT_TYPES.has(streamEvent.type) || eventBatch.length >= BATCH_MAX_SIZE) {
+        flushBatch();
+      } else if (!flushTimer) {
+        flushTimer = setTimeout(flushBatch, BATCH_FLUSH_INTERVAL_MS);
       }
+
+      // Forward ALL events to the caller immediately (no batching for UI)
       params.onEvent(streamEvent);
     };
 
@@ -224,12 +254,19 @@ export class ClaudeCodeClient implements IClaudeClient {
         settle(() => reject(new Error(message)));
       });
 
+      // Track expected stdin payload size for diagnostic logging
+      const stdinBytes = Buffer.byteLength(conversationPrompt, 'utf-8');
+
       // Guard against EPIPE — the CLI process may exit before we finish writing
       // to stdin (e.g. invalid args, immediate crash). Without this handler the
       // error bubbles up as an uncaught exception and crashes the app.
       child.stdin.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
-          console.warn(`[ClaudeCodeClient] stdin ${err.code} — CLI process may have exited early (conversationId=${conversationId})`);
+          console.warn(
+            `[ClaudeCodeClient] stdin ${err.code} — CLI process may have exited early ` +
+            `(conversationId=${conversationId}, stdinBytes=${stdinBytes}, ` +
+            `writableFinished=${child.stdin.writableFinished}, writableEnded=${child.stdin.writableEnded})`,
+          );
           return;
         }
         const message = `CLI stdin error: ${err.message}`;
@@ -258,6 +295,9 @@ export class ClaudeCodeClient implements IClaudeClient {
       });
 
       child.on('close', (code) => {
+        // Flush any buffered events before processing the close
+        flushBatch();
+
         console.log(`[ClaudeCodeClient] CLI exited: pid=${child.pid ?? 'unknown'}, code=${code}, conversationId=${conversationId}`);
 
         // Remove from active processes map

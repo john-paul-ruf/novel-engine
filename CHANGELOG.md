@@ -4,6 +4,45 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Issue fixes r003: Race conditions, error handling, stream architecture
+
+### Summary
+
+Executed 8 fix prompts from the r003 evaluation. Fixed critical race conditions in concurrent stream management (book switching kills background streams, singleton diagnostics/changedFiles overwritten by concurrent calls), improved error handling in auto-draft audit failures, added proper stream listener lifecycle to pitchRoomStore, enhanced EPIPE diagnostic logging, introduced type-safe `StreamEventSource` discriminator for event routing, and batched stream event DB persistence for reduced I/O pressure.
+
+### Changed
+- `src/renderer/stores/chatStore.ts` — Added `_streamOrigin` discriminator (`'self'|'external'|null`). `switchBook()` only aborts `'self'` streams, preserving background auto-draft/hot-take/revision streams.
+- `src/renderer/stores/autoDraftStore.ts` — Added `skippedAudits: string[]` to `AutoDraftSession`. Audit/fix catch block now pauses the loop instead of silently continuing. Logs skipped audits on session completion.
+- `src/application/ChatService.ts` — Replaced `lastDiagnostics` singleton with `diagnosticsMap: Map<string, ContextDiagnostics>` keyed by conversationId (max 20 entries). `getLastDiagnostics()` accepts optional conversationId. `sendMessage()` now returns `{ changedFiles: string[] }`. Removed `resetChangedFiles()` call and `getLastChangedFiles()` method.
+- `src/application/StreamManager.ts` — Removed `lastChangedFiles` singleton, `resetChangedFiles()`, and `getLastChangedFiles()`. Each stream tracks its own `changedFiles` via closure. `startStream()` returns `getChangedFiles()` getter.
+- `src/domain/interfaces.ts` — Updated `IChatService.sendMessage` return type to `Promise<{ changedFiles: string[] }>`. Updated `getLastDiagnostics` to accept optional `conversationId`. Removed `getLastChangedFiles()`. Added `persistStreamEventBatch()` to `IDatabaseService`.
+- `src/domain/types.ts` — Added `StreamEventSource` type union for event origin discrimination.
+- `src/main/ipc/handlers.ts` — `chat:send` reads changedFiles from `sendMessage()` return. `adhoc-revision:start` captures changedFiles from stream events. All broadcast sites inject `source: StreamEventSource`. `context:getLastDiagnostics` passes conversationId. Verity `broadcastVerityEvent` now accepts source parameter.
+- `src/preload/index.ts` — `context.getLastDiagnostics` accepts optional conversationId.
+- `src/renderer/stores/cliActivityStore.ts` — `loadDiagnostics()` passes conversationId to `getLastDiagnostics()`.
+- `src/renderer/stores/streamHandler.ts` — Enriched event type includes `source?: StreamEventSource`. Revision filter uses `source === 'revision'` as primary guard with `callId.startsWith('rev:')` fallback.
+- `src/renderer/stores/pitchRoomStore.ts` — Added `initStreamListener()`, `destroyStreamListener()`, `_cleanupListener` field.
+- `src/renderer/components/PitchRoom/PitchRoomView.tsx` — Removed inline `useEffect` stream listener registration.
+- `src/renderer/components/Layout/AppLayout.tsx` — `StreamManager` component now also initializes pitchRoomStore's stream listener.
+- `src/infrastructure/claude-cli/ClaudeCodeClient.ts` — EPIPE handler logs `stdinBytes`, `writableFinished`, `writableEnded`. Replaced per-event DB persistence with batching (100ms flush interval, max 20, critical events flush immediately). `flushBatch()` called on process close.
+- `src/infrastructure/database/DatabaseService.ts` — Added `persistStreamEventBatch()` using a transaction-wrapped loop.
+
+### Architecture Impact
+- `IChatService.sendMessage` return type changed from `Promise<void>` to `Promise<{ changedFiles: string[] }>`
+- `IChatService.getLastChangedFiles()` removed from interface
+- `IChatService.getLastDiagnostics()` signature changed to accept optional `conversationId`
+- `IDatabaseService.persistStreamEventBatch()` added
+- New domain type: `StreamEventSource`
+- Stream event enrichment now includes `source` field alongside `callId` and `conversationId`
+- pitchRoomStore stream listener moved from component-level to app-level (AppLayout StreamManager)
+
+### Migration Notes
+- `IChatService.sendMessage` callers must handle the new `{ changedFiles }` return value (or ignore it)
+- `IChatService.getLastChangedFiles()` no longer exists — callers use the return value from `sendMessage()` instead
+- `StreamEventSource` is optional on enriched events for backwards compatibility
+
+---
+
 ## [2026-03-27] — Build multi-page GitHub Pages website
 
 ### Summary

@@ -24,7 +24,10 @@ type PitchRoomState = {
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
 
   _activeCallId: string | null;
+  _cleanupListener: (() => void) | null;
   _handleStreamEvent: (event: StreamEvent) => void;
+  initStreamListener: () => void;
+  destroyStreamListener: () => void;
 };
 
 export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
@@ -38,6 +41,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   statusMessage: '',
   loading: false,
   _activeCallId: null,
+  _cleanupListener: null,
 
   loadConversations: async () => {
     try {
@@ -196,6 +200,22 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         thinkingBuffer: '',
         _activeCallId: null,
       }));
+    }
+  },
+
+  initStreamListener: () => {
+    const { _cleanupListener } = get();
+    if (_cleanupListener) return; // Already initialized
+
+    const cleanup = window.novelEngine.chat.onStreamEvent(get()._handleStreamEvent);
+    set({ _cleanupListener: cleanup });
+  },
+
+  destroyStreamListener: () => {
+    const { _cleanupListener } = get();
+    if (_cleanupListener) {
+      _cleanupListener();
+      set({ _cleanupListener: null });
     }
   },
 

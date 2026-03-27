@@ -149,7 +149,6 @@ export function PitchRoomView(): React.ReactElement {
   const messages = usePitchRoomStore((s) => s.messages);
   const isStreaming = usePitchRoomStore((s) => s.isStreaming);
   const sendMessage = usePitchRoomStore((s) => s.sendMessage);
-  const handleStreamEvent = usePitchRoomStore((s) => s._handleStreamEvent);
 
   const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
   const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
@@ -181,12 +180,6 @@ export function PitchRoomView(): React.ReactElement {
   useEffect(() => {
     ensureConversation();
   }, [ensureConversation]);
-
-  // Register stream event listener for the pitch room
-  useEffect(() => {
-    const cleanup = window.novelEngine.chat.onStreamEvent(handleStreamEvent);
-    return () => { cleanup(); };
-  }, [handleStreamEvent]);
 
   // Track if user is at bottom
   useEffect(() => {

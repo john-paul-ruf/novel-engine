@@ -1,10 +1,11 @@
-import type { StreamEvent, StreamBlockType, ToolUseInfo, ProgressStage, TimestampedToolUse } from '@domain/types';
+import type { StreamEvent, StreamBlockType, StreamEventSource, ToolUseInfo, ProgressStage, TimestampedToolUse } from '@domain/types';
 
 /**
- * Enriched stream event — the IPC layer injects callId and conversationId
- * so stores can scope events to the correct call/conversation.
+ * Enriched stream event — the IPC layer injects callId, conversationId,
+ * and source so stores can scope events to the correct call/conversation
+ * and filter by origin without parsing string prefixes.
  */
-type EnrichedStreamEvent = StreamEvent & { callId?: string; conversationId?: string };
+type EnrichedStreamEvent = StreamEvent & { callId?: string; conversationId?: string; source?: StreamEventSource };
 
 /**
  * Configuration for the shared stream event handler.
@@ -63,7 +64,9 @@ export function createStreamHandler(config: StreamHandlerConfig): (event: Stream
     const callId = enriched.callId;
 
     // Skip revision queue events — they're handled by revisionQueueStore
-    if (callId && callId.startsWith('rev:')) return;
+    if (enriched.source === 'revision') return;
+    // Fallback for backwards compatibility (e.g., in-flight events from before this change)
+    if (!enriched.source && callId && callId.startsWith('rev:')) return;
 
     const activeCallId = config.getActiveCallId();
     const isStreaming = config.getIsStreaming();

@@ -3,6 +3,7 @@ import { useViewStore } from '../../stores/viewStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
 import { useChatStore } from '../../stores/chatStore';
+import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { ChatView } from '../Chat/ChatView';
 import { FilesView } from '../Files/FilesView';
 import { BuildView } from '../Build/BuildView';
@@ -27,6 +28,13 @@ function StreamManager(): null {
     recoverActiveStream();
     return () => destroyStreamListener();
   }, [initStreamListener, destroyStreamListener, recoverActiveStream]);
+
+  // Pitch room stream listener — persists across view changes so
+  // done/error events are never missed when navigating away from PitchRoomView
+  useEffect(() => {
+    usePitchRoomStore.getState().initStreamListener();
+    return () => usePitchRoomStore.getState().destroyStreamListener();
+  }, []);
 
   return null;
 }

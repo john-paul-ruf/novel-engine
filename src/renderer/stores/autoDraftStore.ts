@@ -70,6 +70,9 @@ type AutoDraftSession = {
   /** Hard error that aborted the loop via an uncaught exception. */
   error: string | null;
 
+  /** Chapter slugs where the audit/fix pass was skipped due to error. */
+  skippedAudits: string[];
+
   /** Set to true when the user clicks Stop. */
   stopRequested: boolean;
 
@@ -86,6 +89,7 @@ function defaultSession(): AutoDraftSession {
     chaptersWritten: 0,
     conversationId: null,
     error: null,
+    skippedAudits: [],
     stopRequested: false,
     _resumeResolve: null,
   };
@@ -394,6 +398,27 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
               }
             } catch (err) {
               console.warn('[auto-draft] Audit/fix pass failed:', err);
+
+              // Track the skipped audit so the user knows which chapters need manual review
+              if (newChapterSlug) {
+                patch({
+                  skippedAudits: [...(session()?.skippedAudits ?? []), newChapterSlug],
+                });
+              }
+
+              // Pause the loop — let the user decide: resume (skip audit), or stop
+              await new Promise<void>((resolve) => {
+                patch({
+                  isPaused: true,
+                  pauseReason: `Audit/fix failed for ${newChapterSlug ?? 'chapter'}: ${err instanceof Error ? err.message : String(err)}. Resume to skip audit, or stop the loop.`,
+                  _resumeResolve: resolve,
+                });
+              });
+
+              // Pause resolved — clean up
+              patch({ isPaused: false, pauseReason: null, _resumeResolve: null });
+
+              if (session()?.stopRequested) break;
             }
           }
 
@@ -462,6 +487,11 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       const message = err instanceof Error ? err.message : String(err);
       patch({ error: message, isPaused: false, pauseReason: null, _resumeResolve: null });
     } finally {
+      const skipped = session()?.skippedAudits ?? [];
+      if (skipped.length > 0) {
+        console.warn(`[auto-draft] Session completed with ${skipped.length} skipped audits:`, skipped);
+      }
+
       patch({ isRunning: false, stopRequested: false, stageLabel: null });
 
       // Final pipeline + word count refresh

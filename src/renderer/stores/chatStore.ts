@@ -50,6 +50,8 @@ type ChatState = {
 
   // Call scoping — prevents cross-book stream bleed
   _activeCallId: string | null;
+  // Discriminator: 'self' = user-initiated via chat input, 'external' = background (auto-draft, revision, hot take)
+  _streamOrigin: 'self' | 'external' | null;
 
   loadConversations: (bookSlug: string) => Promise<void>;
   createConversation: (agentName: AgentName, bookSlug: string, phase: PipelinePhaseId | null, purpose?: ConversationPurpose) => Promise<void>;
@@ -88,6 +90,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toolTimings: [],
   interruptedSession: null,
   _activeCallId: null,
+  _streamOrigin: null,
   _cleanupListener: null,
   _cleanupFilesChanged: null,
 
@@ -173,6 +176,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       statusMessage: randomRespondingStatus(),
       toolActivity: [],
       _activeCallId: callId,
+      _streamOrigin: 'self',
     }));
 
     try {
@@ -202,6 +206,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         thinkingBuffer: '',
         toolActivity: [],
         _activeCallId: null,
+        _streamOrigin: null,
       }));
     }
   },
@@ -240,6 +245,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       thinkingSummary: '',
       toolTimings: [],
       _activeCallId: callId,
+      _streamOrigin: 'external',
       ...(optimisticContent
         ? {
             messages: [
@@ -266,10 +272,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // regardless of which view they were on (wrangler loading, files, build, etc.)
     useViewStore.getState().navigate('chat');
 
-    // Step 1.5: Abort any active stream for the old book so it doesn't
-    // continue consuming tokens and writing files in the background.
-    const { activeConversation, isStreaming } = get();
-    if (isStreaming && activeConversation) {
+    // Step 1.5: Abort user-initiated streams only. Background streams
+    // (auto-draft, hot take, ad hoc revision) must continue running —
+    // they manage their own lifecycle and shouldn't be killed by a book switch.
+    const { activeConversation, isStreaming, _streamOrigin } = get();
+    if (isStreaming && activeConversation && _streamOrigin === 'self') {
       try {
         await window.novelEngine.chat.abort(activeConversation.id);
       } catch {
@@ -295,6 +302,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       toolTimings: [],
       interruptedSession: null,
       _activeCallId: null,
+      _streamOrigin: null,
     });
 
     // Step 3: Load conversations for the new book and activate the latest one
@@ -409,6 +417,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             thinkingSummary: '',
             toolTimings: [],
             _activeCallId: null,
+            _streamOrigin: null,
           }));
         }).catch((error) => {
           console.error('Failed to reload messages after done:', error);
@@ -440,6 +449,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               thinkingSummary: '',
               toolTimings: [],
               _activeCallId: null,
+              _streamOrigin: null,
             }));
           }
         });
@@ -456,6 +466,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           thinkingSummary: '',
           toolTimings: [],
           _activeCallId: null,
+          _streamOrigin: null,
         });
       }
     },
@@ -480,6 +491,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           statusMessage: '',
           toolActivity: [],
           _activeCallId: null,
+          _streamOrigin: null,
         };
       });
     },

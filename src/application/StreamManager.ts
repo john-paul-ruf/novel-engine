@@ -18,7 +18,7 @@ export type StreamParams = {
  * Options for customizing stream behavior. All optional.
  */
 export type StreamOptions = {
-  /** Track filesChanged events into lastChangedFiles (default: true) */
+  /** Track filesChanged events per-stream (default: true) */
   trackFilesChanged?: boolean;
   /** Callback invoked after the assistant message is saved on 'done'. */
   onDone?: (event: StreamEvent & { type: 'done' }) => void | Promise<void>;
@@ -33,7 +33,6 @@ export type StreamOptions = {
  */
 export class StreamManager {
   private activeStreams: Map<string, ActiveStreamInfo> = new Map();
-  private lastChangedFiles: string[] = [];
 
   constructor(
     private db: IDatabaseService,
@@ -59,6 +58,7 @@ export class StreamManager {
     onEvent: (event: StreamEvent) => void;
     getResponseBuffer: () => string;
     getThinkingBuffer: () => string;
+    getChangedFiles: () => string[];
   } {
     const { conversationId, agentName, model, bookSlug, sessionId, callId, onEvent } = params;
     const trackFilesChanged = options.trackFilesChanged ?? true;
@@ -81,9 +81,10 @@ export class StreamManager {
     // Emit callStart so the activity monitor knows what's happening
     onEvent({ type: 'callStart', agentName, model, bookSlug });
 
-    // Local buffers
+    // Local buffers — scoped to this stream, no shared mutable state
     let responseBuffer = '';
     let thinkingBuffer = '';
+    let changedFiles: string[] = [];
 
     // The event handler that the caller passes to claude.sendMessage()
     const streamOnEvent = (event: StreamEvent): void => {
@@ -113,7 +114,7 @@ export class StreamManager {
         thinkingBuffer += event.text;
         if (stream) stream.thinkingBuffer = thinkingBuffer;
       } else if (event.type === 'filesChanged' && trackFilesChanged) {
-        this.lastChangedFiles = event.paths;
+        changedFiles = event.paths;
       } else if (event.type === 'done') {
         // Save the assistant message
         this.db.saveMessage({
@@ -156,14 +157,8 @@ export class StreamManager {
       onEvent: streamOnEvent,
       getResponseBuffer: () => responseBuffer,
       getThinkingBuffer: () => thinkingBuffer,
+      getChangedFiles: () => changedFiles,
     };
-  }
-
-  /**
-   * Reset lastChangedFiles tracker (call before a new interaction).
-   */
-  resetChangedFiles(): void {
-    this.lastChangedFiles = [];
   }
 
   /**
@@ -184,13 +179,6 @@ export class StreamManager {
       if (stream.bookSlug === bookSlug) return stream;
     }
     return null;
-  }
-
-  /**
-   * Returns the file paths that were changed during the last interaction.
-   */
-  getLastChangedFiles(): string[] {
-    return this.lastChangedFiles;
   }
 
   /**

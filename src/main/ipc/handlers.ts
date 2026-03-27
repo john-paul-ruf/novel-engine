@@ -29,6 +29,7 @@ import type {
   QueueMode,
   SendMessageParams,
   StreamEvent,
+  StreamEventSource,
 } from '@domain/types';
 import { AVAILABLE_MODELS } from '@domain/constants';
 import type { NotificationManager } from '../notifications';
@@ -221,7 +222,7 @@ export function registerIpcHandlers(services: {
      * freshly-registered `ipcRenderer.on('chat:streamEvent')` listener
      * receives events — enabling true live re-subscription.
      */
-    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string }) => {
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string; source?: StreamEventSource }) => {
       for (const w of BrowserWindow.getAllWindows()) {
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
@@ -231,7 +232,7 @@ export function registerIpcHandlers(services: {
       }
     };
 
-    await services.chat.sendMessage({
+    const result = await services.chat.sendMessage({
       ...params,
       callId,
       onEvent: (streamEvent) => {
@@ -239,9 +240,9 @@ export function registerIpcHandlers(services: {
           hadError = true;
           errorText = streamEvent.message;
         }
-        // Inject callId + conversationId so the renderer can scope events
+        // Inject callId + conversationId + source so the renderer can scope events
         // to the correct call and conversation, preventing cross-book bleed
-        broadcastStreamEvent({ ...streamEvent, callId, conversationId: params.conversationId });
+        broadcastStreamEvent({ ...streamEvent, callId, conversationId: params.conversationId, source: 'chat' });
       },
     });
 
@@ -260,7 +261,7 @@ export function registerIpcHandlers(services: {
     // Include the bookSlug so the renderer scopes the pipeline refresh
     // to the correct book — prevents cross-book pipeline bleed.
     // Broadcast to all windows so refreshed renderers also receive the notification.
-    const changedFiles = services.chat.getLastChangedFiles();
+    const changedFiles = result.changedFiles;
     if (changedFiles.length > 0) {
       for (const w of BrowserWindow.getAllWindows()) {
         try {
@@ -359,7 +360,9 @@ export function registerIpcHandlers(services: {
 
   // === Context Diagnostics ===
 
-  ipcMain.handle('context:getLastDiagnostics', () => services.chat.getLastDiagnostics());
+  ipcMain.handle('context:getLastDiagnostics', (_, conversationId?: string) =>
+    services.chat.getLastDiagnostics(conversationId),
+  );
 
   // === Active Stream (for renderer refresh recovery) ===
 
@@ -462,7 +465,7 @@ export function registerIpcHandlers(services: {
 
     const callId = randomUUID();
 
-    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string }) => {
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string; source?: StreamEventSource }) => {
       for (const w of BrowserWindow.getAllWindows()) {
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
@@ -479,7 +482,7 @@ export function registerIpcHandlers(services: {
       bookSlug,
       callId,
       onEvent: (streamEvent) => {
-        broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id });
+        broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id, source: 'hot-take' });
       },
     }).catch((err) => {
       console.error('[hot-take] Stream error:', err);
@@ -509,7 +512,7 @@ export function registerIpcHandlers(services: {
 
     const callId = randomUUID();
 
-    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string }) => {
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string; source?: StreamEventSource }) => {
       for (const w of BrowserWindow.getAllWindows()) {
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
@@ -519,6 +522,7 @@ export function registerIpcHandlers(services: {
       }
     };
 
+    let adhocChangedFiles: string[] = [];
     services.chat.sendMessage({
       agentName: 'Forge',
       message: description,
@@ -526,14 +530,18 @@ export function registerIpcHandlers(services: {
       bookSlug,
       callId,
       onEvent: (streamEvent) => {
-        broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id });
+        broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id, source: 'adhoc-revision' });
+
+        // Track changed files from the stream events directly (per-stream, no singleton)
+        if (streamEvent.type === 'filesChanged') {
+          adhocChangedFiles = streamEvent.paths;
+        }
 
         if (streamEvent.type === 'done' || streamEvent.type === 'error') {
-          const changedFiles = services.chat.getLastChangedFiles();
-          if (changedFiles.length > 0) {
+          if (adhocChangedFiles.length > 0) {
             for (const w of BrowserWindow.getAllWindows()) {
               try {
-                w.webContents.send('chat:filesChanged', changedFiles, bookSlug);
+                w.webContents.send('chat:filesChanged', adhocChangedFiles, bookSlug);
               } catch {
                 // Window may be closing
               }
@@ -551,9 +559,9 @@ export function registerIpcHandlers(services: {
   // === Verity Pipeline (audit/fix) ===
 
   /** Broadcast stream events from audit/fix/motif-audit calls to all renderer windows. */
-  const broadcastVerityEvent = (callId: string, conversationId: string) =>
+  const broadcastVerityEvent = (callId: string, conversationId: string, source: StreamEventSource) =>
     (streamEvent: StreamEvent) => {
-      const tagged = { ...streamEvent, callId, conversationId };
+      const tagged = { ...streamEvent, callId, conversationId, source };
       for (const w of BrowserWindow.getAllWindows()) {
         try {
           w.webContents.send('chat:streamEvent', tagged);
@@ -579,7 +587,7 @@ export function registerIpcHandlers(services: {
       bookSlug,
       chapterSlug,
       conversationId: rendererConversationId,
-      onEvent: broadcastVerityEvent(callId, broadcastConversationId),
+      onEvent: broadcastVerityEvent(callId, broadcastConversationId, 'audit'),
     });
   });
 
@@ -593,7 +601,7 @@ export function registerIpcHandlers(services: {
       auditResult: { chapter: chapterSlug, violations: [], summary: { total: 0, by_type: {}, severity: 'clean' } },
       conversationId,
       sessionId,
-      onEvent: broadcastVerityEvent(callId, conversationId),
+      onEvent: broadcastVerityEvent(callId, conversationId, 'fix'),
     });
   });
 
@@ -608,7 +616,7 @@ export function registerIpcHandlers(services: {
       auditResult,
       conversationId,
       sessionId,
-      onEvent: broadcastVerityEvent(callId, conversationId),
+      onEvent: broadcastVerityEvent(callId, conversationId, 'fix'),
     });
   });
 
@@ -620,7 +628,7 @@ export function registerIpcHandlers(services: {
     await services.audit.runMotifAudit({
       bookSlug,
       appSettings,
-      onEvent: broadcastVerityEvent(callId, `motif-audit-${sessionId}`),
+      onEvent: broadcastVerityEvent(callId, `motif-audit-${sessionId}`, 'motif-audit'),
       sessionId,
     });
   });
@@ -706,6 +714,7 @@ export function registerIpcHandlers(services: {
           ...event.event,
           callId: `rev:${event.sessionId}`,
           conversationId: event.conversationId ?? event.sessionId,
+          source: 'revision' as StreamEventSource,
         });
       }
     }

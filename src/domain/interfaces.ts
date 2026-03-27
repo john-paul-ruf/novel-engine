@@ -83,6 +83,7 @@ export interface IDatabaseService {
 
   // Stream event persistence
   persistStreamEvent(event: Omit<PersistedStreamEvent, 'id'>): void;
+  persistStreamEventBatch(events: Omit<PersistedStreamEvent, 'id'>[]): void;
   getStreamEvents(sessionId: string): PersistedStreamEvent[];
   deleteStreamEvents(sessionId: string): void;
   pruneStreamEvents(olderThanDays: number): void;
@@ -352,7 +353,7 @@ export interface IChatService {
     thinkingBudgetOverride?: number;
     callId?: string;
     onEvent: (event: StreamEvent) => void;
-  }): Promise<void>;
+  }): Promise<{ changedFiles: string[] }>;
 
   createConversation(params: {
     bookSlug: string;
@@ -368,8 +369,7 @@ export interface IChatService {
   getActiveStream(): ActiveStreamInfo | null;
   getActiveStreamForBook(bookSlug: string): ActiveStreamInfo | null;
 
-  getLastDiagnostics(): ContextDiagnostics | null;
-  getLastChangedFiles(): string[];
+  getLastDiagnostics(conversationId?: string): ContextDiagnostics | null;
 
   isCliIdle(bookSlug?: string): boolean;
 

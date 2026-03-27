@@ -42,7 +42,8 @@ import { resolveThinkingBudget } from './thinkingBudget';
  * Depends entirely on injected interfaces — no concrete infrastructure imports.
  */
 export class ChatService implements IChatService {
-  private lastDiagnostics: ContextDiagnostics | null = null;
+  private diagnosticsMap: Map<string, ContextDiagnostics> = new Map();
+  private static readonly MAX_DIAGNOSTICS_ENTRIES = 20;
   private contextBuilder = new ContextBuilder();
   private recoveredOrphans: StreamSessionRecord[] = [];
 
@@ -108,11 +109,8 @@ export class ChatService implements IChatService {
     thinkingBudgetOverride?: number;
     callId?: string;
     onEvent: (event: StreamEvent) => void;
-  }): Promise<void> {
+  }): Promise<{ changedFiles: string[] }> {
     const { agentName, message, conversationId, bookSlug, onEvent } = params;
-
-    // Reset changed files for this interaction
-    this.streamManager.resetChangedFiles();
 
     // Step 1: Check Claude CLI availability
     const available = await this.claude.isAvailable();
@@ -121,7 +119,7 @@ export class ChatService implements IChatService {
         type: 'error',
         message: 'Claude Code CLI not found or not authenticated. Run `claude login` to set up.',
       });
-      return;
+      return { changedFiles: [] };
     }
 
     // Step 2: Load settings for model, maxTokens, thinking config
@@ -166,7 +164,7 @@ export class ChatService implements IChatService {
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
-        return;
+        return { changedFiles: [] };
       }
 
       // Hot Take branch — Ghostlight reads full manuscript in agent mode, no files written
@@ -176,7 +174,7 @@ export class ChatService implements IChatService {
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
-        return;
+        return { changedFiles: [] };
       }
 
       // Ad Hoc Revision branch — Forge generates project-tasks.md and revision-prompts.md
@@ -186,7 +184,7 @@ export class ChatService implements IChatService {
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
-        return;
+        return { changedFiles: [] };
       }
 
       // Step 5b: Build lightweight manifest (fast — just file listing)
@@ -244,8 +242,14 @@ export class ChatService implements IChatService {
         thinkingBudget,
       });
 
-      // Step 8: Store diagnostics
-      this.lastDiagnostics = assembled.diagnostics;
+      // Step 8: Store diagnostics keyed by conversationId
+      this.diagnosticsMap.set(conversationId, assembled.diagnostics);
+
+      // Prune old entries to prevent unbounded growth
+      if (this.diagnosticsMap.size > ChatService.MAX_DIAGNOSTICS_ENTRIES) {
+        const oldest = this.diagnosticsMap.keys().next().value;
+        if (oldest) this.diagnosticsMap.delete(oldest);
+      }
 
       // Step 8c–9: Start managed stream and call the agent
       const stream = this.streamManager.startStream({
@@ -288,19 +292,14 @@ export class ChatService implements IChatService {
         conversationId,
         onEvent: stream.onEvent,
       });
+
+      return { changedFiles: stream.getChangedFiles() };
     } catch (err) {
       this.streamManager.cleanupErroredStream(conversationId, sessionId);
       const errorMessage = err instanceof Error ? err.message : String(err);
       onEvent({ type: 'error', message: errorMessage });
+      return { changedFiles: [] };
     }
-  }
-
-  /**
-   * Returns the file paths that were changed during the last sendMessage interaction.
-   * Used by the IPC layer to notify the renderer of file changes for pipeline refresh.
-   */
-  getLastChangedFiles(): string[] {
-    return this.streamManager.getLastChangedFiles();
   }
 
   /**
@@ -396,8 +395,16 @@ export class ChatService implements IChatService {
    * Used by the IPC layer to expose context assembly diagnostics to the UI,
    * showing what files are available, conversation turns, and manifest token cost.
    */
-  getLastDiagnostics(): ContextDiagnostics | null {
-    return this.lastDiagnostics;
+  getLastDiagnostics(conversationId?: string): ContextDiagnostics | null {
+    if (conversationId) {
+      return this.diagnosticsMap.get(conversationId) ?? null;
+    }
+    // Fallback: return the most recently added entry
+    let last: ContextDiagnostics | null = null;
+    for (const diag of this.diagnosticsMap.values()) {
+      last = diag;
+    }
+    return last;
   }
 
 }

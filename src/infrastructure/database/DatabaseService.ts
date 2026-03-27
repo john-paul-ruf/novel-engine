@@ -272,6 +272,23 @@ export class DatabaseService implements IDatabaseService {
     );
   }
 
+  persistStreamEventBatch(events: Omit<PersistedStreamEvent, 'id'>[]): void {
+    if (events.length === 0) return;
+    const insertMany = this.db.transaction((rows: Omit<PersistedStreamEvent, 'id'>[]) => {
+      for (const row of rows) {
+        this.stmtInsertStreamEvent.run(
+          row.sessionId,
+          row.conversationId,
+          row.sequenceNumber,
+          row.eventType,
+          row.payload,
+          row.timestamp,
+        );
+      }
+    });
+    insertMany(events);
+  }
+
   getStreamEvents(sessionId: string): PersistedStreamEvent[] {
     const rows = this.stmtGetStreamEvents.all(sessionId) as StreamEventRow[];
     return rows.map(mapStreamEventRow);

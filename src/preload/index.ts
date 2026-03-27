@@ -286,8 +286,8 @@ const api = {
 
   // Context Diagnostics
   context: {
-    getLastDiagnostics: (): Promise<ContextDiagnostics | null> =>
-      ipcRenderer.invoke('context:getLastDiagnostics'),
+    getLastDiagnostics: (conversationId?: string): Promise<ContextDiagnostics | null> =>
+      ipcRenderer.invoke('context:getLastDiagnostics', conversationId),
   },
 
   // Shell (external links, file opening)

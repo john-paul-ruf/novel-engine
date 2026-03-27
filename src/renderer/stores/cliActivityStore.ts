@@ -543,7 +543,11 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
 
   loadDiagnostics: async (callId: string) => {
     try {
-      const diag = await window.novelEngine.context.getLastDiagnostics();
+      // Pass the conversationId so we get diagnostics for the correct call,
+      // not whichever call wrote diagnostics last (fixes singleton race).
+      const targetCall = get().calls[callId];
+      const conversationId = targetCall?.conversationId || undefined;
+      const diag = await window.novelEngine.context.getLastDiagnostics(conversationId);
       if (!diag) return;
 
       const { calls } = get();
