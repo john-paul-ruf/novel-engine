@@ -4,6 +4,38 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Architecture refactor prompt suite
+
+### Summary
+
+Created a complete set of 14 encapsulated refactoring prompts to address the architectural issues documented in `issues.md`. Includes a state tracker for cross-context handoffs, a dependency graph, and a master loop prompt that drives execution through all prompts in order. No production code changes — this is the planning and orchestration layer for the refactor.
+
+### Added
+- `prompts/arch/STATE.md` — State tracker with prompt status, dependency graph, and handoff notes
+- `prompts/arch/MASTER.md` — Master loop prompt that reads state, picks next prompt, executes, and loops
+- `prompts/arch/ARCH-01.md` — Extract prompt templates from constants.ts to agent .md files
+- `prompts/arch/ARCH-02.md` — Extract status messages from constants.ts to statusMessages.ts
+- `prompts/arch/ARCH-03.md` — Add IChatService and IUsageService interfaces
+- `prompts/arch/ARCH-04.md` — Extract StreamManager from ChatService
+- `prompts/arch/ARCH-05.md` — Extract AuditService from ChatService
+- `prompts/arch/ARCH-06.md` — Extract PitchRoomService from ChatService
+- `prompts/arch/ARCH-07.md` — Extract HotTakeService from ChatService
+- `prompts/arch/ARCH-08.md` — Extract AdhocRevisionService from ChatService
+- `prompts/arch/ARCH-09.md` — Slim ChatService to router (capstone)
+- `prompts/arch/ARCH-10.md` — Document renderer value imports exception
+- `prompts/arch/ARCH-11.md` — Clean up Wrangler vestige
+- `prompts/arch/ARCH-12.md` — Audit and fix silent error swallowing
+- `prompts/arch/ARCH-13.md` — Add database migration system
+- `prompts/arch/ARCH-14.md` — Standardize agent filenames
+
+### Architecture Impact
+- None — no production code changed. This is a planning artifact.
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Remove phrase ledger, consolidate into motif ledger
 
 ### Summary
