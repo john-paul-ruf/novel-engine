@@ -370,7 +370,9 @@ window.novelEngine: {
 - **paths**: `{ userDataPath, booksDir }`
 - **hooks**: `{ onActiveBookChanged(slug) }` — triggers BookWatcher switch
 
-Revision queue events are forwarded to renderer via `revisionQueue.onEvent()` listener registered at the bottom of `registerIpcHandlers`. Also forwards `session:streamEvent` sub-events to `chat:streamEvent` channel with `rev:` prefixed callId.
+Revision queue events are forwarded to renderer via `revisionQueue.onEvent()` listener registered at the bottom of `registerIpcHandlers`. Also forwards `session:streamEvent` sub-events to `chat:streamEvent` channel with `rev:` prefixed callId and `conversationId` (falls back to `sessionId` if absent).
+
+Verity pipeline handlers (`verity:auditChapter`, `verity:fixChapter`, `verity:fixChapterWithAudit`, `verity:runMotifAudit`) emit synthetic `callStart` events via `emitVerityCallStart()` so audit/fix calls appear correctly in the CLI Activity Monitor.
 
 ---
 

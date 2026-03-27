@@ -563,9 +563,18 @@ export function registerIpcHandlers(services: {
       }
     };
 
+  /** Emit a synthetic callStart so audit/fix calls appear in the CLI Activity Monitor. */
+  const emitVerityCallStart = (callId: string, conversationId: string, bookSlug: string) => {
+    const callStartEvent = { type: 'callStart' as const, callId, conversationId, agentName: 'Verity', model: 'unknown', bookSlug };
+    for (const w of BrowserWindow.getAllWindows()) {
+      try { w.webContents.send('chat:streamEvent', callStartEvent); } catch { /* window closing */ }
+    }
+  };
+
   ipcMain.handle('verity:auditChapter', async (_, bookSlug: string, chapterSlug: string, rendererCallId?: string, rendererConversationId?: string) => {
     const callId = rendererCallId ?? `audit:${randomUUID()}`;
     const broadcastConversationId = rendererConversationId ?? `audit-${randomUUID()}`;
+    emitVerityCallStart(callId, broadcastConversationId, bookSlug);
     return services.audit.auditChapter({
       bookSlug,
       chapterSlug,
@@ -577,6 +586,7 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('verity:fixChapter', async (_, bookSlug: string, chapterSlug: string, conversationId: string, rendererCallId?: string) => {
     const sessionId = randomUUID();
     const callId = rendererCallId ?? `fix:${sessionId}`;
+    emitVerityCallStart(callId, conversationId, bookSlug);
     await services.audit.fixChapter({
       bookSlug,
       chapterSlug,
@@ -591,6 +601,7 @@ export function registerIpcHandlers(services: {
     const sessionId = randomUUID();
     const callId = rendererCallId ?? `fix:${sessionId}`;
     const auditResult = JSON.parse(auditResultJson);
+    emitVerityCallStart(callId, conversationId, bookSlug);
     await services.audit.fixChapter({
       bookSlug,
       chapterSlug,
@@ -605,6 +616,7 @@ export function registerIpcHandlers(services: {
     const appSettings = await services.settings.load();
     const sessionId = randomUUID();
     const callId = rendererCallId ?? `motif-audit:${sessionId}`;
+    emitVerityCallStart(callId, `motif-audit-${sessionId}`, bookSlug);
     await services.audit.runMotifAudit({
       bookSlug,
       appSettings,
@@ -690,7 +702,11 @@ export function registerIpcHandlers(services: {
 
       if (event.type === 'session:streamEvent') {
         // Use sessionId as callId so the renderer groups events per revision session
-        win.webContents.send('chat:streamEvent', { ...event.event, callId: `rev:${event.sessionId}` });
+        win.webContents.send('chat:streamEvent', {
+          ...event.event,
+          callId: `rev:${event.sessionId}`,
+          conversationId: event.conversationId ?? event.sessionId,
+        });
       }
     }
 

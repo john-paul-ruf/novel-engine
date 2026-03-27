@@ -4,6 +4,35 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Issue fixes r002: 9 bug fixes from repo evaluation
+
+### Summary
+
+Executed all 9 fix prompts from `prompts/arch/r002/` addressing findings from the repo evaluation. Fixed error path cleanup (stale `_activeCallId` + orphan temp messages), revision event forwarding missing `conversationId`, missing `callStart` events for Verity audit/fix calls, duplicate polling intervals in cliActivityStore recovery, silent error swallowing in ClaudeCodeClient, extracted shared stream handler to deduplicate logic across three stores, added abort-on-switchBook, modal close-on-stream-end UX, and system prompt size guard.
+
+### Added
+- `src/renderer/stores/streamHandler.ts` — Shared `createStreamHandler()` factory encapsulating guard logic and event dispatch for chatStore, modalChatStore, pitchRoomStore
+
+### Changed
+- `src/renderer/stores/chatStore.ts` — Error catch clears `_activeCallId` and filters temp message; `_handleStreamEvent` delegates to shared handler; `switchBook()` aborts active stream before clearing state
+- `src/renderer/stores/modalChatStore.ts` — Error catch clears `_activeCallId` and filters temp message; `_handleStreamEvent` delegates to shared handler; added `_closeRequested` flag for close-on-stream-end UX
+- `src/renderer/stores/pitchRoomStore.ts` — Error catch clears `_activeCallId` and filters temp message; `_handleStreamEvent` delegates to shared handler
+- `src/renderer/stores/cliActivityStore.ts` — Recovery polling uses module-level timer refs to prevent duplicate intervals
+- `src/domain/types.ts` — `RevisionQueueEvent` `session:streamEvent` variant now includes optional `conversationId`
+- `src/application/RevisionQueueService.ts` — Includes `conversationId` when emitting `session:streamEvent`
+- `src/main/ipc/handlers.ts` — Forwards `conversationId` in revision event bridge; added `emitVerityCallStart()` helper + 4 call sites for Verity audit/fix/motif-audit
+- `src/infrastructure/claude-cli/ClaudeCodeClient.ts` — EPIPE logged with `console.warn`; DB persistence errors logged on first failure per session; 500KB system prompt size guard before spawn
+
+### Architecture Impact
+- New utility: `src/renderer/stores/streamHandler.ts` — imported by chatStore, modalChatStore, pitchRoomStore
+- New IPC behavior: Verity pipeline handlers emit synthetic `callStart` events
+- `RevisionQueueEvent.session:streamEvent` now carries optional `conversationId`
+
+### Migration Notes
+- None — all changes are backward-compatible
+
+---
+
 ## [2026-03-27] — Repo evaluation: comprehensive audit of chat bleed, activity monitor, and code quality
 
 ### Summary

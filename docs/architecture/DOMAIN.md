@@ -97,7 +97,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `RevisionSession` | `{ id, index, title, chapters, taskNumbers, model, prompt, notes, status, conversationId, response }` | RevisionQueueView |
 | `RevisionPlanPhase` | `{ number, name, taskCount, completedCount, taskNumbers? }` | Progress display |
 | `RevisionPlan` | `{ id, bookSlug, sessions, totalTasks, completedTaskNumbers, phases, mode, createdAt, verificationConversationId }` | RevisionQueueService |
-| `RevisionQueueEvent` | Discriminated union (10 variants: `session:status`, `session:chunk`, `session:thinking`, `session:done`, `session:gate`, `session:streamEvent`, `plan:progress`, `plan:loading-step`, `queue:done`, `error`) | Event bus |
+| `RevisionQueueEvent` | Discriminated union (10 variants: `session:status`, `session:chunk`, `session:thinking`, `session:done`, `session:gate`, `session:streamEvent`, `plan:progress`, `plan:loading-step`, `queue:done`, `error`). `session:streamEvent` includes optional `conversationId`. | Event bus |
 
 ### Verity Audit
 

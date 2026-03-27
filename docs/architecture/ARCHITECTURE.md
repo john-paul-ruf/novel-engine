@@ -99,7 +99,8 @@ src/
     │   ├── cliActivityStore.ts
     │   ├── fileChangeStore.ts
     │   ├── modalChatStore.ts
-    │   └── motifLedgerStore.ts
+    │   ├── motifLedgerStore.ts
+    │   └── streamHandler.ts              # Shared stream event handler factory
     ├── components/
     │   ├── Layout/                          # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                      # OnboardingWizard

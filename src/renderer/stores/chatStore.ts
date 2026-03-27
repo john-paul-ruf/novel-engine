@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AgentName, Conversation, ConversationPurpose, Message, PipelinePhaseId, ProgressStage, StreamEvent, StreamSessionRecord, TimestampedToolUse, UsageRecord } from '@domain/types';
 import { randomRespondingStatus } from '@domain/statusMessages';
+import { createStreamHandler } from './streamHandler';
 import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
 import { usePipelineStore } from './pipelineStore';
@@ -194,12 +195,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         timestamp: new Date().toISOString(),
       };
       set((state) => ({
-        messages: [...state.messages, errorMessage],
+        messages: [...state.messages.filter(m => m.id !== tempMessage.id), errorMessage],
         isStreaming: false,
         isThinking: false,
         streamBuffer: '',
         thinkingBuffer: '',
         toolActivity: [],
+        _activeCallId: null,
       }));
     }
   },
@@ -264,6 +266,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // regardless of which view they were on (wrangler loading, files, build, etc.)
     useViewStore.getState().navigate('chat');
 
+    // Step 1.5: Abort any active stream for the old book so it doesn't
+    // continue consuming tokens and writing files in the background.
+    const { activeConversation, isStreaming } = get();
+    if (isStreaming && activeConversation) {
+      try {
+        await window.novelEngine.chat.abort(activeConversation.id);
+      } catch {
+        // Best-effort — the stream may have already completed
+      }
+    }
+
     // Step 2: Clear all chat state immediately
     set({
       activeConversation: null,
@@ -326,123 +339,101 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  _handleStreamEvent: (event: StreamEvent) => {
-    // Scope events to the call that THIS store initiated.
-    // Each sendMessage generates a unique callId and passes it to the IPC
-    // layer, which injects it into every broadcast event. By filtering here,
-    // we ensure that events from other concurrent CLI calls (different books,
-    // revision queue, auto-draft, etc.) don't bleed into our buffers.
-    const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
-    const callId = enriched.callId;
-    if (callId && callId.startsWith('rev:')) return;
+  _handleStreamEvent: (() => {
+    let handler: ((event: StreamEvent) => void) | null = null;
+    return (event: StreamEvent) => {
+      if (!handler) {
+        handler = createStreamHandler({
+    getActiveCallId: () => useChatStore.getState()._activeCallId,
+    getIsStreaming: () => useChatStore.getState().isStreaming,
+    getActiveConversationId: () => useChatStore.getState().activeConversation?.id ?? null,
+    // chatStore intentionally skips conversationId guard in main path —
+    // the user may switch conversations mid-stream, lifecycle events
+    // must still be processed. The callId guard is sufficient.
+    alwaysCheckConversationId: false,
 
-    const { _activeCallId, activeConversation, isStreaming } = get();
+    onStatus: (message) => useChatStore.setState({ statusMessage: message }),
+    onBlockStart: (blockType) => {
+      if (blockType === 'thinking') {
+        useChatStore.setState({ isThinking: true, isStreaming: true, statusMessage: '' });
+      } else if (blockType === 'text') {
+        useChatStore.setState({ isThinking: false, statusMessage: '' });
+      }
+    },
+    onThinkingDelta: (text) => useChatStore.setState((s) => ({ thinkingBuffer: s.thinkingBuffer + text })),
+    onTextDelta: (text) => useChatStore.setState((s) => ({ streamBuffer: s.streamBuffer + text })),
 
-    // Primary guard: callId matching — the callId is a UUID generated per
-    // sendMessage call, so this alone prevents cross-call bleed.
-    if (_activeCallId && callId && callId !== _activeCallId) return;
+    onToolUse: (tool) => {
+      if (tool.status === 'complete' && tool.filePath) {
+        useChatStore.setState((s) => ({ toolActivity: [...s.toolActivity, tool.filePath!] }));
+      }
+    },
+    onProgressStage: (stage) => useChatStore.setState({ progressStage: stage }),
+    onThinkingSummary: (summary) => useChatStore.setState({ thinkingSummary: summary.text }),
+    onToolDuration: (tool) => useChatStore.setState((s) => ({ toolTimings: [...s.toolTimings, tool] })),
+    onFilesChanged: (paths) => useChatStore.setState({ lastChangedFiles: paths }),
 
-    // Secondary guard: when no call is active, reject stale events.
-    // During recovery (isStreaming=true, _activeCallId=null) we allow
-    // events through but only if they match the active conversation.
-    if (!_activeCallId) {
-      if (!isStreaming) return;
-      // Recovery mode — accept events only for the active conversation
-      if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
-    }
+    onDone: () => {
+      clearRecoveryPoll();
+      const { activeConversation, toolActivity } = useChatStore.getState();
+      const doneConversationId = activeConversation?.id ?? null;
 
-    // NOTE: No conversationId guard in the main (callId-present) path.
-    // The user may switch conversations mid-stream, which changes
-    // activeConversation. Lifecycle events (done/error) must still be
-    // processed to reset isStreaming and clear buffers. The callId guard
-    // is sufficient — it's a unique UUID per send call.
+      if (doneConversationId) {
+        const currentToolActivity = toolActivity;
 
-    switch (event.type) {
-      case 'status':
-        set({ statusMessage: event.message });
-        break;
+        Promise.all([
+          window.novelEngine.chat.getMessages(doneConversationId),
+          window.novelEngine.usage.byConversation(doneConversationId),
+        ]).then(([messages, usage]) => {
+          const stillActive = useChatStore.getState().activeConversation?.id === doneConversationId;
+          if (!stillActive) return;
 
-      case 'blockStart':
-        if (event.blockType === 'thinking') {
-          set({ isThinking: true, isStreaming: true, statusMessage: '' });
-        } else if (event.blockType === 'text') {
-          set({ isThinking: false, statusMessage: '' });
-        }
-        break;
+          const lastAssistantMessage = messages.filter((m) => m.role === 'assistant').pop();
+          const updatedToolActivity: Record<string, string[]> = {};
+          if (lastAssistantMessage && currentToolActivity.length > 0) {
+            updatedToolActivity[lastAssistantMessage.id] = currentToolActivity;
+          }
 
-      case 'thinkingDelta':
-        set((state) => ({ thinkingBuffer: state.thinkingBuffer + event.text }));
-        break;
-
-      case 'textDelta':
-        set((state) => ({ streamBuffer: state.streamBuffer + event.text }));
-        break;
-
-      case 'blockEnd':
-        // No-op: transitions handled by blockStart
-        break;
-
-      case 'toolUse':
-        if (event.tool.status === 'complete' && event.tool.filePath) {
-          set((state) => ({
-            toolActivity: [...state.toolActivity, event.tool.filePath!],
+          useChatStore.setState((state) => ({
+            messages,
+            conversationUsage: usage,
+            isStreaming: false,
+            isThinking: false,
+            streamBuffer: '',
+            thinkingBuffer: '',
+            statusMessage: '',
+            messageToolActivity: { ...state.messageToolActivity, ...updatedToolActivity },
+            toolActivity: [],
+            lastChangedFiles: [],
+            progressStage: 'idle',
+            thinkingSummary: '',
+            toolTimings: [],
+            _activeCallId: null,
           }));
-        }
-        break;
-
-      case 'progressStage':
-        set({ progressStage: event.stage });
-        break;
-
-      case 'thinkingSummary':
-        set({ thinkingSummary: event.summary.text });
-        break;
-
-      case 'toolDuration':
-        set((state) => ({
-          toolTimings: [...state.toolTimings, event.tool],
-        }));
-        break;
-
-      case 'filesChanged':
-        set({ lastChangedFiles: event.paths });
-        break;
-
-      case 'done': {
-        // Clear recovery poll — the done event arrived naturally
-        clearRecoveryPoll();
-        const doneConversationId = activeConversation?.id ?? null;
-
-        if (doneConversationId) {
-          const currentToolActivity = get().toolActivity;
-
-          Promise.all([
-            window.novelEngine.chat.getMessages(doneConversationId),
-            window.novelEngine.usage.byConversation(doneConversationId),
-          ]).then(([messages, usage]) => {
-            // Guard: only update if the user hasn't navigated away
-            const stillActive = get().activeConversation?.id === doneConversationId;
-            if (!stillActive) return;
-
-            // Associate tool activity with the last assistant message
-            const lastAssistantMessage = messages.filter((m) => m.role === 'assistant').pop();
-            const updatedToolActivity: Record<string, string[]> = {};
-            if (lastAssistantMessage && currentToolActivity.length > 0) {
-              updatedToolActivity[lastAssistantMessage.id] = currentToolActivity;
+        }).catch((error) => {
+          console.error('Failed to reload messages after done:', error);
+          if (useChatStore.getState().activeConversation?.id === doneConversationId) {
+            const { streamBuffer, thinkingBuffer } = useChatStore.getState();
+            const fallbackMessages: Message[] = [];
+            if (streamBuffer || thinkingBuffer) {
+              fallbackMessages.push({
+                id: 'fallback-' + Date.now(),
+                role: 'assistant' as const,
+                content: streamBuffer,
+                thinking: thinkingBuffer,
+                conversationId: doneConversationId,
+                timestamp: new Date().toISOString(),
+              });
             }
-
-            set((state) => ({
-              messages,
-              conversationUsage: usage,
+            useChatStore.setState((state) => ({
+              messages: fallbackMessages.length > 0
+                ? [...state.messages, ...fallbackMessages]
+                : state.messages,
               isStreaming: false,
               isThinking: false,
               streamBuffer: '',
               thinkingBuffer: '',
               statusMessage: '',
-              messageToolActivity: {
-                ...state.messageToolActivity,
-                ...updatedToolActivity,
-              },
               toolActivity: [],
               lastChangedFiles: [],
               progressStage: 'idle',
@@ -450,85 +441,53 @@ export const useChatStore = create<ChatState>((set, get) => ({
               toolTimings: [],
               _activeCallId: null,
             }));
-          }).catch((error) => {
-            console.error('Failed to reload messages after done:', error);
-            // Only update if still on the same conversation
-            if (get().activeConversation?.id === doneConversationId) {
-              // Preserve streamed content as a synthetic message so the user
-              // doesn't lose the response when the DB reload fails.
-              const { streamBuffer, thinkingBuffer } = get();
-              const fallbackMessages: Message[] = [];
-              if (streamBuffer || thinkingBuffer) {
-                fallbackMessages.push({
-                  id: 'fallback-' + Date.now(),
-                  role: 'assistant' as const,
-                  content: streamBuffer,
-                  thinking: thinkingBuffer,
-                  conversationId: doneConversationId,
-                  timestamp: new Date().toISOString(),
-                });
-              }
-              set((state) => ({
-                messages: fallbackMessages.length > 0
-                  ? [...state.messages, ...fallbackMessages]
-                  : state.messages,
-                isStreaming: false,
-                isThinking: false,
-                streamBuffer: '',
-                thinkingBuffer: '',
-                statusMessage: '',
-                toolActivity: [],
-                lastChangedFiles: [],
-                progressStage: 'idle',
-                thinkingSummary: '',
-                toolTimings: [],
-                _activeCallId: null,
-              }));
-            }
-          });
-        } else {
-          set({
-            isStreaming: false,
-            isThinking: false,
-            streamBuffer: '',
-            thinkingBuffer: '',
-            statusMessage: '',
-            toolActivity: [],
-            lastChangedFiles: [],
-            progressStage: 'idle',
-            thinkingSummary: '',
-            toolTimings: [],
-            _activeCallId: null,
-          });
-        }
-        break;
-      }
-
-      case 'error':
-        clearRecoveryPoll();
-        set((state) => {
-          const errorMessage: Message = {
-            id: 'error-' + Date.now(),
-            role: 'assistant',
-            content: `Error: ${event.message}`,
-            thinking: '',
-            conversationId: activeConversation?.id ?? '',
-            timestamp: new Date().toISOString(),
-          };
-          return {
-            messages: [...state.messages, errorMessage],
-            isStreaming: false,
-            isThinking: false,
-            streamBuffer: '',
-            thinkingBuffer: '',
-            statusMessage: '',
-            toolActivity: [],
-            _activeCallId: null,
-          };
+          }
         });
-        break;
-    }
-  },
+      } else {
+        useChatStore.setState({
+          isStreaming: false,
+          isThinking: false,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: '',
+          toolActivity: [],
+          lastChangedFiles: [],
+          progressStage: 'idle',
+          thinkingSummary: '',
+          toolTimings: [],
+          _activeCallId: null,
+        });
+      }
+    },
+
+    onError: (message) => {
+      clearRecoveryPoll();
+      useChatStore.setState((state) => {
+        const errorMessage: Message = {
+          id: 'error-' + Date.now(),
+          role: 'assistant',
+          content: `Error: ${message}`,
+          thinking: '',
+          conversationId: useChatStore.getState().activeConversation?.id ?? '',
+          timestamp: new Date().toISOString(),
+        };
+        return {
+          messages: [...state.messages, errorMessage],
+          isStreaming: false,
+          isThinking: false,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: '',
+          toolActivity: [],
+          _activeCallId: null,
+        };
+      });
+    },
+        });
+      }
+      handler(event);
+    };
+  })(),
 
   initStreamListener: () => {
     const { _cleanupListener, _cleanupFilesChanged, _handleStreamEvent } = get();

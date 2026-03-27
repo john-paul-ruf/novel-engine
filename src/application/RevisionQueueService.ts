@@ -613,6 +613,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       type: 'session:streamEvent',
       sessionId: session.id,
       event: { type: 'callStart', agentName: 'Verity' as AgentName, model, bookSlug: plan.bookSlug },
+      conversationId: session.conversationId ?? undefined,
     });
 
     try {
@@ -626,7 +627,7 @@ export class RevisionQueueService implements IRevisionQueueService {
           : undefined,
         maxTurns: AGENT_REGISTRY.Verity.maxTurns,
         onEvent: (event: StreamEvent) => {
-          this.emit({ type: 'session:streamEvent', sessionId: session.id, event });
+          this.emit({ type: 'session:streamEvent', sessionId: session.id, event, conversationId: session.conversationId ?? undefined });
 
           switch (event.type) {
             case 'textDelta':

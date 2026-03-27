@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Conversation, Message, StreamEvent } from '@domain/types';
 import { PITCH_ROOM_SLUG } from '@domain/constants';
 import { randomRespondingStatus } from '@domain/statusMessages';
+import { createStreamHandler } from './streamHandler';
 
 type PitchRoomState = {
   conversations: Conversation[];
@@ -188,75 +189,64 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         timestamp: new Date().toISOString(),
       };
       set((state) => ({
-        messages: [...state.messages, errorMessage],
+        messages: [...state.messages.filter(m => m.id !== tempMessage.id), errorMessage],
         isStreaming: false,
         isThinking: false,
         streamBuffer: '',
         thinkingBuffer: '',
+        _activeCallId: null,
       }));
     }
   },
 
-  _handleStreamEvent: (event: StreamEvent) => {
-    const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
-    const callId = enriched.callId;
-    if (callId && callId.startsWith('rev:')) return;
+  _handleStreamEvent: (() => {
+    let handler: ((event: StreamEvent) => void) | null = null;
+    return (event: StreamEvent) => {
+      if (!handler) {
+        handler = createStreamHandler({
+    getActiveCallId: () => usePitchRoomStore.getState()._activeCallId,
+    getIsStreaming: () => usePitchRoomStore.getState().isStreaming,
+    getActiveConversationId: () => usePitchRoomStore.getState().activeConversation?.id ?? null,
+    alwaysCheckConversationId: true,
 
-    const { _activeCallId, activeConversation, isStreaming } = get();
+    onStatus: (message) => usePitchRoomStore.setState({ statusMessage: message }),
+    onBlockStart: (blockType) => {
+      if (blockType === 'thinking') {
+        usePitchRoomStore.setState({ isThinking: true, isStreaming: true, statusMessage: '' });
+      } else if (blockType === 'text') {
+        usePitchRoomStore.setState({ isThinking: false, statusMessage: '' });
+      }
+    },
+    onThinkingDelta: (text) => usePitchRoomStore.setState((s) => ({ thinkingBuffer: s.thinkingBuffer + text })),
+    onTextDelta: (text) => usePitchRoomStore.setState((s) => ({ streamBuffer: s.streamBuffer + text })),
 
-    // Primary guard: callId matching — UUID per send, prevents cross-call bleed
-    if (_activeCallId && callId && callId !== _activeCallId) return;
+    onDone: () => {
+      const { activeConversation } = usePitchRoomStore.getState();
+      const doneConversationId = activeConversation?.id ?? null;
 
-    // Secondary guard: when no call is active, reject stale events
-    if (!_activeCallId) {
-      if (!isStreaming) return;
-      // Accept events only for the active conversation during recovery
-      if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
-    }
+      if (doneConversationId) {
+        Promise.all([
+          window.novelEngine.chat.getMessages(doneConversationId),
+          window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG),
+        ]).then(([messages, allConversations]) => {
+          const stillActive = usePitchRoomStore.getState().activeConversation?.id === doneConversationId;
+          if (!stillActive) return;
 
-    // Conversation scope: only process events belonging to our conversation
-    if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
-
-    switch (event.type) {
-      case 'status':
-        set({ statusMessage: event.message });
-        break;
-
-      case 'blockStart':
-        if (event.blockType === 'thinking') {
-          set({ isThinking: true, isStreaming: true, statusMessage: '' });
-        } else if (event.blockType === 'text') {
-          set({ isThinking: false, statusMessage: '' });
-        }
-        break;
-
-      case 'thinkingDelta':
-        set((state) => ({ thinkingBuffer: state.thinkingBuffer + event.text }));
-        break;
-
-      case 'textDelta':
-        set((state) => ({ streamBuffer: state.streamBuffer + event.text }));
-        break;
-
-      case 'blockEnd':
-        break;
-
-      case 'done': {
-        const doneConversationId = activeConversation?.id ?? null;
-
-        if (doneConversationId) {
-          // Reload messages and refresh the conversation list (title may have updated)
-          Promise.all([
-            window.novelEngine.chat.getMessages(doneConversationId),
-            window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG),
-          ]).then(([messages, allConversations]) => {
-            const stillActive = get().activeConversation?.id === doneConversationId;
-            if (!stillActive) return;
-
-            const pitchConversations = allConversations.filter((c) => c.purpose === 'pitch-room');
-            set({
-              messages,
-              conversations: pitchConversations,
+          const pitchConversations = allConversations.filter((c) => c.purpose === 'pitch-room');
+          usePitchRoomStore.setState({
+            messages,
+            conversations: pitchConversations,
+            isStreaming: false,
+            isThinking: false,
+            streamBuffer: '',
+            thinkingBuffer: '',
+            statusMessage: '',
+            _activeCallId: null,
+          });
+        }).catch((error) => {
+          console.error('Failed to reload messages after done:', error);
+          if (usePitchRoomStore.getState().activeConversation?.id === doneConversationId) {
+            usePitchRoomStore.setState({
               isStreaming: false,
               isThinking: false,
               streamBuffer: '',
@@ -264,56 +254,44 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
               statusMessage: '',
               _activeCallId: null,
             });
-          }).catch((error) => {
-            console.error('Failed to reload messages after done:', error);
-            if (get().activeConversation?.id === doneConversationId) {
-              set({
-                isStreaming: false,
-                isThinking: false,
-                streamBuffer: '',
-                thinkingBuffer: '',
-                statusMessage: '',
-                _activeCallId: null,
-              });
-            }
-          });
-        } else {
-          set({
-            isStreaming: false,
-            isThinking: false,
-            streamBuffer: '',
-            thinkingBuffer: '',
-            statusMessage: '',
-            _activeCallId: null,
-          });
-        }
-        break;
-      }
-
-      // pitchOutcome is no longer emitted — pitch actions (make-book, shelve,
-      // discard) are user-initiated only via the pitch room UI controls.
-
-      case 'error':
-        set((state) => {
-          const errorMessage: Message = {
-            id: 'error-' + Date.now(),
-            role: 'assistant',
-            content: `Error: ${event.message}`,
-            thinking: '',
-            conversationId: activeConversation?.id ?? '',
-            timestamp: new Date().toISOString(),
-          };
-          return {
-            messages: [...state.messages, errorMessage],
-            isStreaming: false,
-            isThinking: false,
-            streamBuffer: '',
-            thinkingBuffer: '',
-            statusMessage: '',
-            _activeCallId: null,
-          };
+          }
         });
-        break;
-    }
-  },
+      } else {
+        usePitchRoomStore.setState({
+          isStreaming: false,
+          isThinking: false,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: '',
+          _activeCallId: null,
+        });
+      }
+    },
+
+    onError: (message) => {
+      usePitchRoomStore.setState((state) => {
+        const errorMessage: Message = {
+          id: 'error-' + Date.now(),
+          role: 'assistant',
+          content: `Error: ${message}`,
+          thinking: '',
+          conversationId: usePitchRoomStore.getState().activeConversation?.id ?? '',
+          timestamp: new Date().toISOString(),
+        };
+        return {
+          messages: [...state.messages, errorMessage],
+          isStreaming: false,
+          isThinking: false,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: '',
+          _activeCallId: null,
+        };
+      });
+    },
+        });
+      }
+      handler(event);
+    };
+  })(),
 }));

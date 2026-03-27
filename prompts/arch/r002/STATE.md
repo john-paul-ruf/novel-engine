@@ -30,15 +30,15 @@ Prompts generated: 9
 
 | # | Prompt | Severity | Status | Completed | Notes |
 |---|--------|----------|--------|-----------|-------|
-| 1 | FIX-01 — Fix send error paths in all three chat stores | 🟠 High | pending | | |
-| 2 | FIX-02 — Inject conversationId in revision event forwarding | 🟡 Medium | pending | | |
-| 3 | FIX-03 — Emit callStart for Verity audit/fix/motif-audit calls | 🟡 Medium | pending | | |
-| 4 | FIX-04 — Deduplicate polling intervals in cliActivityStore recovery | 🟡 Medium | pending | | |
-| 5 | FIX-05 — Add logging for silent error paths in ClaudeCodeClient | 🟡 Medium | pending | | |
-| 6 | FIX-06 — Extract shared stream event handler utility | 🟡 Medium | pending | | Depends on FIX-01 |
-| 7 | FIX-07 — Abort active stream on switchBook | 🟡 Medium | pending | | Depends on FIX-01 |
-| 8 | FIX-08 — Modal close-on-stream-end UX | 🟢 Low | pending | | |
-| 9 | FIX-09 — System prompt size guard | 🟢 Low | pending | | |
+| 1 | FIX-01 — Fix send error paths in all three chat stores | 🟠 High | done | 2026-03-27 | Clean fix — both defects resolved in all three stores |
+| 2 | FIX-02 — Inject conversationId in revision event forwarding | 🟡 Medium | done | 2026-03-27 | Added conversationId to type, emissions, and handler forwarding |
+| 3 | FIX-03 — Emit callStart for Verity audit/fix/motif-audit calls | 🟡 Medium | done | 2026-03-27 | Added emitVerityCallStart helper + 4 call sites in handlers.ts |
+| 4 | FIX-04 — Deduplicate polling intervals in cliActivityStore recovery | 🟡 Medium | done | 2026-03-27 | Module-level timer refs + clear-before-create pattern |
+| 5 | FIX-05 — Add logging for silent error paths in ClaudeCodeClient | 🟡 Medium | done | 2026-03-27 | Added console.warn for EPIPE + first-failure logging for DB persistence |
+| 6 | FIX-06 — Extract shared stream event handler utility | 🟡 Medium | done | 2026-03-27 | Created streamHandler.ts with lazy init IIFE to avoid circular type ref |
+| 7 | FIX-07 — Abort active stream on switchBook | 🟡 Medium | done | 2026-03-27 | Added abort call before state clear in switchBook |
+| 8 | FIX-08 — Modal close-on-stream-end UX | 🟢 Low | done | 2026-03-27 | Added _closeRequested flag, honored in done/error handlers |
+| 9 | FIX-09 — System prompt size guard | 🟢 Low | done | 2026-03-27 | Added 500KB byte-length guard before CLI spawn |
 
 ---
 
@@ -79,8 +79,11 @@ FIX-09 ──┘
 
 > Agents write freeform notes here after each prompt to communicate context to the next run.
 
-### Last completed prompt: (none yet)
+### Last completed prompt: FIX-09 (ALL DONE)
 
 ### Observations:
+- All 9 prompts completed in one run
+- FIX-06 required lazy IIFE initialization pattern to avoid circular TypeScript type inference when `createStreamHandler` callbacks reference the store being defined
+- All other fixes were clean and straightforward
 
 ### Warnings:

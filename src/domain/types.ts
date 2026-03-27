@@ -319,7 +319,7 @@ export type RevisionQueueEvent =
   | { type: 'session:thinking'; sessionId: string; text: string }
   | { type: 'session:done'; sessionId: string; taskNumbers: number[] }
   | { type: 'session:gate'; sessionId: string; gateText: string }
-  | { type: 'session:streamEvent'; sessionId: string; event: StreamEvent }
+  | { type: 'session:streamEvent'; sessionId: string; event: StreamEvent; conversationId?: string }
   | { type: 'plan:progress'; planId: string; completedTasks: number; totalTasks: number }
   | { type: 'plan:loading-step'; step: string }
   | { type: 'queue:done'; planId: string }

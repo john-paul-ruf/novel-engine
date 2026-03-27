@@ -124,6 +124,7 @@ export class ClaudeCodeClient implements IClaudeClient {
     let doneEmitted = false;
 
     // Wrap onEvent to persist every emitted event
+    let persistErrorLogged = false;
     const wrappedOnEvent = (streamEvent: StreamEvent) => {
       if (streamEvent.type === 'done') {
         doneEmitted = true;
@@ -137,8 +138,13 @@ export class ClaudeCodeClient implements IClaudeClient {
           payload: JSON.stringify(streamEvent),
           timestamp: new Date().toISOString(),
         });
-      } catch {
-        // Event persistence is best-effort — don't fail the stream
+      } catch (err) {
+        // Event persistence is best-effort — don't fail the stream.
+        // Log the first failure per session to aid diagnostics.
+        if (!persistErrorLogged) {
+          console.error(`[ClaudeCodeClient] Stream event persistence failed (conversationId=${conversationId}):`, err);
+          persistErrorLogged = true;
+        }
       }
       params.onEvent(streamEvent);
     };
@@ -170,6 +176,17 @@ export class ClaudeCodeClient implements IClaudeClient {
       : bookSlug
         ? path.join(this.booksDir, bookSlug)
         : undefined;
+
+    // Guard against system prompts that would exceed the OS argument size limit.
+    // Most systems support 128KB-2MB for total argv. We cap the system prompt at
+    // 500KB to leave room for other arguments.
+    const MAX_SYSTEM_PROMPT_BYTES = 500_000;
+    const promptBytes = Buffer.byteLength(systemPrompt, 'utf-8');
+    if (promptBytes > MAX_SYSTEM_PROMPT_BYTES) {
+      const message = `System prompt exceeds ${MAX_SYSTEM_PROMPT_BYTES / 1000}KB limit (actual: ${Math.round(promptBytes / 1000)}KB). Check the agent .md file for excessive content.`;
+      params.onEvent({ type: 'error', message });
+      return;
+    }
 
     console.log(`[ClaudeCodeClient] Spawning CLI: model=${model}, cwd=${cwd ?? '(none)'}, conversationId=${conversationId}, args=${args.length} items`);
 
@@ -212,6 +229,7 @@ export class ClaudeCodeClient implements IClaudeClient {
       // error bubbles up as an uncaught exception and crashes the app.
       child.stdin.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
+          console.warn(`[ClaudeCodeClient] stdin ${err.code} — CLI process may have exited early (conversationId=${conversationId})`);
           return;
         }
         const message = `CLI stdin error: ${err.message}`;

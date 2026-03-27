@@ -123,6 +123,14 @@ type CliActivityState = {
 const MAX_ENTRIES_PER_CALL = 500;
 const MAX_COMPLETED_CALLS = 10;
 
+/**
+ * Module-level timer refs for the recovery poll.
+ * Stored outside the store so rapid calls to recoverActiveStream()
+ * can clear the previous interval before creating a new one.
+ */
+let _activityRecoveryPollTimer: ReturnType<typeof setInterval> | null = null;
+let _activityRecoveryTimeout: ReturnType<typeof setTimeout> | null = null;
+
 function getModelLabel(model: string): string {
   if (model.includes('opus')) return 'Opus 4';
   if (model.includes('sonnet')) return 'Sonnet 4';
@@ -613,12 +621,19 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
         selectedCallId: s.selectedCallId ?? callId,
       }));
 
+      // Clear any existing recovery poll from a previous call
+      if (_activityRecoveryPollTimer) clearInterval(_activityRecoveryPollTimer);
+      if (_activityRecoveryTimeout) clearTimeout(_activityRecoveryTimeout);
+
       // Polling fallback: detect stream end if `done` was missed during reload
-      const pollTimer = setInterval(async () => {
+      _activityRecoveryPollTimer = setInterval(async () => {
         try {
           const current = await window.novelEngine.chat.getActiveStream();
           if (!current) {
-            clearInterval(pollTimer);
+            if (_activityRecoveryPollTimer) clearInterval(_activityRecoveryPollTimer);
+            _activityRecoveryPollTimer = null;
+            if (_activityRecoveryTimeout) clearTimeout(_activityRecoveryTimeout);
+            _activityRecoveryTimeout = null;
             // Mark the recovered call as done
             const { calls } = get();
             const existingCall = calls[callId];
@@ -634,7 +649,11 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
       }, 2000);
 
       // Safety: stop polling after 10 minutes max
-      setTimeout(() => clearInterval(pollTimer), 10 * 60 * 1000);
+      _activityRecoveryTimeout = setTimeout(() => {
+        if (_activityRecoveryPollTimer) clearInterval(_activityRecoveryPollTimer);
+        _activityRecoveryPollTimer = null;
+        _activityRecoveryTimeout = null;
+      }, 10 * 60 * 1000);
     } catch {
       // Non-critical — recovery is best-effort
     }

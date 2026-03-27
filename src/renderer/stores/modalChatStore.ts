@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Conversation, ConversationPurpose, Message, StreamEvent } from '@domain/types';
 import { randomRespondingStatus } from '@domain/statusMessages';
+import { createStreamHandler } from './streamHandler';
 
 type ModalChatState = {
   // Visibility
@@ -24,6 +25,7 @@ type ModalChatState = {
 
   // Call scoping — prevents cross-book stream bleed
   _activeCallId: string | null;
+  _closeRequested: boolean;
 
   // Stream handling (internal)
   _handleStreamEvent: (event: StreamEvent) => void;
@@ -44,6 +46,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
   thinkingBuffer: '',
   statusMessage: '',
   _activeCallId: null,
+  _closeRequested: false,
   _cleanupListener: null,
 
   open: async (purpose: ConversationPurpose, bookSlug: string) => {
@@ -57,6 +60,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
         const messages = await window.novelEngine.chat.getMessages(existing.id);
         set({
           isOpen: true,
+          _closeRequested: false,
           purpose,
           bookSlug,
           conversation: existing,
@@ -71,6 +75,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
         });
         set({
           isOpen: true,
+          _closeRequested: false,
           purpose,
           bookSlug,
           conversation,
@@ -84,8 +89,11 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
 
   close: () => {
     const { isStreaming } = get();
-    if (isStreaming) return;
-    set({ isOpen: false });
+    if (isStreaming) {
+      set({ _closeRequested: true });
+      return;
+    }
+    set({ isOpen: false, _closeRequested: false });
   },
 
   sendMessage: async (content: string, thinkingBudgetOverride?: number) => {
@@ -132,121 +140,108 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
         timestamp: new Date().toISOString(),
       };
       set((state) => ({
-        messages: [...state.messages, errorMessage],
+        messages: [...state.messages.filter(m => m.id !== tempMessage.id), errorMessage],
         isStreaming: false,
         isThinking: false,
         streamBuffer: '',
         thinkingBuffer: '',
+        _activeCallId: null,
       }));
     }
   },
 
-  _handleStreamEvent: (event: StreamEvent) => {
-    const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
-    const callId = enriched.callId;
-    if (callId && callId.startsWith('rev:')) return;
+  _handleStreamEvent: (() => {
+    let handler: ((event: StreamEvent) => void) | null = null;
+    return (event: StreamEvent) => {
+      if (!handler) {
+        handler = createStreamHandler({
+    getActiveCallId: () => useModalChatStore.getState()._activeCallId,
+    getIsStreaming: () => useModalChatStore.getState().isStreaming,
+    getActiveConversationId: () => useModalChatStore.getState().conversation?.id ?? null,
+    alwaysCheckConversationId: true,
 
-    const { _activeCallId, conversation, isStreaming } = get();
+    onStatus: (message) => useModalChatStore.setState({ statusMessage: message }),
+    onBlockStart: (blockType) => {
+      if (blockType === 'thinking') {
+        useModalChatStore.setState({ isThinking: true, isStreaming: true, statusMessage: '' });
+      } else if (blockType === 'text') {
+        useModalChatStore.setState({ isThinking: false, statusMessage: '' });
+      }
+    },
+    onThinkingDelta: (text) => useModalChatStore.setState((s) => ({ thinkingBuffer: s.thinkingBuffer + text })),
+    onTextDelta: (text) => useModalChatStore.setState((s) => ({ streamBuffer: s.streamBuffer + text })),
 
-    // Primary guard: callId matching — UUID per send, prevents cross-call bleed
-    if (_activeCallId && callId && callId !== _activeCallId) return;
-
-    // Secondary guard: when no call is active, reject stale events
-    if (!_activeCallId && !isStreaming) return;
-
-    // Conversation scope: only process events belonging to our conversation
-    if (enriched.conversationId && conversation && enriched.conversationId !== conversation.id) return;
-
-    switch (event.type) {
-      case 'status':
-        set({ statusMessage: event.message });
-        break;
-
-      case 'blockStart':
-        if (event.blockType === 'thinking') {
-          set({ isThinking: true, isStreaming: true, statusMessage: '' });
-        } else if (event.blockType === 'text') {
-          set({ isThinking: false, statusMessage: '' });
-        }
-        break;
-
-      case 'thinkingDelta':
-        set((state) => ({ thinkingBuffer: state.thinkingBuffer + event.text }));
-        break;
-
-      case 'textDelta':
-        set((state) => ({ streamBuffer: state.streamBuffer + event.text }));
-        break;
-
-      case 'blockEnd':
-        break;
-
-      case 'toolUse':
-        break;
-
-      case 'filesChanged':
-        break;
-
-      case 'done':
-        if (conversation) {
-          window.novelEngine.chat.getMessages(conversation.id)
-            .then((messages) => {
-              set({
-                messages,
-                isStreaming: false,
-                isThinking: false,
-                streamBuffer: '',
-                thinkingBuffer: '',
-                statusMessage: '',
-                _activeCallId: null,
-              });
-                    })
-            .catch((error) => {
-              console.error('Failed to reload modal messages after done:', error);
-              set({
-                isStreaming: false,
-                isThinking: false,
-                streamBuffer: '',
-                thinkingBuffer: '',
-                statusMessage: '',
-                _activeCallId: null,
-              });
-                    });
-        } else {
-          set({
-            isStreaming: false,
-            isThinking: false,
-            streamBuffer: '',
-            thinkingBuffer: '',
-            statusMessage: '',
-            _activeCallId: null,
+    onDone: () => {
+      const { conversation, _closeRequested } = useModalChatStore.getState();
+      const closeFields = _closeRequested ? { isOpen: false, _closeRequested: false } : {};
+      if (conversation) {
+        window.novelEngine.chat.getMessages(conversation.id)
+          .then((messages) => {
+            useModalChatStore.setState({
+              messages,
+              isStreaming: false,
+              isThinking: false,
+              streamBuffer: '',
+              thinkingBuffer: '',
+              statusMessage: '',
+              _activeCallId: null,
+              ...closeFields,
+            });
+          })
+          .catch((error) => {
+            console.error('Failed to reload modal messages after done:', error);
+            useModalChatStore.setState({
+              isStreaming: false,
+              isThinking: false,
+              streamBuffer: '',
+              thinkingBuffer: '',
+              statusMessage: '',
+              _activeCallId: null,
+              ...closeFields,
+            });
           });
-            }
-        break;
-
-      case 'error':
-        set((state) => {
-          const errorMessage: Message = {
-            id: 'error-' + Date.now(),
-            role: 'assistant',
-            content: `Error: ${event.message}`,
-            thinking: '',
-            conversationId: conversation?.id ?? '',
-            timestamp: new Date().toISOString(),
-          };
-          return {
-            messages: [...state.messages, errorMessage],
-            isStreaming: false,
-            isThinking: false,
-            streamBuffer: '',
-            thinkingBuffer: '',
-            statusMessage: '',
-            _activeCallId: null,
-          };
+      } else {
+        useModalChatStore.setState({
+          isStreaming: false,
+          isThinking: false,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: '',
+          _activeCallId: null,
+          ...closeFields,
         });
-          break;
-    }
-  },
+      }
+    },
+
+    onError: (message) => {
+      const { _closeRequested } = useModalChatStore.getState();
+      const closeFields = _closeRequested ? { isOpen: false, _closeRequested: false } : {};
+      useModalChatStore.setState((state) => {
+        const errorMessage: Message = {
+          id: 'error-' + Date.now(),
+          role: 'assistant',
+          content: `Error: ${message}`,
+          thinking: '',
+          conversationId: useModalChatStore.getState().conversation?.id ?? '',
+          timestamp: new Date().toISOString(),
+        };
+        return {
+          messages: [...state.messages, errorMessage],
+          isStreaming: false,
+          isThinking: false,
+          streamBuffer: '',
+          thinkingBuffer: '',
+          statusMessage: '',
+          _activeCallId: null,
+          ...closeFields,
+        };
+      });
+    },
+        });
+      }
+      handler(event);
+    };
+  })(),
 
   initStreamListener: () => {
     const { _cleanupListener, _handleStreamEvent } = get();

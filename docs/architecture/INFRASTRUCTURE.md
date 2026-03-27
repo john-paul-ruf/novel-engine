@@ -85,8 +85,10 @@ Key behavior:
 - Maps CLI events to `StreamEvent` union variants
 - `abortStream` sends SIGTERM, then SIGKILL after 2s grace period
 - `isAvailable()` caches result of `claude --version` check
-- Persists stream events to SQLite for replay after window refresh
+- Persists stream events to SQLite for replay after window refresh (first-failure logging per session)
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` for idle detection
+- EPIPE/ERR_STREAM_DESTROYED on stdin logged with `console.warn` (not silenced)
+- System prompt size guard: rejects prompts > 500KB with clear error before spawn
 
 ### pandoc/ — Export Engine
 

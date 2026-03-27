@@ -114,11 +114,24 @@ File: `stores/autoDraftStore.ts`
 
 Manages auto-drafting state (sequential chapter writing).
 
+### streamHandler (utility)
+
+File: `stores/streamHandler.ts`
+
+Shared stream event handler factory used by chatStore, modalChatStore, and pitchRoomStore. Encapsulates:
+- `rev:` prefix filter (skip revision queue events)
+- callId matching guard (prevents cross-call bleed)
+- Recovery mode guard (when no callId is active)
+- Optional `alwaysCheckConversationId` — modalChatStore and pitchRoomStore enable this; chatStore does not (allows mid-stream conversation switching)
+- Event type dispatch to store-specific callbacks
+
+Stores initialize the handler via a lazy IIFE pattern to avoid circular TypeScript type inference.
+
 ### cliActivityStore
 
 File: `stores/cliActivityStore.ts`
 
-Tracks active CLI tool usage for the activity panel.
+Tracks active CLI tool usage for the activity panel. Recovery polling uses module-level timer refs (`_activityRecoveryPollTimer`, `_activityRecoveryTimeout`) to prevent duplicate intervals on rapid view switches.
 
 ### fileChangeStore
 
@@ -130,7 +143,7 @@ Tracks file changes reported by the BookWatcher for UI refresh.
 
 File: `stores/modalChatStore.ts`
 
-State for modal chat overlays (e.g., hot-take, ad-hoc revision modal conversations).
+State for modal chat overlays (e.g., hot-take, ad-hoc revision modal conversations). Has `_closeRequested` flag — when user clicks close during streaming, the modal auto-closes when the stream completes or errors.
 
 ### motifLedgerStore
 
