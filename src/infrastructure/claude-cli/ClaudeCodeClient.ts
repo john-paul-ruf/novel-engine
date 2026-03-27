@@ -101,8 +101,19 @@ export class ClaudeCodeClient implements IClaudeClient {
     // Create tracker for this stream session
     const tracker = new StreamSessionTracker(sessionId);
 
+    // Track whether a 'done' event was emitted by processStreamEvent.
+    // If the CLI exits with code 0 but no 'result' event was received
+    // (e.g. the process was killed gracefully, ran out of turns, or the
+    // output format omitted the result summary), we must emit a synthetic
+    // 'done' so upstream consumers (ChatService, chatStore) properly
+    // clean up activeStreams and reset isStreaming.
+    let doneEmitted = false;
+
     // Wrap onEvent to persist every emitted event
     const wrappedOnEvent = (streamEvent: StreamEvent) => {
+      if (streamEvent.type === 'done') {
+        doneEmitted = true;
+      }
       try {
         this.db.persistStreamEvent({
           sessionId,
@@ -236,6 +247,21 @@ export class ClaudeCodeClient implements IClaudeClient {
         }
 
         if (code === 0) {
+          // If the CLI exited cleanly but never sent a 'result' event
+          // (which triggers the 'done' StreamEvent), emit a synthetic
+          // 'done' so ChatService cleans up activeStreams and the
+          // renderer resets isStreaming. Without this, the UI gets
+          // stuck in a "streaming" state with the input disabled.
+          if (!doneEmitted) {
+            const fileTouches = tracker.getFileTouches();
+            wrappedOnEvent({
+              type: 'done',
+              inputTokens: 0,
+              outputTokens: 0,
+              thinkingTokens: 0,
+              filesTouched: fileTouches,
+            });
+          }
           settle(() => resolve());
         } else {
           const message = stderrBuffer.trim() || `Claude CLI exited with code ${code}`;
