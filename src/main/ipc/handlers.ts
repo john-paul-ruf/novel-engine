@@ -555,19 +555,20 @@ export function registerIpcHandlers(services: {
       }
     };
 
-  ipcMain.handle('verity:auditChapter', async (_, bookSlug: string, chapterSlug: string) => {
-    const callId = `audit:${randomUUID()}`;
-    const conversationId = `audit-${randomUUID()}`;
+  ipcMain.handle('verity:auditChapter', async (_, bookSlug: string, chapterSlug: string, rendererCallId?: string, rendererConversationId?: string) => {
+    const callId = rendererCallId ?? `audit:${randomUUID()}`;
+    const broadcastConversationId = rendererConversationId ?? `audit-${randomUUID()}`;
     return services.chat.auditChapter({
       bookSlug,
       chapterSlug,
-      onEvent: broadcastVerityEvent(callId, conversationId),
+      conversationId: rendererConversationId,
+      onEvent: broadcastVerityEvent(callId, broadcastConversationId),
     });
   });
 
-  ipcMain.handle('verity:fixChapter', async (_, bookSlug: string, chapterSlug: string, conversationId: string) => {
+  ipcMain.handle('verity:fixChapter', async (_, bookSlug: string, chapterSlug: string, conversationId: string, rendererCallId?: string) => {
     const sessionId = randomUUID();
-    const callId = `fix:${sessionId}`;
+    const callId = rendererCallId ?? `fix:${sessionId}`;
     await services.chat.fixChapter({
       bookSlug,
       chapterSlug,
@@ -578,9 +579,9 @@ export function registerIpcHandlers(services: {
     });
   });
 
-  ipcMain.handle('verity:fixChapterWithAudit', async (_, bookSlug: string, chapterSlug: string, conversationId: string, auditResultJson: string) => {
+  ipcMain.handle('verity:fixChapterWithAudit', async (_, bookSlug: string, chapterSlug: string, conversationId: string, auditResultJson: string, rendererCallId?: string) => {
     const sessionId = randomUUID();
-    const callId = `fix:${sessionId}`;
+    const callId = rendererCallId ?? `fix:${sessionId}`;
     const auditResult = JSON.parse(auditResultJson);
     await services.chat.fixChapter({
       bookSlug,
@@ -592,10 +593,10 @@ export function registerIpcHandlers(services: {
     });
   });
 
-  ipcMain.handle('verity:runPhraseAudit', async (_, bookSlug: string) => {
+  ipcMain.handle('verity:runPhraseAudit', async (_, bookSlug: string, rendererCallId?: string) => {
     const appSettings = await services.settings.load();
     const sessionId = randomUUID();
-    const callId = `phrase-audit:${sessionId}`;
+    const callId = rendererCallId ?? `phrase-audit:${sessionId}`;
     await services.chat.runPhraseAudit({
       bookSlug,
       appSettings,

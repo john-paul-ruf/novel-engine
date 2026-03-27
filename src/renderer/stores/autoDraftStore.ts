@@ -339,28 +339,46 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
             try {
               patch({ stageLabel: `Auditing ${newChapterSlug}…` });
               console.log(`[auto-draft] Starting audit for ${newChapterSlug}`);
+
+              const auditCallId = crypto.randomUUID();
+              const userIsWatchingAudit = useChatStore.getState().activeConversation?.id === conversationId;
+              if (userIsWatchingAudit) {
+                useChatStore.getState().attachToExternalStream(auditCallId, conversationId, `[Auto-audit: ${newChapterSlug}]`);
+              }
+
               const auditResult = await window.novelEngine.verity.auditChapter(
                 bookSlug,
                 newChapterSlug,
+                { callId: auditCallId, conversationId },
               );
               console.log(`[auto-draft] Audit returned for ${newChapterSlug}:`, auditResult ? `${auditResult.summary.severity} (${auditResult.summary.total} violations)` : 'null');
 
+              if (userIsWatchingAudit && useChatStore.getState().activeConversation?.id === conversationId) {
+                await useChatStore.getState().setActiveConversation(conversationId);
+              }
+
               if (auditResult && shouldFix(auditResult.summary.severity)) {
-                // ── Pass 3: Fix ──────────────────────────────────────
                 if (!session()?.stopRequested) {
                   patch({ stageLabel: `Fixing ${auditResult.summary.total} violations in ${newChapterSlug}…` });
                   console.log(`[auto-draft] Starting fix for ${newChapterSlug}`);
+
+                  const fixCallId = crypto.randomUUID();
+                  const userIsWatchingFix = useChatStore.getState().activeConversation?.id === conversationId;
+                  if (userIsWatchingFix) {
+                    useChatStore.getState().attachToExternalStream(fixCallId, conversationId, `[Auto-fix: ${auditResult.summary.total} violations in ${newChapterSlug}]`);
+                  }
+
                   await window.novelEngine.verity.fixChapter(
                     bookSlug,
                     newChapterSlug,
                     conversationId,
                     auditResult,
+                    fixCallId,
                   );
                   console.log(`[auto-draft] Fix completed for ${newChapterSlug}`);
                 }
               }
             } catch (err) {
-              // Audit/fix failure is non-fatal — the draft is still valid
               console.warn('[auto-draft] Audit/fix pass failed:', err);
             }
           }
@@ -375,7 +393,12 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
             if (!session()?.stopRequested) {
               try {
                 patch({ stageLabel: 'Running phrase audit…' });
-                await window.novelEngine.verity.runPhraseAudit(bookSlug);
+                const phraseCallId = crypto.randomUUID();
+                const userIsWatchingPhrase = useChatStore.getState().activeConversation?.id === conversationId;
+                if (userIsWatchingPhrase) {
+                  useChatStore.getState().attachToExternalStream(phraseCallId, conversationId, '[Running phrase audit…]');
+                }
+                await window.novelEngine.verity.runPhraseAudit(bookSlug, phraseCallId);
               } catch {
                 console.warn('[auto-draft] Periodic phrase audit failed');
               }

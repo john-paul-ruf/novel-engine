@@ -206,14 +206,14 @@ const api = {
 
   // Verity Pipeline (audit/fix)
   verity: {
-    auditChapter: (bookSlug: string, chapterSlug: string): Promise<AuditResult | null> =>
-      ipcRenderer.invoke('verity:auditChapter', bookSlug, chapterSlug),
-    fixChapter: (bookSlug: string, chapterSlug: string, conversationId: string, auditResult?: AuditResult): Promise<void> =>
+    auditChapter: (bookSlug: string, chapterSlug: string, opts?: { callId?: string; conversationId?: string }): Promise<AuditResult | null> =>
+      ipcRenderer.invoke('verity:auditChapter', bookSlug, chapterSlug, opts?.callId, opts?.conversationId),
+    fixChapter: (bookSlug: string, chapterSlug: string, conversationId: string, auditResult?: AuditResult, callId?: string): Promise<void> =>
       auditResult
-        ? ipcRenderer.invoke('verity:fixChapterWithAudit', bookSlug, chapterSlug, conversationId, JSON.stringify(auditResult))
-        : ipcRenderer.invoke('verity:fixChapter', bookSlug, chapterSlug, conversationId),
-    runPhraseAudit: (bookSlug: string): Promise<void> =>
-      ipcRenderer.invoke('verity:runPhraseAudit', bookSlug),
+        ? ipcRenderer.invoke('verity:fixChapterWithAudit', bookSlug, chapterSlug, conversationId, JSON.stringify(auditResult), callId)
+        : ipcRenderer.invoke('verity:fixChapter', bookSlug, chapterSlug, conversationId, callId),
+    runPhraseAudit: (bookSlug: string, callId?: string): Promise<void> =>
+      ipcRenderer.invoke('verity:runPhraseAudit', bookSlug, callId),
   },
 
   // Hot Take

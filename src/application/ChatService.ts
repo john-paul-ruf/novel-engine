@@ -619,9 +619,10 @@ export class ChatService {
   async auditChapter(params: {
     bookSlug: string;
     chapterSlug: string;
+    conversationId?: string;
     onEvent?: (event: StreamEvent) => void;
   }): Promise<AuditResult | null> {
-    const { bookSlug, chapterSlug } = params;
+    const { bookSlug, chapterSlug, conversationId: targetConversationId } = params;
     const onEvent = params.onEvent ?? (() => {});
     console.log(`[ChatService] auditChapter starting for ${chapterSlug} in ${bookSlug}`);
 
@@ -667,18 +668,24 @@ export class ChatService {
     }
     const userMessage = userMessageParts.join('\n\n---\n\n');
 
+    if (targetConversationId) {
+      this.db.saveMessage({
+        conversationId: targetConversationId,
+        role: 'user',
+        content: `[Auto-audit: ${chapterSlug}]`,
+        thinking: '',
+      });
+    }
+
     try {
-      // Use sendMessage and collect the response text.
-      // Wrap in a timeout to prevent the auto-draft loop from hanging
-      // indefinitely if the CLI process stalls (rate-limit, model issue, etc.).
       let responseText = '';
+      let thinkingText = '';
       const sessionId = nanoid();
       const auditConversationId = `audit-${sessionId}`;
       console.log(`[ChatService] Spawning audit CLI for ${chapterSlug} (model: ${VERITY_AUDIT_MODEL}, session: ${sessionId})`);
 
-      const AUDIT_TIMEOUT_MS = 120_000; // 2 minutes — generous for a single-turn Sonnet call
+      const AUDIT_TIMEOUT_MS = 120_000;
 
-      // Emit callStart so CLI Activity panel tracks this call
       onEvent({ type: 'callStart', agentName: 'Verity', model: VERITY_AUDIT_MODEL, bookSlug });
       onEvent({ type: 'status', message: `Auditing ${chapterSlug} for voice/style violations…` });
 
@@ -694,24 +701,24 @@ export class ChatService {
         onEvent: (event: StreamEvent) => {
           if (event.type === 'textDelta') {
             responseText += event.text;
+          } else if (event.type === 'thinkingDelta') {
+            thinkingText += event.text;
           }
           if (event.type === 'done') {
             this.usage.recordUsage({
-              conversationId: auditConversationId,
+              conversationId: targetConversationId ?? auditConversationId,
               inputTokens: event.inputTokens,
               outputTokens: event.outputTokens,
               thinkingTokens: event.thinkingTokens,
               model: VERITY_AUDIT_MODEL,
             });
           }
-          // Forward all events to the IPC layer for CLI Activity visibility
           onEvent(event);
         },
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          // Abort the CLI process so it doesn't linger after timeout
           this.claude.abortStream(auditConversationId);
           reject(new Error(`Audit timed out after ${AUDIT_TIMEOUT_MS / 1000}s`));
         }, AUDIT_TIMEOUT_MS);
@@ -719,9 +726,24 @@ export class ChatService {
 
       await Promise.race([cliPromise, timeoutPromise]);
 
-      // Parse JSON from response — strip markdown fences if present
       const clean = responseText.replace(/```json\s*|```/g, '').trim();
-      return JSON.parse(clean) as AuditResult;
+      const result = JSON.parse(clean) as AuditResult;
+
+      if (targetConversationId) {
+        const severity = result.summary.severity;
+        const total = result.summary.total;
+        const summaryLine = total > 0
+          ? `[Audit complete: ${total} violation${total === 1 ? '' : 's'} — ${severity}]`
+          : `[Audit complete: clean]`;
+        this.db.saveMessage({
+          conversationId: targetConversationId,
+          role: 'assistant',
+          content: summaryLine,
+          thinking: thinkingText,
+        });
+      }
+
+      return result;
     } catch (err) {
       console.warn(`[ChatService] Audit failed for ${chapterSlug}:`, err);
       return null;
