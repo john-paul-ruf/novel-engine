@@ -619,8 +619,10 @@ export class ChatService {
   async auditChapter(params: {
     bookSlug: string;
     chapterSlug: string;
+    onEvent?: (event: StreamEvent) => void;
   }): Promise<AuditResult | null> {
     const { bookSlug, chapterSlug } = params;
+    const onEvent = params.onEvent ?? (() => {});
     console.log(`[ChatService] auditChapter starting for ${chapterSlug} in ${bookSlug}`);
 
     // Read the chapter draft
@@ -676,6 +678,10 @@ export class ChatService {
 
       const AUDIT_TIMEOUT_MS = 120_000; // 2 minutes — generous for a single-turn Sonnet call
 
+      // Emit callStart so CLI Activity panel tracks this call
+      onEvent({ type: 'callStart', agentName: 'Verity', model: VERITY_AUDIT_MODEL, bookSlug });
+      onEvent({ type: 'status', message: `Auditing ${chapterSlug} for voice/style violations…` });
+
       const cliPromise = this.claude.sendMessage({
         model: VERITY_AUDIT_MODEL,
         systemPrompt: auditorPrompt,
@@ -698,6 +704,8 @@ export class ChatService {
               model: VERITY_AUDIT_MODEL,
             });
           }
+          // Forward all events to the IPC layer for CLI Activity visibility
+          onEvent(event);
         },
       });
 
@@ -761,6 +769,10 @@ export class ChatService {
 
     const FIX_TIMEOUT_MS = 300_000; // 5 minutes — fix pass uses Opus with tool use
 
+    // Emit callStart so CLI Activity panel tracks this call
+    onEvent({ type: 'callStart', agentName: 'Verity', model: appSettings.model, bookSlug });
+    onEvent({ type: 'status', message: `Fixing ${auditResult.violations.length} violations in ${chapterSlug}…` });
+
     const cliPromise = this.claude.sendMessage({
       model: appSettings.model, // Opus for fix pass — needs creative judgment
       systemPrompt,
@@ -778,9 +790,6 @@ export class ChatService {
           thinkingBuffer += event.text;
         }
 
-        if (event.type === 'status' || event.type === 'progressStage' || event.type === 'filesChanged') {
-          onEvent(event);
-        }
         if (event.type === 'done') {
           // Save the fix response
           this.db.saveMessage({
@@ -798,6 +807,9 @@ export class ChatService {
             model: appSettings.model,
           });
         }
+
+        // Forward ALL events to IPC layer for CLI Activity visibility
+        onEvent(event);
       },
     });
 
@@ -857,9 +869,11 @@ export class ChatService {
       systemPrompt += `\n\n## Other Files\n\n${otherFiles}`;
     }
 
-    onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript...' });
-
     const thinkingBudget = resolveThinkingBudget(appSettings, lumenAgent.thinkingBudget);
+
+    // Emit callStart so CLI Activity panel tracks this call
+    onEvent({ type: 'callStart', agentName: 'Lumen', model: appSettings.model, bookSlug });
+    onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript…' });
 
     await this.claude.sendMessage({
       model: appSettings.model,
@@ -872,11 +886,10 @@ export class ChatService {
       sessionId,
       conversationId: `phrase-audit-${sessionId}`,
       onEvent: (event: StreamEvent) => {
-        if (event.type === 'status' || event.type === 'progressStage') {
-          onEvent(event);
-        } else if (event.type === 'filesChanged') {
+        if (event.type === 'filesChanged') {
           this.lastChangedFiles = event.paths;
-        } else if (event.type === 'done') {
+        }
+        if (event.type === 'done') {
           this.usage.recordUsage({
             conversationId: `phrase-audit-${sessionId}`,
             inputTokens: event.inputTokens,
@@ -885,7 +898,8 @@ export class ChatService {
             model: appSettings.model,
           });
         }
-        // Swallow textDelta/thinkingDelta — this is a background task, not a chat
+        // Forward ALL events to IPC layer for CLI Activity visibility
+        onEvent(event);
       },
     });
   }
