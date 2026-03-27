@@ -15,7 +15,7 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
     neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
   Verity: {
-    alwaysRead: ['source/voice-profile.md', 'source/phrase-ledger.md'],
+    alwaysRead: ['source/voice-profile.md', 'source/phrase-ledger.md', 'source/motif-ledger.json'],
     readIfRelevant: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/revision-prompts.md'],
     neverRead: ['source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
@@ -26,12 +26,12 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
   },
   Lumen: {
     alwaysRead: ['source/reader-report.md'],
-    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/phrase-ledger.md'],
+    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/phrase-ledger.md', 'source/motif-ledger.json'],
     neverRead: ['author-profile.md', 'source/revision-prompts.md'],
   },
   Sable: {
     alwaysRead: ['source/style-sheet.md', 'source/story-bible.md'],
-    readIfRelevant: [],
+    readIfRelevant: ['source/motif-ledger.json'],
     neverRead: ['source/scene-outline.md', 'source/pitch.md', 'author-profile.md', 'source/reader-report.md', 'source/dev-report.md'],
   },
   Forge: {
@@ -670,6 +670,7 @@ export const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'styleSheet',      path: 'source/style-sheet.md' },
   { key: 'projectTasks',    path: 'source/project-tasks.md' },
   { key: 'phraseLedger',    path: 'source/phrase-ledger.md' },
+  { key: 'motifLedger',     path: 'source/motif-ledger.json' },
   { key: 'metadata',        path: 'source/metadata.md' },
 ];
 
@@ -693,6 +694,8 @@ export const VERITY_PHASE_FILES: Partial<Record<PipelinePhaseId, string>> = {
  * The auditor agent filename. Loaded separately — not a Verity sub-prompt.
  * Run on Sonnet for cost efficiency.
  */
+export const VERITY_LEDGER_FILE = 'VERITY-LEDGER.md';
+
 export const VERITY_AUDIT_AGENT_FILE = 'VERITY-AUDIT.md';
 
 /** Model used for the audit pass. Sonnet is fast, cheap, and sufficient. */

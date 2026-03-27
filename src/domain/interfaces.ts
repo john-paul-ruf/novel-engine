@@ -11,6 +11,7 @@ import type {
   FileTouchMap,
   Message,
   MessageRole,
+  MotifLedger,
   PersistedStreamEvent,
   PipelinePhase,
   PipelinePhaseId,
@@ -300,6 +301,12 @@ export interface IRevisionQueueService {
 
   // Register event listener
   onEvent(callback: (event: RevisionQueueEvent) => void): () => void;
+}
+
+export interface IMotifLedgerService {
+  load(bookSlug: string): Promise<MotifLedger>;
+  save(bookSlug: string, ledger: MotifLedger): Promise<void>;
+  getUnauditedChapters(bookSlug: string): Promise<string[]>;
 }
 
 export interface IChapterValidator {

@@ -400,3 +400,84 @@ export type ContextDiagnostics = {
   conversationTurnsDropped: number;
   manifestTokenEstimate: number;    // how many tokens the manifest section uses
 };
+
+// === Motif Ledger ===
+
+export type MotifSystem = {
+  id: string;
+  name: string;
+  description: string;
+  components: string[];
+  arcTrajectory: string;
+};
+
+export type MotifEntry = {
+  id: string;
+  character: string;
+  phrase: string;
+  description: string;
+  systemId: string | null;
+  firstAppearance: string;
+  occurrences: string[];
+  notes: string;
+};
+
+export type StructuralDevice = {
+  id: string;
+  name: string;
+  deviceType: string;
+  description: string;
+  pattern: string;
+  chapters: string[];
+  notes: string;
+};
+
+export type ForeshadowStatus = 'planted' | 'paid-off' | 'abandoned';
+
+export type ForeshadowEntry = {
+  id: string;
+  description: string;
+  plantedIn: string;
+  expectedPayoff: string;
+  expectedPayoffIn: string;
+  status: ForeshadowStatus;
+  notes: string;
+};
+
+export type MinorCharacterMotif = {
+  id: string;
+  character: string;
+  motifs: string;
+  notes: string;
+};
+
+export type FlaggedPhraseCategory = 'retired' | 'limited' | 'crutch' | 'anti-pattern';
+
+export type FlaggedPhrase = {
+  id: string;
+  phrase: string;
+  category: FlaggedPhraseCategory;
+  alternatives: string[];
+  limit?: number;
+  limitChapters?: string[];
+  notes: string;
+};
+
+export type LedgerAuditRecord = {
+  id: string;
+  chapterSlug: string;
+  auditedAt: string;
+  entriesAdded: number;
+  entriesUpdated: number;
+  notes: string;
+};
+
+export type MotifLedger = {
+  systems: MotifSystem[];
+  entries: MotifEntry[];
+  structuralDevices: StructuralDevice[];
+  foreshadows: ForeshadowEntry[];
+  minorCharacters: MinorCharacterMotif[];
+  flaggedPhrases: FlaggedPhrase[];
+  auditLog: LedgerAuditRecord[];
+};

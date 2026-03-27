@@ -63,6 +63,7 @@ import { PipelineService } from '@app/PipelineService';
 import { BuildService } from '@app/BuildService';
 import { UsageService } from '@app/UsageService';
 import { RevisionQueueService } from '@app/RevisionQueueService';
+import { MotifLedgerService } from '@app/MotifLedgerService';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -224,6 +225,7 @@ async function initializeApp(): Promise<void> {
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
+  const motifLedger = new MotifLedgerService(fs);
   const notifications = new NotificationManager(settings);
 
   // 4b. Recover orphaned stream sessions and prune old event data
@@ -297,7 +299,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, notifications },
+    { settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, motifLedger, notifications },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

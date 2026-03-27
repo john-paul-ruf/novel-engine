@@ -14,6 +14,7 @@ import type {
   ConversationPurpose,
   FileEntry,
   Message,
+  MotifLedger,
   PipelinePhase,
   PipelinePhaseId,
   PitchDraft,
@@ -271,6 +272,16 @@ const api = {
       ipcRenderer.on('revision:event', handler);
       return () => { ipcRenderer.removeListener('revision:event', handler); };
     },
+  },
+
+  // Motif Ledger
+  motifLedger: {
+    load: (bookSlug: string): Promise<MotifLedger> =>
+      ipcRenderer.invoke('motifLedger:load', bookSlug),
+    save: (bookSlug: string, ledger: MotifLedger): Promise<void> =>
+      ipcRenderer.invoke('motifLedger:save', bookSlug, ledger),
+    getUnauditedChapters: (bookSlug: string): Promise<string[]> =>
+      ipcRenderer.invoke('motifLedger:getUnauditedChapters', bookSlug),
   },
 
   // Context Diagnostics

@@ -12,6 +12,7 @@ import type {
   IPipelineService,
   IBuildService,
   IRevisionQueueService,
+  IMotifLedgerService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -20,6 +21,7 @@ import type {
   ApprovalAction,
   BookMeta,
   ConversationPurpose,
+  MotifLedger,
   PipelinePhaseId,
   QueueMode,
   SendMessageParams,
@@ -40,6 +42,7 @@ export function registerIpcHandlers(services: {
   build: IBuildService;
   usage: UsageService;
   revisionQueue: IRevisionQueueService;
+  motifLedger: IMotifLedgerService;
   notifications: NotificationManager;
 }, paths: {
   userDataPath: string;
@@ -661,6 +664,20 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('revision:getQueueStatus', (_, bookSlug: string) => {
     return services.revisionQueue.getQueueStatus(bookSlug);
   });
+
+  // === Motif Ledger ===
+
+  ipcMain.handle('motifLedger:load', (_, bookSlug: string) =>
+    services.motifLedger.load(bookSlug),
+  );
+
+  ipcMain.handle('motifLedger:save', (_, bookSlug: string, ledger: MotifLedger) =>
+    services.motifLedger.save(bookSlug, ledger),
+  );
+
+  ipcMain.handle('motifLedger:getUnauditedChapters', (_, bookSlug: string) =>
+    services.motifLedger.getUnauditedChapters(bookSlug),
+  );
 
   // Forward revision queue events to all renderer windows + fire OS notifications
   services.revisionQueue.onEvent((event) => {

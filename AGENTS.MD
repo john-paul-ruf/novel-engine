@@ -9,14 +9,14 @@ This file is always loaded. It runs on every session. You do not wait to be aske
 After completing any code change — feature, fix, refactor, deletion, schema change, new file, removed file — you update documentation before reporting the session as done:
 
 1. `CHANGELOG.md` — append an entry for what just changed
-2. `docs/ARCHITECTURE.md` — master overview (layers, dependency graph, conventions)
-3. `docs/DOMAIN.md` — types, interfaces, constants
-4. `docs/INFRASTRUCTURE.md` — database, filesystem, CLI client, settings, agents, Pandoc
-5. `docs/APPLICATION.md` — services, orchestration, business logic
-6. `docs/IPC.md` — channels, preload bridge, handler registry
-7. `docs/RENDERER.md` — stores, components, views, routing
+2. `docs/architecture/ARCHITECTURE.md` — master overview (layers, dependency graph, conventions)
+3. `docs/architecture/DOMAIN.md` — types, interfaces, constants
+4. `docs/architecture/INFRASTRUCTURE.md` — database, filesystem, CLI client, settings, agents, Pandoc
+5. `docs/architecture/APPLICATION.md` — services, orchestration, business logic
+6. `docs/architecture/IPC.md` — channels, preload bridge, handler registry
+7. `docs/architecture/RENDERER.md` — stores, components, views, routing
 
-Only update the docs that are affected by the current session's changes. If you changed a type in `src/domain/types.ts`, update `docs/DOMAIN.md`. If you added an IPC channel, update `docs/IPC.md`. If nothing in a domain changed, don't touch its doc.
+Only update the docs that are affected by the current session's changes. If you changed a type in `src/domain/types.ts`, update `docs/architecture/DOMAIN.md`. If you added an IPC channel, update `docs/architecture/IPC.md`. If nothing in a domain changed, don't touch its doc.
 
 The changelog entry is always mandatory regardless of what changed.
 
@@ -93,7 +93,7 @@ If `CHANGELOG.md` doesn't exist, create it with the header and today's entry.
 
 ---
 
-## docs/ARCHITECTURE.md — Master Overview
+## docs/architecture/ARCHITECTURE.md — Master Overview
 
 The top-level map. Links to domain docs. Updated when layers, wiring, or conventions change.
 
@@ -165,7 +165,7 @@ Table with actual versions from `package.json`.
 
 ---
 
-## docs/DOMAIN.md — Types, Interfaces, Constants
+## docs/architecture/DOMAIN.md — Types, Interfaces, Constants
 
 Everything in `src/domain/`. Updated when any type, interface, or constant changes.
 
@@ -227,7 +227,7 @@ Full table matching `AGENT_REGISTRY`.
 
 ---
 
-## docs/INFRASTRUCTURE.md — Implementations
+## docs/architecture/INFRASTRUCTURE.md — Implementations
 
 Everything in `src/infrastructure/`. Updated when any infra module changes.
 
@@ -322,7 +322,7 @@ What watchers exist, what events they emit, who consumes them.
 
 ---
 
-## docs/APPLICATION.md — Services & Orchestration
+## docs/architecture/APPLICATION.md — Services & Orchestration
 
 Everything in `src/application/`. Updated when any service changes.
 
@@ -376,7 +376,7 @@ Session parsing, execution modes, approval gates, verification flow.
 
 ---
 
-## docs/IPC.md — Channels & Preload Bridge
+## docs/architecture/IPC.md — Channels & Preload Bridge
 
 Everything in `src/main/ipc/` and `src/preload/`. Updated when channels, handlers, or bridge methods change.
 
@@ -425,7 +425,7 @@ The full `window.novelEngine` type as exposed by `contextBridge`. Every namespac
 
 ---
 
-## docs/RENDERER.md — Stores, Components, Views
+## docs/architecture/RENDERER.md — Stores, Components, Views
 
 Everything in `src/renderer/`. Updated when stores, components, or routing changes.
 
@@ -524,16 +524,16 @@ At the end of every session that changes code:
 1. **Inventory what changed.** List every file created, modified, or deleted.
 2. **Read the changed files.** Verify actual contents — don't document from memory.
 3. **Identify affected domains.** Map each changed file to its doc:
-    - `src/domain/*` → `docs/DOMAIN.md`
-    - `src/infrastructure/*` → `docs/INFRASTRUCTURE.md`
-    - `src/application/*` → `docs/APPLICATION.md`
-    - `src/main/*`, `src/preload/*` → `docs/IPC.md`
-    - `src/renderer/*` → `docs/RENDERER.md`
-    - Cross-cutting (DI wiring, conventions) → `docs/ARCHITECTURE.md`
+    - `src/domain/*` → `docs/architecture/DOMAIN.md`
+    - `src/infrastructure/*` → `docs/architecture/INFRASTRUCTURE.md`
+    - `src/application/*` → `docs/architecture/APPLICATION.md`
+    - `src/main/*`, `src/preload/*` → `docs/architecture/IPC.md`
+    - `src/renderer/*` → `docs/architecture/RENDERER.md`
+    - Cross-cutting (DI wiring, conventions) → `docs/architecture/ARCHITECTURE.md`
 4. **Check wiring if needed.** If you touched infra, application, IPC, or preload, re-read `src/main/index.ts`, `handlers.ts`, and `preload/index.ts`.
 5. **Append to CHANGELOG.md.**
 6. **Update affected domain docs only.** Leave the rest untouched.
-7. **Update master ARCHITECTURE.md** if source tree, dependency graph, or conventions changed.
+7. **Update master `docs/architecture/ARCHITECTURE.md`** if source tree, dependency graph, or conventions changed.
 8. **Verify.** Every path exists. Every type exists. Dependency graph matches composition root. IPC table matches handlers + preload.
 
 ---
@@ -551,7 +551,7 @@ Good: "`src/application/PipelineService.ts` — Added `revertPhase()`. Rolls bac
 
 **Agent prompt changes:** Document the behavioral delta in the changelog. Don't reproduce the full prompt.
 
-**Database migrations:** Changelog MUST include the migration statement under Migration Notes. Update `docs/INFRASTRUCTURE.md` schema section.
+**Database migrations:** Changelog MUST include the migration statement under Migration Notes. Update `docs/architecture/INFRASTRUCTURE.md` schema section.
 
 **Deleted features:** Changelog documents the removal. All domain docs remove traces. No ghosts.
 
@@ -559,10 +559,10 @@ Good: "`src/application/PipelineService.ts` — Added `revertPhase()`. Rolls bac
 
 **Nothing structural changed:** Changelog still gets an entry. Domain docs can be skipped if only function internals changed.
 
-**First run:** If `docs/` doesn't exist, create the directory and all six docs from scratch by reading the full `src/` tree. Most expensive run — subsequent updates are incremental.
+**First run:** If `docs/architecture/` doesn't exist, create the directory and all six docs from scratch by reading the full `src/` tree. Most expensive run — subsequent updates are incremental.
 
-**New infra module:** Add subsection to `docs/INFRASTRUCTURE.md`. Update source tree in `docs/ARCHITECTURE.md`.
+**New infra module:** Add subsection to `docs/architecture/INFRASTRUCTURE.md`. Update source tree in `docs/architecture/ARCHITECTURE.md`.
 
-**New store or component:** Add to `docs/RENDERER.md`. If it introduced new IPC calls, also update `docs/IPC.md`.
+**New store or component:** Add to `docs/architecture/RENDERER.md`. If it introduced new IPC calls, also update `docs/architecture/IPC.md`.
 
-**New service:** Add to `docs/APPLICATION.md`. Update dependency graph in `docs/ARCHITECTURE.md`. If new IPC channels, update `docs/IPC.md`.
+**New service:** Add to `docs/architecture/APPLICATION.md`. Update dependency graph in `docs/architecture/ARCHITECTURE.md`. If new IPC channels, update `docs/architecture/IPC.md`.

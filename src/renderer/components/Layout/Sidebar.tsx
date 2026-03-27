@@ -10,13 +10,14 @@ import { FileTree } from '../Sidebar/FileTree';
 import { CliActivityButton } from '../Sidebar/CliActivityButton';
 import { PitchHistory } from '../Sidebar/PitchHistory';
 
-type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'settings';
+type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'motif-ledger' | 'settings';
 
 const NAV_ITEMS: { id: ViewId; label: string; icon: string }[] = [
   { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'files', label: 'Files', icon: '📁' },
   { id: 'build', label: 'Build', icon: '📦' },
   { id: 'pitch-room', label: 'Pitch Room', icon: '💡' },
+  { id: 'motif-ledger', label: 'Motif Ledger', icon: '🧬' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 

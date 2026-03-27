@@ -20,7 +20,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, buildPitchRoomInstructions, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, buildPitchRoomInstructions, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_LEDGER_FILE, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -246,6 +246,7 @@ export class ChatService {
             supplements.push(phaseFile);
           }
         }
+        supplements.push(VERITY_LEDGER_FILE);
         effectiveSystemPrompt = await this.agents.loadComposite(
           AGENT_REGISTRY.Verity.filename,
           supplements,

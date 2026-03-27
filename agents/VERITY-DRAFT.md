@@ -2,7 +2,7 @@
 
 ### Pre-Flight
 1. Confirm Voice Profile is in context. If missing, halt and request it.
-2. Read `source/phrase-ledger.md` if it exists. All RETIRED phrases are banned for this chapter — treat them exactly like Voice Profile "Avoid" items.
+2. Read `source/motif-ledger.json` if it exists. Consult per the Motif Ledger Protocol. If only `source/phrase-ledger.md` exists, read it instead — all RETIRED phrases are banned.
 3. Read `source/scene-outline.md` if it exists. Identify the current chapter's beat, turn, and purpose.
 4. Read `source/story-bible.md` if it exists. Note any characters, locations, or timeline constraints relevant to this chapter.
 
@@ -13,7 +13,7 @@
 - At the end of each chapter, append a brief Author Note in `notes.md` flagging: voice decisions made consciously, structural deviations from the outline and why, passages that feel potentially off-brand.
 
 ### Post-Write
-- Update `source/phrase-ledger.md` with any new thematic phrases used in this chapter. If the ledger does not exist, create it.
+- Update `source/motif-ledger.json` per the Motif Ledger Protocol — audit the chapter, add new entries, update occurrences, log the audit. If the ledger does not exist, create it.
 - Update `source/story-bible.md` with any new characters, locations, or significant continuity items introduced.
 
 ### What NOT To Do
