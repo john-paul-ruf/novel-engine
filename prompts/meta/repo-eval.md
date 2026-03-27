@@ -154,7 +154,18 @@ Scan the following for anti-patterns, bugs, or architectural concerns:
 
 #### D. Security & Isolation
 
-- **`--allowedTools Read,Write,Edit,LS`**: Agents can read/write anywhere within `--cwd`. Could a malicious agent prompt cause file writes outside the book directory? Check if `--cwd` provides true sandboxing or if `../` traversal is possible.
+- **`--allowedTools` scope**: The current allowed tools list includes `Read,Write,Edit,LS,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(wc:*),Bash(rm:*),Bash(rmdir:*)`. Agents can read/write anywhere within `--cwd` and `--add-dir` paths. Could a malicious agent prompt cause file writes outside the book directory? Check if `--cwd` provides true sandboxing or if `../` traversal is possible via the Bash tools.
+- **Books directory access (`--add-dir`) is mandatory**: The CLI is spawned with `--add-dir` pointing to the `booksDir` root. This is **critical** for surfaces that operate outside a specific book directory — especially the **Pitch Room**, which sets `--cwd` to a pitch draft directory but must write to `{booksDir}/{slug}/` when scaffolding a new book. Verify in `ClaudeCodeClient.sendMessage()` that `--add-dir` is **always** set to `this.booksDir` regardless of whether `workingDir` or `bookSlug` is provided. If `--add-dir` were removed or conditional, the Pitch Room's `PITCH-ROOM.md` agent prompt (which uses absolute paths under `{{BOOKS_PATH}}`) would fail silently — the CLI would deny Write/Edit/Bash(mkdir) operations outside its sandbox.
+
+  **Specifically audit:**
+  1. `ClaudeCodeClient.sendMessage()` — confirm `--add-dir` is unconditionally pushed to `args` before `spawn()`.
+  2. `PitchRoomService.handleMessage()` — confirm it passes `workingDir` (pitch draft path) but the `--add-dir` flag still grants access to the full books directory.
+  3. `PITCH-ROOM.md` agent prompt — confirm it instructs Spark to use absolute paths under `{{BOOKS_PATH}}` (which resolves to the books dir), not relative paths from `--cwd`.
+  4. No code path exists where `--add-dir` is skipped, overridden, or set to a narrower path (e.g., a single book subdirectory instead of the books root).
+  5. Auto-draft, revision queue, and ad hoc revision surfaces — confirm they also benefit from `--add-dir` when their `--cwd` is scoped to a single book but they need to read/write shared files (author profile, custom agents, etc.) that may live outside the book directory.
+
+  **Flag if:** `--add-dir` is conditionally applied, scoped too narrowly, or missing entirely for any CLI spawn path.
+
 - **`child.stdin.write(conversationPrompt)`**: The conversation prompt is written to stdin. Are there injection risks if a previous assistant message contains CLI-parseable sequences?
 - **System prompt size**: System prompts are passed via `--system-prompt` as a CLI arg. The code comments say this is safe up to ~2MB via execve. Is there a size check? What happens if an agent's .md file is corrupted to be 10MB?
 
