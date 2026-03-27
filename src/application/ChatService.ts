@@ -10,6 +10,7 @@ import type {
   ActiveStreamInfo,
   AgentName,
   AppSettings,
+  AuditResult,
   ContextDiagnostics,
   Conversation,
   ConversationPurpose,
@@ -19,7 +20,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -227,11 +228,28 @@ export class ChatService {
       // Step 7b: Determine thinking budget (needed for both context and CLI call)
       const thinkingBudget = resolveThinkingBudget(appSettings, agent.thinkingBudget, params.thinkingBudgetOverride);
 
-      // Step 7c: Build context using the lean ContextBuilder (budget-aware compaction)
+      // Step 7c: Phase-aware system prompt assembly for Verity
+      let effectiveSystemPrompt = agent.systemPrompt;
+
+      if (agentName === 'Verity' && conversation?.purpose === 'pipeline') {
+        const supplements: string[] = [];
+        if (conversation.pipelinePhase) {
+          const phaseFile = VERITY_PHASE_FILES[conversation.pipelinePhase];
+          if (phaseFile) {
+            supplements.push(phaseFile);
+          }
+        }
+        effectiveSystemPrompt = await this.agents.loadComposite(
+          AGENT_REGISTRY.Verity.filename,
+          supplements,
+        );
+      }
+
+      // Step 7d: Build context using the lean ContextBuilder (budget-aware compaction)
       const authorProfileAbsPath = this.fs.getAuthorProfilePath();
       const assembled = this.contextBuilder.build({
         agentName,
-        agentSystemPrompt: agent.systemPrompt,
+        agentSystemPrompt: effectiveSystemPrompt,
         manifest,
         messages,
         purposeInstructions,
@@ -593,6 +611,173 @@ export class ChatService {
   }
 
   /**
+   * Run the audit pass on a chapter draft. Returns the parsed audit result.
+   * Uses Sonnet for speed and cost. Returns null if the audit call fails.
+   */
+  async auditChapter(params: {
+    bookSlug: string;
+    chapterSlug: string;
+  }): Promise<AuditResult | null> {
+    const { bookSlug, chapterSlug } = params;
+
+    // Read the chapter draft
+    let draft: string;
+    try {
+      draft = await this.fs.readFile(bookSlug, `chapters/${chapterSlug}/draft.md`);
+    } catch {
+      console.warn(`[ChatService] Cannot read draft for ${chapterSlug}, skipping audit`);
+      return null;
+    }
+
+    // Read supporting context (non-fatal if missing)
+    let voiceProfile = '';
+    try {
+      voiceProfile = await this.fs.readFile(bookSlug, 'source/voice-profile.md');
+    } catch { /* no voice profile yet */ }
+
+    let phraseLedger = '';
+    try {
+      phraseLedger = await this.fs.readFile(bookSlug, 'source/phrase-ledger.md');
+    } catch { /* no phrase ledger yet */ }
+
+    // Load the auditor prompt
+    let auditorPrompt: string;
+    try {
+      auditorPrompt = await this.agents.loadRaw(VERITY_AUDIT_AGENT_FILE);
+    } catch {
+      console.warn('[ChatService] Audit agent file not found, skipping audit');
+      return null;
+    }
+
+    // Assemble the user message with all context
+    const userMessageParts = [
+      `## Chapter Draft (${chapterSlug})\n\n${draft}`,
+    ];
+    if (voiceProfile) {
+      userMessageParts.push(`## Voice Profile\n\n${voiceProfile}`);
+    }
+    if (phraseLedger) {
+      userMessageParts.push(`## Phrase Ledger\n\n${phraseLedger}`);
+    }
+    const userMessage = userMessageParts.join('\n\n---\n\n');
+
+    try {
+      // Use sendMessage and collect the response text
+      let responseText = '';
+      const sessionId = nanoid();
+
+      await this.claude.sendMessage({
+        model: VERITY_AUDIT_MODEL,
+        systemPrompt: auditorPrompt,
+        messages: [{ role: 'user' as const, content: userMessage }],
+        maxTokens: VERITY_AUDIT_MAX_TOKENS,
+        bookSlug,
+        sessionId,
+        conversationId: `audit-${sessionId}`,
+        onEvent: (event: StreamEvent) => {
+          if (event.type === 'textDelta') {
+            responseText += event.text;
+          }
+          if (event.type === 'done') {
+            this.usage.recordUsage({
+              conversationId: `audit-${sessionId}`,
+              inputTokens: event.inputTokens,
+              outputTokens: event.outputTokens,
+              thinkingTokens: event.thinkingTokens,
+              model: VERITY_AUDIT_MODEL,
+            });
+          }
+        },
+      });
+
+      // Parse JSON from response — strip markdown fences if present
+      const clean = responseText.replace(/```json\s*|```/g, '').trim();
+      return JSON.parse(clean) as AuditResult;
+    } catch (err) {
+      console.warn(`[ChatService] Audit failed for ${chapterSlug}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Run the fix pass on a chapter using audit findings. Verity edits the
+   * draft in-place to address each violation.
+   */
+  async fixChapter(params: {
+    bookSlug: string;
+    chapterSlug: string;
+    auditResult: AuditResult;
+    conversationId: string;
+    sessionId: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<void> {
+    const { bookSlug, chapterSlug, auditResult, conversationId, sessionId, onEvent } = params;
+
+    const appSettings = await this.settings.load();
+    const thinkingBudget = resolveThinkingBudget(appSettings, AGENT_REGISTRY.Verity.thinkingBudget);
+
+    // Build the fix prompt with audit findings
+    const auditJson = JSON.stringify(auditResult.violations, null, 2);
+    const fixInstructions = VERITY_FIX_INSTRUCTIONS + '\n```json\n' + auditJson + '\n```';
+
+    // Load Verity core + the fix instructions
+    const corePrompt = await this.agents.loadComposite(AGENT_REGISTRY.Verity.filename, []);
+    const systemPrompt = corePrompt + '\n\n---\n\n' + fixInstructions;
+
+    const userMessage = `Fix the ${auditResult.violations.length} violations identified by the audit in chapters/${chapterSlug}/draft.md. Edit the file in place. Do not rewrite unflagged prose.`;
+
+    // Save synthetic user message
+    this.db.saveMessage({
+      conversationId,
+      role: 'user',
+      content: `[Auto-fix: ${auditResult.violations.length} violations in ${chapterSlug}]`,
+      thinking: '',
+    });
+
+    let responseBuffer = '';
+    let thinkingBuffer = '';
+
+    await this.claude.sendMessage({
+      model: appSettings.model, // Opus for fix pass — needs creative judgment
+      systemPrompt,
+      messages: [{ role: 'user' as const, content: userMessage }],
+      maxTokens: appSettings.maxTokens,
+      thinkingBudget,
+      bookSlug,
+      sessionId,
+      conversationId: `${conversationId}-fix`,
+      onEvent: (event: StreamEvent) => {
+        if (event.type === 'textDelta') {
+          responseBuffer += event.text;
+        } else if (event.type === 'thinkingDelta') {
+          thinkingBuffer += event.text;
+        }
+
+        if (event.type === 'status' || event.type === 'progressStage' || event.type === 'filesChanged') {
+          onEvent(event);
+        }
+        if (event.type === 'done') {
+          // Save the fix response
+          this.db.saveMessage({
+            conversationId,
+            role: 'assistant',
+            content: responseBuffer || '[Fix pass completed]',
+            thinking: thinkingBuffer,
+          });
+
+          this.usage.recordUsage({
+            conversationId,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            model: appSettings.model,
+          });
+        }
+      },
+    });
+  }
+
+  /**
    * Run a scoped Lumen phrase audit — Lens 8 only.
    * Reads the full manuscript, identifies repeated phrases and editorial intrusions,
    * and writes an authoritative phrase-ledger.md.
@@ -601,7 +786,7 @@ export class ChatService {
    * emitting status events but not saving a conversation (it's infrastructure, not a chat).
    * Uses Sonnet for speed and cost — this is a mechanical pattern-detection task.
    */
-  private async runPhraseAudit(params: {
+  async runPhraseAudit(params: {
     bookSlug: string;
     appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
     onEvent: (event: StreamEvent) => void;

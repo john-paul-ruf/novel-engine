@@ -5,6 +5,7 @@ import type {
   AgentName,
   AppSettings,
   ApprovalAction,
+  AuditResult,
   BookMeta,
   BookSummary,
   BuildResult,
@@ -201,6 +202,16 @@ const api = {
       ipcRenderer.invoke('pitchRoom:shelve', conversationId, logline),
     discard: (conversationId: string): Promise<void> =>
       ipcRenderer.invoke('pitchRoom:discard', conversationId),
+  },
+
+  // Verity Pipeline (audit/fix)
+  verity: {
+    auditChapter: (bookSlug: string, chapterSlug: string): Promise<AuditResult | null> =>
+      ipcRenderer.invoke('verity:auditChapter', bookSlug, chapterSlug),
+    fixChapter: (bookSlug: string, chapterSlug: string, conversationId: string): Promise<void> =>
+      ipcRenderer.invoke('verity:fixChapter', bookSlug, chapterSlug, conversationId),
+    runPhraseAudit: (bookSlug: string): Promise<void> =>
+      ipcRenderer.invoke('verity:runPhraseAudit', bookSlug),
   },
 
   // Hot Take

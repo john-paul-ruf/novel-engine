@@ -38,6 +38,23 @@ export interface ISettingsService {
 export interface IAgentService {
   loadAll(): Promise<Agent[]>;
   load(name: AgentName): Promise<Agent>;
+
+  /**
+   * Load a composite agent prompt by concatenating a base file with one or
+   * more supplement files. Used for Verity's phase-aware prompt assembly.
+   *
+   * @param baseFilename  The core prompt file (e.g., 'VERITY-CORE.md')
+   * @param supplements   Additional filenames to append (e.g., ['VERITY-DRAFT.md'])
+   * @returns The concatenated prompt string
+   */
+  loadComposite(baseFilename: string, supplements: string[]): Promise<string>;
+
+  /**
+   * Load a raw agent file by filename (not by agent name). Returns the file
+   * contents as a string. Used for loading non-registry agent files like
+   * the audit agent prompt.
+   */
+  loadRaw(filename: string): Promise<string>;
 }
 
 export interface IDatabaseService {

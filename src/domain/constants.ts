@@ -1,4 +1,4 @@
-import type { AgentName, AgentMeta, CreativeAgentName, PipelinePhaseId, AppSettings } from './types';
+import type { AgentName, AgentMeta, AuditSeverity, CreativeAgentName, PipelinePhaseId, AppSettings } from './types';
 
 // === Per-Agent Read Guidance ===
 
@@ -49,7 +49,7 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
 // Agent metadata (everything except the systemPrompt, which comes from files)
 export const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Spark:      { filename: 'SPARK.md',      role: 'Story Pitch',           color: '#F59E0B', thinkingBudget: 8000 },
-  Verity:     { filename: 'VERITY.md',     role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000 },
+  Verity:     { filename: 'VERITY-CORE.md', role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000 },
   Ghostlight: { filename: 'GHOSTLIGHT.md', role: 'First Reader',          color: '#06B6D4', thinkingBudget: 6000 },
   Lumen:      { filename: 'LUMEN.md',      role: 'Developmental Editor',  color: '#10B981', thinkingBudget: 16000 },
   Sable:      { filename: 'SABLE.md',      role: 'Copy Editor',           color: '#EF4444', thinkingBudget: 4000 },
@@ -663,3 +663,79 @@ export const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'phraseLedger',    path: 'source/phrase-ledger.md' },
   { key: 'metadata',        path: 'source/metadata.md' },
 ];
+
+// ── Verity Pipeline Constants ────────────────────────────────────────────────
+
+/**
+ * Maps pipeline phase IDs to the Verity sub-prompt filenames that should be
+ * appended to VERITY-CORE.md during system prompt assembly.
+ *
+ * Phases not listed here get core only (e.g., voice-setup and author-profile
+ * are handled by their own purpose-specific instructions, not phase files).
+ */
+export const VERITY_PHASE_FILES: Partial<Record<PipelinePhaseId, string>> = {
+  'scaffold':        'VERITY-SCAFFOLD.md',
+  'first-draft':     'VERITY-DRAFT.md',
+  'revision':        'VERITY-REVISION.md',
+  'mechanical-fixes': 'VERITY-MECHANICAL.md',
+};
+
+/**
+ * The auditor agent filename. Loaded separately — not a Verity sub-prompt.
+ * Run on Sonnet for cost efficiency.
+ */
+export const VERITY_AUDIT_AGENT_FILE = 'VERITY-AUDIT.md';
+
+/** Model used for the audit pass. Sonnet is fast, cheap, and sufficient. */
+export const VERITY_AUDIT_MODEL = 'claude-sonnet-4-20250514';
+
+/** Max tokens for the audit pass response. The JSON output is compact. */
+export const VERITY_AUDIT_MAX_TOKENS = 4096;
+
+/**
+ * Severity threshold at which the fix pass is triggered automatically.
+ * 'minor' = skip fix pass. 'moderate' or 'heavy' = run fix pass.
+ */
+export const VERITY_AUDIT_FIX_THRESHOLD: AuditSeverity = 'moderate';
+
+/**
+ * During auto-draft, run a full phrase ledger audit (via Lumen's
+ * PHRASE_AUDIT_INSTRUCTIONS) every N chapters. This keeps the ledger
+ * accurate without waiting for the formal Lumen assessment phase.
+ */
+export const PHRASE_AUDIT_CADENCE = 3;
+
+/**
+ * System prompt for the fix pass. Appended to VERITY-CORE when running
+ * a targeted fix after an audit. Not stored as a file — it's dynamic,
+ * since the audit findings are injected.
+ */
+export const VERITY_FIX_INSTRUCTIONS = `
+## Current Mode: Audit Fix
+
+You have received an audit report identifying specific violations in the
+chapter you just drafted. Your job is to fix each violation surgically.
+
+### Protocol
+1. Read the audit findings below.
+2. For each violation, locate the exact passage in the chapter.
+3. Rewrite ONLY the flagged passages. Do not touch unflagged prose.
+4. For editorial-narration violations: delete the explanatory sentence.
+   Do not replace it — the scene already works without it.
+5. For phrase-ledger-hit violations: rewrite the sentence using a
+   different image or construction.
+6. For anti-pattern violations: restructure the sentence to eliminate the
+   banned pattern while preserving the meaning.
+7. For voice-drift violations: adjust the register, rhythm, or
+   temperature to match the Voice Profile.
+8. For continuity-error violations: correct the factual detail to match
+   the Story Bible.
+
+### What NOT To Do
+- Do not rewrite passages that were not flagged.
+- Do not restructure scenes.
+- Do not add new content.
+- Do not second-guess the audit. If it flagged something, fix it.
+
+### Audit Findings
+`;

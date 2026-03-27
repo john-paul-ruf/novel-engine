@@ -48,7 +48,10 @@ export async function ensureAgents(agentsDir: string, agentsSourceDir: string): 
     throw err;
   }
 
-  const mdFiles = entries.filter((f) => f.endsWith('.md') || f.endsWith('.MD'));
+  /** Files to skip during agent restoration — legacy files that should not be copied. */
+  const SKIP_FILES = new Set(['VERITY-LEGACY.md']);
+
+  const mdFiles = entries.filter((f) => (f.endsWith('.md') || f.endsWith('.MD')) && !SKIP_FILES.has(f));
 
   await Promise.all(
     mdFiles.map(async (filename) => {

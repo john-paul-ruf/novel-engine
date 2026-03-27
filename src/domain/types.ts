@@ -327,6 +327,35 @@ export type RevisionQueueEvent =
   | { type: 'queue:done'; planId: string }
   | { type: 'error'; sessionId: string; message: string };
 
+// === Verity Audit ===
+
+export type AuditViolationType =
+  | 'editorial-narration'
+  | 'phrase-ledger-hit'
+  | 'anti-pattern'
+  | 'voice-drift'
+  | 'continuity-error';
+
+export type AuditViolation = {
+  type: AuditViolationType;
+  location: string;
+  quote: string;
+  reason: string;
+  pattern?: string;       // for anti-pattern type: which specific pattern
+};
+
+export type AuditSeverity = 'clean' | 'minor' | 'moderate' | 'heavy';
+
+export type AuditResult = {
+  chapter: string;
+  violations: AuditViolation[];
+  summary: {
+    total: number;
+    by_type: Partial<Record<AuditViolationType, number>>;
+    severity: AuditSeverity;
+  };
+};
+
 // === Build ===
 
 export type BuildFormat = 'md' | 'docx' | 'epub' | 'pdf';

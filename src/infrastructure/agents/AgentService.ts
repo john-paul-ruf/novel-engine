@@ -54,6 +54,41 @@ export class AgentService implements IAgentService {
     return agent;
   }
 
+  async loadComposite(baseFilename: string, supplements: string[]): Promise<string> {
+    const basePath = join(this.agentsDir, baseFilename);
+    let prompt: string;
+    try {
+      prompt = await readFile(basePath, 'utf-8');
+    } catch (err) {
+      throw new Error(
+        `Failed to read base agent file "${basePath}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    for (const supplement of supplements) {
+      const supplementPath = join(this.agentsDir, supplement);
+      try {
+        const content = await readFile(supplementPath, 'utf-8');
+        prompt += '\n\n---\n\n' + content;
+      } catch {
+        console.warn(`[AgentService] Supplement file not found: ${supplement}`);
+      }
+    }
+
+    return prompt;
+  }
+
+  async loadRaw(filename: string): Promise<string> {
+    const filePath = join(this.agentsDir, filename);
+    try {
+      return await readFile(filePath, 'utf-8');
+    } catch (err) {
+      throw new Error(
+        `Failed to read agent file "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   private async loadAllIncludingWrangler(): Promise<Agent[]> {
     if (this._cache !== null) return this._cache;
 

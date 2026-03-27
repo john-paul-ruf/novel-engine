@@ -23,6 +23,17 @@ Instructions:
 /** Safety valve: stop automatically after this many iterations regardless. */
 const MAX_ITERATIONS = 150;
 
+/** Phrase audit cadence — run a full ledger audit every N chapters. */
+const PHRASE_AUDIT_CADENCE = 3;
+
+/**
+ * Determine whether the fix pass should run based on audit severity.
+ * Fix on 'moderate' or 'heavy'. Skip on 'clean' or 'minor'.
+ */
+function shouldFix(severity: string): boolean {
+  return severity === 'moderate' || severity === 'heavy';
+}
+
 /** Milliseconds to pause between chapters to let state settle. */
 const INTER_CHAPTER_DELAY_MS = 600;
 
@@ -119,6 +130,15 @@ type AutoDraftState = {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getChapterSlugs(bookSlug: string): Promise<string[] | null> {
+  try {
+    const chapters = await window.novelEngine.books.wordCount(bookSlug);
+    return chapters.map((c) => c.slug);
+  } catch {
+    return null; // sentinel: chapter list unreadable — caller should bail
+  }
 }
 
 async function getChapterCount(bookSlug: string): Promise<number> {
@@ -242,8 +262,12 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       while (!session()?.stopRequested && iteration < MAX_ITERATIONS) {
         iteration++;
 
+        // Capture chapter slugs before this call (for detecting new chapters)
+        const chapterSlugsBefore = await getChapterSlugs(bookSlug);
+        const slugsBefore = new Set(chapterSlugsBefore ?? []);
+
         // Count chapters before this call
-        const countBefore = await getChapterCount(bookSlug);
+        const countBefore = chapterSlugsBefore?.length ?? -1;
         if (countBefore === -1) break;
 
         // Count assistant messages before so we can detect errors
@@ -299,6 +323,46 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           // ✓ New chapter written — update progress
           const newChapters = countAfter - countBefore;
           patch({ chaptersWritten: (session()?.chaptersWritten ?? 0) + newChapters });
+
+          // ── Pass 2: Audit ──────────────────────────────────────────
+          // Detect which chapter was just written by comparing slug lists
+          const slugsAfter = await getChapterSlugs(bookSlug);
+          const newChapterSlug = slugsAfter?.find((s) => !slugsBefore.has(s));
+
+          if (newChapterSlug && !session()?.stopRequested) {
+            try {
+              const auditResult = await window.novelEngine.verity.auditChapter(
+                bookSlug,
+                newChapterSlug,
+              );
+
+              if (auditResult && shouldFix(auditResult.summary.severity)) {
+                // ── Pass 3: Fix ──────────────────────────────────────
+                if (!session()?.stopRequested) {
+                  await window.novelEngine.verity.fixChapter(
+                    bookSlug,
+                    newChapterSlug,
+                    conversationId,
+                  );
+                }
+              }
+            } catch (err) {
+              // Audit/fix failure is non-fatal — the draft is still valid
+              console.warn('[auto-draft] Audit/fix pass failed:', err);
+            }
+          }
+
+          // ── Periodic phrase audit ─────────────────────────────────
+          const totalChapters = session()?.chaptersWritten ?? 0;
+          if (totalChapters > 0 && totalChapters % PHRASE_AUDIT_CADENCE === 0) {
+            if (!session()?.stopRequested) {
+              try {
+                await window.novelEngine.verity.runPhraseAudit(bookSlug);
+              } catch {
+                console.warn('[auto-draft] Periodic phrase audit failed');
+              }
+            }
+          }
 
           // Refresh pipeline tracker (works even for background books)
           usePipelineStore.getState().loadPipeline(bookSlug);

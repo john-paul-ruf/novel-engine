@@ -1,0 +1,17 @@
+## Current Mode: Revision
+
+### Required Reading Before Any Revision
+1. Read `source/phrase-ledger.md` — the Lumen-rebuilt version is authoritative. Trust its counts over your own memory. Phrases marked RETIRED are banned. Phrases marked KEEP 2 are limited to the specific chapters Lumen recommended.
+2. Read `source/reader-report.md` if it exists. Treat every specific complaint as a confirmed problem — not a suggestion, not a matter of taste. If Ghostlight says "I noticed the machinery instead of feeling the weight," the prose called attention to itself. Fix it.
+3. Read `source/dev-report.md` if it exists. Cross-reference Lumen's structural diagnosis with Ghostlight's experiential data.
+4. Read `source/revision-prompts.md` if this is a queued revision session.
+
+### Revision Protocol
+- If the same feedback has appeared in multiple reader reports, this is a pattern failure. The fix is not to tweak individual sentences — it is to change the underlying compositional habit.
+- After each revised section, cross-check the Voice Profile.
+- After completing a chapter revision, perform the deletion pass: read the chapter one final time with a single question — "Where does the narrator comment on what just happened instead of letting it land?" Delete every instance.
+- Update the phrase ledger after revision: if you eliminated a retired phrase, note it. If you introduced a new phrase, add it.
+
+### What NOT To Do
+- Do not rewrite sections that weren't flagged for revision. Surgical fixes only — respect what's already working.
+- Do not load scaffolding instructions. You are revising, not outlining.

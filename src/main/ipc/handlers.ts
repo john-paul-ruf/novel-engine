@@ -540,6 +540,48 @@ export function registerIpcHandlers(services: {
     return { conversationId: conversation.id, callId };
   });
 
+  // === Verity Pipeline (audit/fix) ===
+
+  ipcMain.handle('verity:auditChapter', (_, bookSlug: string, chapterSlug: string) =>
+    services.chat.auditChapter({ bookSlug, chapterSlug }),
+  );
+
+  ipcMain.handle('verity:fixChapter', async (_, bookSlug: string, chapterSlug: string, conversationId: string) => {
+    const sessionId = randomUUID();
+    await services.chat.fixChapter({
+      bookSlug,
+      chapterSlug,
+      auditResult: { chapter: chapterSlug, violations: [], summary: { total: 0, by_type: {}, severity: 'clean' } },
+      conversationId,
+      sessionId,
+      onEvent: () => {},
+    });
+  });
+
+  ipcMain.handle('verity:fixChapterWithAudit', async (_, bookSlug: string, chapterSlug: string, conversationId: string, auditResultJson: string) => {
+    const sessionId = randomUUID();
+    const auditResult = JSON.parse(auditResultJson);
+    await services.chat.fixChapter({
+      bookSlug,
+      chapterSlug,
+      auditResult,
+      conversationId,
+      sessionId,
+      onEvent: () => {},
+    });
+  });
+
+  ipcMain.handle('verity:runPhraseAudit', async (_, bookSlug: string) => {
+    const appSettings = await services.settings.load();
+    const sessionId = randomUUID();
+    await services.chat.runPhraseAudit({
+      bookSlug,
+      appSettings,
+      onEvent: () => {},
+      sessionId,
+    });
+  });
+
   // === Revision Queue ===
 
   ipcMain.handle('revision:loadPlan', async (_, bookSlug: string) => {
