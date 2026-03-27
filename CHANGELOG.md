@@ -4,6 +4,24 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Fix nested button DOM warning and SystemsTab crash on undefined components
+
+### Summary
+
+Fixed three console errors: (1) React `validateDOMNesting` warning from a `<button>` nested inside a `<button>` in BookSelector — the outer dropdown trigger is now a `<div role="button">` with keyboard support; (2) `TypeError` crash in SystemsTab when `sys.components` is `undefined` from partially-populated ledger JSON on disk — added `?? []` fallbacks; (3) the 404 on `novel-asset://cover/` is a cosmetic log from the existing `onError` fallback, no code change needed.
+
+### Fixed
+- `src/renderer/components/Sidebar/BookSelector.tsx` — Changed outer dropdown trigger from `<button>` to `<div role="button">` with `tabIndex` and `onKeyDown`, eliminating the nested-button DOM warning.
+- `src/renderer/components/MotifLedger/SystemsTab.tsx` — Guarded `sys.components` with `?? []` in `startEdit()` (line 42), render loop (line 165), and iteration (line 167) to prevent crash when ledger JSON has systems with missing `components` field.
+
+### Architecture Impact
+- None — no wiring changes.
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Fix crash on startup: MotifLedgerView tab count reads undefined array
 
 ### Summary

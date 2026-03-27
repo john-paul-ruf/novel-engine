@@ -357,7 +357,9 @@ export function BookSelector(): React.ReactElement {
   return (
     <div ref={dropdownRef} className="relative border-b border-zinc-200 dark:border-zinc-800">
       {/* Closed state — always visible */}
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => {
           const opening = !isOpen;
           setIsOpen(opening);
@@ -368,7 +370,20 @@ export function BookSelector(): React.ReactElement {
             loadArchivedBooks();
           }
         }}
-        className="no-drag flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const opening = !isOpen;
+            setIsOpen(opening);
+            if (opening) {
+              setShowPitchShelf(false);
+              setShowArchived(false);
+              usePitchShelfStore.getState().loadPitches();
+              loadArchivedBooks();
+            }
+          }
+        }}
+        className="no-drag flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
       >
         {activeBook ? (
           <>
@@ -397,7 +412,7 @@ export function BookSelector(): React.ReactElement {
         <span className={`text-xs text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
           ▼
         </span>
-      </button>
+      </div>
 
       {/* Dropdown panel */}
       {isOpen && (

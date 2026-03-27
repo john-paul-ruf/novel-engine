@@ -82,7 +82,8 @@ export function MotifLedgerView(): React.ReactElement {
         </div>
         <div className="mt-4 flex gap-1 overflow-x-auto">
           {TABS.map((tab) => {
-            const count = ledger ? (ledger[tab.key] as unknown[]).length : 0;
+            const arr = ledger ? (ledger[tab.key] as unknown[] | undefined) : undefined;
+            const count = arr?.length ?? 0;
             const isActive = activeTab === tab.id;
             return (
               <button

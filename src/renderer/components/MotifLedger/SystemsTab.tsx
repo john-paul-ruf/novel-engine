@@ -37,10 +37,10 @@ export function SystemsTab(): React.ReactElement {
     setEditingId(id);
     setIsAdding(false);
     setDraft({
-      name: sys.name,
-      description: sys.description,
-      components: sys.components.join(', '),
-      arcTrajectory: sys.arcTrajectory,
+      name: sys.name ?? '',
+      description: sys.description ?? '',
+      components: (sys.components ?? []).join(', '),
+      arcTrajectory: sys.arcTrajectory ?? '',
     });
   };
 
@@ -162,9 +162,9 @@ export function SystemsTab(): React.ReactElement {
               </button>
             </div>
           </div>
-          {sys.components.length > 0 && (
+          {(sys.components ?? []).length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {sys.components.map((c, i) => (
+              {(sys.components ?? []).map((c, i) => (
                 <span
                   key={i}
                   className="inline-block rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-400"
