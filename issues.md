@@ -5,7 +5,7 @@
 
 ## Summary
 
-The codebase demonstrates strong isolation between CLI call surfaces. The `callId`-per-send pattern is consistently applied across main chat, modal chat, pitch room, hot take, ad hoc revision, auto-draft, and revision queue. The activity monitor has good coverage but missing `conversationId` on forwarded revision events creates a minor gap. The most significant findings are: (1) no `streamRouter` exists — the original architecture evolved into a callId-only guard system that's actually more robust, (2) revision queue event forwarding strips `conversationId`, and (3) the `cliActivityStore` recovery path can create duplicate polling intervals on rapid navigation.
+The codebase demonstrates strong stream isolation architecture. The `streamHandler.ts` factory provides a shared guard pattern with callId-based filtering, and all three chat-like stores use it consistently. The revision queue uses `sessionBelongsToCurrentPlan()` for cross-book isolation. The primary issues found are: `AdhocRevisionService`'s internal motif audit is invisible to the activity monitor, `pitchRoomStore` lacks stream listener lifecycle methods, chatStore's `onError` handler doesn't clean up temp messages, and DB event persistence failures are silently swallowed. No critical chat bleed bugs were found — the isolation model is fundamentally sound.
 
 ### Severity Legend
 - 🔴 **Critical**: Active bug or data corruption risk. Fix immediately.
@@ -17,88 +17,64 @@ The codebase demonstrates strong isolation between CLI call surfaces. The `callI
 
 ## 1. Chat Bleed Findings
 
-### 1.1 No streamRouter exists — callId-only isolation
-**Severity**: 🟢 **Low** (informational — this is a positive observation)
-**Location**: All renderer stores
-**Description**: The evaluation prompt references a `streamRouter.ts` with a `streamRouter.target` mechanism. This file does not exist in the codebase. Instead, the architecture uses a **callId-only guard** pattern: each store generates a `crypto.randomUUID()` per send call, passes it to the IPC layer, and filters incoming events by comparing `enriched.callId` against `_activeCallId`. This is actually a stronger isolation model — there's no shared mutable global to manage or accidentally forget to reset.
-**Impact**: None — the current design is correct.
-**Fix**: None needed. The evaluation prompt's streamRouter references are outdated.
+### 1.1 No `streamRouter` — Architecture Changed (Informational)
+**Severity**: 🟢
+**Location**: `src/renderer/stores/streamHandler.ts`
+**Description**: The evaluation prompt references a `streamRouter` mutable global for routing events to `'main'`, `'modal'`, or `'pitch-room'` targets. This pattern does not exist in the codebase. Instead, all three stores (`chatStore`, `modalChatStore`, `pitchRoomStore`) independently register their own `onStreamEvent` listeners via `window.novelEngine.chat.onStreamEvent()`. Each receives ALL events broadcast on `chat:streamEvent`. Isolation is achieved via the shared `createStreamHandler()` factory in `streamHandler.ts`, which applies callId + optional conversationId guards per-store.
+**Impact**: The deadlock risk described in the evaluation prompt (forgetting to reset `streamRouter.target` on error) does not apply to this architecture. This is a positive finding.
 
-### 1.2 Revision event forwarding strips conversationId
-**Severity**: 🟡 **Medium**
-**Location**: `src/main/ipc/handlers.ts:693`
-**Description**: When forwarding `session:streamEvent` from the revision queue to `chat:streamEvent`, the handler spreads `event.event` and adds `callId: rev:${event.sessionId}`. However, `event.event` is a raw `StreamEvent` which does NOT contain a `conversationId` field. The `conversationId` from the revision session is not injected.
-**Evidence**:
+### 1.2 All Three Stores Receive Every Event — Potential Double-Processing
+**Severity**: 🟡
+**Location**: `src/renderer/stores/chatStore.ts:501`, `src/renderer/stores/modalChatStore.ts:251`, `src/renderer/stores/pitchRoomStore.ts` (no explicit listener init)
+**Description**: `chatStore` and `modalChatStore` both register `onStreamEvent` listeners in `initStreamListener()`. `pitchRoomStore` has a `_handleStreamEvent` but never calls `initStreamListener` — it has no listener setup method. This means:
+1. `chatStore` and `modalChatStore` both receive every `chat:streamEvent`.
+2. `pitchRoomStore` does NOT receive events via its own listener — it likely relies on an external component calling `_handleStreamEvent` directly, or the component that hosts PitchRoom explicitly subscribes.
+
+The `callId` guard in `streamHandler.ts` (line 73: `if (activeCallId && callId && callId !== activeCallId) return;`) prevents actual double-processing because each store tracks its own `_activeCallId`. Two stores will never have the same `_activeCallId` simultaneously because UUIDs are unique per `sendMessage` call.
+
+However, if `chatStore` happens to have `_activeCallId === null` and `isStreaming === true` (recovery mode), the secondary guard (line 78-82) falls through to conversationId matching. A modal chat event could theoretically pass this guard if the chatStore's active conversation matches the modal's conversation (impossible in practice since modals use `voice-setup`/`author-profile` purposes, not pipeline conversations).
+**Impact**: Negligible in practice. The guard logic is sufficient. No actual bleed.
+**Fix**: Consider adding `pitchRoomStore.initStreamListener()` and `destroyStreamListener()` methods like the other two stores for consistency, or document why PitchRoom is different.
+
+### 1.3 chatStore `alwaysCheckConversationId: false` — Intentional and Correct
+**Severity**: 🟢
+**Location**: `src/renderer/stores/chatStore.ts:353`
+**Description**: chatStore sets `alwaysCheckConversationId: false`, meaning it does NOT reject events that mismatch the active conversation. The code comment explains this is intentional: "the user may switch conversations mid-stream, lifecycle events must still be processed. The callId guard is sufficient."
+
+This is correct. The callId guard (UUID per send) is the primary isolation mechanism. A user switching conversations mid-stream should still see the `done` event processed so `isStreaming` resets. If conversationId were checked, switching conversations would leave the chat in a stuck streaming state.
+**Impact**: None — this is correct behavior.
+
+### 1.4 `rev:` Prefix Filter Prevents chatStore from Processing Revision Events ✅
+**Severity**: 🟢
+**Location**: `src/renderer/stores/streamHandler.ts:66`
+**Description**: `createStreamHandler` skips events where `callId.startsWith('rev:')` on line 66. This prevents revision queue stream events (which are forwarded by `handlers.ts:705` with `callId: 'rev:${event.sessionId}'`) from being processed by chatStore, modalChatStore, or pitchRoomStore. Correct.
+**Impact**: None — working as intended.
+
+### 1.5 Verity Audit/Fix Events Use `audit:` and `fix:` Prefixes — Not Filtered by streamHandler
+**Severity**: 🟡
+**Location**: `src/main/ipc/handlers.ts:575`, `src/renderer/stores/streamHandler.ts:66`
+**Description**: The `verity:auditChapter` and `verity:fixChapter` handlers generate callIds with `audit:${randomUUID()}` and `fix:${sessionId}` prefixes (lines 575, 588). The `streamHandler.ts` only filters the `rev:` prefix (line 66). Audit/fix events are NOT filtered out. However, this is correct in the auto-draft context: `autoDraftStore` explicitly calls `attachToExternalStream(auditCallId, conversationId)` which sets `chatStore._activeCallId` to the audit callId. The callId guard then correctly accepts audit events.
+
+For standalone audit/fix calls (via the Verity pipeline UI), if the user is NOT in the auto-draft flow and hasn't attached to the stream, chatStore's `_activeCallId` will be null. If `isStreaming` is also false, the secondary guard (line 78-79: `if (!isStreaming) return;`) correctly drops the event.
+
+Edge case: if the user manually triggers an audit while chatStore has `isStreaming: true` and `_activeCallId: null` (recovery mode), and the audit's conversationId matches chatStore's active conversation, the event would pass the recovery guard and contaminate chatStore. This requires: (1) a renderer refresh during an active stream, (2) the user immediately triggering an audit against the same conversation, (3) the audit event arriving before recovery completes. Extremely unlikely.
+**Impact**: Negligible. The audit events are correctly handled in all practical scenarios.
+**Fix**: Consider adding `audit:` and `fix:` to the prefix filter in `streamHandler.ts:66` for defense-in-depth:
 ```typescript
-// handlers.ts:693
-win.webContents.send('chat:streamEvent', { ...event.event, callId: `rev:${event.sessionId}` });
-// Missing: conversationId is not added to the forwarded event
+if (callId && (callId.startsWith('rev:') || callId.startsWith('audit:') || callId.startsWith('fix:') || callId.startsWith('motif-audit:'))) return;
 ```
-**Impact**: The `cliActivityStore` creates `CliCall` entries with an empty `conversationId` for revision queue calls (line 328: `event.conversationId ?? ''`). This means abort via the activity monitor would fail for revision sessions since `chat:abort` requires a valid conversationId. The `chatStore`, `modalChatStore`, and `pitchRoomStore` all correctly filter these out via `callId.startsWith('rev:')`, so there's no bleed — just a gap in the activity monitor's ability to abort revision calls.
-**Fix**: Include `conversationId` from the revision session when forwarding. The `session:streamEvent` event type in `RevisionQueueEvent` should carry `conversationId`, or the handler should look it up from the active plan's session state.
 
-### 1.3 chatStore sendMessage error path doesn't clear _activeCallId
-**Severity**: 🟡 **Medium**
-**Location**: `src/renderer/stores/chatStore.ts:186-204`
-**Description**: In `chatStore.sendMessage`, when the `window.novelEngine.chat.send()` IPC call itself throws (e.g., IPC channel not available, renderer crash), the catch block resets `isStreaming`, `streamBuffer`, and `thinkingBuffer` but does **not** clear `_activeCallId`.
-**Evidence**:
-```typescript
-// chatStore.ts:196-203
-set((state) => ({
-  messages: [...state.messages, errorMessage],
-  isStreaming: false,
-  isThinking: false,
-  streamBuffer: '',
-  thinkingBuffer: '',
-  toolActivity: [],
-  // Missing: _activeCallId: null
-}));
-```
-**Impact**: After a send failure, `_activeCallId` retains the stale UUID. Since `isStreaming` is also false, the secondary guard (`if (!_activeCallId) { if (!isStreaming) return; }`) rejects all incoming events, which is actually correct behavior. The next `sendMessage` call overwrites `_activeCallId` anyway. This is a benign leak, but unclean.
-**Fix**: Add `_activeCallId: null` to the catch block's `set()` call.
+### 1.6 `switchBook` Correctly Clears All State Including `_activeCallId` ✅
+**Severity**: 🟢
+**Location**: `src/renderer/stores/chatStore.ts:261-298`
+**Description**: `switchBook()` aborts any active stream (line 274), then clears ALL state including `_activeCallId: null` (line 297). After clearing, it loads conversations for the new book and checks for an in-flight stream via `getActiveStreamForBook()`. If found, it restores `_activeCallId` from the active stream's `callId`. This correctly prevents late events from Book A's CLI from contaminating Book B's UI.
+**Impact**: None — working correctly.
 
-### 1.4 pitchRoomStore and modalChatStore error paths don't clear _activeCallId
-**Severity**: 🟡 **Medium**
-**Location**: `src/renderer/stores/pitchRoomStore.ts:190-197`, `src/renderer/stores/modalChatStore.ts:134-141`
-**Description**: Same issue as 1.3 — the catch block in `sendMessage` resets streaming state but not `_activeCallId`.
-**Evidence**:
-```typescript
-// pitchRoomStore.ts:190-196
-set((state) => ({
-  messages: [...state.messages, errorMessage],
-  isStreaming: false,
-  isThinking: false,
-  streamBuffer: '',
-  thinkingBuffer: '',
-  // Missing: _activeCallId: null
-}));
-```
-**Impact**: Same benign leak as 1.3.
-**Fix**: Add `_activeCallId: null` to both stores' catch blocks.
-
-### 1.5 switchBook clears _activeCallId but doesn't abort the active CLI stream
-**Severity**: 🟡 **Medium**
-**Location**: `src/renderer/stores/chatStore.ts:259-327`
-**Description**: `switchBook()` sets `_activeCallId: null` and `isStreaming: false`, which correctly stops the UI from rendering events from the old book. However, it does NOT call `window.novelEngine.chat.abort()` on the old conversation's stream. The CLI process continues running in the background, consuming tokens and potentially writing files to the old book.
-**Evidence**:
-```typescript
-// chatStore.ts:268-285
-set({
-  activeConversation: null,
-  // ... all state cleared
-  isStreaming: false,
-  _activeCallId: null,
-});
-// No abort call for the old book's active stream
-```
-**Impact**: The old stream runs to completion silently. Token costs are incurred, files may be written. When the stream completes, the `done` event arrives but is filtered out by the callId guard (since `_activeCallId` is now null or belongs to the new book). The `StreamManager` in the main process correctly saves the response and records usage, so no data is lost — but the user may not realize a background stream is still running.
-**Fix**: This may be intentional — the user likely wants the stream to finish (they started it). The recovery logic in Step 4 of `switchBook` handles re-attachment when switching back. If abort is desired, add `window.novelEngine.chat.abort(oldConversationId)` before clearing state.
-
-### 1.6 Cross-book conversation history is correctly scoped
-**Severity**: 🟢 **Low** (positive observation)
-**Location**: `src/application/ChatService.ts:197`, `src/infrastructure/claude-cli/ClaudeCodeClient.ts:301`
-**Description**: Messages are loaded by `conversationId` (`this.db.getMessages(conversationId)`), and conversations are scoped to books via `bookSlug`. The `buildConversationPrompt` method operates only on the messages array passed to it — no global state. The `activeStreams` map in `StreamManager` is keyed by `conversationId`, which is unique per conversation. No cross-conversation contamination is possible.
-**Impact**: None — correctly implemented.
+### 1.7 Conversation History Is Correctly Scoped ✅
+**Severity**: 🟢
+**Location**: `src/application/ChatService.ts:197`, `src/infrastructure/claude-cli/ClaudeCodeClient.ts:319`
+**Description**: `ChatService.sendMessage()` calls `this.db.getMessages(conversationId)` (line 197) — scoped to the correct conversation. `buildConversationPrompt()` (line 319) concatenates only the messages passed to it — no cross-conversation leakage. The `activeStreams` Map in `StreamManager` is keyed by `conversationId`, preventing cross-conversation contamination. `abortStream()` also uses `conversationId` as the key.
+**Impact**: None — clean implementation.
 
 ---
 
@@ -109,232 +85,190 @@ set({
 | Surface | callId Injected | callStart Emitted | Events Broadcast | Visible in Monitor | Status |
 |---------|:-:|:-:|:-:|:-:|--------|
 | Main chat | ✅ | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
-| Modal chat | ✅ | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
+| Modal chat (voice/author) | ✅ | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
 | Pitch room | ✅ | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
-| Auto-draft | ✅ (per iteration) | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
+| Auto-draft loop | ✅ (per iteration) | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
 | Hot take | ✅ | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
 | Ad hoc revision | ✅ | ✅ (via StreamManager) | ✅ (broadcastStreamEvent) | ✅ | OK |
-| Revision sessions | ✅ (`rev:{sessionId}`) | ✅ (via session:streamEvent → callStart forwarding) | ✅ (forwarded to chat:streamEvent) | ✅ | OK |
-| Revision verification | ✅ | ✅ (goes through chat:send → StreamManager) | ✅ | ✅ | OK |
-| Plan loading (Wrangler) | ✅ (`rev:__plan-load__`) | ✅ (explicit emit in RevisionQueueService:359) | ✅ (forwarded via session:streamEvent) | ✅ | OK |
-| Verity audit (auto-draft) | ✅ (renderer-provided callId) | ⚠️ Depends on AuditService impl | ✅ (via broadcastVerityEvent) | ⚠️ PARTIAL | ISSUE |
-| Verity fix (auto-draft) | ✅ (renderer-provided callId) | ⚠️ Depends on AuditService impl | ✅ (via broadcastVerityEvent) | ⚠️ PARTIAL | ISSUE |
-| Motif audit | ✅ (renderer-provided callId) | ⚠️ Depends on AuditService impl | ✅ (via broadcastVerityEvent) | ⚠️ PARTIAL | ISSUE |
-| Context Wrangler (sendOneShot) | N/A | N/A | N/A | N/A | N/A — not implemented |
+| Revision sessions | ✅ (`rev:{sessionId}`) | ✅ (via RevisionQueueService emit) | ✅ (handlers.ts:705) | ✅ | OK |
+| Revision verification | ✅ | ✅ (via StreamManager in ChatService) | ✅ (broadcastStreamEvent) | ✅ | OK |
+| Plan loading (Wrangler) | ✅ (`rev:__plan-load__`) | ✅ (explicit `callStart` in RevisionQueueService:357) | ✅ (handlers.ts:705) | ✅ | OK |
+| Verity audit/fix | ✅ (`audit:*`/`fix:*`) | ✅ (synthetic `emitVerityCallStart` in handlers.ts:567) | ✅ (broadcastVerityEvent) | ✅ | OK |
+| Motif audit (Lumen) | ✅ (`motif-audit:*`) | ✅ (synthetic `emitVerityCallStart` in handlers.ts:619) | ✅ (broadcastVerityEvent) | ✅ | OK |
+| AdhocRevision pre-step motif audit | ❌ | ❌ | ❌ | ❌ | **ISSUE** |
 
-### 2.1 Verity audit/fix and motif audit calls may lack callStart events
-**Severity**: 🟡 **Medium**
-**Location**: `src/main/ipc/handlers.ts:553-614` (broadcastVerityEvent)
-**Description**: The `broadcastVerityEvent` helper forwards all stream events from audit/fix/motif-audit calls to `chat:streamEvent`. The `callStart` event that creates a new `CliCall` entry in the activity monitor is normally emitted by `StreamManager.startStream()` (line 82 of StreamManager.ts). If the `AuditService` calls `claude.sendMessage()` directly without `StreamManager`, no `callStart` is emitted. The `ClaudeCodeClient.processStreamEvent()` does NOT emit `callStart` — that responsibility belongs to `StreamManager`.
+### 2.1 AdhocRevisionService Internal Motif Audit Is Invisible to Activity Monitor
+**Severity**: 🟡
+**Location**: `src/application/AdhocRevisionService.ts:52-58`
+**Description**: `AdhocRevisionService.handleMessage()` calls `this.audit.runMotifAudit()` as a pre-step (line 52) before the main Forge call. This motif audit goes through `AuditService.runMotifAudit()` which calls `this.claude.sendMessage()` directly — NOT through `StreamManager`. This means no `callStart` event is emitted.
 
-The `cliActivityStore` handles this gracefully via its fallback (lines 348-376): if no call exists for a callId, non-`callStart` events either fall back to the most recently active call or (for `status` events) create a default call with "Wrangler" as the agent name and "Unknown" as the model.
-**Impact**: Audit/fix calls may appear in the activity monitor with incorrect metadata (wrong agent name and model) or may be attributed to whichever call happens to be most recently active. Not a data corruption issue, but confusing UX.
-**Fix**: Have the AuditService use `StreamManager` for its CLI calls, or manually emit a `callStart` event before the first stream event reaches `broadcastVerityEvent`.
+Standalone motif audits triggered via the `verity:runMotifAudit` IPC handler (handlers.ts:615-626) ARE visible because the handler creates a synthetic `callStart` via `emitVerityCallStart`. But the `AdhocRevisionService` path bypasses the IPC handler entirely — it calls `AuditService` directly as a service dependency.
 
-### 2.2 sendOneShot does not exist — Context Wrangler is synchronous
-**Severity**: 🟢 **Low** (informational)
-**Location**: `src/application/ContextBuilder.ts`
-**Description**: The evaluation prompt asks about `sendOneShot` for the Wrangler/ContextBuilder. This method does not exist in the codebase. The `ContextBuilder` is a pure synchronous class that builds context using token estimation and string manipulation — no CLI calls. The Wrangler pattern described in the architecture (two-call pattern) was replaced with a single-call pattern using the `ContextBuilder`. The only CLI call that performs "wrangling" is `RevisionQueueService.loadPlan()` which calls the Wrangler agent to parse revision plans, and that IS tracked via `session:streamEvent` forwarding.
-**Impact**: None — the concern is moot.
+The motif audit's stream events reach the renderer (via the parent's `onEvent` callback which chains to `broadcastStreamEvent`), but they lack a dedicated `callId` and there's no `callStart` for the activity monitor to create a `CliCall` entry.
+**Impact**: During ad hoc revision, the motif audit pre-step (~5-30 seconds) is invisible in the CLI activity monitor. The user sees "Motif audit complete" status messages in the chat but can't track the Lumen CLI call's thinking, tool use, or progress in the activity panel.
+**Fix**: Either (1) have `AdhocRevisionService` emit a synthetic `callStart` before calling `this.audit.runMotifAudit()`, or (2) have `AuditService.runMotifAudit()` emit `callStart`/`done` events internally so all callers benefit.
+
+### 2.2 cliActivityStore Correctly Handles All callId Patterns ✅
+**Severity**: 🟢
+**Location**: `src/renderer/stores/cliActivityStore.ts:318-542`
+**Description**: `handleStreamEvent` creates a new `CliCall` on `callStart` (line 324) regardless of callId pattern. For non-callStart events without a matching callId, it falls back to the most recently started active call (line 357-361). It handles `done` and `error` to mark calls inactive (lines 496-529). Completed calls are pruned via `pruneCompletedCalls` (MAX_COMPLETED_CALLS = 10). Tool use, thinking, progress stages, and filesChanged are all tracked.
+**Impact**: The activity monitor has comprehensive coverage of all event types.
 
 ---
 
 ## 3. Areas of Improvement
 
-### 3.1 Optimistic message not cleaned up on send error
-**Severity**: 🟠 **High**
-**Category**: Race Condition
-**Location**: `src/renderer/stores/chatStore.ts:157-204`
-**Description**: `sendMessage` adds a temporary user message (id: `'temp-' + Date.now()`) optimistically before the IPC call. If the IPC call throws, the catch block adds an error message but does NOT remove the temporary user message. The user sees both: their original message and an error, which looks correct at first.
-
-The real issue: `ChatService.sendMessage()` saves the user message to DB (`this.db.saveMessage()` at line 134 of ChatService.ts) BEFORE spawning the CLI. So if the CLI spawn fails, the user message IS persisted in DB but the temp message in the UI has a different ID (`temp-*` vs the DB's nanoid). When the next `done` handler reloads messages from DB, or on refresh, the temp message disappears and the real DB record appears — causing a visual "flash" or apparent message duplication.
-**Evidence**:
-```typescript
-// chatStore.ts:158-165 — temp message added
-const tempMessage: Message = {
-  id: 'temp-' + Date.now(),  // Not a real DB id
-  // ...
-};
-// chatStore.ts:186-204 — catch adds error but doesn't remove temp
-```
-**Impact**: After a send error, the message list shows: `[temp user msg] + [error msg]`. On next successful interaction, messages reload from DB, replacing temp with the real one. Minor UX inconsistency.
-**Fix**: In the error catch, filter out the temp message:
-```typescript
-set((state) => ({
-  messages: [...state.messages.filter(m => m.id !== tempMessage.id), errorMessage],
-  isStreaming: false,
-  _activeCallId: null,
-  // ...
-}));
-```
-
-### 3.2 Modal close during stream returns early — minor UX friction
-**Severity**: 🟢 **Low**
-**Category**: Race Condition
-**Location**: `src/renderer/stores/modalChatStore.ts:85-89`
-**Description**: `close()` checks `isStreaming` and returns early if true, preventing the user from closing the modal during an active stream. When the stream completes via `done`, `isStreaming` is set to false but `isOpen` is NOT set to false. The user must click close again.
-**Evidence**:
-```typescript
-// modalChatStore.ts:85-89
-close: () => {
-  const { isStreaming } = get();
-  if (isStreaming) return;  // Returns silently
-  set({ isOpen: false });
-},
-```
-**Impact**: If user tries to close during streaming, the close button appears unresponsive. After the stream finishes, they have to click again.
-**Fix**: Add a `_closeRequested` flag. If set, auto-close when `done` or `error` arrives.
-
-### 3.3 cliActivityStore recovery creates duplicate polling intervals
-**Severity**: 🟡 **Medium**
-**Category**: Race Condition / Memory
-**Location**: `src/renderer/stores/cliActivityStore.ts:617-637`
-**Description**: `recoverActiveStream()` creates a polling interval to detect stream completion. If called multiple times (e.g., rapid view switches that each trigger recovery), each call creates a new `setInterval`. Previous intervals are NOT cleaned up. The 10-minute safety timeout is per-interval.
-**Evidence**:
-```typescript
-// cliActivityStore.ts:617-634
-const pollTimer = setInterval(async () => { ... }, 2000);
-// No cleanup of previous pollTimer if recoverActiveStream is called again
-setTimeout(() => clearInterval(pollTimer), 10 * 60 * 1000);
-```
-**Impact**: After N rapid navigations, N concurrent poll intervals run simultaneously, each hitting `getActiveStream()` every 2 seconds. Not a crash risk but creates unnecessary IPC traffic.
-**Fix**: Store the poll timer reference in a module-level variable (like chatStore's `_recoveryPollTimer`) and clear it before starting a new one:
-```typescript
-let _activityRecoveryPollTimer: ReturnType<typeof setInterval> | null = null;
-// In recoverActiveStream():
-if (_activityRecoveryPollTimer) clearInterval(_activityRecoveryPollTimer);
-_activityRecoveryPollTimer = setInterval(...);
-```
-
-### 3.4 EPIPE guard on stdin silently swallows errors without logging
-**Severity**: 🟡 **Medium**
+### 3.1 chatStore `onError` Doesn't Clean Up Temp User Message
+**Severity**: 🟡
 **Category**: Error Handling
-**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:213-220`
-**Description**: The `child.stdin.on('error')` handler silently returns for `EPIPE` and `ERR_STREAM_DESTROYED`. These indicate the CLI process exited before stdin was fully written. In most cases, the `close` event fires with a non-zero code and emits an error. But there's zero logging for the EPIPE case.
-**Evidence**:
-```typescript
-// ClaudeCodeClient.ts:213-216
-child.stdin.on('error', (err: NodeJS.ErrnoException) => {
-  if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
-    return; // Silently swallowed — no log
-  }
-```
-**Impact**: Debugging CLI startup failures is harder when EPIPE events leave no trace.
-**Fix**: Add `console.warn('[ClaudeCodeClient] stdin EPIPE — CLI process may have exited early');`.
+**Location**: `src/renderer/stores/chatStore.ts:463-485`
+**Description**: In `sendMessage()`, a temp user message (id: `'temp-' + Date.now()`) is added optimistically at line 168. If the IPC call rejects (the `catch` block at line 187), the temp message IS correctly removed via `state.messages.filter(m => m.id !== tempMessage.id)` (line 198).
 
-### 3.5 wrappedOnEvent catches all DB persistence errors silently
-**Severity**: 🟡 **Medium**
+However, if the CLI stream emits an `error` event (a different path — the stream starts successfully but errors mid-stream), the `onError` handler (line 463) appends an error message to the message list but does NOT remove the temp user message. The temp message (with its `'temp-'` id prefix) persists alongside the real DB-saved version. On the next `setActiveConversation` call (which reloads from DB), the temp is replaced. But until then, the user sees a duplicate user message.
+
+Additionally, the error message itself (id: `'error-' + Date.now()`) is not persisted to DB. It exists only in-memory. On refresh, it disappears — the user loses the error context.
+**Impact**: On stream error: (1) temp user message persists as a visual duplicate until navigation, (2) error message is lost on refresh. Minor UX issues.
+**Fix**: In `onError`, reload messages from DB (like `onDone` does), or at minimum filter out `'temp-'` prefixed messages from the state.
+
+### 3.2 `pitchRoomStore` Missing Stream Listener Lifecycle Methods
+**Severity**: 🟡
+**Category**: Architecture
+**Location**: `src/renderer/stores/pitchRoomStore.ts`
+**Description**: Unlike `chatStore` (which has `initStreamListener()`/`destroyStreamListener()`) and `modalChatStore` (same), `pitchRoomStore` defines `_handleStreamEvent` but has no `initStreamListener()`, `destroyStreamListener()`, or `_cleanupListener` field. The store cannot self-manage its stream event subscription.
+
+The PitchRoom component likely subscribes manually in a `useEffect`. But this inconsistency means:
+1. If the component forgets to subscribe, streaming won't work in the Pitch Room
+2. Cleanup on unmount must be handled in the component, not the store
+3. The pattern doesn't match the other two stores, making it harder to maintain
+**Impact**: If the PitchRoom component's subscription is missing or incorrect, stream events won't reach the store and the Pitch Room will show a stuck "streaming" state. The current code works if the component subscribes correctly, but the architecture is fragile.
+**Fix**: Add `initStreamListener()`, `destroyStreamListener()`, and `_cleanupListener` to `pitchRoomStore`, matching the pattern in `chatStore` and `modalChatStore`.
+
+### 3.3 EPIPE Guard Is Safe — `close` Handler Always Settles the Promise ✅
+**Severity**: 🟢
 **Category**: Error Handling
-**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:131-143`
-**Description**: Every stream event is persisted to SQLite. If the DB write fails (disk full, locked), the error is silently caught. If the DB is in a degraded state, EVERY event fails with zero diagnostics.
-**Evidence**:
-```typescript
-// ClaudeCodeClient.ts:131-143
-try {
-  this.db.persistStreamEvent({ ... });
-} catch {
-  // Event persistence is best-effort — don't fail the stream
-}
-```
-**Impact**: Complete loss of stream event history with no indication to the user.
-**Fix**: Log the first failure per stream session, then suppress duplicates:
-```typescript
-let persistErrorLogged = false;
-// In catch:
-if (!persistErrorLogged) {
-  console.error('[ClaudeCodeClient] Stream event persistence failed:', err);
-  persistErrorLogged = true;
-}
-```
+**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:230-238`
+**Description**: The `child.stdin.on('error')` handler silently returns on `EPIPE` or `ERR_STREAM_DESTROYED`. This is safe because the `child.on('close')` handler (line 260) always fires after the child process terminates, and it always calls `settle()` — either `resolve()` for exit code 0, or `reject()` for non-zero. The promise cannot hang.
+**Impact**: None — correct behavior.
 
-### 3.6 Three stores with near-identical _handleStreamEvent
-**Severity**: 🟡 **Medium**
-**Category**: Architecture / Code Smell
-**Location**: `src/renderer/stores/chatStore.ts:329-530`, `src/renderer/stores/modalChatStore.ts:144-248`, `src/renderer/stores/pitchRoomStore.ts:200-318`
-**Description**: All three stores duplicate the same event handling logic: callId guard → `rev:` prefix filter → event type switch → buffer accumulation → done/error cleanup. Findings 1.3 and 1.4 (missing `_activeCallId` cleanup) affect all three identically, demonstrating the maintenance burden.
-**Impact**: Bug fixes and new event types must be replicated three times.
-**Fix**: Extract a shared `createStreamHandler()` utility that accepts store-specific callbacks for done (message reload) and error (message creation), but handles common guards, buffer accumulation, and cleanup in one place.
+### 3.4 `cliActivityStore.recoverActiveStream` Handles Rapid Calls Correctly ✅
+**Severity**: 🟢
+**Category**: Race Condition
+**Location**: `src/renderer/stores/cliActivityStore.ts:590-660`
+**Description**: `recoverActiveStream()` uses `callId: 'recovered:${active.conversationId}'`. If called twice for the same stream, the second call overwrites the first (same callId key). The `callOrder` filter (line 620) deduplicates. The poll timer is cleared before creating a new one (line 625). No ghost entries or accumulated timers.
+**Impact**: None — deduplication is correct.
 
-### 3.7 callId convention uses string prefixes instead of typed discriminators
-**Severity**: 🟢 **Low**
-**Category**: Architecture
-**Location**: Multiple stores and `src/main/ipc/handlers.ts:693`
-**Description**: CallId uses string conventions: plain UUIDs for main chat, `rev:{sessionId}` for revision, `audit:{uuid}` for audits, `fix:{uuid}` for fixes, `motif-audit:{uuid}` for motif audits, `recovered:{conversationId}` for recovery, and `__plan-load__` for plan loading. The `chatStore` filters via `callId.startsWith('rev:')`. Adding a new prefix requires updating every filter.
-**Impact**: Low — the convention is simple and works. Fragile if new surfaces are added without updating all filters.
-**Fix**: Consider adding a `callSource` field to the enriched event type rather than encoding it in the callId string.
+### 3.5 `cliActivityStore` Growth Is Bounded ✅
+**Severity**: 🟢
+**Category**: Memory / Performance
+**Location**: `src/renderer/stores/cliActivityStore.ts:123-124, 189-202`
+**Description**: `MAX_COMPLETED_CALLS = 10` and `MAX_ENTRIES_PER_CALL = 500`. Completed calls beyond the limit are pruned. Active calls are never pruned (correct — you can't drop a running call). Each call's entries are capped. This provides adequate memory bounds for any realistic session.
+**Impact**: No unbounded growth issue.
 
-### 3.8 --add-dir exposes entire booksDir, not just the active book
-**Severity**: 🟡 **Medium**
+### 3.6 DB Event Persistence Failures Are Silently Swallowed
+**Severity**: 🟡
+**Category**: Error Handling
+**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:141-148`
+**Description**: `wrappedOnEvent` catches DB persistence errors and logs only the first failure per session (line 144: `if (!persistErrorLogged)`). If the DB is locked or corrupted, ALL events for that stream session are lost from the `stream_events` table. The events are still forwarded to the UI (line 149: `params.onEvent(streamEvent)`), so the streaming UI continues working. But:
+1. Stream event history is incomplete — orphan recovery won't have accurate event data
+2. If this happens consistently (e.g., WAL corruption), the user has no visibility
+3. The one-log-per-session approach prevents log spam but masks recurring failures
+**Impact**: Stream events lost from DB during lock contention. UI is unaffected. Orphan recovery data is incomplete. Not user-visible unless they inspect the DB.
+**Fix**: Consider emitting a diagnostic event (e.g., `{ type: 'status', message: 'Warning: stream events could not be persisted' }`) after N consecutive failures, or implementing a small retry buffer.
+
+### 3.7 `buildConversationPrompt` Has No Explicit Size Guard
+**Severity**: 🟢
+**Category**: Memory / Performance
+**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:319-329`
+**Description**: `buildConversationPrompt()` concatenates all messages into a single string with no size limit. The system prompt has a 500KB guard (line 183-189), but the conversation prompt (written to stdin) has no equivalent.
+
+In practice, the `ContextBuilder` in `ChatService` compacts conversations before passing them to `claude.sendMessage()`, so message lists are already budget-constrained. Direct callers of `ClaudeCodeClient.sendMessage()` (like `AuditService`, `RevisionQueueService`) pass small message sets. No realistic path produces an oversized prompt.
+**Impact**: Low — implicit bounds from upstream callers. A defensive warning log would be a nice-to-have.
+
+### 3.8 `--add-dir` Is Unconditionally Set — Security Model Is Correct ✅
+**Severity**: 🟢
 **Category**: Security
-**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:157`
-**Description**: The CLI is spawned with `--add-dir` pointing to `this.booksDir` (the parent directory containing ALL books), not the specific book's directory. Combined with file operation tools, an agent could theoretically read or modify another book's files.
-**Evidence**:
-```typescript
-// ClaudeCodeClient.ts:157
-'--add-dir', this.booksDir,
-```
-**Impact**: Cross-book file access is possible. Risk is low since users control prompts and agents use fixed system prompts, but it violates least privilege.
-**Fix**: Use `--add-dir` with the specific book path. If shared resources (custom-agents, author-profile.md) are needed, add them as separate `--add-dir` entries.
+**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:163`
+**Description**: `'--add-dir', this.booksDir` is pushed to `args` unconditionally on line 163, before the `cwd` calculation. This is correct:
+- PitchRoomService sets `workingDir` to the pitch draft path, but `--add-dir` still grants access to the full books directory so Spark can scaffold new books under `{{BOOKS_PATH}}`.
+- Auto-draft, revision queue, and ad hoc revision surfaces all benefit from `--add-dir` when their `--cwd` is scoped to a single book.
+- No code path exists where `--add-dir` is skipped, overridden, or set to a narrower path.
+**Impact**: Security model is correct. All CLI spawn paths include `--add-dir`.
 
-### 3.9 Auto-draft audit/fix calls share conversationId with drafting conversation
-**Severity**: 🟡 **Medium**
-**Category**: Architecture
-**Location**: `src/renderer/stores/autoDraftStore.ts:361-365`
-**Description**: The auto-draft loop passes the drafting `conversationId` to `verity.auditChapter()` and `verity.fixChapter()`. Audit/fix messages are saved to the same conversation as draft messages, creating an interleaved history.
-**Evidence**:
-```typescript
-// autoDraftStore.ts:362-365
-const auditResult = await window.novelEngine.verity.auditChapter(
-  bookSlug, newChapterSlug,
-  { callId: auditCallId, conversationId }, // conversationId = drafting conversation
-);
-```
-**Impact**: Confusing conversation history that mixes drafting with auditing. Not a data corruption issue.
-**Fix**: Either create separate conversations for audit/fix, or accept this as intentional (audit/fix is part of the drafting workflow and contextually useful).
-
-### 3.10 activeStreams cleanup verified — all terminal paths covered
-**Severity**: 🟢 **Low** (positive observation)
-**Category**: Code Verification
-**Location**: `src/application/StreamManager.ts:117-149`
-**Description**: Verified that `activeStreams.delete(conversationId)` is called in all three terminal paths:
-- `done` event: line 137
-- `error` event: line 148
-- Abort: `cleanupAbortedStream()` at line 219
-
-Additionally, `cleanupErroredStream()` (line 228) handles the catch block in `ChatService.sendMessage()`. No leaked entries are possible.
-
-### 3.11 System prompt size has no explicit guard
-**Severity**: 🟢 **Low**
+### 3.9 System Prompt Size Guard Is Correct ✅
+**Severity**: 🟢
 **Category**: Security
-**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:155`
-**Description**: The system prompt is passed via `--system-prompt` as a CLI argument with no size check. An extremely large agent `.md` file could cause spawn failure with `E2BIG`.
-**Impact**: The CLI would fail to spawn, the error handler would fire, and the user sees an error. Not a crash but an unhelpful error message.
-**Fix**: Add a size check:
-```typescript
-if (systemPrompt.length > 1_000_000) {
-  onEvent({ type: 'error', message: 'System prompt exceeds 1MB limit' });
-  return;
-}
-```
+**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:183-189`
+**Description**: A 500KB guard with a clear error message prevents oversized system prompts from hitting the OS `execve` argument size limit.
+**Impact**: Correct safeguard. Handles the "corrupted 10MB agent file" scenario.
+
+### 3.10 `child.stdin.write(conversationPrompt)` — No Injection Risk ✅
+**Severity**: 🟢
+**Category**: Security
+**Location**: `src/infrastructure/claude-cli/ClaudeCodeClient.ts:310-311`
+**Description**: The CLI treats stdin as message content only in `--print` mode. Previous assistant messages containing CLI-like sequences (e.g., `--model opus`) are part of the conversation context, not parsed as arguments. The `--system-prompt` is a separate CLI argument. No injection vector.
+**Impact**: None.
+
+### 3.11 `callId` Convention Is String-Based — Type Safety Opportunity
+**Severity**: 🟢
+**Category**: Architecture
+**Location**: Various
+**Description**: CallId patterns: UUID (main chat), `rev:*` (revision), `audit:*`, `fix:*`, `motif-audit:*`, `recovered:*`. The `streamHandler.ts` only filters `rev:`. Adding a new prefix requires updating the filter. A typed discriminator would be more robust, but the current convention works.
+**Impact**: Maintainability concern only. Document the convention somewhere.
+
+### 3.12 `activeStreams.delete()` Called in All Terminal Paths ✅
+**Severity**: 🟢
+**Category**: Code Smell
+**Location**: `src/application/StreamManager.ts:137, 148, 219, 229`
+**Description**: `activeStreams.delete(conversationId)` is called in:
+- `done` event handler (line 137)
+- `error` event handler (line 148)
+- `cleanupAbortedStream()` (line 219)
+- `cleanupErroredStream()` (line 229)
+
+All terminal paths are covered. No leaked entries possible.
+**Impact**: None — complete cleanup.
+
+### 3.13 `modalChatStore.close()` Deferred Close Pattern Is Correct ✅
+**Severity**: 🟢
+**Category**: Race Condition
+**Location**: `src/renderer/stores/modalChatStore.ts:90-97, 174-213`
+**Description**: `close()` sets `_closeRequested: true` if streaming. The `onDone` and `onError` handlers check `_closeRequested` and include `isOpen: false` in the state update. The modal correctly closes when the stream completes or errors, even if the user clicked close during streaming.
+**Impact**: None — pattern is clean.
+
+### 3.14 Revision Queue Event Forwarding Preserves All Fields ✅
+**Severity**: 🟢
+**Category**: Code Smell
+**Location**: `src/main/ipc/handlers.ts:703-709`
+**Description**: The forwarding at line 705 spreads `event.event` (the raw StreamEvent) and adds `callId` and `conversationId`. All original fields from the StreamEvent are preserved via the spread operator. No fields are stripped.
+**Impact**: None — complete field preservation.
+
+### 3.15 `streamHandler.ts` Switch Statement Has No `default` Case — Intentional
+**Severity**: 🟢
+**Category**: Code Smell
+**Location**: `src/renderer/stores/streamHandler.ts:92-141`
+**Description**: The switch statement handles: `status`, `blockStart`, `thinkingDelta`, `textDelta`, `blockEnd`, `toolUse`, `progressStage`, `thinkingSummary`, `toolDuration`, `filesChanged`, `done`, `error`. Missing from the switch: `callStart` (only relevant to `cliActivityStore`). Unknown/new event types fall through silently. This is correct for forward compatibility — the chat stores don't need to handle all event types.
+**Impact**: None — intentional design.
 
 ---
 
 ## 4. Positive Observations
 
-- **callId-per-send isolation is robust**: Every surface generates a unique `callId` per CLI call and injects it into all broadcast events. The callId guard in each store is the primary filter. This is stronger than the `streamRouter.target` approach described in the evaluation prompt — there's no shared mutable global to manage or forget to reset.
+1. **`createStreamHandler` factory is excellent architecture.** The shared guard logic in `streamHandler.ts` eliminates duplicated `_handleStreamEvent` code. Store-specific behavior is cleanly separated into callbacks (`onDone`, `onError`, `onBlockStart`). A bug fix in the guard logic propagates to all three stores automatically.
 
-- **Broadcast-to-all-windows pattern is correct**: `broadcastStreamEvent` iterates `BrowserWindow.getAllWindows()` instead of `event.sender.send()`. This ensures renderer refreshes continue receiving events. Try/catch around each send handles closing windows gracefully.
+2. **`StreamManager` centralizes stream lifecycle.** The `startStream → accumulate → save → cleanup` pattern is owned by a single class. All five services (ChatService, PitchRoomService, HotTakeService, AdhocRevisionService, and RevisionQueueService) use it consistently. This eliminates the class of bugs where one service forgets to save the assistant message or clean up the active stream entry.
 
-- **Recovery after renderer refresh is well-implemented**: Both `chatStore.recoverActiveStream()` and `cliActivityStore.recoverActiveStream()` query the main process for active streams, restore UI state, and start polling fallbacks. The `_recoveryPollTimer` cleanup in `chatStore` is properly managed via a module-level variable with `clearRecoveryPoll()`.
+3. **callId-per-send is the right isolation primitive.** UUIDs generated per `sendMessage` call provide hermetic isolation without a mutable global router. Multiple concurrent streams (auto-draft for Book A, main chat for Book B, revision queue for Book C) can run simultaneously without interference.
 
-- **StreamManager centralizes stream lifecycle**: `StreamManager.startStream()` handles the repetitive register → accumulate → save → cleanup pattern. It emits `callStart` on every start, ensuring consistent activity monitor coverage. The `activeStreams` map is cleaned up on all terminal paths.
+4. **`broadcastStreamEvent` to ALL windows is correct.** Broadcasting to all `BrowserWindow` instances (not just `event.sender`) ensures that a renderer refresh (Cmd+R) doesn't lose stream events. The fresh page's listener immediately receives events from the still-running CLI process.
 
-- **Revision queue event isolation**: `useRevisionQueueEvents` uses `sessionBelongsToCurrentPlan()` to scope events to the active plan, preventing cross-book revision bleed.
+5. **Three-tier recovery model is well-designed.** (1) Primary: callId guard matches events to the originating call. (2) Secondary: recovery mode allows events through when `_activeCallId` is null but `isStreaming` is true. (3) Tertiary: poll fallback (every 2s) catches missed `done` events during the brief reload gap.
 
-- **Auto-draft per-book sessions**: The `autoDraftStore` uses a `sessions` record keyed by `bookSlug`, supporting concurrent auto-draft loops. Each iteration generates its own callId. `attachToExternalStream` correctly connects the chatStore only when the user is watching.
+6. **`pruneCompletedCalls` prevents unbounded memory growth** in the activity monitor. `MAX_COMPLETED_CALLS = 10` and `MAX_ENTRIES_PER_CALL = 500` provide practical bounds without losing useful history.
 
-- **Completed call pruning**: `MAX_COMPLETED_CALLS = 10` with `pruneCompletedCalls()` prevents unbounded growth in the activity store. `MAX_ENTRIES_PER_CALL = 500` caps per-call memory.
+7. **Synthetic `emitVerityCallStart` for audit/fix/motif-audit calls** ensures these IPC-initiated CLI calls (which bypass `StreamManager`) still appear in the activity monitor. This was a deliberate design choice that shows attention to monitoring completeness.
 
-- **`rev:` prefix filter is consistently applied**: All three consuming stores filter out `rev:*` events first. The `cliActivityStore` does NOT filter these, correctly tracking all calls.
+8. **`sessionBelongsToCurrentPlan()` guard in `useRevisionQueueEvents`** prevents cross-book revision event contamination. Each event is checked against the currently-loaded plan's session list before being applied to store state.
 
-- **switchBook recovery is thorough**: After clearing state, `switchBook` checks for an active stream on the new book and restores streaming UI state, including callId for proper event scoping. The conversation list is loaded and the most recent conversation is auto-selected.
+9. **`switchBook()` aborts the active stream** before clearing state. This prevents the old book's CLI call from continuing to consume tokens and write files in the background — a genuine resource waste issue that was proactively addressed.
+
+10. **Per-book auto-draft sessions** in `autoDraftStore` (keyed by `bookSlug`) allow concurrent auto-draft loops for different books. Each generates its own `callId` per iteration, providing complete stream isolation. The `attachToExternalStream` pattern elegantly connects the auto-draft's CLI calls to chatStore's UI without coupling the two stores.

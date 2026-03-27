@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — README deep update: comprehensive rewrite from codebase analysis
+
+### Summary
+
+Rewrote `README.md` from a full analysis of every source file. Updated file count (102 → 121), corrected agent thinking budgets (Spark 4K not 8K), added Verity Audit Pipeline and Motif Ledger as documented features, updated source tree to reflect `streamHandler.ts` (renamed from `streamRouter.ts`), `migrations.ts`, `statusMessages.ts`, `MotifLedger/` component group, new application services (AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService), new hooks (useResizeHandle, useVerticalResize), PitchHistory sidebar component, and expanded custom-agents listing (23 agent files including Verity sub-prompts and utility agents). Preserved dedication and books sections verbatim. Every feature, agent, pipeline phase, and file path verified against actual source code.
+
+### Changed
+- `README.md` — Full rewrite. Updated source tree, file count, feature descriptions, agent registry, custom-agents directory listing. Added Verity Audit Pipeline, Motif Ledger, and phase-aware Verity prompt sections. Corrected Spark thinking budget from 8K to 4K. Updated store count to 14. Added all missing component groups and application services.
+
+### Architecture Impact
+- None — no wiring changes
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Issue fixes r002: 9 bug fixes from repo evaluation
 
 ### Summary
