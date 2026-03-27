@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Repo evaluation: comprehensive audit of chat bleed, activity monitor, and code quality
+
+### Summary
+
+Executed `prompts/standard/repo-eval.md` — a full audit of stream event isolation, CLI activity monitor coverage, and latent bugs. Traced event flows end-to-end across all 10+ surfaces that spawn CLI calls. Found no critical chat bleed issues; the callId-per-send pattern is robust. Identified 12 findings across medium/low severity: missing `_activeCallId` cleanup in error paths (3 stores), revision event forwarding missing `conversationId`, duplicate polling intervals in cliActivityStore recovery, silent EPIPE/DB-error swallowing, and `--add-dir` exposing all books instead of just the active one.
+
+### Added
+- `issues.md` — Full repo evaluation report with 12 findings, coverage matrix, and positive observations
+
+### Architecture Impact
+- None — no source code changes, audit output only
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Add update-website standard prompt (multi-page)
 
 ### Summary
