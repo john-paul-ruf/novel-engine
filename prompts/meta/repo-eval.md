@@ -2,7 +2,7 @@
 
 ## Purpose
 
-You are a senior auditor performing a comprehensive code review of the Novel Engine codebase. Your job is to find **chat bleed**, verify **CLI activity monitor coverage**, and identify **areas of improvement or latent bugs**. Output all findings to `issues.md` at the repo root.
+You are a senior auditor performing a comprehensive code review of the Novel Engine codebase. Your job is to find **chat bleed**, verify **multi-book concurrency** (background work survives book switching), verify **auto-draft critical path integrity** (all passes complete per chapter, never aborts unless user asks), verify **CLI activity monitor coverage**, and identify **areas of improvement or latent bugs**. Output all findings to `issues.md` at the repo root.
 
 ---
 
@@ -81,7 +81,144 @@ Read `src/application/ChatService.ts` — specifically `sendMessage()`:
 
 ---
 
-### 2. CLI Activity Monitor Coverage (High Priority)
+### 2. Multi-Book Concurrency — Background Work Survives Book Switch (Critical)
+
+A core selling point of this application is working on multiple books simultaneously. If the user starts auto-draft on Book A and switches to Book B, **Book A's auto-draft must continue running in the background**. Same for revision queue, hot take, ad hoc revision — any long-running CLI surface.
+
+#### A. `switchBook()` Abort Behavior
+
+Read `src/renderer/stores/chatStore.ts` — specifically `switchBook()`:
+
+- **The current code aborts the active stream when switching books** (lines ~270-278). This is correct for _interactive chat_ (the user is walking away from a conversation they typed into), but it must NOT kill:
+  - Auto-draft CLI calls (owned by `autoDraftStore`, not `chatStore`)
+  - Revision queue sessions (owned by `revisionQueueStore`)
+  - Hot take / ad hoc revision CLI calls
+  - Any background process the user didn't explicitly cancel
+
+**Verify:**
+1. Does `switchBook()` call `window.novelEngine.chat.abort(conversationId)`? If so, what `conversationId` does it pass? Is it the chatStore's `activeConversation.id` (correct — that's the user's interactive chat) or could it match a background auto-draft's conversationId?
+2. If the user is _viewing_ an auto-draft conversation (chatStore's `activeConversation` === auto-draft's `conversationId`) and switches books, does `switchBook()` abort the auto-draft's CLI call? This would be a critical bug — the user was just watching, not controlling it.
+3. Does the auto-draft store's `start()` method use `window.novelEngine.chat.send()` directly (not through chatStore)? If so, the abort in switchBook should NOT affect it — unless the conversationId happens to match.
+
+**Flag if:**
+- `switchBook()` aborts a CLI call that belongs to a background process (auto-draft, revision queue, etc.)
+- `switchBook()` clears state that a background process depends on (e.g., resetting `_activeCallId` that auto-draft set)
+- Any store's background loop checks `useBookStore.getState().activeSlug` to decide whether to continue (it should use its own `bookSlug` parameter, not the global active slug)
+- Auto-draft's `isViewingBook()` helper is used for anything other than optional UI updates (using it to gate functional behavior would mean switching books breaks the loop)
+
+#### B. Auto-Draft Background Isolation
+
+Read `src/renderer/stores/autoDraftStore.ts` in full. Verify:
+
+1. **Per-book session state**: The store uses `sessions: Record<string, AutoDraftSession>` keyed by `bookSlug`. Confirm that ALL state reads use the `bookSlug` parameter, never `useBookStore.getState().activeSlug`.
+2. **IPC calls are book-scoped**: Every `window.novelEngine.chat.send()` call passes the correct `bookSlug`, not the global active slug.
+3. **UI updates are conditional**: Calls to `useChatStore`, `useFileChangeStore`, `useBookStore.refreshWordCount()` etc. should be gated by `isViewingBook(bookSlug)` — they're optional polish, not functional requirements.
+4. **Pipeline refresh is unconditional**: `usePipelineStore.getState().loadPipeline(bookSlug)` should run for background books too (so the pipeline cache stays warm).
+5. **No dependency on chatStore state**: The auto-draft loop must not read from `chatStore` to decide what to do next. It should only _write_ to chatStore (via `attachToExternalStream`) when the user happens to be watching.
+
+**Flag if:**
+- Any auto-draft code path reads `useBookStore.getState().activeSlug` for functional decisions
+- Auto-draft's conversation is created via `chatStore.createConversation()` instead of `window.novelEngine.chat.createConversation()` (this would pollute chatStore's state)
+- The `attachToExternalStream` call fails silently when the user isn't viewing the book (it should be a no-op, not an error)
+- Multiple books' auto-draft loops could interfere with each other through shared mutable state
+
+#### C. Revision Queue Background Isolation
+
+Read `src/renderer/stores/revisionQueueStore.ts` (or the revision execution path in `handlers.ts`). Apply the same checks:
+
+1. Does the revision queue continue running if the user switches books?
+2. Are revision events scoped by `bookSlug` or could they bleed into the wrong book's UI?
+3. Does `switchBook()` accidentally kill a revision session by aborting a stream whose conversationId overlaps?
+
+#### D. Stream Event Routing During Book Switch
+
+When the user switches from Book A to Book B while Book A has a background auto-draft running:
+
+1. **Before switch**: chatStore shows Book A's auto-draft conversation, events flow to chatStore via `attachToExternalStream`.
+2. **During switch**: `switchBook()` resets chatStore, sets `_activeCallId = null`.
+3. **After switch**: Book A's auto-draft CLI is still running, still emitting events. These events arrive at chatStore's `_handleStreamEvent`. Does the `_activeCallId` guard correctly reject them? Or does the "recovery mode" path (`_activeCallId` null + `isStreaming` false) let them through?
+4. **Return to Book A**: User switches back. Does `switchBook()` → `getActiveStreamForBook()` recover the auto-draft's streaming state correctly? Does `_activeCallId` get restored so events flow again?
+
+**Flag if:**
+- Events from Book A's background auto-draft are processed by chatStore while viewing Book B
+- Switching back to Book A doesn't recover the auto-draft's streaming UI
+- The auto-draft loop pauses or fails when chatStore's `_activeCallId` changes (it shouldn't care)
+
+---
+
+### 3. Auto-Draft Critical Path — All Passes Per Chapter (Critical)
+
+Auto-draft is a critical path. The loop must complete ALL passes for each chapter before advancing to the next. It must NEVER abort unless the user explicitly clicks Stop.
+
+#### A. Pass Completion Guarantee
+
+Read `src/renderer/stores/autoDraftStore.ts` — the main loop. For each chapter iteration, verify:
+
+1. **Pass 1: Draft** — `window.novelEngine.chat.send()` with `AUTO_DRAFT_PROMPT`. Must await completion.
+2. **Pass 2: Audit** — `window.novelEngine.verity.auditChapter()`. Must await completion. Must not be skipped on transient errors.
+3. **Pass 3: Fix** — `window.novelEngine.verity.fixChapter()`. Only runs if audit severity is moderate/heavy. Must await completion.
+4. **Pass 4: Motif audit** — `window.novelEngine.verity.runMotifAudit()`. Runs every N chapters. Must await completion.
+
+**Verify for each pass:**
+- Is the pass wrapped in try/catch? If it catches an error, does it CONTINUE to the next pass (wrong — should retry or pause) or PAUSE the loop for user decision?
+- Is there a `session()?.stopRequested` check BETWEEN passes (correct) but NOT inside a pass (would abort mid-write)?
+- Does `waitForCliIdle()` run between passes to ensure the previous CLI process fully exited?
+
+**Flag if:**
+- Any pass's error is silently caught and the loop advances to the next chapter without completing all passes
+- The audit pass failure causes the fix pass to be skipped (if audit failed, the chapter is unaudited — this should pause, not continue)
+- The motif audit failure is silently caught and the loop continues (currently it IS silently caught — is this acceptable?)
+- `stopRequested` is checked inside a pass execution (would abort mid-chapter)
+
+#### B. Abort Semantics
+
+Read `autoDraftStore.stop()`:
+
+1. It sets `stopRequested = true` — this is checked at loop boundaries. ✓
+2. It calls `window.novelEngine.chat.abort(conversationId)` — this kills the in-flight CLI call immediately.
+
+**Verify:**
+- After `abort()` kills the CLI call, does the loop iteration detect the failure and pause (not advance to next chapter)?
+- If the user clicks Stop during Pass 2 (audit), does the loop exit cleanly or does it try to run Pass 3 (fix) on a failed audit?
+- Is the abort ONLY triggered by `stop()` (user action)? No other code path should call abort on the auto-draft's conversationId.
+
+**Flag if:**
+- `switchBook()` in chatStore could abort the auto-draft's conversationId (cross-store interference)
+- The loop continues to the next chapter after an aborted pass instead of exiting
+- An external abort (not from `stop()`) could kill the auto-draft CLI call
+
+#### C. Error Recovery
+
+When a CLI call fails during auto-draft:
+
+1. Does the loop detect the failure (no new assistant message)?
+2. Does it PAUSE and wait for user decision (resume/stop)?
+3. Does it retry the SAME chapter on resume, not skip to the next?
+4. Are all passes for the current chapter re-run on resume, or only the failed pass?
+
+**Flag if:**
+- The loop advances to the next chapter after a failure
+- Resume skips the audit/fix passes that didn't run
+- The pause mechanism (`_resumeResolve` Promise) could leak if the store is destroyed during a pause
+
+#### D. External Interference
+
+Verify that NO external code path can disrupt an active auto-draft loop:
+
+1. `chatStore.switchBook()` — must not abort auto-draft's CLI calls
+2. `chatStore.sendMessage()` — if the user manually sends a message in the auto-draft conversation, does it conflict with the loop's next iteration?
+3. `modalChatStore` — unrelated, but verify no shared state
+4. `window.novelEngine.chat.abort()` — only called from `autoDraftStore.stop()` and `chatStore.switchBook()`. Verify the latter doesn't pass the auto-draft's conversationId.
+5. Closing the app during auto-draft — does the main process clean up the CLI process? Does the next app launch recover or detect the orphaned state?
+
+**Flag if:**
+- Any code outside `autoDraftStore` calls `abort()` with a conversationId that could match an active auto-draft conversation
+- The user sending a manual message in an auto-draft conversation could corrupt the loop's chapter detection logic
+- App close during auto-draft leaves zombie CLI processes
+
+---
+
+### 4. CLI Activity Monitor Coverage (High Priority)
 
 The CLI Activity Monitor (`cliActivityStore.ts`) should track EVERY Claude CLI invocation — not just main chat. Verify that each of these surfaces produces events visible in the activity monitor:
 
@@ -128,7 +265,7 @@ Read `src/renderer/stores/cliActivityStore.ts` — specifically `handleStreamEve
 
 ---
 
-### 3. Areas of Improvement & Latent Issues
+### 5. Areas of Improvement & Latent Issues
 
 Scan the following for anti-patterns, bugs, or architectural concerns:
 
@@ -222,7 +359,47 @@ Create `issues.md` at the repo root with this structure:
 
 ---
 
-## 2. CLI Activity Monitor Coverage
+## 2. Multi-Book Concurrency — Background Work Isolation
+
+### Book Switch Safety Matrix
+
+| Background Surface | Survives switchBook()? | Events Isolated? | State Independent? | Status |
+|---|:-:|:-:|:-:|--------|
+| Auto-draft (Book A) | ✅/❌ | ✅/❌ | ✅/❌ | OK/ISSUE |
+| Revision queue (Book A) | ✅/❌ | ✅/❌ | ✅/❌ | OK/ISSUE |
+| Hot take (Book A) | ✅/❌ | ✅/❌ | ✅/❌ | OK/ISSUE |
+| Ad hoc revision (Book A) | ✅/❌ | ✅/❌ | ✅/❌ | OK/ISSUE |
+
+### 2.1 {Finding title}
+{Same format as chat bleed findings}
+
+---
+
+## 3. Auto-Draft Critical Path — Pass Completion
+
+### Per-Chapter Pass Matrix
+
+| Pass | Awaits Completion? | Error Handling | stopRequested Checked After? | Status |
+|------|:-:|--------|:-:|--------|
+| Draft (Verity) | ✅/❌ | {pause/silent-catch/throw} | ✅/❌ | OK/ISSUE |
+| Audit | ✅/❌ | {pause/silent-catch/throw} | ✅/❌ | OK/ISSUE |
+| Fix | ✅/❌ | {pause/silent-catch/throw} | ✅/❌ | OK/ISSUE |
+| Motif Audit | ✅/❌ | {pause/silent-catch/throw} | ✅/❌ | OK/ISSUE |
+
+### External Interference Matrix
+
+| External Actor | Can Abort Auto-Draft? | Mechanism | Status |
+|---|:-:|--------|--------|
+| `chatStore.switchBook()` | ✅/❌ | {describe} | OK/ISSUE |
+| `chatStore.sendMessage()` | ✅/❌ | {describe} | OK/ISSUE |
+| App close | ✅/❌ | {describe} | OK/ISSUE |
+
+### 3.1 {Finding title}
+{Same format as chat bleed findings}
+
+---
+
+## 4. CLI Activity Monitor Coverage
 
 ### Coverage Matrix
 
@@ -239,14 +416,14 @@ Create `issues.md` at the repo root with this structure:
 | Plan loading | ... | ... | ... | ... | ... |
 | Wrangler (sendOneShot) | ... | ... | ... | ... | ... |
 
-### 2.1 {Finding title}
+### 4.1 {Finding title}
 {Same format as chat bleed findings}
 
 ---
 
-## 3. Areas of Improvement
+## 5. Areas of Improvement
 
-### 3.1 {Finding title}
+### 5.1 {Finding title}
 **Severity**: 🔴/🟠/🟡/🟢
 **Category**: Race Condition / Error Handling / Memory / Security / Architecture / Code Smell
 **Location**: `src/path/to/file.ts:{line range}`
@@ -259,7 +436,7 @@ Create `issues.md` at the repo root with this structure:
 
 ---
 
-## 4. Positive Observations
+## 6. Positive Observations
 
 {List things the codebase does well — good patterns worth preserving}
 ```
