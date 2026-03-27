@@ -129,6 +129,7 @@ export class ClaudeCodeClient implements IClaudeClient {
       '--max-turns', String(params.maxTurns ?? 30),
       '--system-prompt', systemPrompt,
       '--allowedTools', 'Read,Write,Edit,LS',
+      '--add-dir', this.booksDir,
     ];
 
     // The Claude Code CLI uses --effort to control thinking depth.
