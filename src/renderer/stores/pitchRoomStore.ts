@@ -4,6 +4,7 @@ import { PITCH_ROOM_SLUG, randomRespondingStatus } from '@domain/constants';
 import { streamRouter } from './streamRouter';
 
 type PitchRoomState = {
+  conversations: Conversation[];
   activeConversation: Conversation | null;
   messages: Message[];
   isStreaming: boolean;
@@ -17,6 +18,10 @@ type PitchRoomState = {
   lastOutcome: { action: PitchOutcome; bookSlug?: string; title?: string } | null;
 
   // Actions
+  loadConversations: () => Promise<void>;
+  setActiveConversation: (conversationId: string) => Promise<void>;
+  startNewConversation: () => Promise<void>;
+  deleteConversation: (conversationId: string) => Promise<void>;
   ensureConversation: () => Promise<void>;
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
   clearOutcome: () => void;
@@ -26,6 +31,7 @@ type PitchRoomState = {
 };
 
 export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
+  conversations: [],
   activeConversation: null,
   messages: [],
   isStreaming: false,
@@ -37,28 +43,102 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   lastOutcome: null,
   _activeCallId: null,
 
+  loadConversations: async () => {
+    try {
+      const conversations = await window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG);
+      const pitchConversations = conversations.filter((c) => c.purpose === 'pitch-room');
+      set({ conversations: pitchConversations });
+    } catch (error) {
+      console.error('Failed to load pitch room conversations:', error);
+    }
+  },
+
+  setActiveConversation: async (conversationId: string) => {
+    try {
+      const messages = await window.novelEngine.chat.getMessages(conversationId);
+      const conversation = get().conversations.find((c) => c.id === conversationId) ?? null;
+      set({ activeConversation: conversation, messages });
+    } catch (error) {
+      console.error('Failed to switch pitch room conversation:', error);
+    }
+  },
+
+  startNewConversation: async () => {
+    try {
+      const conversation = await window.novelEngine.chat.createConversation({
+        bookSlug: PITCH_ROOM_SLUG,
+        agentName: 'Spark',
+        pipelinePhase: null,
+        purpose: 'pitch-room',
+      });
+      set((state) => ({
+        conversations: [conversation, ...state.conversations],
+        activeConversation: conversation,
+        messages: [],
+      }));
+    } catch (error) {
+      console.error('Failed to create new pitch room conversation:', error);
+    }
+  },
+
+  deleteConversation: async (conversationId: string) => {
+    try {
+      await window.novelEngine.chat.deleteConversation(conversationId);
+      const { activeConversation, conversations } = get();
+      const wasActive = activeConversation?.id === conversationId;
+      const remaining = conversations.filter((c) => c.id !== conversationId);
+
+      if (wasActive) {
+        // Switch to the next most recent, or clear
+        if (remaining.length > 0) {
+          const next = remaining[0];
+          const messages = await window.novelEngine.chat.getMessages(next.id);
+          set({ conversations: remaining, activeConversation: next, messages });
+        } else {
+          set({ conversations: remaining, activeConversation: null, messages: [] });
+        }
+      } else {
+        set({ conversations: remaining });
+      }
+    } catch (error) {
+      console.error('Failed to delete pitch room conversation:', error);
+    }
+  },
+
   ensureConversation: async () => {
     // If already loaded, skip
     if (get().activeConversation || get().loading) return;
 
     set({ loading: true });
     try {
-      // Look for an existing pitch-room conversation
-      const conversations = await window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG);
-      const pitchConv = conversations.find((c) => c.purpose === 'pitch-room');
+      // Load all pitch-room conversations
+      const allConversations = await window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG);
+      const pitchConversations = allConversations.filter((c) => c.purpose === 'pitch-room');
 
-      if (pitchConv) {
-        const messages = await window.novelEngine.chat.getMessages(pitchConv.id);
-        set({ activeConversation: pitchConv, messages, loading: false });
+      if (pitchConversations.length > 0) {
+        // Select the most recent
+        const latest = pitchConversations[0];
+        const messages = await window.novelEngine.chat.getMessages(latest.id);
+        set({
+          conversations: pitchConversations,
+          activeConversation: latest,
+          messages,
+          loading: false,
+        });
       } else {
-        // Create one — this is the single pitch room conversation
+        // Create the first pitch room conversation
         const conversation = await window.novelEngine.chat.createConversation({
           bookSlug: PITCH_ROOM_SLUG,
           agentName: 'Spark',
           pipelinePhase: null,
           purpose: 'pitch-room',
         });
-        set({ activeConversation: conversation, messages: [], loading: false });
+        set({
+          conversations: [conversation],
+          activeConversation: conversation,
+          messages: [],
+          loading: false,
+        });
       }
     } catch (error) {
       console.error('Failed to ensure pitch room conversation:', error);
@@ -168,12 +248,18 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         const doneConversationId = activeConversation?.id ?? null;
 
         if (doneConversationId) {
-          window.novelEngine.chat.getMessages(doneConversationId).then((messages) => {
+          // Reload messages and refresh the conversation list (title may have updated)
+          Promise.all([
+            window.novelEngine.chat.getMessages(doneConversationId),
+            window.novelEngine.chat.getConversations(PITCH_ROOM_SLUG),
+          ]).then(([messages, allConversations]) => {
             const stillActive = get().activeConversation?.id === doneConversationId;
             if (!stillActive) return;
 
+            const pitchConversations = allConversations.filter((c) => c.purpose === 'pitch-room');
             set({
               messages,
+              conversations: pitchConversations,
               isStreaming: false,
               isThinking: false,
               streamBuffer: '',
@@ -216,7 +302,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
             bookSlug: event.bookSlug,
             title: event.title,
           },
-          // Clear the conversation state — the draft/conversation was cleaned up
+          // Clear the active conversation — outcome handler will create a fresh one
           activeConversation: null,
           messages: [],
         });

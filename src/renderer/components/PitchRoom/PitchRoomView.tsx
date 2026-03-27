@@ -180,7 +180,7 @@ export function PitchRoomView(): React.ReactElement {
     [sendMessage, thinkingBudget, defaultThinkingBudget],
   );
 
-  // Auto-create or load the single pitch room conversation on mount
+  // Auto-create or load pitch room conversations on mount
   useEffect(() => {
     ensureConversation();
   }, [ensureConversation]);
@@ -255,7 +255,7 @@ export function PitchRoomView(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Minimal header — just Spark's identity */}
+      {/* Clean header — Spark identity + active pitch title */}
       <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 px-6 py-3">
         <div
           className="w-1 self-stretch rounded-full"
@@ -270,6 +270,11 @@ export function PitchRoomView(): React.ReactElement {
             <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400">
               Pitch Room
             </span>
+            {activeConversation?.title && (
+              <span className="ml-2 text-zinc-400 dark:text-zinc-600">
+                — {activeConversation.title}
+              </span>
+            )}
           </p>
         </div>
       </div>

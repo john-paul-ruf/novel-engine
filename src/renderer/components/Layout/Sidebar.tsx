@@ -8,6 +8,7 @@ import { AdhocRevisionButton } from '../Sidebar/AdhocRevisionButton';
 import { PipelineTracker } from '../Sidebar/PipelineTracker';
 import { FileTree } from '../Sidebar/FileTree';
 import { CliActivityButton } from '../Sidebar/CliActivityButton';
+import { PitchHistory } from '../Sidebar/PitchHistory';
 
 type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'settings';
 
@@ -82,8 +83,17 @@ export function Sidebar(): React.ReactElement {
 
       {/* Accordion sections — share remaining vertical space */}
       <div className="flex min-h-0 flex-1 flex-col">
-        {/* Pipeline accordion */}
-        {currentView !== 'pitch-room' && (
+        {/* Pipeline accordion (hidden in pitch room) / Pitch history (shown in pitch room) */}
+        {currentView === 'pitch-room' ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 items-center border-t border-zinc-200 dark:border-zinc-800 px-3 py-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-amber-500 dark:text-amber-400">Pitch Sessions</span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <PitchHistory />
+            </div>
+          </div>
+        ) : (
           <div className={`flex flex-col ${pipelineOpen ? 'min-h-0 flex-1' : 'shrink-0'}`}>
             <button
               onClick={() => toggleSection('pipeline')}
