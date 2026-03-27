@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useViewStore } from '../../stores/viewStore';
-import { streamRouter } from '../../stores/streamRouter';
 
 export function HotTakeButton(): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
@@ -32,7 +31,6 @@ export function HotTakeButton(): React.ReactElement | null {
     try {
       const { conversationId, callId } = await window.novelEngine.hotTake.start(activeSlug);
 
-      streamRouter.target = 'main';
       await loadConversations(activeSlug);
       await setActiveConversation(conversationId);
       attachToExternalStream(callId, conversationId);

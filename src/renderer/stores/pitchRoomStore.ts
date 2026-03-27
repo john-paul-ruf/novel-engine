@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { Conversation, Message, StreamEvent } from '@domain/types';
 import { PITCH_ROOM_SLUG, randomRespondingStatus } from '@domain/constants';
-import { streamRouter } from './streamRouter';
 
 type PitchRoomState = {
   conversations: Conversation[];
@@ -147,9 +146,6 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
 
     const { id: conversationId, agentName } = activeConversation;
 
-    // Route stream events to the pitch room store
-    streamRouter.target = 'pitch-room';
-
     const callId = crypto.randomUUID();
 
     // Optimistic update: add user message immediately
@@ -201,15 +197,24 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   },
 
   _handleStreamEvent: (event: StreamEvent) => {
-    if (streamRouter.target !== 'pitch-room') return;
-
-    const callId = (event as StreamEvent & { callId?: string }).callId;
+    const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
+    const callId = enriched.callId;
     if (callId && callId.startsWith('rev:')) return;
 
-    const { _activeCallId } = get();
+    const { _activeCallId, activeConversation, isStreaming } = get();
+
+    // Primary guard: callId matching — UUID per send, prevents cross-call bleed
     if (_activeCallId && callId && callId !== _activeCallId) return;
 
-    const { activeConversation } = get();
+    // Secondary guard: when no call is active, reject stale events
+    if (!_activeCallId) {
+      if (!isStreaming) return;
+      // Accept events only for the active conversation during recovery
+      if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
+    }
+
+    // Conversation scope: only process events belonging to our conversation
+    if (enriched.conversationId && activeConversation && enriched.conversationId !== activeConversation.id) return;
 
     switch (event.type) {
       case 'status':

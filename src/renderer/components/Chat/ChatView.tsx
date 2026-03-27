@@ -6,7 +6,6 @@ import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
-import { streamRouter } from '../../stores/streamRouter';
 import { AgentHeader } from './AgentHeader';
 import { ChatInput } from './ChatInput';
 import { ChatTitleBar } from './ChatTitleBar';
@@ -103,7 +102,6 @@ export function ChatView(): React.ReactElement {
         if (!activeSlug) return;
         try {
           const { conversationId, callId } = await window.novelEngine.hotTake.start(activeSlug);
-          streamRouter.target = 'main';
           await loadConversations(activeSlug);
           await setActiveConversation(conversationId);
           useChatStore.getState().attachToExternalStream(callId, conversationId);

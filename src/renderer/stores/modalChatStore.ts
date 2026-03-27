@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { Conversation, ConversationPurpose, Message, StreamEvent } from '@domain/types';
 import { randomRespondingStatus } from '@domain/constants';
-import { streamRouter } from './streamRouter';
 
 type ModalChatState = {
   // Visibility
@@ -102,8 +101,6 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
       timestamp: new Date().toISOString(),
     };
 
-    streamRouter.target = 'modal';
-
     const callId = crypto.randomUUID();
 
     set((state) => ({
@@ -141,13 +138,10 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
         streamBuffer: '',
         thinkingBuffer: '',
       }));
-      streamRouter.target = 'main';
     }
   },
 
   _handleStreamEvent: (event: StreamEvent) => {
-    if (streamRouter.target !== 'modal') return;
-
     const enriched = event as StreamEvent & { callId?: string; conversationId?: string };
     const callId = enriched.callId;
     if (callId && callId.startsWith('rev:')) return;
@@ -159,6 +153,9 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
 
     // Secondary guard: when no call is active, reject stale events
     if (!_activeCallId && !isStreaming) return;
+
+    // Conversation scope: only process events belonging to our conversation
+    if (enriched.conversationId && conversation && enriched.conversationId !== conversation.id) return;
 
     switch (event.type) {
       case 'status':
@@ -203,8 +200,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
                 statusMessage: '',
                 _activeCallId: null,
               });
-              streamRouter.target = 'main';
-            })
+                    })
             .catch((error) => {
               console.error('Failed to reload modal messages after done:', error);
               set({
@@ -215,8 +211,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
                 statusMessage: '',
                 _activeCallId: null,
               });
-              streamRouter.target = 'main';
-            });
+                    });
         } else {
           set({
             isStreaming: false,
@@ -226,8 +221,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
             statusMessage: '',
             _activeCallId: null,
           });
-          streamRouter.target = 'main';
-        }
+            }
         break;
 
       case 'error':
@@ -250,8 +244,7 @@ export const useModalChatStore = create<ModalChatState>((set, get) => ({
             _activeCallId: null,
           };
         });
-        streamRouter.target = 'main';
-        break;
+          break;
     }
   },
 

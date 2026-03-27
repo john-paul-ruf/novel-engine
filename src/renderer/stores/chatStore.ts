@@ -5,7 +5,6 @@ import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
 import { usePipelineStore } from './pipelineStore';
 import { useViewStore } from './viewStore';
-import { streamRouter } from './streamRouter';
 
 /**
  * Module-level timer for the recovery poll.
@@ -150,9 +149,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const bookSlug = useBookStore.getState().activeSlug;
     const { id: conversationId, agentName } = activeConversation;
-
-    // Ensure stream events are routed to the main chat store
-    streamRouter.target = 'main';
 
     // Generate a unique callId so we only process events from THIS call,
     // preventing cross-book stream bleed when multiple chats run concurrently.
@@ -307,7 +303,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const active = await window.novelEngine.chat.getActiveStreamForBook(newBookSlug);
       if (active) {
-        streamRouter.target = 'main';
         const conversation = get().conversations.find((c) => c.id === active.conversationId) ?? null;
         if (conversation) {
           const messages = await window.novelEngine.chat.getMessages(active.conversationId);
@@ -332,8 +327,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   _handleStreamEvent: (event: StreamEvent) => {
-    if (streamRouter.target !== 'main') return;
-
     // Scope events to the call that THIS store initiated.
     // Each sendMessage generates a unique callId and passes it to the IPC
     // layer, which injects it into every broadcast event. By filtering here,
@@ -610,9 +603,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         return;
       }
-
-      // Ensure the stream router points to main so events are processed
-      streamRouter.target = 'main';
 
       // Restore the callId from the active stream so the event guard
       // scopes incoming events to this specific call — prevents bleed
