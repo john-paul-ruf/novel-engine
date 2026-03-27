@@ -208,18 +208,36 @@ Style the nav buttons: active state uses `bg-zinc-800`, hover uses `bg-zinc-800/
 ### `src/renderer/styles/globals.css`
 
 ```css
-@import "tailwindcss";
+@import "../../node_modules/tailwindcss/dist/lib.d.mts";
+
 @plugin "@tailwindcss/typography";
 
 /* Custom scrollbar for dark theme */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #52525b; }
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}
 
 /* Drag region for macOS title bar */
-.drag-region { -webkit-app-region: drag; }
-.no-drag { -webkit-app-region: no-drag; }
+.drag-region {
+    -webkit-app-region: drag;
+}
+
+.no-drag {
+    -webkit-app-region: no-drag;
+}
 
 ```
 

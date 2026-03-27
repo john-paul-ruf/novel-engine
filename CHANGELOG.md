@@ -4,6 +4,40 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Add update-website standard prompt (multi-page)
+
+### Summary
+
+Created `prompts/standard/update-website.md` — a meta-prompt that reads the changelog, architecture docs, README, and existing GitHub Pages site assets, then builds a full multi-page GitHub Pages website in `docs/`. Produces 6 HTML pages: landing (index), 10-book evaluation (migrated from old index.html), architecture, changelog, press kit, and contact. Targets three audiences: writers, developers, and press. Shared dark-theme design system with per-agent color coding.
+
+### Added
+- `prompts/standard/update-website.md` — 8-step prompt: collect source material → define site map (6 pages) → spec each page → design system tokens → content tone rules → screenshot strategy → build all pages → verify 16-point checklist
+
+### Architecture Impact
+- None — no source code changes, prompt tooling only
+
+### Migration Notes
+- None
+
+---
+
+## [2026-03-27] — Add address-issues standard prompt
+
+### Summary
+
+Created `prompts/standard/address-issues.md` — a meta-prompt that reads `issues.md` (output of `repo-eval.md`), decomposes findings into numbered `FIX-NN.md` prompts in the next available `prompts/arch/r###/` revision, and generates `MASTER.md` + `STATE.md` for loop execution.
+
+### Added
+- `prompts/standard/address-issues.md` — 7-step prompt: parse issues → group by affinity → order by severity → generate fix prompts → generate STATE.md → generate MASTER.md → summary report
+
+### Architecture Impact
+- None — no source code changes, prompt tooling only
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — ARCH-12: Audit and fix silent error swallowing
 
 ### Summary
