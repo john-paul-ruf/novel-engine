@@ -20,7 +20,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, PITCH_ROOM_INSTRUCTIONS, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
+import { VOICE_SETUP_INSTRUCTIONS, AUTHOR_PROFILE_INSTRUCTIONS, buildPitchRoomInstructions, REVISION_VERIFICATION_PROMPT, HOT_TAKE_INSTRUCTIONS, HOT_TAKE_MODEL, ADHOC_REVISION_INSTRUCTIONS, PHRASE_AUDIT_INSTRUCTIONS, PITCH_ROOM_SLUG, randomPreparingStatus, randomWaitingStatus, VERITY_PHASE_FILES, VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, VERITY_FIX_INSTRUCTIONS, AGENT_REGISTRY } from '@domain/constants';
 import type { UsageService } from './UsageService';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -1024,8 +1024,8 @@ export class ChatService {
       // No author profile yet — that's fine
     }
 
-    // Build the system prompt with Pitch Room instructions
-    let systemPrompt = agent.systemPrompt + PITCH_ROOM_INSTRUCTIONS;
+    // Build the system prompt with Pitch Room instructions (includes books path so Spark can scaffold directly)
+    let systemPrompt = agent.systemPrompt + buildPitchRoomInstructions(this.fs.getBooksPath());
     if (authorProfile.trim()) {
       systemPrompt += `\n\n---\n\n## Author Profile\n\n${authorProfile}`;
     }
@@ -1132,9 +1132,8 @@ export class ChatService {
       },
     });
 
-    // Pitch actions (make-book, shelve, discard) are user-initiated only.
-    // The user triggers them explicitly from the pitch room UI via the
-    // pitchRoom:promote / pitchRoom:shelve / pitchRoom:discard IPC channels.
-    // Spark never auto-decides what to do with a pitch.
+    // Spark handles book creation entirely via CLI — writes files directly
+    // to the books directory. No app-level promotion logic needed.
+    // The user navigates to the new book via the sidebar after Spark confirms.
   }
 }

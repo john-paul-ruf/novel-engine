@@ -31,6 +31,10 @@ export class FileSystemService implements IFileSystemService {
     private userDataDir: string,
   ) {}
 
+  getBooksPath(): string {
+    return this.booksDir;
+  }
+
   getAuthorProfilePath(): string {
     return path.join(this.userDataDir, 'author-profile.md');
   }

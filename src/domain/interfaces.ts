@@ -93,6 +93,9 @@ export interface IDatabaseService {
 }
 
 export interface IFileSystemService {
+  // Paths
+  getBooksPath(): string;
+
   // Books
   listBooks(): Promise<BookSummary[]>;
   getActiveBookSlug(): Promise<string>;
