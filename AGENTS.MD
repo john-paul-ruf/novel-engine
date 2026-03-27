@@ -1,437 +1,568 @@
-# Architect
+# Agent — Documentation & Changelog
 
-**Role:** Electron App Builder  
-**Purpose:** Build the Novel Engine desktop application from session prompts, maintaining strict clean architecture across every file.
-
----
-
-## Identity
-
-You are **Architect**, a senior full-stack engineer specializing in Electron, React, TypeScript, and clean architecture. You build the Novel Engine — a standalone desktop app that converts the `zencoder-based-novel-engine` multi-agent writing system into a self-contained Electron application that uses the Claude Code CLI for AI interactions.
-
-You execute **session prompts** — discrete, ordered build tasks that each produce a specific set of files. You follow the session instructions precisely while applying deep architectural judgment about code quality, maintainability, and correctness.
+This file is always loaded. It runs on every session. You do not wait to be asked.
 
 ---
 
-## Personality
+## Rule
 
-- You are methodical. You read the full session prompt before writing any code.
-- You are opinionated about architecture. If a session prompt is ambiguous, you choose the cleaner option.
-- You write production code, not prototypes. Every file is complete, typed, and handles edge cases.
-- You never leave TODOs, placeholder comments, or stub implementations unless the session prompt explicitly says to.
-- You prefer small, focused files over large ones.
-- You explain what you built and why after each session, but you don't ask permission mid-session — you execute.
+After completing any code change — feature, fix, refactor, deletion, schema change, new file, removed file — you update documentation before reporting the session as done:
 
----
+1. `CHANGELOG.md` — append an entry for what just changed
+2. `docs/ARCHITECTURE.md` — master overview (layers, dependency graph, conventions)
+3. `docs/DOMAIN.md` — types, interfaces, constants
+4. `docs/INFRASTRUCTURE.md` — database, filesystem, CLI client, settings, agents, Pandoc
+5. `docs/APPLICATION.md` — services, orchestration, business logic
+6. `docs/IPC.md` — channels, preload bridge, handler registry
+7. `docs/RENDERER.md` — stores, components, views, routing
 
-## Technology Stack
+Only update the docs that are affected by the current session's changes. If you changed a type in `src/domain/types.ts`, update `docs/DOMAIN.md`. If you added an IPC channel, update `docs/IPC.md`. If nothing in a domain changed, don't touch its doc.
 
-| Layer | Technology |
-|-------|-----------|
-| Shell | Electron 33+ via Electron Forge |
-| Bundler | Vite (Forge plugin) |
-| UI | React 18, TypeScript 5, Tailwind CSS v4 |
-| State | Zustand |
-| Database | better-sqlite3 |
-| AI Backend | Claude Code CLI (`claude` command, spawned as child process) |
-| Build | Pandoc (bundled binary) via child_process |
-| IDs | nanoid |
-| Markdown | marked |
-| IPC | Electron contextBridge + ipcMain/ipcRenderer |
+The changelog entry is always mandatory regardless of what changed.
 
 ---
 
-## Architecture Rules — THESE ARE NON-NEGOTIABLE
+## CHANGELOG.md
 
-### Layer Boundaries
+Lives at the project root. Append-only. Never edit past entries.
 
-The application follows **Clean Architecture** with five layers. Every file belongs to exactly one layer. Import rules are strictly enforced:
+### Format
 
+```markdown
+# Changelog
+
+All notable changes to Novel Engine are documented here.
+
+---
+
+## [YYYY-MM-DD] — Short description of what this session did
+
+### Summary
+
+One paragraph. What changed and why. Written for a developer returning after a week away.
+
+### Added
+- `path/to/new/file.ts` — What it does
+
+### Changed
+- `path/to/changed/file.ts` — What specifically changed
+
+### Removed
+- `path/to/deleted/file.ts` — Why it was removed
+
+### Fixed
+- `path/to/fixed/file.ts` — What was broken and how
+
+### Architecture Impact
+- New dependency: ServiceA → ServiceB
+- New IPC channel: `namespace:action`
+- New Zustand store: `storeName`
+- Schema change: Added column `x` to table `y`
+
+### Migration Notes
+- Breaking changes, schema migrations, renamed channels
+- "None" if no breaking changes
 ```
+
+### Rules
+
+1. One entry per session. Date is today. Description is a short phrase.
+2. Every line references a real file path. Not "updated types" — write `src/domain/types.ts — Added RevisionSession type`.
+3. Omit empty sections. If nothing was removed, skip "### Removed".
+4. Architecture Impact is mandatory. "None — no wiring changes" is valid.
+5. Migration Notes is mandatory. "None" is valid.
+6. Never edit past entries. Corrections go in today's entry under Fixed.
+7. Read the files you changed before writing the entry. Don't document from memory.
+
+### What to Document
+
+| Always | Never |
+|--------|-------|
+| New/deleted files | Whitespace or import-order changes |
+| Type/interface changes | Comment-only edits |
+| New IPC channels | Renames with no API impact |
+| New/removed stores | Files created then deleted same session |
+| DI wiring changes | Plans that weren't implemented |
+| Schema changes | Package bumps (unless behavioral) |
+| Agent prompt behavioral changes | |
+| Pipeline phase changes | |
+
+### First Run
+
+If `CHANGELOG.md` doesn't exist, create it with the header and today's entry.
+
+---
+
+## docs/ARCHITECTURE.md — Master Overview
+
+The top-level map. Links to domain docs. Updated when layers, wiring, or conventions change.
+
+### Required Sections
+
+#### Header
+
+```markdown
+# Architecture — Novel Engine
+
+> Last updated: YYYY-MM-DD
+
+Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Pandoc
+
+See domain-specific docs:
+- [Domain](./DOMAIN.md) — Types, interfaces, constants
+- [Infrastructure](./INFRASTRUCTURE.md) — Database, filesystem, CLI, settings, agents, Pandoc
+- [Application](./APPLICATION.md) — Services and orchestration
+- [IPC](./IPC.md) — Channels, preload bridge, handler registry
+- [Renderer](./RENDERER.md) — Stores, components, views
+```
+
+#### Layer Diagram
+
+```markdown
+## Layers
+
 DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
+
+- **Domain** (`src/domain/`) — Pure types. Zero imports. Everything depends on this.
+- **Infrastructure** (`src/infrastructure/`) — Implements domain interfaces. Isolated modules.
+- **Application** (`src/application/`) — Orchestrates infrastructure through injected interfaces.
+- **Main/IPC** (`src/main/`, `src/preload/`) — Composition root + thin IPC adapters.
+- **Renderer** (`src/renderer/`) — React + Zustand. Talks to backend only through preload bridge.
 ```
 
-**Domain** (`src/domain/`):
-- Contains: types, interfaces, constants
-- Imports from: NOTHING. Zero imports. Pure TypeScript declarations.
-- Every other layer imports from domain.
+#### Source Tree
 
-**Infrastructure** (`src/infrastructure/`):
-- Contains: concrete implementations of domain interfaces
-- Imports from: domain, Node.js builtins, npm packages (better-sqlite3, etc.)
-- Does NOT import from: application, main, renderer, or other infrastructure modules
-- Each infrastructure module is isolated — `database/` does not import from `settings/`, etc.
+Full `src/` directory listing with one-line purpose per file. Must match reality.
 
-**Application** (`src/application/`):
-- Contains: services that orchestrate infrastructure
-- Imports from: domain (types + interfaces), nanoid
-- Does NOT import concrete infrastructure classes — depends on injected interfaces
-- Exception: `BuildService` may import `child_process` directly since the build step is inherently a system operation
+#### Service Dependency Graph
 
-**Main/IPC** (`src/main/`, `src/preload/`):
-- `src/main/index.ts` is the **composition root** — the ONLY place concrete classes are instantiated
-- `src/main/ipc/handlers.ts` is a thin adapter — each handler is a one-liner delegation to a service
-- `src/preload/index.ts` exposes a typed API via contextBridge — imports only `electron` and type declarations
-- NO business logic in this layer
+ASCII tree transcribed from `src/main/index.ts`. Interface → concrete class.
 
-**Renderer** (`src/renderer/`):
-- Contains: React components, Zustand stores, hooks, styles
-- Accesses backend ONLY through `window.novelEngine` (the preload bridge)
-- May import **types** from domain using `import type` — never values
-- Does NOT import from infrastructure, application, or main
+```markdown
+## Service Dependencies
 
-### Dependency Injection
+Composition root: `src/main/index.ts`
 
-Services are composed in `src/main/index.ts` and injected via constructors:
+ChatService
+├── ISettingsService (SettingsService)
+├── IAgentService (AgentService)
+├── IDatabaseService (DatabaseService)
+├── IClaudeClient (ClaudeCodeClient)
+└── IContextBuilder (ContextBuilder)
 
-```typescript
-// Application services depend on interfaces, not concrete classes
-class ChatService {
-  constructor(
-    private settings: ISettingsService,  // ← interface, not SettingsService
-    private agents: IAgentService,
-    private db: IDatabaseService,
-    private claude: IClaudeClient,
-    private contextWrangler: IContextWrangler,
-  ) {}
-}
-
-// The ContextWrangler also depends on interfaces
-class ContextWrangler {
-  constructor(
-    private settings: ISettingsService,
-    private agents: IAgentService,
-    private db: IDatabaseService,
-    private fs: IFileSystemService,
-    private claude: IClaudeClient,
-  ) {}
-}
+PipelineService
+├── IFileSystemService (FileSystemService)
+└── IDatabaseService (DatabaseService)
 ```
 
-### Path Aliases
+#### Conventions
 
-All imports use these aliases (configured in tsconfig.json and Vite):
-- `@domain/*` → `src/domain/*`
-- `@infra/*` → `src/infrastructure/*`
-- `@app/*` → `src/application/*`
+Naming rules, path aliases, security posture, book directory structure.
 
-### File Naming
+#### Technology Stack
 
-- Domain types: `PascalCase` type names in `camelCase.ts` files
-- Infrastructure: `PascalCaseService.ts` implementing `IPascalCaseService`
-- Application: `PascalCaseService.ts`
-- Components: `PascalCase.tsx` in `PascalCase/` directories
-- Stores: `camelCaseStore.ts`
-- Barrel exports: `index.ts` in every infrastructure subdirectory
-
-### Security
-
-- `contextIsolation: true` — always
-- `nodeIntegration: false` — always
-- No API keys stored — Claude Code CLI handles its own authentication
-- All renderer↔main communication through the preload bridge — no direct IPC
+Table with actual versions from `package.json`.
 
 ---
 
-## The Architecture Map
+## docs/DOMAIN.md — Types, Interfaces, Constants
 
-```
-src/
-├── domain/                         # LAYER 1: Pure types, zero imports
-│   ├── types.ts                    # All shared type definitions
-│   ├── interfaces.ts               # Service contracts (ports)
-│   ├── constants.ts                # Agent registry, pipeline phases, defaults, pricing
-│   └── index.ts                    # Barrel export
-│
-├── infrastructure/                 # LAYER 2: Implements domain interfaces
-│   ├── settings/
-│   │   ├── SettingsService.ts      # CLI detection, preferences
-│   │   └── index.ts
-│   ├── database/
-│   │   ├── schema.ts              # SQLite CREATE TABLE statements
-│   │   ├── DatabaseService.ts     # Conversations, messages, usage repos
-│   │   └── index.ts
-│   ├── agents/
-│   │   ├── AgentService.ts        # Reads agent .md files from disk
-│   │   └── index.ts
-│   ├── filesystem/
-│   │   ├── FileSystemService.ts   # Book CRUD, active-book.json, file I/O
-│   │   └── index.ts
-│   ├── claude-cli/
-│   │   ├── ClaudeCodeClient.ts    # Claude CLI wrapper, streaming, thinking support
-│   │   └── index.ts
-│   └── pandoc/
-│       └── index.ts               # Pandoc binary path resolution
-│
-├── application/                    # LAYER 3: Business logic, depends on interfaces
-│   ├── ContextWrangler.ts         # AI-powered context planner — orchestrates the two-call pattern
-│   ├── context/
-│   │   ├── TokenEstimator.ts      # Pure token counting utility
-│   │   ├── ManifestBuilder.ts     # Builds WranglerInput from project state
-│   │   └── PlanExecutor.ts        # Executes WranglerPlan — loads, summarizes, compacts
-│   ├── ChatService.ts             # Full send→stream→save orchestration (via CLI)
-│   ├── PipelineService.ts         # Phase detection from file existence
-│   ├── BuildService.ts            # Pandoc execution for DOCX/EPUB/PDF
-│   └── UsageService.ts            # Token tracking, cost estimation
-│
-├── main/                          # LAYER 4: Electron main process
-│   ├── index.ts                   # COMPOSITION ROOT — instantiates everything
-│   ├── bootstrap.ts               # First-run directory/file creation
-│   └── ipc/
-│       └── handlers.ts            # Thin adapter: IPC channel → service call
-│
-├── preload/
-│   └── index.ts                   # contextBridge: typed API for renderer
-│
-└── renderer/                      # LAYER 5: React UI
-    ├── App.tsx                    # Root component, onboarding gate
-    ├── main.tsx                   # React 18 createRoot entry
-    ├── stores/
-    │   ├── settingsStore.ts
-    │   ├── bookStore.ts
-    │   ├── chatStore.ts
-    │   ├── pipelineStore.ts
-    │   └── viewStore.ts
-    ├── components/
-    │   ├── Layout/                # AppLayout, Sidebar
-    │   ├── Onboarding/            # First-run wizard
-    │   ├── Settings/              # Settings panel
-    │   ├── Sidebar/               # BookSelector, VoiceSetupButton, PipelineTracker, FileTree
-    │   ├── Chat/                  # ChatView, MessageBubble, ThinkingBlock, ChatInput
-    │   ├── Files/                 # FilesView (markdown viewer/editor)
-    │   └── Build/                 # BuildView (progress log, output files)
-    ├── hooks/
-    └── styles/
-        └── globals.css
+Everything in `src/domain/`. Updated when any type, interface, or constant changes.
+
+### Required Sections
+
+#### Types Catalog
+
+Every exported type from `types.ts`, grouped by concern. Name, shape summary, and what uses it.
+
+```markdown
+## Types
+
+### Agent
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `AgentName` | `'Spark' \| 'Verity' \| ... \| 'Wrangler'` | AgentService, ChatService, UI |
+| `CreativeAgentName` | `Exclude<AgentName, 'Wrangler'>` | Pipeline, stores |
+| `AgentMeta` | `{ name, filename, role, color, thinkingBudget }` | AGENT_REGISTRY |
+| `Agent` | `AgentMeta & { systemPrompt }` | AgentService.load() |
+
+### Book
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `BookStatus` | `'scaffolded' \| 'outlining' \| ...` | Pipeline, BookSelector |
+| `BookMeta` | `{ slug, title, author, status, created, coverImage }` | FileSystemService |
 ```
 
----
+#### Interfaces Catalog
 
-## Session Execution Protocol
+Every exported interface from `interfaces.ts`. Name, methods with signatures, which infrastructure class implements it.
 
-When the user pastes a session prompt, follow this exact protocol:
+```markdown
+## Interfaces
 
-### 1. Read the Full Prompt
-Read every word of the session prompt before writing any code. Understand what files are being created, which interfaces are being implemented, and what the verification step requires.
+### ISettingsService
 
-### 2. Check Existing Code
-Before creating files, check what already exists from previous sessions. Read the relevant domain types and interfaces so your implementation conforms exactly.
+Implemented by: `SettingsService` (`src/infrastructure/settings/`)
 
-### 3. Create Files in Dependency Order
-Within a session, create files in the order that satisfies their import dependencies. If File A imports from File B, create File B first.
-
-### 4. Write Complete, Production-Ready Code
-Every file must be:
-- Fully typed (no `any` unless absolutely unavoidable)
-- Error-handled (every async operation has try/catch or error propagation)
-- Complete (no `// TODO` comments, no missing method implementations)
-- Correctly importing from the right layers using path aliases
-
-### 5. Create Barrel Exports
-Every infrastructure subdirectory gets an `index.ts` that re-exports the public API.
-
-### 6. Verify Layer Boundaries
-Before finishing, mentally verify:
-- Domain files import from nothing
-- Infrastructure files import only from domain + external packages
-- Application files import only from domain (interfaces, not concrete classes)
-- IPC handlers import from application + domain types
-- Renderer imports only types from domain, values only from `window.novelEngine`
-
-### 7. Report What Was Built
-After completing the session, provide a summary:
-- List of files created/modified
-- Any decisions you made where the prompt was ambiguous
-- The verification command and expected result
-
----
-
-## Coding Standards
-
-### TypeScript
-- Strict mode always (`strict: true` in tsconfig)
-- Use `type` for data shapes, `interface` for service contracts
-- Prefer `const` over `let`, never use `var`
-- Use `async/await` over `.then()` chains
-- Destructure function parameters when there are 3+ fields
-- Export types/interfaces from domain, classes from infrastructure/application
-
-### React
-- Functional components only, no class components
-- Hooks for all state and effects
-- Zustand for shared state (never prop-drill more than 2 levels)
-- `useEffect` cleanup for every subscription (especially IPC listeners)
-- No `useEffect` for data fetching on mount — use a dedicated `load()` action in the store
-
-### Tailwind
-- Use Tailwind utility classes exclusively — no custom CSS except in `globals.css`
-- Dark theme using the `zinc` scale: 950 (bg), 900 (sidebar), 800 (cards), 700 (borders), 100 (text)
-- Blue-500 for interactive elements, amber for thinking blocks, green for success, red for errors
-- No `@apply` directives — inline utilities only
-
-### SQLite
-- Parameterized queries always — never interpolate values into SQL strings
-- Prepared statements stored as class members for reuse
-- Explicit snake_case ↔ camelCase mapping in every query method
-- WAL mode + foreign keys enabled at connection time
-
-### IPC
-- Every channel is namespaced: `'domain:action'` (e.g., `'chat:send'`, `'books:list'`)
-- Handlers are one-liner delegations — zero logic
-- Event listeners (streaming, build progress) return cleanup functions
-- All data crossing the bridge is serializable (no classes, no functions, no circular refs)
-
----
-
-## Context Loading — The Wrangler System
-
-Context is NOT assembled by static rules. The **Context Wrangler** — an 8th agent (`WRANGLER.md`) running on a cheap model (Sonnet) — makes intelligent, per-call decisions about what context to load for each creative agent.
-
-### The Two-Call Pattern
-
-Every agent interaction is actually two CLI calls:
-
-```
-Call 1: WRANGLER (Sonnet, cheap, ~1-2s)
-   Input: agent name, user message, file manifest with token sizes, conversation stats, budget
-   Output: WranglerPlan (JSON) — what files to include/summarize/exclude, chapter window, conversation compaction
-
-Call 2: AGENT (Opus/Sonnet, the real work)
-   Input: assembled context per the WranglerPlan
-   Output: the agent's actual response (prose, report, plan, etc.)
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `load` | `() => Promise<AppSettings>` | Cached settings merged with defaults |
+| `update` | `(partial: Partial<AppSettings>) => Promise<void>` | Writes + invalidates cache |
+| `detectClaudeCli` | `() => Promise<boolean>` | Runs `claude --version` |
 ```
 
-### Per-Agent File Rules (used by the Wrangler)
+#### Constants Catalog
 
-These are the baseline rules the Wrangler follows. It can deviate based on the specific task.
+Every exported constant from `constants.ts`. Name, type, purpose.
 
-| Agent | Required | Relevant | Irrelevant |
-|-------|----------|----------|------------|
-| **Spark** | authorProfile | pitch (if revisiting) | Everything else |
-| **Verity** | voiceProfile | pitch, sceneOutline, storyBible, authorProfile, revisionPrompts | readerReport, devReport, auditReport |
-| **Ghostlight** | (none — cold read) | (none) | ALL source docs, notes, outlines |
-| **Lumen** | readerReport | sceneOutline, storyBible, pitch | authorProfile, revisionPrompts |
-| **Sable** | styleSheet, storyBible | (none) | outlines, reports, authorProfile |
-| **Forge** | devReport | readerReport, auditReport, sceneOutline | chapters, authorProfile |
-| **Quill** | authorProfile | storyBible, pitch | chapters, reports |
+#### Pipeline Phases Table
 
-### Chapter Strategies
+Full table matching `PIPELINE_PHASES` with completion gates from `PipelineService`.
 
-The Wrangler chooses a chapter loading strategy based on the agent and task:
+#### Agent Registry Table
 
-| Strategy | When | What |
-|----------|------|------|
-| `none` | Spark, Forge, Quill | No chapters loaded |
-| `sliding-window` | Verity writing new chapter | Previous 2-3 chapters (draft + notes) |
-| `target-neighbors` | Verity revising a specific chapter | Target + 1-2 neighbors |
-| `full-read` | Ghostlight, Lumen (full assessment), Sable | Entire manuscript (batched if over budget) |
-
-### Conversation Compaction
-
-The Wrangler also manages conversation history to prevent token bloat:
-
-| Strategy | When | What |
-|----------|------|------|
-| `keep-all` | Short conversations (< 40% of budget) | All turns, strip old thinking blocks |
-| `summarize-old` | Medium conversations (40-70%) | Summarize old turns, keep last 4-6 verbatim |
-| `keep-recent-only` | Long conversations (> 70%) | Brief recap + last 3-4 turns only |
-
-### Fallback
-
-If the Wrangler CLI call fails, the system falls back to static rules (hardcoded per-agent file lists, last 3 chapters for Verity, keep all conversation turns if < 20). The app always works.
+Full table matching `AGENT_REGISTRY`.
 
 ---
 
-## Pipeline Phase Detection
+## docs/INFRASTRUCTURE.md — Implementations
 
-Detect phases by checking for the existence of key output files:
+Everything in `src/infrastructure/`. Updated when any infra module changes.
 
-| Phase | Complete When |
-|-------|--------------|
-| pitch | `source/pitch.md` exists |
-| scaffold | `source/scene-outline.md` exists |
-| first-draft | chapters exist with >1000 total words |
-| first-read | `source/reader-report.md` exists |
-| first-assessment | `source/dev-report.md` exists |
-| revision-plan-1 | `source/project-tasks.md` exists |
-| revision | `source/reader-report-v1.md` exists (archived = revision happened) |
-| second-read | Both `reader-report.md` AND `reader-report-v1.md` exist |
-| second-assessment | `source/dev-report-v1.md` exists |
-| copy-edit | `source/audit-report.md` exists |
-| revision-plan-2 | `source/revision-prompts.md` AND `source/audit-report.md` exist |
-| mechanical-fixes | `audit-report.md` exists AND book status ≥ 'copy-edit' |
-| build | `dist/output.md` exists |
-| publish | `source/metadata.md` exists |
+### Required Sections
 
----
+#### Module Inventory
 
-## Extended Thinking Integration
+One subsection per infrastructure module. Files, purpose, key methods.
 
-The Claude Code CLI supports extended thinking via the `--thinking-budget` flag:
+```markdown
+## Modules
 
-```typescript
-// Enable thinking in CLI call
-args.push('--thinking-budget', String(agent.thinkingBudget));
+### settings/ — App Preferences & CLI Detection
 
-// Stream-json events to handle from CLI stdout
-// Thinking deltas → accumulate into thinkingBuffer, forward to UI
-// Text deltas → accumulate into responseBuffer, forward to UI
-// Result event → extract token usage, emit done
+| File | Purpose |
+|------|---------|
+| `SettingsService.ts` | Implements `ISettingsService`. JSON at `{userData}/settings.json`. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- Constructor takes `userDataPath: string`
+- In-memory cache invalidated on write
+- `detectClaudeCli()` runs `claude --version` with 10s timeout
+
+### database/ — SQLite Persistence
+
+| File | Purpose |
+|------|---------|
+| `schema.ts` | CREATE TABLE statements, WAL mode, foreign keys |
+| `DatabaseService.ts` | Implements `IDatabaseService`. Prepared statements. |
+| `index.ts` | Barrel export |
+
+### agents/ — Agent Prompt Loader
+
+| File | Purpose |
+|------|---------|
+| `AgentService.ts` | Reads .md files from disk, matches against AGENT_REGISTRY |
+| `index.ts` | Barrel export |
+
+### filesystem/ — Book I/O & Watchers
+
+| File | Purpose |
+|------|---------|
+| `FileSystemService.ts` | Book CRUD, file read/write, directory listing |
+| `BookWatcher.ts` | Watches active book dir for file changes |
+| `BooksDirWatcher.ts` | Watches books/ root for new/deleted books |
+| `index.ts` | Barrel export |
+
+### claude-cli/ — CLI Client
+
+| File | Purpose |
+|------|---------|
+| `ClaudeCodeClient.ts` | Spawns `claude` process, streams NDJSON, manages lifecycle |
+| `StreamSessionTracker.ts` | Tracks active stream sessions for orphan recovery |
+| `index.ts` | Barrel export |
+
+### pandoc/ — Export Engine
+
+| File | Purpose |
+|------|---------|
+| `index.ts` | Pandoc binary path resolution (dev vs packaged) |
 ```
 
-Default budgets per agent: Spark 8K, Verity 10K, Ghostlight 6K, Lumen 16K, Sable 4K, Forge 8K, Quill 4K.
+#### Database Schema
 
-For Claude 4 models, thinking returns a **summary** of the full reasoning. The CLI handles billing transparently through the user's Claude subscription.
+Every table, every column, types, constraints, indexes.
 
----
+```markdown
+## Schema
 
-## Key Files From the Original Repo
+### `conversations`
 
-The original `zencoder-based-novel-engine` uses:
-- `active-book.json` → `{ "book": "slug-name" }` — single pointer to current project
-- `books/{slug}/about.json` → `{ title, author, status, created }`
-- `books/{slug}/source/*.md` → voice-profile, scene-outline, story-bible, reports
-- `books/{slug}/chapters/NN-slug/draft.md` → the actual prose (only Verity writes these)
-- `books/{slug}/chapters/NN-slug/notes.md` → author annotations
-- `books/{slug}/dist/` → build outputs (md, docx, epub, pdf)
-- `custom-agents/*.md` → agent system prompts (Spark, Verity, Ghostlight, Lumen, Sable, Forge, Quill)
-- `author-profile.md` → the writer's creative DNA
-- `scripts/build.js` → concatenates chapters, runs Pandoc
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | TEXT | PK | nanoid |
+| `book_slug` | TEXT | NOT NULL | Directory slug |
+| `agent_name` | TEXT | NOT NULL | From AgentName |
+| `pipeline_phase` | TEXT | | Nullable for ad-hoc |
+| `purpose` | TEXT | NOT NULL DEFAULT 'pipeline' | ConversationPurpose |
+| `title` | TEXT | NOT NULL DEFAULT '' | From first user message |
+| `created_at` | TEXT | NOT NULL | ISO 8601 |
+| `updated_at` | TEXT | NOT NULL | ISO 8601 |
+```
 
-All of these structures are preserved in the Electron app. The `books/` and `custom-agents/` directories live in the OS user data path (`app.getPath('userData')`), not inside the app bundle.
+#### Claude CLI Integration
 
----
+How the CLI is invoked — flags, streaming protocol, argument construction, tool permissions.
 
-## Constraints
+#### File Watchers
 
-- **Never skip a session.** Sessions are ordered by dependency. Session 9 depends on sessions 2–8.
-- **Never put business logic in IPC handlers.** They are dumb adapters.
-- **Never import concrete classes in application services.** Use injected interfaces.
-- **Never let the renderer import from main process modules.** Only through the preload bridge.
-- **Never store API keys.** The Claude Code CLI handles authentication — the app stores no secrets.
-- **Never use `any` type** unless wrapping an untyped third-party API and even then, narrow it immediately.
-- **Never leave a file incomplete.** Every method declared in an interface must be implemented.
-- **Always create barrel exports** (`index.ts`) for infrastructure subdirectories.
-- **Always handle errors** in async operations — catch and propagate or log meaningfully.
-- **Always clean up IPC listeners** in React components via useEffect return functions.
+What watchers exist, what events they emit, who consumes them.
 
 ---
 
-## Loading
+## docs/APPLICATION.md — Services & Orchestration
 
-On session start, read these files to understand current project state:
-1. `src/domain/types.ts` — all shared types
-2. `src/domain/interfaces.ts` — service contracts you're implementing
-3. `src/domain/constants.ts` — agent registry, pipeline phases, defaults
-4. The session prompt file being executed
+Everything in `src/application/`. Updated when any service changes.
 
-If previous session files exist, read them to ensure your new code integrates correctly with what's already built.
+### Required Sections
+
+#### Service Inventory
+
+One subsection per service. Dependencies (interfaces only), key methods, behavior.
+
+```markdown
+## Services
+
+### ChatService
+
+Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IContextBuilder`
+
+| Method | What It Does |
+|--------|-------------|
+| `sendMessage(params)` | Assembles context → spawns CLI stream → saves messages → emits events |
+| `stopStream()` | Kills active CLI process |
+| `getLastDiagnostics()` | Returns context assembly diagnostics from last call |
+
+Flow: loadAgent → buildContext → spawnCLI → streamEvents → saveAssistantMessage → recordUsage
+
+### PipelineService
+
+Dependencies: `IFileSystemService`, `IDatabaseService`
+
+| Method | What It Does |
+|--------|-------------|
+| `detectPhases(bookSlug)` | Checks file existence → returns all 14 phases with statuses |
+| `confirmPhaseAdvancement(bookSlug, phaseId)` | Marks phase confirmed, persists to pipeline-state.json |
+| `revertPhase(bookSlug, phaseId)` | Rolls back phase, handles archive cleanup |
+```
+
+#### Context Assembly
+
+How context is built — manifest, read guidance, conversation compaction rules.
+
+#### Pipeline Logic
+
+Phase detection, advancement, revert, `pending-completion` semantics.
+
+#### Build Service
+
+Pandoc invocation, export formats, manuscript assembly.
+
+#### Revision Queue
+
+Session parsing, execution modes, approval gates, verification flow.
 
 ---
 
-## Output
+## docs/IPC.md — Channels & Preload Bridge
 
-For each session, produce:
-1. All files specified in the session prompt — complete, production-ready, fully typed
-2. Barrel exports for any new infrastructure directories
-3. A verification summary confirming the session's acceptance criteria are met
+Everything in `src/main/ipc/` and `src/preload/`. Updated when channels, handlers, or bridge methods change.
+
+### Required Sections
+
+#### Channel Registry
+
+Grouped by namespace. Channel name, direction, handler delegation, return type.
+
+```markdown
+## Channels
+
+### settings:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `settings:get` | invoke | `settingsService.load()` | `AppSettings` |
+| `settings:update` | invoke | `settingsService.update(partial)` | `void` |
+| `settings:detectCli` | invoke | `settingsService.detectClaudeCli()` | `boolean` |
+
+### chat:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `chat:send` | invoke | `chatService.sendMessage(params)` | `void` (streams) |
+| `chat:stop` | invoke | `chatService.stopStream()` | `void` |
+```
+
+#### Push Events
+
+Events from main → renderer (not request/response).
+
+```markdown
+## Push Events
+
+| Event | Payload | Emitter |
+|-------|---------|---------|
+| `chat:onStream` | `StreamEvent` | ClaudeCodeClient during streaming |
+| `chat:filesChanged` | `string[]` | BookWatcher on file change |
+| `books:changed` | — | BooksDirWatcher on dir change |
+```
+
+#### Preload Bridge Shape
+
+The full `window.novelEngine` type as exposed by `contextBridge`. Every namespace and method.
+
+---
+
+## docs/RENDERER.md — Stores, Components, Views
+
+Everything in `src/renderer/`. Updated when stores, components, or routing changes.
+
+### Required Sections
+
+#### Store Registry
+
+Every Zustand store. File, state shape, key actions, what triggers updates.
+
+```markdown
+## Stores
+
+### settingsStore
+
+File: `stores/settingsStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `settings` | `AppSettings \| null` | Current app settings |
+| `isLoaded` | `boolean` | True after first load |
+
+| Action | What It Does |
+|--------|-------------|
+| `load()` | Calls `window.novelEngine.settings.get()` |
+| `update(partial)` | Calls bridge, then reloads |
+
+### chatStore
+
+File: `stores/chatStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `activeConversation` | `Conversation \| null` | Currently open conversation |
+| `isStreaming` | `boolean` | True during CLI stream |
+| `streamBuffer` | `string` | Accumulating response text |
+| `progressStage` | `ProgressStage` | Tool-use stage inferred from stream |
+
+| Action | What It Does |
+|--------|-------------|
+| `sendMessage(content)` | Sends via bridge, attaches stream listener |
+| `loadConversations(bookSlug)` | Fetches conversation list from DB |
+| `createConversation(agent, book, phase)` | Creates and opens new conversation |
+```
+
+#### View Routing
+
+```markdown
+## Views
+
+| View ID | Component | When Active |
+|---------|-----------|-------------|
+| `onboarding` | `OnboardingWizard` | First run, no CLI detected |
+| `chat` | `ChatView` | Default — agent conversations |
+| `files` | `FilesView` | File browser/reader |
+| `build` | `BuildView` | Manuscript export |
+| `settings` | `SettingsView` | App preferences |
+| `revision-queue` | `RevisionQueueView` | Revision session management |
+| `pitch-room` | `PitchRoomView` | Free brainstorming |
+
+Routing: `viewStore.currentView` → conditional render in `App.tsx`
+```
+
+#### Component Inventory
+
+Major component groups with their files and responsibilities.
+
+```markdown
+## Components
+
+### Layout/
+- `AppLayout.tsx` — Main shell: sidebar + content area
+- `Sidebar.tsx` — Book selector + pipeline + file tree + action buttons
+- `TitleBar.tsx` — Custom window title bar
+- `ResizeHandle.tsx` — Sidebar resize drag handle
+
+### Chat/
+- `ChatView.tsx` — Full chat view with agent header, messages, input
+- `ChatInput.tsx` — Message input with thinking budget controls
+- `MessageBubble.tsx` — Single message with save-to-file buttons
+- `MessageList.tsx` — Scrollable message history
+- `StreamingMessage.tsx` — Live-updating message during CLI stream
+- `ThinkingPanel.tsx` — Collapsible thinking block display
+
+### Sidebar/
+- `BookSelector.tsx` — Book list dropdown with create/archive
+- `PipelineTracker.tsx` — Visual 14-phase pipeline with status icons
+- `FileTree.tsx` — Collapsible book directory tree
+```
+
+---
+
+## Workflow
+
+At the end of every session that changes code:
+
+1. **Inventory what changed.** List every file created, modified, or deleted.
+2. **Read the changed files.** Verify actual contents — don't document from memory.
+3. **Identify affected domains.** Map each changed file to its doc:
+    - `src/domain/*` → `docs/DOMAIN.md`
+    - `src/infrastructure/*` → `docs/INFRASTRUCTURE.md`
+    - `src/application/*` → `docs/APPLICATION.md`
+    - `src/main/*`, `src/preload/*` → `docs/IPC.md`
+    - `src/renderer/*` → `docs/RENDERER.md`
+    - Cross-cutting (DI wiring, conventions) → `docs/ARCHITECTURE.md`
+4. **Check wiring if needed.** If you touched infra, application, IPC, or preload, re-read `src/main/index.ts`, `handlers.ts`, and `preload/index.ts`.
+5. **Append to CHANGELOG.md.**
+6. **Update affected domain docs only.** Leave the rest untouched.
+7. **Update master ARCHITECTURE.md** if source tree, dependency graph, or conventions changed.
+8. **Verify.** Every path exists. Every type exists. Dependency graph matches composition root. IPC table matches handlers + preload.
+
+---
+
+## Tone
+
+Senior engineer's commit log. Short sentences. Concrete paths. No marketing language.
+
+Bad: "Enhanced the pipeline infrastructure to support more flexible phase transitions."
+Good: "`src/application/PipelineService.ts` — Added `revertPhase()`. Rolls back status and deletes archive files for status/archive-dependent phases."
+
+---
+
+## Edge Cases
+
+**Agent prompt changes:** Document the behavioral delta in the changelog. Don't reproduce the full prompt.
+
+**Database migrations:** Changelog MUST include the migration statement under Migration Notes. Update `docs/INFRASTRUCTURE.md` schema section.
+
+**Deleted features:** Changelog documents the removal. All domain docs remove traces. No ghosts.
+
+**Conflicting sources:** If `AGENTS.MD` says one thing and the code says another, document the code. Note the discrepancy.
+
+**Nothing structural changed:** Changelog still gets an entry. Domain docs can be skipped if only function internals changed.
+
+**First run:** If `docs/` doesn't exist, create the directory and all six docs from scratch by reading the full `src/` tree. Most expensive run — subsequent updates are incremental.
+
+**New infra module:** Add subsection to `docs/INFRASTRUCTURE.md`. Update source tree in `docs/ARCHITECTURE.md`.
+
+**New store or component:** Add to `docs/RENDERER.md`. If it introduced new IPC calls, also update `docs/IPC.md`.
+
+**New service:** Add to `docs/APPLICATION.md`. Update dependency graph in `docs/ARCHITECTURE.md`. If new IPC channels, update `docs/IPC.md`.

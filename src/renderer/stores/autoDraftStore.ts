@@ -136,6 +136,16 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitForCliIdle(bookSlug: string, maxWaitMs = 30_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    const idle = await window.novelEngine.chat.isCliIdle(bookSlug);
+    if (idle) return;
+    await delay(250);
+  }
+  console.warn('[auto-draft] waitForCliIdle timed out after', maxWaitMs, 'ms for', bookSlug);
+}
+
 async function getChapterSlugs(bookSlug: string): Promise<string[] | null> {
   try {
     const chapters = await window.novelEngine.books.wordCount(bookSlug);
@@ -337,6 +347,8 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
 
           if (newChapterSlug && !session()?.stopRequested) {
             try {
+              await waitForCliIdle(bookSlug);
+
               patch({ stageLabel: `Auditing ${newChapterSlug}…` });
               console.log(`[auto-draft] Starting audit for ${newChapterSlug}`);
 
@@ -359,6 +371,8 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
 
               if (auditResult && shouldFix(auditResult.summary.severity)) {
                 if (!session()?.stopRequested) {
+                  await waitForCliIdle(bookSlug);
+
                   patch({ stageLabel: `Fixing ${auditResult.summary.total} violations in ${newChapterSlug}…` });
                   console.log(`[auto-draft] Starting fix for ${newChapterSlug}`);
 
@@ -392,6 +406,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           if (totalChapters > 0 && totalChapters % PHRASE_AUDIT_CADENCE === 0) {
             if (!session()?.stopRequested) {
               try {
+                await waitForCliIdle(bookSlug);
                 patch({ stageLabel: 'Running phrase audit…' });
                 const phraseCallId = crypto.randomUUID();
                 const userIsWatchingPhrase = useChatStore.getState().activeConversation?.id === conversationId;
@@ -418,6 +433,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
             await useChatStore.getState().setActiveConversation(conversationId);
           }
 
+          await waitForCliIdle(bookSlug);
           await delay(INTER_CHAPTER_DELAY_MS);
         } else if (!gotResponse) {
           // ✗ No assistant message saved → CLI error

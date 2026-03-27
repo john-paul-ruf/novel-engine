@@ -186,6 +186,9 @@ export interface IClaudeClient {
 
   isAvailable(): Promise<boolean>;
   invalidateAvailabilityCache(): void;
+
+  hasActiveProcesses(): boolean;
+  hasActiveProcessesForBook(bookSlug: string): boolean;
 }
 
 export interface IPipelineService {

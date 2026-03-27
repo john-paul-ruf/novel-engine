@@ -81,6 +81,13 @@ export class ChatService {
     private chapterValidator: IChapterValidator,
   ) {}
 
+  isCliIdle(bookSlug?: string): boolean {
+    if (bookSlug) {
+      return !this.claude.hasActiveProcessesForBook(bookSlug);
+    }
+    return !this.claude.hasActiveProcesses();
+  }
+
   /**
    * Called once at app startup. Checks for orphaned stream sessions
    * (started but never finished) and marks them as interrupted.

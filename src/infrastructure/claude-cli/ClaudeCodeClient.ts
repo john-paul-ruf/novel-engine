@@ -24,6 +24,9 @@ export class ClaudeCodeClient implements IClaudeClient {
   /** Active child processes keyed by conversationId for abort support. */
   private activeProcesses: Map<string, ChildProcess> = new Map();
 
+  /** Maps conversationId → bookSlug for scoped idle checks. */
+  private processBookMap: Map<string, string> = new Map();
+
   constructor(
     private booksDir: string,
     private db: IDatabaseService,
@@ -44,6 +47,17 @@ export class ClaudeCodeClient implements IClaudeClient {
   /** Force re-check on next isAvailable() call (e.g. after user installs the CLI). */
   invalidateAvailabilityCache(): void {
     this._available = null;
+  }
+
+  hasActiveProcesses(): boolean {
+    return this.activeProcesses.size > 0;
+  }
+
+  hasActiveProcessesForBook(bookSlug: string): boolean {
+    for (const slug of this.processBookMap.values()) {
+      if (slug === bookSlug) return true;
+    }
+    return false;
   }
 
   /**
@@ -171,6 +185,9 @@ export class ClaudeCodeClient implements IClaudeClient {
       // Track the child process for abort support
       if (conversationId) {
         this.activeProcesses.set(conversationId, child);
+        if (bookSlug) {
+          this.processBookMap.set(conversationId, bookSlug);
+        }
       }
 
       let stdoutBuffer = '';
@@ -228,6 +245,7 @@ export class ClaudeCodeClient implements IClaudeClient {
         // Remove from active processes map
         if (conversationId) {
           this.activeProcesses.delete(conversationId);
+          this.processBookMap.delete(conversationId);
         }
 
         // Process any remaining data in the stdout buffer

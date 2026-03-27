@@ -190,6 +190,8 @@ export function registerIpcHandlers(services: {
     services.chat.abortStream(conversationId),
   );
 
+  ipcMain.handle('chat:isCliIdle', (_, bookSlug?: string) => services.chat.isCliIdle(bookSlug));
+
   // === Chat (streaming) ===
 
   ipcMain.handle('chat:send', async (event, params: SendMessageParams) => {

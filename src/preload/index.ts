@@ -118,6 +118,8 @@ const api = {
       ipcRenderer.invoke('chat:send', params),
     abort: (conversationId: string): Promise<void> =>
       ipcRenderer.invoke('chat:abort', conversationId),
+    isCliIdle: (bookSlug?: string): Promise<boolean> =>
+      ipcRenderer.invoke('chat:isCliIdle', bookSlug),
     getActiveStream: (): Promise<ActiveStreamInfo | null> =>
       ipcRenderer.invoke('chat:getActiveStream'),
     getActiveStreamForBook: (bookSlug: string): Promise<ActiveStreamInfo | null> =>
