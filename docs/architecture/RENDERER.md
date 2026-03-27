@@ -49,6 +49,7 @@ File: `stores/chatStore.ts`
 | `activeConversation` | `Conversation \| null` | Currently open conversation |
 | `messages` | `Message[]` | Messages for active conversation |
 | `isStreaming` | `boolean` | True during CLI stream |
+| `_streamOrigin` | `'self' \| 'external' \| null` | Discriminates user-initiated (`'self'`) vs background (`'external'`) streams. `switchBook()` only aborts `'self'` streams, preserving background auto-draft/revision streams. Reset to `null` at all 10 terminal points. |
 | `streamBuffer` | `string` | Accumulating response text |
 | `thinkingBuffer` | `string` | Accumulating thinking text |
 | `progressStage` | `ProgressStage` | Tool-use stage inferred from stream |
@@ -94,7 +95,7 @@ Persisted to localStorage via Zustand `persist` middleware.
 
 File: `stores/pitchRoomStore.ts`
 
-State and actions for the Pitch Room brainstorming view.
+State and actions for the Pitch Room brainstorming view. Stream listener lifecycle managed via `initStreamListener()` / `destroyStreamListener()` (called from AppLayout's StreamManager component, not from PitchRoomView). Double-registration guard: `if (_cleanupListener) return`.
 
 ### pitchShelfStore
 
@@ -112,14 +113,14 @@ Manages revision plan state, session execution, approval gates.
 
 File: `stores/autoDraftStore.ts`
 
-Manages auto-drafting state (sequential chapter writing).
+Manages auto-drafting state (sequential chapter writing). Tracks `skippedAudits: string[]` — when an audit/fix pass fails, the loop pauses (using existing pause/resume mechanism) with a diagnostic message. Resume skips the failed audit; stop halts the loop. Skipped chapters are logged in the finally block.
 
 ### streamHandler (utility)
 
 File: `stores/streamHandler.ts`
 
 Shared stream event handler factory used by chatStore, modalChatStore, and pitchRoomStore. Encapsulates:
-- `rev:` prefix filter (skip revision queue events)
+- `source`-based filter: primary guard uses `source === 'revision'` to skip revision queue events; falls back to `rev:` prefix check when `source` is absent (backwards compat)
 - callId matching guard (prevents cross-call bleed)
 - Recovery mode guard (when no callId is active)
 - Optional `alwaysCheckConversationId` — modalChatStore and pitchRoomStore enable this; chatStore does not (allows mid-stream conversation switching)
@@ -131,7 +132,7 @@ Stores initialize the handler via a lazy IIFE pattern to avoid circular TypeScri
 
 File: `stores/cliActivityStore.ts`
 
-Tracks active CLI tool usage for the activity panel. Recovery polling uses module-level timer refs (`_activityRecoveryPollTimer`, `_activityRecoveryTimeout`) to prevent duplicate intervals on rapid view switches.
+Tracks active CLI tool usage for the activity panel. Recovery polling uses module-level timer refs (`_activityRecoveryPollTimer`, `_activityRecoveryTimeout`) to prevent duplicate intervals on rapid view switches. `loadDiagnostics()` passes the call's `conversationId` to `context.getLastDiagnostics()` for per-conversation diagnostic lookup.
 
 ### fileChangeStore
 
@@ -178,7 +179,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `AppLayout.tsx` | Main shell: sidebar + content area, view routing |
+| `AppLayout.tsx` | Main shell: sidebar + content area, view routing. `StreamManager` component initializes pitchRoomStore stream listener lifecycle (mount → `initStreamListener`, unmount → `destroyStreamListener`). |
 | `Sidebar.tsx` | Left panel: book selector + pipeline + file tree + action buttons |
 | `TitleBar.tsx` | Custom window title bar (traffic lights on macOS, buttons on Windows/Linux) |
 | `ResizeHandle.tsx` | Sidebar resize drag handle |

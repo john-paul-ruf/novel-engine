@@ -21,13 +21,12 @@ Clean router (403 lines). Delegates special-purpose flows to sub-services. Only 
 | `createConversation(params)` | Creates a conversation record in the database |
 | `getConversations(bookSlug)` | Lists conversations for a book |
 | `getMessages(conversationId)` | Retrieves message history |
-| `sendMessage(params)` | Assembles context → spawns CLI stream → saves messages → emits events |
+| `sendMessage(params)` | Assembles context → spawns CLI stream → saves messages → emits events. Returns `{ changedFiles: string[] }`. |
 | `abortStream(conversationId)` | Kills the active CLI process for a conversation |
 | `isCliIdle(bookSlug?)` | Checks if any CLI processes are running (optionally scoped to a book) |
 | `getActiveStream()` | Returns `ActiveStreamInfo` for the current stream (refresh recovery) |
 | `getActiveStreamForBook(bookSlug)` | Returns active stream scoped to a specific book |
-| `getLastChangedFiles()` | Files modified during the last CLI interaction |
-| `getLastDiagnostics()` | Context assembly diagnostics from last call |
+| `getLastDiagnostics(conversationId?)` | Context assembly diagnostics from `diagnosticsMap` (per-conversation, max 20 entries, LRU pruning). Falls back to most recent entry when no `conversationId` given. |
 | `recoverOrphanedSessions()` | Startup recovery — marks interrupted sessions |
 | `getRecoveredOrphans()` | Returns sessions marked as interrupted |
 | ~~`auditChapter`~~ | *Moved to AuditService (ARCH-05)* |
@@ -130,11 +129,9 @@ Owns the `activeStreams` map and the repetitive stream lifecycle pattern used by
 
 | Method | What It Does |
 |--------|-------------|
-| `startStream(params, options?)` | Registers active stream, returns `{ onEvent, getResponseBuffer, getThinkingBuffer }` — caller passes `onEvent` to `claude.sendMessage()` |
-| `resetChangedFiles()` | Clears the changed-files tracker before a new interaction |
+| `startStream(params, options?)` | Registers active stream, returns `{ onEvent, getResponseBuffer, getThinkingBuffer, getChangedFiles }` — caller passes `onEvent` to `claude.sendMessage()`. Changed files tracked per-stream via closure (no singleton). |
 | `getActiveStream()` | Returns info about any active CLI stream, or null |
 | `getActiveStreamForBook(bookSlug)` | Returns active stream for a specific book, or null |
-| `getLastChangedFiles()` | File paths changed during the last interaction |
 | `cleanupAbortedStream(conversationId)` | Returns partial state for abort handling, removes active stream |
 | `cleanupErroredStream(conversationId, sessionId)` | Ends session as idle, removes active stream |
 

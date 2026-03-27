@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Fix crash on startup: MotifLedgerView tab count reads undefined array
+
+### Summary
+
+Fixed a `TypeError: Cannot read properties of undefined (reading 'length')` crash on production app startup. The `MotifLedgerView` tab-count computation assumed all ledger array keys exist when the ledger object is truthy, but partial/empty ledger JSON files leave some keys undefined. Since all views are rendered simultaneously (hidden with CSS), this crashes immediately on app load.
+
+### Fixed
+- `src/renderer/components/MotifLedger/MotifLedgerView.tsx` — Tab count computation now guards against undefined ledger arrays with optional chaining (`arr?.length ?? 0`) instead of casting to `unknown[]` and accessing `.length` directly.
+
+### Architecture Impact
+- None — no wiring changes.
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Issue fixes r003: Race conditions, error handling, stream architecture
 
 ### Summary

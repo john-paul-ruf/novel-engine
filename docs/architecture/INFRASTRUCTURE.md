@@ -34,6 +34,7 @@ Key behavior:
 - Prepared statements stored as class members for reuse
 - Explicit snake_case → camelCase mapping in every query method
 - `pruneStreamEvents(olderThanDays)` deletes old event data
+- `persistStreamEventBatch()` wraps inserts in a transaction for bulk efficiency
 - `updateBookSlug` migrates conversation references on slug rename
 
 ### agents/ — Agent Prompt Loader
@@ -85,9 +86,9 @@ Key behavior:
 - Maps CLI events to `StreamEvent` union variants
 - `abortStream` sends SIGTERM, then SIGKILL after 2s grace period
 - `isAvailable()` caches result of `claude --version` check
-- Persists stream events to SQLite for replay after window refresh (first-failure logging per session)
+- Persists stream events to SQLite in batches (100ms flush interval, max 20, critical events flush immediately) for reduced I/O pressure
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` for idle detection
-- EPIPE/ERR_STREAM_DESTROYED on stdin logged with `console.warn` (not silenced)
+- EPIPE/ERR_STREAM_DESTROYED on stdin logged with diagnostic info (stdinBytes, writableFinished, writableEnded)
 - System prompt size guard: rejects prompts > 500KB with clear error before spawn
 
 ### pandoc/ — Export Engine

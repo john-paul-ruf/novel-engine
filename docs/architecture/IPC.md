@@ -99,7 +99,7 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 
 | Channel | Direction | Handler | Returns |
 |---------|-----------|---------|---------|
-| `context:getLastDiagnostics` | invoke | `chatService.getLastDiagnostics()` | `ContextDiagnostics \| null` |
+| `context:getLastDiagnostics` | invoke | `chatService.getLastDiagnostics(conversationId?)` | `ContextDiagnostics \| null` |
 
 ### verity:*
 
@@ -193,7 +193,7 @@ Events from main → renderer (not request/response).
 
 | Event | Payload | Emitter |
 |-------|---------|---------|
-| `chat:streamEvent` | `StreamEvent & { callId, conversationId }` | ChatService during CLI streaming — broadcast to all windows |
+| `chat:streamEvent` | `StreamEvent & { callId, conversationId, source?: StreamEventSource }` | ChatService during CLI streaming — broadcast to all windows. `source` discriminates origin (`'chat'`, `'auto-draft'`, `'hot-take'`, `'adhoc-revision'`, `'revision'`, `'audit'`, `'fix'`, `'motif-audit'`). |
 | `chat:filesChanged` | `string[], bookSlug?` | BookWatcher on file change, or post-sendMessage |
 | `books:changed` | (none) | BooksDirWatcher on folder add/remove |
 | `build:progress` | `string` | BuildService during Pandoc execution |
@@ -338,7 +338,7 @@ window.novelEngine: {
   }
 
   context: {
-    getLastDiagnostics(): Promise<ContextDiagnostics | null>
+    getLastDiagnostics(conversationId?: string): Promise<ContextDiagnostics | null>
   }
 
   shell: {
@@ -370,7 +370,9 @@ window.novelEngine: {
 - **paths**: `{ userDataPath, booksDir }`
 - **hooks**: `{ onActiveBookChanged(slug) }` — triggers BookWatcher switch
 
-Revision queue events are forwarded to renderer via `revisionQueue.onEvent()` listener registered at the bottom of `registerIpcHandlers`. Also forwards `session:streamEvent` sub-events to `chat:streamEvent` channel with `rev:` prefixed callId and `conversationId` (falls back to `sessionId` if absent).
+Revision queue events are forwarded to renderer via `revisionQueue.onEvent()` listener registered at the bottom of `registerIpcHandlers`. Also forwards `session:streamEvent` sub-events to `chat:streamEvent` channel with `rev:` prefixed callId, `conversationId` (falls back to `sessionId` if absent), and `source: 'revision'`.
+
+All broadcast sites inject a `source: StreamEventSource` discriminator into stream events so the renderer can filter by origin without fragile string-prefix conventions. The `rev:` prefix on callId is retained for backwards compatibility but `source` is the primary routing signal.
 
 Verity pipeline handlers (`verity:auditChapter`, `verity:fixChapter`, `verity:fixChapterWithAudit`, `verity:runMotifAudit`) emit synthetic `callStart` events via `emitVerityCallStart()` so audit/fix calls appear correctly in the CLI Activity Monitor.
 

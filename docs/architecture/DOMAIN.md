@@ -251,7 +251,7 @@ Implemented by: `ClaudeCodeClient` (`src/infrastructure/claude-cli/`)
 
 | Method | Signature | Returns |
 |--------|-----------|---------|
-| `sendMessage` | `(params) => Promise<void>` | Streams events via onEvent callback |
+| `sendMessage` | `(params) => Promise<{ changedFiles: string[] }>` | Streams events via onEvent callback; returns changed files |
 | `abortStream` | `(conversationId) => void` | SIGTERM then SIGKILL |
 | `isAvailable` | `() => Promise<boolean>` | CLI accessible check |
 | `invalidateAvailabilityCache` | `() => void` | Forces re-check |
@@ -336,15 +336,14 @@ Implemented by: `ChatService` (`src/application/`)
 
 | Method | Signature | Returns |
 |--------|-----------|---------|
-| `sendMessage` | `(params: { agentName, message, conversationId, bookSlug, thinkingBudgetOverride?, callId?, onEvent }) => Promise<void>` | Streams agent response |
+| `sendMessage` | `(params: { agentName, message, conversationId, bookSlug, thinkingBudgetOverride?, callId?, onEvent }) => Promise<{ changedFiles: string[] }>` | Streams agent response; returns changed files |
 | `createConversation` | `(params: { bookSlug, agentName, pipelinePhase, purpose? }) => Promise<Conversation>` | New conversation |
 | `getConversations` | `(bookSlug) => Promise<Conversation[]>` | Conversations for a book |
 | `getMessages` | `(conversationId) => Promise<Message[]>` | Messages in a conversation |
 | `abortStream` | `(conversationId) => void` | Kill active CLI stream |
 | `getActiveStream` | `() => ActiveStreamInfo \| null` | First active stream |
 | `getActiveStreamForBook` | `(bookSlug) => ActiveStreamInfo \| null` | Active stream for a book |
-| `getLastDiagnostics` | `() => ContextDiagnostics \| null` | Last context assembly diagnostics |
-| `getLastChangedFiles` | `() => string[]` | Files changed in last interaction |
+| `getLastDiagnostics` | `(conversationId?) => ContextDiagnostics \| null` | Context diagnostics keyed by conversationId |
 | `isCliIdle` | `(bookSlug?) => boolean` | Whether CLI has no active processes |
 | `recoverOrphanedSessions` | `() => Promise<StreamSessionRecord[]>` | Recover interrupted sessions |
 | `getRecoveredOrphans` | `() => StreamSessionRecord[]` | Cached recovered orphans |
