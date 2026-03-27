@@ -48,14 +48,14 @@ export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
 
 // Agent metadata (everything except the systemPrompt, which comes from files)
 export const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
-  Spark:      { filename: 'SPARK.md',      role: 'Story Pitch',           color: '#F59E0B', thinkingBudget: 8000 },
-  Verity:     { filename: 'VERITY-CORE.md', role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000 },
-  Ghostlight: { filename: 'GHOSTLIGHT.md', role: 'First Reader',          color: '#06B6D4', thinkingBudget: 6000 },
-  Lumen:      { filename: 'LUMEN.md',      role: 'Developmental Editor',  color: '#10B981', thinkingBudget: 16000 },
-  Sable:      { filename: 'SABLE.md',      role: 'Copy Editor',           color: '#EF4444', thinkingBudget: 4000 },
-  Forge:      { filename: 'FORGE.MD',      role: 'Task Master',           color: '#F97316', thinkingBudget: 8000 },
-  Quill:      { filename: 'Quill.md',      role: 'Publisher',             color: '#6366F1', thinkingBudget: 4000 },
-  Wrangler:   { filename: 'WRANGLER.md',   role: 'Context Planner',       color: '#71717A', thinkingBudget: 4000 },
+  Spark:      { filename: 'SPARK.md',      role: 'Story Pitch',           color: '#F59E0B', thinkingBudget: 4000, maxTurns: 5 },
+  Verity:     { filename: 'VERITY-CORE.md', role: 'Ghostwriter',           color: '#8B5CF6', thinkingBudget: 10000, maxTurns: 30 },
+  Ghostlight: { filename: 'GHOSTLIGHT.md', role: 'First Reader',          color: '#06B6D4', thinkingBudget: 6000, maxTurns: 15 },
+  Lumen:      { filename: 'LUMEN.md',      role: 'Developmental Editor',  color: '#10B981', thinkingBudget: 16000, maxTurns: 15 },
+  Sable:      { filename: 'SABLE.md',      role: 'Copy Editor',           color: '#EF4444', thinkingBudget: 4000, maxTurns: 20 },
+  Forge:      { filename: 'FORGE.MD',      role: 'Task Master',           color: '#F97316', thinkingBudget: 8000, maxTurns: 10 },
+  Quill:      { filename: 'Quill.md',      role: 'Publisher',             color: '#6366F1', thinkingBudget: 4000, maxTurns: 8 },
+  Wrangler:   { filename: 'WRANGLER.md',   role: 'Context Planner',       color: '#71717A', thinkingBudget: 4000, maxTurns: 3 },
 };
 
 /** Reserved book slug used for Pitch Room conversations and draft files. */

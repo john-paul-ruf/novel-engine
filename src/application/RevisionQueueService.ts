@@ -24,6 +24,7 @@ import type {
 import {
   WRANGLER_SESSION_PARSE_PROMPT,
   WRANGLER_MODEL,
+  AGENT_REGISTRY,
 } from '@domain/constants';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -374,6 +375,7 @@ export class RevisionQueueService implements IRevisionQueueService {
         messages: [{ role: 'user' as const, content: userMessage }],
         maxTokens: 8192,
         thinkingBudget: wranglerThinkingBudget,
+        maxTurns: 3,
         onEvent: (event) => {
           // Forward ALL stream events to the activity viewer so users can
           // see thinking, tool use, and progress while the Wrangler works
@@ -621,6 +623,7 @@ export class RevisionQueueService implements IRevisionQueueService {
         thinkingBudget: settings.enableThinking
           ? (settings.overrideThinkingBudget ? settings.thinkingBudget : verity.thinkingBudget)
           : undefined,
+        maxTurns: AGENT_REGISTRY.Verity.maxTurns,
         onEvent: (event: StreamEvent) => {
           this.emit({ type: 'session:streamEvent', sessionId: session.id, event });
 

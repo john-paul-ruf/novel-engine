@@ -11,6 +11,7 @@ export type AgentMeta = {
   role: string;            // e.g. "Pitch & Scaffold"
   color: string;           // hex color for UI
   thinkingBudget: number;  // default extended thinking token budget
+  maxTurns: number;        // max CLI agent-loop turns (tool round-trips)
 };
 
 export type Agent = AgentMeta & {

@@ -134,6 +134,7 @@ export class AgentService implements IAgentService {
         role: entry.meta.role,
         color: entry.meta.color,
         thinkingBudget: entry.meta.thinkingBudget,
+        maxTurns: entry.meta.maxTurns,
         systemPrompt,
       });
     }
