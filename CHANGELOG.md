@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Update GitHub Pages website with latest changelog entries
+
+### Summary
+
+Updated `docs/changelog.html` with 3 new entries added since the last website build: r003 race condition/stream architecture fixes, MotifLedgerView crash fix, and BookSelector/SystemsTab crash fix. Updated stats (18 → 21 entries, added bug fix count), expanded the Quality & Stability highlight reel section. All other pages remain current — no new features since last build, only bug fixes that don't affect feature descriptions.
+
+### Changed
+- `docs/changelog.html` — Added 3 new entries at top (r003 fixes, MotifLedgerView crash, BookSelector/SystemsTab crash). Updated stats: entries 18→21, replaced "Architecture Changes" stat with "Bug Fixes: 20+". Added r003 and MotifLedger crash fixes to Quality & Stability highlights.
+
+### Architecture Impact
+- None — website assets only
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Fix nested button DOM warning and SystemsTab crash on undefined components
 
 ### Summary
