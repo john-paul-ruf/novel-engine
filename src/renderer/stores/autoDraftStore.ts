@@ -338,21 +338,25 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           if (newChapterSlug && !session()?.stopRequested) {
             try {
               patch({ stageLabel: `Auditing ${newChapterSlug}…` });
+              console.log(`[auto-draft] Starting audit for ${newChapterSlug}`);
               const auditResult = await window.novelEngine.verity.auditChapter(
                 bookSlug,
                 newChapterSlug,
               );
+              console.log(`[auto-draft] Audit returned for ${newChapterSlug}:`, auditResult ? `${auditResult.summary.severity} (${auditResult.summary.total} violations)` : 'null');
 
               if (auditResult && shouldFix(auditResult.summary.severity)) {
                 // ── Pass 3: Fix ──────────────────────────────────────
                 if (!session()?.stopRequested) {
                   patch({ stageLabel: `Fixing ${auditResult.summary.total} violations in ${newChapterSlug}…` });
+                  console.log(`[auto-draft] Starting fix for ${newChapterSlug}`);
                   await window.novelEngine.verity.fixChapter(
                     bookSlug,
                     newChapterSlug,
                     conversationId,
                     auditResult,
                   );
+                  console.log(`[auto-draft] Fix completed for ${newChapterSlug}`);
                 }
               }
             } catch (err) {
@@ -360,6 +364,10 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
               console.warn('[auto-draft] Audit/fix pass failed:', err);
             }
           }
+
+          // Clear stageLabel after audit/fix so it doesn't remain stale
+          // during the post-chapter housekeeping steps below.
+          patch({ stageLabel: `Preparing next chapter…` });
 
           // ── Periodic phrase audit ─────────────────────────────────
           const totalChapters = session()?.chaptersWritten ?? 0;

@@ -146,12 +146,16 @@ export class ClaudeCodeClient implements IClaudeClient {
         ? path.join(this.booksDir, bookSlug)
         : undefined;
 
+    console.log(`[ClaudeCodeClient] Spawning CLI: model=${model}, cwd=${cwd ?? '(none)'}, conversationId=${conversationId}, args=${args.length} items`);
+
     return new Promise<void>((resolve, reject) => {
       const child = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env },
         cwd,
       });
+
+      console.log(`[ClaudeCodeClient] CLI spawned: pid=${child.pid ?? 'unknown'}, conversationId=${conversationId}`);
 
       // Track the child process for abort support
       if (conversationId) {
@@ -208,6 +212,8 @@ export class ClaudeCodeClient implements IClaudeClient {
       });
 
       child.on('close', (code) => {
+        console.log(`[ClaudeCodeClient] CLI exited: pid=${child.pid ?? 'unknown'}, code=${code}, conversationId=${conversationId}`);
+
         // Remove from active processes map
         if (conversationId) {
           this.activeProcesses.delete(conversationId);

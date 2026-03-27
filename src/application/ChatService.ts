@@ -621,11 +621,13 @@ export class ChatService {
     chapterSlug: string;
   }): Promise<AuditResult | null> {
     const { bookSlug, chapterSlug } = params;
+    console.log(`[ChatService] auditChapter starting for ${chapterSlug} in ${bookSlug}`);
 
     // Read the chapter draft
     let draft: string;
     try {
       draft = await this.fs.readFile(bookSlug, `chapters/${chapterSlug}/draft.md`);
+      console.log(`[ChatService] Read draft for ${chapterSlug}: ${draft.length} chars`);
     } catch {
       console.warn(`[ChatService] Cannot read draft for ${chapterSlug}, skipping audit`);
       return null;
@@ -664,11 +666,17 @@ export class ChatService {
     const userMessage = userMessageParts.join('\n\n---\n\n');
 
     try {
-      // Use sendMessage and collect the response text
+      // Use sendMessage and collect the response text.
+      // Wrap in a timeout to prevent the auto-draft loop from hanging
+      // indefinitely if the CLI process stalls (rate-limit, model issue, etc.).
       let responseText = '';
       const sessionId = nanoid();
+      const auditConversationId = `audit-${sessionId}`;
+      console.log(`[ChatService] Spawning audit CLI for ${chapterSlug} (model: ${VERITY_AUDIT_MODEL}, session: ${sessionId})`);
 
-      await this.claude.sendMessage({
+      const AUDIT_TIMEOUT_MS = 120_000; // 2 minutes — generous for a single-turn Sonnet call
+
+      const cliPromise = this.claude.sendMessage({
         model: VERITY_AUDIT_MODEL,
         systemPrompt: auditorPrompt,
         messages: [{ role: 'user' as const, content: userMessage }],
@@ -676,14 +684,14 @@ export class ChatService {
         maxTurns: 3,
         bookSlug,
         sessionId,
-        conversationId: `audit-${sessionId}`,
+        conversationId: auditConversationId,
         onEvent: (event: StreamEvent) => {
           if (event.type === 'textDelta') {
             responseText += event.text;
           }
           if (event.type === 'done') {
             this.usage.recordUsage({
-              conversationId: `audit-${sessionId}`,
+              conversationId: auditConversationId,
               inputTokens: event.inputTokens,
               outputTokens: event.outputTokens,
               thinkingTokens: event.thinkingTokens,
@@ -692,6 +700,16 @@ export class ChatService {
           }
         },
       });
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          // Abort the CLI process so it doesn't linger after timeout
+          this.claude.abortStream(auditConversationId);
+          reject(new Error(`Audit timed out after ${AUDIT_TIMEOUT_MS / 1000}s`));
+        }, AUDIT_TIMEOUT_MS);
+      });
+
+      await Promise.race([cliPromise, timeoutPromise]);
 
       // Parse JSON from response — strip markdown fences if present
       const clean = responseText.replace(/```json\s*|```/g, '').trim();
@@ -739,8 +757,11 @@ export class ChatService {
 
     let responseBuffer = '';
     let thinkingBuffer = '';
+    const fixConversationId = `${conversationId}-fix`;
 
-    await this.claude.sendMessage({
+    const FIX_TIMEOUT_MS = 300_000; // 5 minutes — fix pass uses Opus with tool use
+
+    const cliPromise = this.claude.sendMessage({
       model: appSettings.model, // Opus for fix pass — needs creative judgment
       systemPrompt,
       messages: [{ role: 'user' as const, content: userMessage }],
@@ -749,7 +770,7 @@ export class ChatService {
       maxTurns: 10,
       bookSlug,
       sessionId,
-      conversationId: `${conversationId}-fix`,
+      conversationId: fixConversationId,
       onEvent: (event: StreamEvent) => {
         if (event.type === 'textDelta') {
           responseBuffer += event.text;
@@ -779,6 +800,15 @@ export class ChatService {
         }
       },
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        this.claude.abortStream(fixConversationId);
+        reject(new Error(`Fix pass timed out after ${FIX_TIMEOUT_MS / 1000}s`));
+      }, FIX_TIMEOUT_MS);
+    });
+
+    await Promise.race([cliPromise, timeoutPromise]);
   }
 
   /**
