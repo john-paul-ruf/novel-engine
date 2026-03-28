@@ -22,6 +22,7 @@ import type {
   ISeriesService,
   ISourceGenerationService,
   ISeriesImportService,
+  IHelperService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -65,6 +66,7 @@ export function registerIpcHandlers(services: {
   sourceGeneration: ISourceGenerationService;
   series: ISeriesService;
   seriesImport: ISeriesImportService;
+  helper: IHelperService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -1015,4 +1017,44 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('series:writeBible', (_e, seriesSlug: string, content: string) =>
     services.series.writeSeriesBible(seriesSlug, content));
+
+  // === Helper ===
+
+  ipcMain.handle('helper:getOrCreateConversation', async () => {
+    return services.helper.getOrCreateConversation();
+  });
+
+  ipcMain.handle('helper:getMessages', async (_e, conversationId: string) => {
+    return services.helper.getMessages(conversationId);
+  });
+
+  ipcMain.handle('helper:send', async (_e, params: { message: string; conversationId: string; callId?: string }) => {
+    const { message, conversationId, callId } = params;
+    const resolvedCallId = callId ?? randomUUID();
+    await services.helper.sendMessage({
+      message,
+      conversationId,
+      callId: resolvedCallId,
+      onEvent: (event) => {
+        for (const w of BrowserWindow.getAllWindows()) {
+          try {
+            w.webContents.send('chat:streamEvent', {
+              ...event,
+              callId: resolvedCallId,
+              conversationId,
+              source: 'chat' as StreamEventSource,
+            });
+          } catch { /* window closing */ }
+        }
+      },
+    });
+  });
+
+  ipcMain.handle('helper:abort', async (_e, conversationId: string) => {
+    services.helper.abortStream(conversationId);
+  });
+
+  ipcMain.handle('helper:reset', async () => {
+    await services.helper.resetConversation();
+  });
 }

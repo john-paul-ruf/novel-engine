@@ -1,4 +1,4 @@
-import { mkdir, readdir, copyFile, writeFile, access, rename } from 'node:fs/promises';
+import { mkdir, readdir, copyFile, writeFile, access, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { constants as fsConstants } from 'node:fs';
 
@@ -129,6 +129,25 @@ export async function bootstrap(userDataPath: string, agentsSourceDir: string): 
   // 5. Write the initialization flag.
   const flagPath = path.join(userDataPath, INITIALIZED_FLAG);
   await writeFile(flagPath, new Date().toISOString(), 'utf-8');
+}
+
+/**
+ * Copy the user guide to the userData directory so the Helper agent can
+ * access it at runtime. Always overwrites the destination to keep the
+ * guide up-to-date with the installed app version.
+ *
+ * @param userDataPath — the app's userData directory
+ * @param guideSourcePath — absolute path to the bundled USER_GUIDE.md
+ */
+export async function ensureUserGuide(userDataPath: string, guideSourcePath: string): Promise<void> {
+  const dest = path.join(userDataPath, 'USER_GUIDE.md');
+  try {
+    // Verify source exists before copying
+    await stat(guideSourcePath);
+    await copyFile(guideSourcePath, dest);
+  } catch {
+    // Source not found or copy failed — helper will work without it (degraded)
+  }
 }
 
 /**

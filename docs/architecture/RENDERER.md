@@ -28,6 +28,35 @@ File: `stores/tourStore.ts`
 | `dismissTour()` | Clears active tour without marking complete |
 | `resetTour(tourId)` | Removes from completed set, persists |
 
+### helperStore
+
+File: `stores/helperStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `isOpen` | `boolean` | Whether the helper chat panel is visible |
+| `conversation` | `Conversation \| null` | The persistent helper conversation |
+| `messages` | `Message[]` | All messages in the helper conversation |
+| `isStreaming` | `boolean` | True during CLI stream |
+| `isThinking` | `boolean` | True during thinking block |
+| `streamBuffer` | `string` | Accumulating response text |
+| `thinkingBuffer` | `string` | Accumulating thinking text |
+| `statusMessage` | `string` | Current status (e.g., "Preparing...") |
+| `isLoading` | `boolean` | True while initializing conversation |
+
+| Action | What It Does |
+|--------|-------------|
+| `toggle()` | Opens if closed, closes if open |
+| `open()` | Sets isOpen, loads/creates conversation and messages |
+| `close()` | Hides panel (blocked while streaming) |
+| `sendMessage(content)` | Optimistic UI update, calls bridge, scoped by callId |
+| `abort()` | Kills active helper stream |
+| `resetConversation()` | Deletes conversation, clears state |
+| `initStreamListener()` | Subscribes to `chat:streamEvent` via bridge |
+| `destroyStreamListener()` | Unsubscribes cleanup |
+
+Uses `createStreamHandler` with `alwaysCheckConversationId: true`. Stream events flow through the existing `chat:streamEvent` channel, scoped by callId.
+
 ### settingsStore
 
 File: `stores/settingsStore.ts`
@@ -338,10 +367,18 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `AppLayout.tsx` | Main shell: sidebar + content area, view routing. `StreamManager` component initializes pitchRoomStore stream listener lifecycle (mount → `initStreamListener`, unmount → `destroyStreamListener`). |
+| `AppLayout.tsx` | Main shell: sidebar + content area, view routing. `StreamManager` component initializes pitchRoomStore and helperStore stream listener lifecycles. Also renders `HelperButton` and `HelperPanel`. |
 | `Sidebar.tsx` | Left panel: book selector + pipeline + file tree + action buttons + help "?" button with tour replay popover |
 | `TitleBar.tsx` | Custom window title bar (traffic lights on macOS, buttons on Windows/Linux) |
 | `ResizeHandle.tsx` | Sidebar resize drag handle |
+
+### Helper/
+
+| File | Purpose |
+|------|---------|
+| `HelperButton.tsx` | Fixed-position floating help button (bottom-right, z-50). Blue-500 circle with question mark / X icon. |
+| `HelperPanel.tsx` | Slide-up chat panel (fixed bottom-24 right-6, z-40). Header with reset/close, message list, text input. |
+| `HelperMessageList.tsx` | Scrollable message list with auto-scroll. User messages right-aligned (blue-500), assistant left-aligned (zinc-100/800). Streaming with blinking cursor, thinking indicator, bouncing dots waiting state, empty state welcome. |
 
 ### Onboarding/
 

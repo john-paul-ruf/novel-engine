@@ -1,9 +1,9 @@
 // === Agent ===
 
-export type AgentName = 'Spark' | 'Verity' | 'Ghostlight' | 'Lumen' | 'Sable' | 'Forge' | 'Quill' | 'Wrangler';
+export type AgentName = 'Spark' | 'Verity' | 'Ghostlight' | 'Lumen' | 'Sable' | 'Forge' | 'Quill' | 'Wrangler' | 'Helper';
 
 // The 7 creative agents that the author interacts with
-export type CreativeAgentName = Exclude<AgentName, 'Wrangler'>;
+export type CreativeAgentName = Exclude<AgentName, 'Wrangler' | 'Helper'>;
 
 export type AgentMeta = {
   name: AgentName;
@@ -130,7 +130,7 @@ export type Message = {
   timestamp: string;       // ISO date
 };
 
-export type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile' | 'pitch-room' | 'hot-take' | 'adhoc-revision';
+export type ConversationPurpose = 'pipeline' | 'voice-setup' | 'author-profile' | 'pitch-room' | 'hot-take' | 'adhoc-revision' | 'helper';
 
 // === Pitch Room ===
 

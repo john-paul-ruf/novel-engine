@@ -12,8 +12,8 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 
 | Type | Shape | Used By |
 |------|-------|---------|
-| `AgentName` | `'Spark' \| 'Verity' \| 'Ghostlight' \| 'Lumen' \| 'Sable' \| 'Forge' \| 'Quill' \| 'Wrangler'` | AgentService, ChatService, UI |
-| `CreativeAgentName` | `Exclude<AgentName, 'Wrangler'>` | Pipeline, stores, quick actions |
+| `AgentName` | `'Spark' \| 'Verity' \| 'Ghostlight' \| 'Lumen' \| 'Sable' \| 'Forge' \| 'Quill' \| 'Wrangler' \| 'Helper'` | AgentService, ChatService, HelperService, UI |
+| `CreativeAgentName` | `Exclude<AgentName, 'Wrangler' \| 'Helper'>` | Pipeline, stores, quick actions |
 | `AgentMeta` | `{ name, filename, role, color, thinkingBudget, maxTurns }` | AGENT_REGISTRY |
 | `Agent` | `AgentMeta & { systemPrompt }` | AgentService.load() |
 
@@ -62,7 +62,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 |------|-------|---------|
 | `MessageRole` | `'user' \| 'assistant'` | Messages, CLI |
 | `Message` | `{ id, conversationId, role, content, thinking, timestamp }` | DatabaseService, ChatView |
-| `ConversationPurpose` | `'pipeline' \| 'voice-setup' \| 'author-profile' \| 'pitch-room' \| 'hot-take' \| 'adhoc-revision'` | Conversation creation |
+| `ConversationPurpose` | `'pipeline' \| 'voice-setup' \| 'author-profile' \| 'pitch-room' \| 'hot-take' \| 'adhoc-revision' \| 'helper'` | Conversation creation |
 | `PitchDraft` | `{ conversationId, title, hasPitch, createdAt, updatedAt }` | PitchRoom UI |
 | `Conversation` | `{ id, bookSlug, agentName, pipelinePhase, purpose, title, createdAt, updatedAt }` | DatabaseService, ChatView |
 
@@ -523,13 +523,25 @@ Implemented by: `SeriesImportService` (`src/application/`)
 | `preview` | `(filePaths: string[]) => Promise<SeriesImportPreview>` | Batch-preview multiple files, detect series name |
 | `commit` | `(config: SeriesImportCommitConfig) => Promise<SeriesImportResult>` | Create books sequentially, create/attach series, link volumes |
 
+### IHelperService
+
+Implemented by: `HelperService` (`src/application/HelperService.ts`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `sendMessage` | `(params: { message, conversationId, onEvent, sessionId?, callId? }) => Promise<void>` | Loads agent + user guide, streams via CLI |
+| `getOrCreateConversation` | `() => Promise<Conversation>` | Returns or creates the single persistent helper conversation |
+| `getMessages` | `(conversationId: string) => Promise<Message[]>` | Message history |
+| `abortStream` | `(conversationId: string) => void` | Kill active CLI process |
+| `resetConversation` | `() => Promise<void>` | Delete helper conversation |
+
 ---
 
 ## Constants
 
 ### AGENT_REGISTRY
 
-`Record<AgentName, Omit<AgentMeta, 'name'>>` — metadata for all 8 agents.
+`Record<AgentName, Omit<AgentMeta, 'name'>>` — metadata for all 9 agents.
 
 | Agent | Filename | Role | Color | Thinking Budget | Max Turns |
 |-------|----------|------|-------|----------------|-----------|
@@ -541,6 +553,7 @@ Implemented by: `SeriesImportService` (`src/application/`)
 | Forge | FORGE.md | Task Master | #F97316 | 8000 | 10 |
 | Quill | QUILL.md | Publisher | #6366F1 | 4000 | 8 |
 | Wrangler | WRANGLER.md | Revision Plan Parser | #71717A | 4000 | 3 |
+| Helper | HELPER.md | Help & FAQ | #3B82F6 | 2000 | 5 |
 
 ### PIPELINE_PHASES
 
@@ -569,6 +582,7 @@ Implemented by: `SeriesImportService` (`src/application/`)
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `PITCH_ROOM_SLUG` | `'__pitch-room__'` | Reserved book slug for pitch room |
+| `HELPER_SLUG` | `'__helper__'` | Reserved book slug for helper conversations |
 | `CREATIVE_AGENT_NAMES` | 7-element array | UI agent lists (excludes Wrangler) |
 | `WRANGLER_MODEL` | `'claude-sonnet-4-20250514'` | Model for plan parsing |
 | `AGENT_RESPONSE_BUFFER` | `Record<AgentName, number>` | Per-agent expected response sizes |

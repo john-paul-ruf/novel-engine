@@ -4,6 +4,48 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add in-app Helper agent (floating help chat)
+
+### Summary
+
+Added a non-creative Helper agent accessible via a floating chat bubble in the bottom-right corner of the app. The helper uses a comprehensive user guide as its knowledge base and answers questions about Novel Engine features, workflows, agents, troubleshooting, and more. The helper conversation persists across book switches and view navigation.
+
+### Added
+- `src/domain/types.ts` — Added `'Helper'` to `AgentName`, excluded from `CreativeAgentName`, added `'helper'` to `ConversationPurpose`
+- `src/domain/constants.ts` — Added `Helper` entry to `AGENT_REGISTRY` (blue-500, 2K thinking, 5 max turns), `HELPER_SLUG = '__helper__'` constant, `Helper` in `AGENT_RESPONSE_BUFFER`
+- `src/domain/interfaces.ts` — Added `IHelperService` interface (sendMessage, getOrCreateConversation, getMessages, abortStream, resetConversation)
+- `agents/HELPER.md` — Helper agent system prompt with behavior rules and conversation style
+- `docs/USER_GUIDE.md` — Comprehensive 16-section user guide covering all features
+- `src/application/HelperService.ts` — Implements `IHelperService`. Loads agent prompt + user guide, manages persistent conversation, delegates to CLI via `IProviderRegistry`
+- `src/renderer/stores/helperStore.ts` — Zustand store for helper panel visibility, conversation, messages, streaming state
+- `src/renderer/components/Helper/HelperButton.tsx` — Fixed-position floating help button (bottom-right)
+- `src/renderer/components/Helper/HelperPanel.tsx` — Slide-up chat panel with header, message list, and input
+- `src/renderer/components/Helper/HelperMessageList.tsx` — Scrollable message list with streaming, thinking, and empty state support
+- `src/main/bootstrap.ts` — Added `ensureUserGuide()` function to copy USER_GUIDE.md to userData on every startup
+
+### Changed
+- `src/main/index.ts` — Instantiates `HelperService` in composition root, passes to IPC handlers, calls `ensureUserGuide` on startup
+- `src/main/ipc/handlers.ts` — Added 5 `helper:*` IPC channels (getOrCreateConversation, getMessages, send, abort, reset)
+- `src/preload/index.ts` — Added `helper` namespace to preload bridge API
+- `src/renderer/components/Layout/AppLayout.tsx` — Added HelperButton, HelperPanel, and helper stream listener
+- `src/renderer/components/Chat/ChatModal.tsx` — Added `'helper'` entry to `PURPOSE_LABELS` Record
+- `forge.config.ts` — Added `./docs` to `extraResource` for packaged builds
+
+### Architecture Impact
+- New type union member: `'Helper'` in `AgentName`, `'helper'` in `ConversationPurpose`
+- New constant: `HELPER_SLUG = '__helper__'`
+- New interface: `IHelperService` in domain
+- New service: `HelperService` in application layer
+- New IPC channels: `helper:getOrCreateConversation`, `helper:getMessages`, `helper:send`, `helper:abort`, `helper:reset`
+- New Zustand store: `helperStore`
+- New components: `Helper/HelperButton`, `Helper/HelperPanel`, `Helper/HelperMessageList`
+- New dependency: `HelperService` → `ISettingsService`, `IAgentService`, `IDatabaseService`, `IFileSystemService`, `IProviderRegistry`, `StreamManager`
+
+### Migration Notes
+None — no breaking changes. The new `'helper'` ConversationPurpose value and `'Helper'` AgentName are additive.
+
+---
+
 ## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-05: Polish, edge cases & documentation
 
 ### Summary

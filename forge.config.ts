@@ -19,6 +19,7 @@ const config: ForgeConfig = {
     extraResource: [
       './resources/pandoc',   // Pandoc binary
       './agents',             // Agent .md definitions
+      './docs',               // User guide for Helper agent
     ],
 
     // macOS signing (environment variables)

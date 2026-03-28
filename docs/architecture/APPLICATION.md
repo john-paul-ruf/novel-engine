@@ -384,6 +384,27 @@ Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IFileSys
 
 Each step creates its own conversation. Step errors are caught and reported without aborting remaining steps.
 
+### HelperService
+
+File: `src/application/HelperService.ts`
+
+Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IFileSystemService`, `IProviderRegistry`, `StreamManager`
+
+| Method | What It Does |
+|--------|-------------|
+| `getOrCreateConversation()` | Returns existing helper conversation or creates one with `HELPER_SLUG` |
+| `getMessages(conversationId)` | Delegates to `IDatabaseService.getMessages()` |
+| `sendMessage(params)` | Loads agent + user guide → builds system prompt → streams via provider registry |
+| `abortStream(conversationId)` | Delegates to `IProviderRegistry.abortStream()` |
+| `resetConversation()` | Deletes the existing helper conversation |
+
+Key behaviors:
+- Single persistent conversation per app (not per book) using `HELPER_SLUG = '__helper__'`
+- System prompt = HELPER.md agent prompt + USER_GUIDE.md content (read from userData)
+- Working directory = active book dir if one exists, else userData root
+- Uses `StreamManager` for accumulation/saving/usage recording (same pattern as PitchRoomService)
+- No context wrangling, no pipeline awareness, no file watching
+
 ---
 
 ## Context Assembly

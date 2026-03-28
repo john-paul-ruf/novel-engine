@@ -76,6 +76,7 @@ src/
 │   ├── ManuscriptImportService.ts           # DOCX/MD import, chapter detection, book creation
 │   ├── SeriesImportService.ts              # Batch import + series creation orchestration
 │   ├── SourceGenerationService.ts           # Multi-agent source document generation
+│   ├── HelperService.ts                     # In-app help assistant (user guide as context)
 │   ├── import/
 │   │   └── ChapterDetector.ts               # Pure chapter break detection utility
 │   ├── context/
@@ -111,6 +112,7 @@ src/
     │   ├── modalChatStore.ts
     │   ├── motifLedgerStore.ts
     │   ├── importStore.ts
+    │   ├── helperStore.ts                # In-app help assistant panel state
     │   └── streamHandler.ts              # Shared stream event handler factory
     ├── tours/
     │   └── tourDefinitions.ts            # Step arrays for welcome, first-book, pipeline-intro tours
@@ -128,6 +130,7 @@ src/
     │   ├── MotifLedger/                     # MotifLedgerView + tabs (Entries, Systems, Foreshadow, etc.)
     │   ├── Import/                          # ImportWizard, ChapterPreviewList, ImportSeriesWizard, VolumePreviewList
     │   ├── CliActivity/                     # CliActivityPanel
+    │   ├── Helper/                          # HelperButton, HelperPanel, HelperMessageList
     │   └── ErrorBoundary/                   # ErrorBoundary
     ├── hooks/
     │   ├── useResizeHandle.ts
@@ -203,6 +206,15 @@ SourceGenerationService
 ├── IDatabaseService (DatabaseService)
 ├── IFileSystemService (FileSystemService)
 └── IProviderRegistry (ProviderRegistry)
+
+HelperService
+├── ISettingsService (SettingsService)
+├── IAgentService (AgentService)
+├── IDatabaseService (DatabaseService)
+├── IFileSystemService (FileSystemService)
+├── IProviderRegistry (ProviderRegistry)
+├── StreamManager
+└── userDataPath: string
 
 NotificationManager
 └── ISettingsService (SettingsService)

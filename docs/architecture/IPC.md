@@ -242,6 +242,16 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `series:readBible` | invoke | `seriesService.readSeriesBible(seriesSlug)` | `string` |
 | `series:writeBible` | invoke | `seriesService.writeSeriesBible(seriesSlug, content)` | `void` |
 
+### helper:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `helper:getOrCreateConversation` | invoke | `helperService.getOrCreateConversation()` | `Conversation` |
+| `helper:getMessages` | invoke | `helperService.getMessages(conversationId)` | `Message[]` |
+| `helper:send` | invoke | `helperService.sendMessage({ message, conversationId, callId })` | `void` (streams via `chat:streamEvent`) |
+| `helper:abort` | invoke | `helperService.abortStream(conversationId)` | `void` |
+| `helper:reset` | invoke | `helperService.resetConversation()` | `void` |
+
 ---
 
 ## Push Events
@@ -453,6 +463,14 @@ window.novelEngine: {
     remove(providerId): Promise<void>
     checkStatus(providerId): Promise<ProviderStatus>
     setDefault(providerId): Promise<void>
+  }
+
+  helper: {
+    getOrCreateConversation(): Promise<Conversation>
+    getMessages(conversationId: string): Promise<Message[]>
+    send(params: { message, conversationId, callId? }): Promise<void>
+    abort(conversationId: string): Promise<void>
+    reset(): Promise<void>
   }
 }
 ```

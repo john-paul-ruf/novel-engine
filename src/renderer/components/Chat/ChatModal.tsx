@@ -42,6 +42,11 @@ const PURPOSE_LABELS: Record<ConversationPurpose, { title: string; subtitle: str
     subtitle: 'Forge generates a revision plan from your request',
     badge: 'Ad Hoc Revision',
   },
+  helper: {
+    title: 'Help Assistant',
+    subtitle: 'Ask questions about Novel Engine',
+    badge: 'Help',
+  },
 };
 
 function ModalHeader(): React.ReactElement {

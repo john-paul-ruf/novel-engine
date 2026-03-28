@@ -61,10 +61,14 @@ export const AGENT_REGISTRY: Record<AgentName, Omit<AgentMeta, 'name'>> = {
   Forge:      { filename: 'FORGE.md',      role: 'Task Master',           color: '#F97316', thinkingBudget: 8000, maxTurns: 10 },
   Quill:      { filename: 'QUILL.md',      role: 'Publisher',             color: '#6366F1', thinkingBudget: 4000, maxTurns: 8 },
   Wrangler:   { filename: 'WRANGLER.md',   role: 'Revision Plan Parser',  color: '#71717A', thinkingBudget: 4000, maxTurns: 3 },
+  Helper:     { filename: 'HELPER.md',    role: 'Help & FAQ',            color: '#3B82F6', thinkingBudget: 2000, maxTurns: 5 },
 };
 
 /** Reserved book slug used for Pitch Room conversations and draft files. */
 export const PITCH_ROOM_SLUG = '__pitch-room__';
+
+/** Reserved book slug used for Helper agent conversations. */
+export const HELPER_SLUG = '__helper__';
 
 // Creative agents only — excludes Wrangler (used for UI agent lists)
 export const CREATIVE_AGENT_NAMES: CreativeAgentName[] = ['Spark', 'Verity', 'Ghostlight', 'Lumen', 'Sable', 'Forge', 'Quill'];
@@ -255,6 +259,7 @@ export const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {
   Forge:      8000,
   Quill:      6000,
   Wrangler:   2000,
+  Helper:     2000,
 };
 
 export const HOT_TAKE_MODEL = 'claude-opus-4-20250514';

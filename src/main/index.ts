@@ -65,6 +65,7 @@ import { ChatService } from '@app/ChatService';
 import { HotTakeService } from '@app/HotTakeService';
 import { AdhocRevisionService } from '@app/AdhocRevisionService';
 import { PitchRoomService } from '@app/PitchRoomService';
+import { HelperService } from '@app/HelperService';
 import { StreamManager } from '@app/StreamManager';
 import { ChapterValidator } from '@app/ChapterValidator';
 import { PipelineService } from '@app/PipelineService';
@@ -84,7 +85,7 @@ import { registerIpcHandlers } from './ipc/handlers';
 import { NotificationManager } from './notifications';
 
 // Bootstrap
-import { bootstrap, needsBootstrap, ensureAgents } from './bootstrap';
+import { bootstrap, needsBootstrap, ensureAgents, ensureUserGuide } from './bootstrap';
 
 // Vite globals injected by Electron Forge
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -204,6 +205,12 @@ async function initializeApp(): Promise<void> {
   //     Idempotent: COPYFILE_EXCL never overwrites user customisations.
   await ensureAgents(path.join(userDataPath, 'custom-agents'), agentsSourceDir);
 
+  // 1c. Copy user guide for the Helper agent (always overwrite to keep current)
+  const guideSourcePath = app.isPackaged
+    ? path.join(process.resourcesPath, 'docs', 'USER_GUIDE.md')
+    : path.join(app.getAppPath(), 'docs', 'USER_GUIDE.md');
+  await ensureUserGuide(userDataPath, guideSourcePath);
+
   // 2. Resolve paths
   booksDir = path.join(userDataPath, 'books');
   const agentsDir = path.join(userDataPath, 'custom-agents');
@@ -284,6 +291,7 @@ async function initializeApp(): Promise<void> {
   const manuscriptImport = new ManuscriptImportService(fs, pandocPath);
   const seriesImport = new SeriesImportService(manuscriptImport, series);
   const sourceGeneration = new SourceGenerationService(settings, agents, db, fs, providerRegistry);
+  const helper = new HelperService(settings, agents, db, fs, providerRegistry, streamManager, userDataPath);
   const notifications = new NotificationManager(settings);
 
   // 4b. Recover orphaned stream sessions and prune old event data
@@ -380,7 +388,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

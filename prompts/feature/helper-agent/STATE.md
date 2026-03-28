@@ -29,12 +29,12 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Domain: Helper Agent Types, Interface, and Constants | Domain | pending | | |
-| 2 | SESSION-02 — Content: User Guide & Helper Agent Prompt | Content / Infrastructure | pending | | |
-| 3 | SESSION-03 — Application: HelperService Implementation | Application | pending | | |
-| 4 | SESSION-04 — IPC Wiring: Handlers, Preload Bridge, Composition Root | IPC / Main | pending | | |
-| 5 | SESSION-05 — Renderer Store: helperStore | Renderer | pending | | |
-| 6 | SESSION-06 — Renderer UI: Floating Help Button & Chat Panel | Renderer | pending | | |
+| 1 | SESSION-01 — Domain: Helper Agent Types, Interface, and Constants | Domain | done | 2026-03-28 | Also added 'helper' to ChatModal PURPOSE_LABELS to fix Record<ConversationPurpose> type error. Added Helper to AGENT_RESPONSE_BUFFER. |
+| 2 | SESSION-02 — Content: User Guide & Helper Agent Prompt | Content / Infrastructure | done | 2026-03-28 | Added ensureUserGuide to bootstrap.ts. Added ./docs to forge extraResource. Guide always overwrites on startup to stay current. |
+| 3 | SESSION-03 — Application: HelperService Implementation | Application | done | 2026-03-28 | Used StreamManager pattern (like PitchRoomService) instead of manual accumulation. Used resolveThinkingBudget utility. |
+| 4 | SESSION-04 — IPC Wiring: Handlers, Preload Bridge, Composition Root | IPC / Main | done | 2026-03-28 | Stream events tagged with callId/conversationId/source per existing pattern. StreamManager passed from composition root. |
+| 5 | SESSION-05 — Renderer Store: helperStore | Renderer | done | 2026-03-28 | Follows modalChatStore pattern exactly. Uses createStreamHandler with alwaysCheckConversationId: true. |
+| 6 | SESSION-06 — Renderer UI: Floating Help Button & Chat Panel | Renderer | done | 2026-03-28 | Created HelperButton, HelperPanel, HelperMessageList. Added to AppLayout with stream listener. |
 
 ---
 
@@ -105,8 +105,10 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-06 (ALL DONE)
 
 ### Observations:
+- Adding 'helper' to ConversationPurpose required updating ChatModal.tsx's PURPOSE_LABELS Record, which was typed as Record<ConversationPurpose, ...>.
+- Helper added to AGENT_RESPONSE_BUFFER with 2000 token budget.
 
 ### Warnings:

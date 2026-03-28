@@ -431,6 +431,20 @@ const api = {
     writeBible: (seriesSlug: string, content: string): Promise<void> =>
       ipcRenderer.invoke('series:writeBible', seriesSlug, content),
   },
+
+  // Helper Agent
+  helper: {
+    getOrCreateConversation: (): Promise<Conversation> =>
+      ipcRenderer.invoke('helper:getOrCreateConversation'),
+    getMessages: (conversationId: string): Promise<Message[]> =>
+      ipcRenderer.invoke('helper:getMessages', conversationId),
+    send: (params: { message: string; conversationId: string; callId?: string }): Promise<void> =>
+      ipcRenderer.invoke('helper:send', params),
+    abort: (conversationId: string): Promise<void> =>
+      ipcRenderer.invoke('helper:abort', conversationId),
+    reset: (): Promise<void> =>
+      ipcRenderer.invoke('helper:reset'),
+  },
 };
 
 contextBridge.exposeInMainWorld('novelEngine', api);

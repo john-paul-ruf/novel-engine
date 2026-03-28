@@ -20,7 +20,6 @@ import type {
   ImportCommitConfig,
   ImportPreview,
   ImportResult,
-  SourceGenerationEvent,
   Message,
   MessageRole,
   ModelInfo,
@@ -46,6 +45,7 @@ import type {
   SeriesSummary,
   ShelvedPitch,
   ShelvedPitchMeta,
+  SourceGenerationEvent,
   StreamEvent,
   StreamSessionRecord,
   UsageRecord,
@@ -773,4 +773,46 @@ export interface ISeriesImportService {
    * is reported in the result.
    */
   commit(config: SeriesImportCommitConfig): Promise<SeriesImportResult>;
+}
+
+export interface IHelperService {
+  /**
+   * Send a message to the helper agent.
+   *
+   * Creates a conversation on first use. Subsequent messages reuse the
+   * same conversation. The helper's system prompt includes the full
+   * user guide so it can answer questions about the application.
+   *
+   * Working directory: the active book's directory if one exists,
+   * otherwise the userData root. This lets the helper reference book
+   * files when relevant.
+   */
+  sendMessage(params: {
+    message: string;
+    conversationId: string;
+    onEvent: (event: StreamEvent) => void;
+    sessionId?: string;
+    callId?: string;
+  }): Promise<void>;
+
+  /**
+   * Get or create the persistent helper conversation.
+   * Returns the existing conversation if one exists, otherwise creates a new one.
+   */
+  getOrCreateConversation(): Promise<Conversation>;
+
+  /**
+   * Get all messages in the helper conversation.
+   */
+  getMessages(conversationId: string): Promise<Message[]>;
+
+  /**
+   * Abort the active helper stream. No-op if nothing is active.
+   */
+  abortStream(conversationId: string): void;
+
+  /**
+   * Delete the helper conversation and start fresh.
+   */
+  resetConversation(): Promise<void>;
 }

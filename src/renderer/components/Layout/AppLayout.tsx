@@ -17,6 +17,9 @@ import { MotifLedgerView } from '../MotifLedger/MotifLedgerView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
 import { GuidedTourOverlay } from '../common/GuidedTourOverlay';
+import { HelperButton } from '../Helper/HelperButton';
+import { HelperPanel } from '../Helper/HelperPanel';
+import { useHelperStore } from '../../stores/helperStore';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 
@@ -38,6 +41,12 @@ function StreamManager(): null {
   useEffect(() => {
     usePitchRoomStore.getState().initStreamListener();
     return () => usePitchRoomStore.getState().destroyStreamListener();
+  }, []);
+
+  // Helper stream listener — persists across the entire app lifecycle
+  useEffect(() => {
+    useHelperStore.getState().initStreamListener();
+    return () => useHelperStore.getState().destroyStreamListener();
   }, []);
 
   return null;
@@ -130,6 +139,8 @@ export function AppLayout(): React.ReactElement {
       </div>
       {isModalOpen && <ChatModal />}
       <CliActivityListener />
+      <HelperPanel />
+      <HelperButton />
       <TourManager />
       <TourOverlayRenderer />
     </div>
