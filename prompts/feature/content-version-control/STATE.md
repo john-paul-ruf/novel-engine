@@ -31,7 +31,7 @@
 |---|---------|----------|--------|-----------|-------|
 | 1 | SESSION-01 — Domain Types & Interface | Domain | done | 2026-03-28 | Clean implementation, no complications. Types placed after FileEntry section as specified. |
 | 2 | SESSION-02 — Database Migration & Version Repository | Infrastructure | done | 2026-03-28 | Migration v2 added, 7 new methods + 2 private mappers in DatabaseService, 7 new methods in IDatabaseService. |
-| 3 | SESSION-03 — Install diff Package & VersionService | Application | pending | | |
+| 3 | SESSION-03 — Install diff Package & VersionService | Application | done | 2026-03-28 | diff + @types/diff installed. VersionService implements all 8 IVersionService methods. |
 | 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root (multi-book safe) | IPC / Main | pending | | |
 | 5 | SESSION-05 — Version Store & DiffViewer Component | Renderer | pending | | |
 | 6 | SESSION-06 — VersionHistory Panel Component | Renderer | pending | | |
@@ -105,11 +105,12 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-02
+### Last completed session: SESSION-03
 
 ### Observations:
 - SESSION-01: Domain types and IVersionService interface added cleanly
-- SESSION-02: Migration v2 creates `file_versions` table with 2 indexes. 7 new methods added to both IDatabaseService and DatabaseService. Private mappers `mapFileVersion` and `mapFileVersionSummary` handle snake_case→camelCase. `deleteFileVersionsBeyondLimit` uses inline prepare (not reusable stmt) since it's called infrequently during pruning.
-- Next session (SESSION-03) should install `diff` package and implement `VersionService` in application layer
+- SESSION-02: Migration v2, 7 new DB methods, private mappers
+- SESSION-03: `diff` + `@types/diff` installed. `VersionService` created with DI on `IDatabaseService` + `IFileSystemService`. Uses `node:crypto` for SHA-256 hashing and `diff.structuredPatch` for structured diff output. Filters to `.md`/`.json` only. Revert always creates a snapshot (bypasses dedup).
+- Next session (SESSION-04) should wire VersionService into composition root, add IPC handlers and preload bridge
 
 ### Warnings:

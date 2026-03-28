@@ -4,6 +4,24 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add VersionService implementation with diff computation
+
+### Summary
+
+Created `VersionService` in the application layer, implementing all 8 methods of `IVersionService`. Installed `diff` npm package for structured diff computation using `structuredPatch()`. The service handles snapshot dedup via SHA-256 hashing, file extension filtering (`.md`/`.json` only), structured diff output with line numbers, and version pruning.
+
+### Added
+- `src/application/VersionService.ts` — Implements `IVersionService`. Depends on `IDatabaseService` and `IFileSystemService` via DI. Uses `node:crypto` for hashing and `diff` package for structured patches.
+
+### Architecture Impact
+- New service: `VersionService` — depends on `IDatabaseService` + `IFileSystemService` (interfaces only)
+- New npm dependency: `diff` (runtime) + `@types/diff` (dev)
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Add database migration and version repository for content version control
 
 ### Summary

@@ -372,7 +372,7 @@ Implemented by: `ChatService` (`src/application/`)
 
 ### IVersionService
 
-Implemented by: `VersionService` (`src/application/`) — *planned, SESSION-03*
+Implemented by: `VersionService` (`src/application/`)
 
 | Method | Signature | Returns |
 |--------|-----------|---------|

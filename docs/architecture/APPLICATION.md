@@ -1,6 +1,6 @@
 # Application — Services & Orchestration
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-28
 
 Everything in `src/application/`. Business logic that orchestrates infrastructure through injected interfaces.
 
@@ -292,6 +292,29 @@ Dependencies: `IFileSystemService`
 - **Audit records:** `chapter`→`chapterSlug`, `date`→`auditedAt`, `findings`→`notes`; fills missing `id`, `entriesAdded`, `entriesUpdated`
 - **Systems:** Fills missing `components` array, `arcTrajectory`
 - **Entries:** Fills missing `phrase` (falls back to `description`), `occurrences` array, `systemId`
+
+### VersionService
+
+File: `src/application/VersionService.ts`
+
+Dependencies: `IDatabaseService`, `IFileSystemService`
+
+| Method | What It Does |
+|--------|-------------|
+| `snapshotFile(bookSlug, filePath, source)` | Reads file from disk, hashes, dedup-checks, stores if changed |
+| `snapshotContent(bookSlug, filePath, content, source)` | Same as above but from in-memory content |
+| `getHistory(bookSlug, filePath, limit?, offset?)` | Returns paginated version summaries, newest first |
+| `getVersion(versionId)` | Returns full version with content |
+| `getDiff(oldVersionId, newVersionId)` | Computes structured diff using `diff.structuredPatch()` |
+| `revertToVersion(bookSlug, filePath, versionId)` | Writes historical content to disk + creates "revert" snapshot |
+| `getVersionCount(bookSlug, filePath)` | Returns total version count |
+| `pruneVersions(bookSlug, keepCount?)` | Deletes old versions beyond retention limit (default 50) |
+
+**Key behaviors:**
+- Only versions `.md` and `.json` files (`isVersionable()` check)
+- SHA-256 dedup: skips snapshot when content hash matches latest version
+- Exception: `revertToVersion()` always creates a snapshot for auditability
+- Diff uses `diff.structuredPatch()` with 3 lines of context, producing `DiffHunk[]` with per-line numbering
 
 ---
 
