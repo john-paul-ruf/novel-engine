@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-28
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
@@ -90,6 +90,31 @@ File: `stores/viewStore.ts`
 | `navigate(view, payload?)` | Sets current view and payload, infers file view mode |
 
 Persisted to localStorage via Zustand `persist` middleware.
+
+### versionStore
+
+File: `stores/versionStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `activeBookSlug` | `string` | Current book being viewed |
+| `activeFilePath` | `string` | Current file being viewed |
+| `versions` | `FileVersionSummary[]` | Paginated version list (newest first) |
+| `totalCount` | `number` | Total versions for this file |
+| `isLoading` | `boolean` | Loading state |
+| `selectedVersionId` | `number \| null` | Currently selected version |
+| `diff` | `FileDiff \| null` | Computed diff for selected version |
+| `isDiffLoading` | `boolean` | Diff computation loading state |
+| `error` | `string \| null` | Error message |
+
+| Action | What It Does |
+|--------|-------------|
+| `loadHistory(bookSlug, filePath)` | Fetches first page + total count |
+| `loadMoreHistory()` | Fetches next page (offset pagination) |
+| `selectVersion(versionId)` | Computes diff against previous version |
+| `clearSelection()` | Clears selected version and diff |
+| `revertToVersion(versionId)` | Reverts file, reloads history |
+| `reset()` | Clears all state |
 
 ### pitchRoomStore
 
@@ -243,6 +268,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `AgentOutputPanel.tsx` | Agent output files section |
 | `CollapsibleSection.tsx` | Reusable collapsible section wrapper |
 | `DeleteConfirmModal.tsx` | Confirmation dialog for file/folder deletion |
+| `DiffViewer.tsx` | Renders `FileDiff` as color-coded unified diff (green/red/neutral) |
 
 ### Build/
 

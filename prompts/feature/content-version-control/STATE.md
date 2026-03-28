@@ -33,7 +33,7 @@
 | 2 | SESSION-02 — Database Migration & Version Repository | Infrastructure | done | 2026-03-28 | Migration v2 added, 7 new methods + 2 private mappers in DatabaseService, 7 new methods in IDatabaseService. |
 | 3 | SESSION-03 — Install diff Package & VersionService | Application | done | 2026-03-28 | diff + @types/diff installed. VersionService implements all 8 IVersionService methods. |
 | 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root (multi-book safe) | IPC / Main | done | 2026-03-28 | VersionService wired in composition root. 6 IPC channels added. Auto-snapshot hooks in chat:send, hot-take, adhoc-revision, revision queue, files:write, and BookWatcher fallback. Startup pruning added. |
-| 5 | SESSION-05 — Version Store & DiffViewer Component | Renderer | pending | | |
+| 5 | SESSION-05 — Version Store & DiffViewer Component | Renderer | done | 2026-03-28 | versionStore with 6 actions + DiffViewer with hunk/line/summary rendering. |
 | 6 | SESSION-06 — VersionHistory Panel Component | Renderer | pending | | |
 | 7 | SESSION-07 — Integrate Version History into FilesView & FileEditor | Renderer | pending | | |
 
@@ -105,11 +105,11 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-04
+### Last completed session: SESSION-05
 
 ### Observations:
-- SESSION-01–03: Domain, DB, and application layers complete
-- SESSION-04: Full wiring complete. 6 `versions:*` IPC channels. Auto-snapshot at 5 hook points: `files:write` (user), `chat:send` (agent), `hot-take:start` (agent), `adhoc-revision:start` (agent), revision queue `filesChanged` events (agent), BookWatcher fallback (agent). Startup pruning runs after stream event pruning. Revision queue hook uses `getActiveBookSlug()` since revision queue always operates on active book.
-- Next session (SESSION-05) should create the Zustand versionStore and DiffViewer component
+- SESSION-01–04: Backend fully wired — domain types, DB, service, IPC, preload
+- SESSION-05: `versionStore` created with pagination (PAGE_SIZE=30), version selection with auto-diff, revert with auto-reload. `DiffViewer` renders unified diff with green/red color coding, dual line numbers, hunk headers, and addition/deletion summary.
+- Next session (SESSION-06) should create the VersionHistoryPanel component
 
 ### Warnings:

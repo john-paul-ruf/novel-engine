@@ -4,6 +4,25 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add version store and DiffViewer component
+
+### Summary
+
+Created `versionStore` Zustand store with paginated history loading, version selection with auto-diff computation, revert, and error handling. Created `DiffViewer` component that renders `FileDiff` as color-coded unified diff with dual line numbers, hunk headers, and addition/deletion summary bar.
+
+### Added
+- `src/renderer/stores/versionStore.ts` — Zustand store with 6 actions: `loadHistory`, `loadMoreHistory`, `selectVersion`, `clearSelection`, `revertToVersion`, `reset`. Paginated at 30 items per page.
+- `src/renderer/components/Files/DiffViewer.tsx` — Renders `FileDiff` with green (additions), red (deletions), neutral (context) line coloring. Sub-components: `HunkHeader`, `DiffLineRow`, `DiffSummary`.
+
+### Architecture Impact
+- New Zustand store: `versionStore`
+- New component: `DiffViewer` (in Files/ directory)
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Wire VersionService into IPC, preload bridge, and composition root
 
 ### Summary
