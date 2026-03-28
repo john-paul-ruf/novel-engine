@@ -4,6 +4,25 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: ProviderRegistry infrastructure (SESSION-03)
+
+### Summary
+
+Created `ProviderRegistry` — the central hub that manages all model providers, routes model requests to the correct provider, and persists configurations. Implements `IProviderRegistry` from domain. Uses a reverse model index for O(1) model→provider lookups. Protects built-in providers from deletion and immutable config fields from mutation.
+
+### Added
+- `src/infrastructure/providers/ProviderRegistry.ts` — Implements `IProviderRegistry`. Model routing, provider CRUD, config persistence to settings.
+- `src/infrastructure/providers/index.ts` — Barrel export
+
+### Architecture Impact
+- New infrastructure module: `providers/`
+- `ProviderRegistry` depends on `ISettingsService` for config persistence
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Multi-model providers: ClaudeCodeClient implements IModelProvider (SESSION-02)
 
 ### Summary

@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-03-28
+> Last updated: 2026-03-28 (SESSION-03)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -90,6 +90,22 @@ Key behavior:
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` for idle detection
 - EPIPE/ERR_STREAM_DESTROYED on stdin logged with diagnostic info (stdinBytes, writableFinished, writableEnded)
 - System prompt size guard: rejects prompts > 500KB with clear error before spawn
+
+### providers/ — Model Provider Registry
+
+| File | Purpose |
+|------|---------|
+| `ProviderRegistry.ts` | Implements `IProviderRegistry`. Central hub for all model providers — registration, model routing (reverse index), config CRUD, persistence to settings. Protects built-in providers from deletion. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- Constructor takes `ISettingsService` for config persistence
+- `registerProvider()` adds provider + config, first registered becomes default
+- `getProviderForModel()` uses reverse model→provider index (O(1) lookup)
+- `sendMessage()` routes to model's provider, falls back to default
+- `abortStream()` broadcasts to all providers (idempotent)
+- `updateProviderConfig()` protects `id`, `type`, `isBuiltIn` from mutation
+- Config changes auto-persist to `settings.json`
 
 ### pandoc/ — Export Engine
 
