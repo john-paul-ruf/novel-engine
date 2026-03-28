@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Add JSON repair to MotifLedgerService for agent-written malformed JSON
+
+### Summary
+
+Agents frequently write `motif-ledger.json` with minor syntax errors (missing commas between objects, trailing commas, etc.). The service's `JSON.parse()` threw on these, the `catch` block silently returned an empty ledger, and the UI showed nothing despite a 133 KB file on disk. Added a `repairJson()` + `safeParse()` pipeline that attempts common fixes before parsing. On successful repair, the clean JSON is written back to disk so future loads are fast. Also wrapped the remaining four array fields (`structuralDevices`, `foreshadows`, `minorCharacters`, `flaggedPhrases`) in `safeArray()` for consistency.
+
+### Changed
+- `src/application/MotifLedgerService.ts` — Added `repairJson()` (fixes trailing commas, missing commas between `}{`, JS comments, BOM). Added `safeParse()` two-pass parser (fast path → repair path). `load()` now writes repaired JSON back to disk. All array fields now use `safeArray()`.
+
+### Architecture Impact
+- None — no wiring changes
+
+### Migration Notes
+- None — existing valid JSON hits the fast path unchanged. Malformed JSON is auto-repaired on first load.
+
+---
+
 ## [2026-03-27] — Fix Motif Ledger Audit Log crash from agent-written data shape mismatch
 
 ### Summary

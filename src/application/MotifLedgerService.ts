@@ -1,9 +1,13 @@
 import type { IFileSystemService, IMotifLedgerService } from '@domain/interfaces';
 import type {
+  FlaggedPhrase,
+  ForeshadowEntry,
   LedgerAuditRecord,
+  MinorCharacterMotif,
   MotifEntry,
   MotifLedger,
   MotifSystem,
+  StructuralDevice,
 } from '@domain/types';
 
 const LEDGER_PATH = 'source/motif-ledger.json';
@@ -135,17 +139,32 @@ export class MotifLedgerService implements IMotifLedgerService {
       const exists = await this.fs.fileExists(bookSlug, LEDGER_PATH);
       if (!exists) return structuredClone(EMPTY_LEDGER);
       const raw = await this.fs.readFile(bookSlug, LEDGER_PATH);
-      const parsed = safeParse(raw);
-      if (!parsed) return structuredClone(EMPTY_LEDGER);
-      return {
+      const result = safeParse(raw);
+      if (!result) return structuredClone(EMPTY_LEDGER);
+
+      const { data: parsed, repaired } = result;
+      const ledger: MotifLedger = {
         systems: safeArray(parsed.systems).map(normalizeSystem),
         entries: safeArray(parsed.entries).map(normalizeEntry),
-        structuralDevices: safeArray(parsed.structuralDevices),
-        foreshadows: safeArray(parsed.foreshadows),
-        minorCharacters: safeArray(parsed.minorCharacters),
-        flaggedPhrases: safeArray(parsed.flaggedPhrases),
+        structuralDevices: safeArray(parsed.structuralDevices) as StructuralDevice[],
+        foreshadows: safeArray(parsed.foreshadows) as ForeshadowEntry[],
+        minorCharacters: safeArray(parsed.minorCharacters) as MinorCharacterMotif[],
+        flaggedPhrases: safeArray(parsed.flaggedPhrases) as FlaggedPhrase[],
         auditLog: safeArray(parsed.auditLog).map(normalizeAuditRecord),
       };
+
+      // If we had to repair the JSON, write the clean version back so
+      // the error doesn't persist and future loads hit the fast path.
+      if (repaired) {
+        try {
+          await this.save(bookSlug, ledger);
+          console.warn('[MotifLedgerService] Wrote repaired motif-ledger.json back to disk');
+        } catch {
+          // Non-fatal — we still loaded successfully
+        }
+      }
+
+      return ledger;
     } catch {
       // ENOENT or other filesystem error
       return structuredClone(EMPTY_LEDGER);
