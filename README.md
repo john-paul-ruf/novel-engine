@@ -20,7 +20,7 @@ A desktop application for **building novels**, not writing them. Novel Engine is
 
 You bring the story. The agents pitch, scaffold, draft in your voice, read, analyze, plan revisions, copy-edit, and compile your manuscript into export-ready formats. The pipeline is a build process: source material goes in, a production-ready manuscript comes out. "Build" is both metaphor and literal — the final phase assembles chapters via [Pandoc](https://pandoc.org/) into Markdown, DOCX, and EPUB.
 
-Built with Electron, React, TypeScript, and powered entirely by the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code). No API keys. No cloud backend. Everything runs on your machine.
+Built with Electron, React, TypeScript, and powered by the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — with extensible multi-model provider support for OpenAI-compatible endpoints. No cloud backend. Everything runs on your machine.
 
 Requires tech skill to use — or grab a pre-built installer from [Releases](https://github.com/john-paul-ruf/novel-engine/releases) if one exists for your platform.
 
@@ -228,7 +228,7 @@ The **Build** phase assembles all chapters in order (front matter → body → b
 - **DOCX** (`.docx`) — Word-compatible format
 - **EPUB** (`.epub`) — e-reader ready (with cover image support)
 
-After building, use **Download All** to export a ZIP archive of all formats via a native save dialog.
+After building, use **Download All** to export a ZIP archive of all formats via a native save dialog. A separate **Catalog Export** creates a ZIP of all books for backup or transfer.
 
 The copyright page is auto-generated from book metadata at creation time and regenerated during build if the draft is empty.
 
@@ -241,6 +241,30 @@ A tabbed file viewer with three panels:
 - **Agent Output** — files recently written by agents during the current session
 
 The `about.json` card (title, author, cover image) is inline-editable. Files can be opened, edited, deleted (with confirmation), and saved directly.
+
+### File Version History
+
+Every file written by an agent or saved by the user is automatically versioned in SQLite. The version history system provides:
+
+- **Snapshot-on-write** — file content is hashed and stored after each change (deduplicated by SHA-256)
+- **Source tracking** — each version records whether the change came from the user, an agent, or a revert
+- **Visual diff viewer** — unified diff display with line-by-line additions and deletions
+- **One-click revert** — restore any previous version, which creates a new "revert" snapshot for auditability
+- **Version pruning** — old versions beyond a configurable retention limit are automatically cleaned up
+
+Accessible from the file browser for any versioned file.
+
+### Multi-Model Provider Support
+
+Novel Engine ships with **Claude Code CLI** as the built-in provider but supports adding additional AI backends:
+
+- **OpenAI-compatible endpoints** — any service speaking the OpenAI Chat Completions format (OpenAI, Ollama, LM Studio, vLLM, Groq, Together, etc.)
+- **Provider management** — add, configure, test, and remove providers from the Settings panel
+- **Status checking** — verify provider availability with one click
+- **Model routing** — the provider registry resolves which backend handles each model ID
+- **Capability-aware** — providers declare what they support (text completion, tool use, thinking, streaming); services adapt accordingly
+
+> **Note:** Only Claude CLI providers support full tool-use (file read/write via the agent loop). OpenAI-compatible providers support text completion and streaming only.
 
 ### CLI Activity Monitor
 
@@ -308,7 +332,7 @@ Three appearance modes: **dark** (default), **light**, and **system** (follows O
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — installed, authenticated, and on your `$PATH`
 - npm 9+
 
-> **No API key needed.** Novel Engine delegates all AI calls to the Claude Code CLI, which handles its own authentication through your Anthropic subscription.
+> **No API key needed for Claude.** Novel Engine delegates AI calls to the Claude Code CLI, which handles its own authentication through your Anthropic subscription. Additional OpenAI-compatible providers require their own API keys, configured in the Settings panel.
 
 ---
 
@@ -369,7 +393,7 @@ macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWOR
 
 ### Source Code Architecture
 
-121 TypeScript/TSX source files across five clean architecture layers:
+130 TypeScript/TSX source files across five clean architecture layers:
 
 ```
 src/
@@ -386,7 +410,7 @@ src/
 │   │   └── index.ts
 │   ├── database/
 │   │   ├── schema.ts                    # SQLite schema (conversations, messages, usage, streams)
-│   │   ├── migrations.ts               # Schema migration logic
+│   │   ├── migrations.ts               # Forward-only schema migrations (file_versions table, etc.)
 │   │   ├── DatabaseService.ts           # All query methods with prepared statements
 │   │   └── index.ts
 │   ├── agents/
@@ -400,6 +424,10 @@ src/
 │   ├── claude-cli/
 │   │   ├── ClaudeCodeClient.ts          # Claude CLI wrapper, streaming, tool tracking
 │   │   ├── StreamSessionTracker.ts      # Progress stage inference, file touch tracking
+│   │   └── index.ts
+│   ├── providers/
+│   │   ├── ProviderRegistry.ts          # Central registry routing models to providers
+│   │   ├── OpenAiCompatibleProvider.ts  # BYOK provider for OpenAI-compatible endpoints
 │   │   └── index.ts
 │   └── pandoc/
 │       └── index.ts                     # Pandoc binary path resolution
@@ -418,6 +446,7 @@ src/
 │   ├── AdhocRevisionService.ts          # Direct feedback → Forge revision plan
 │   ├── StreamManager.ts                 # Stream lifecycle, session tracking, file change detection
 │   ├── MotifLedgerService.ts            # Motif ledger CRUD and unaudited chapter detection
+│   ├── VersionService.ts                # File version snapshots, diffs, revert, pruning
 │   ├── thinkingBudget.ts                # Thinking budget resolution logic
 │   ├── index.ts                         # Barrel export
 │   └── context/
@@ -450,11 +479,13 @@ src/
     │   ├── autoDraftStore.ts            # Auto-draft chapter loop with audit integration
     │   ├── fileChangeStore.ts           # File change tracking from watchers
     │   ├── motifLedgerStore.ts          # Motif ledger CRUD and tab state
+    │   ├── providerStore.ts             # Multi-model provider management
+    │   ├── versionStore.ts              # File version history and diffs
     │   └── streamHandler.ts             # Routes stream events to correct stores
     ├── components/
     │   ├── Layout/                      # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                  # OnboardingWizard
-    │   ├── Settings/                    # SettingsView
+    │   ├── Settings/                    # SettingsView, ProviderSection
     │   ├── Sidebar/                     # BookSelector, PipelineTracker, FileTree,
     │   │                                #   VoiceSetupButton, ShelvedPitchesPanel,
     │   │                                #   PitchPreviewModal, PitchHistory,
@@ -468,7 +499,8 @@ src/
     │   ├── Files/                       # FilesView, StructuredBrowser, FileBrowser,
     │   │                                #   FileEditor, SourcePanel, ChaptersPanel,
     │   │                                #   AgentOutputPanel, FilesHeader,
-    │   │                                #   CollapsibleSection, DeleteConfirmModal
+    │   │                                #   CollapsibleSection, DeleteConfirmModal,
+    │   │                                #   VersionHistoryPanel, DiffViewer
     │   ├── Build/                       # BuildView
     │   ├── RevisionQueue/               # RevisionQueueView, SessionCard, QueueControls,
     │   │                                #   TaskProgress, RevisionSessionPanel
@@ -476,7 +508,7 @@ src/
     │   │                                #   StructuralTab, ForeshadowTab,
     │   │                                #   MinorCharactersTab, FlaggedPhrasesTab,
     │   │                                #   AuditLogTab
-    │   ├── CliActivity/                 # CliActivityPanel
+    │   ├── CliActivity/                 # CliActivityPanel, constants
     │   └── ErrorBoundary/               # ErrorBoundary
     ├── hooks/
     │   ├── useTheme.ts                  # Dark/light/system theme sync
@@ -495,10 +527,10 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
 ```
 {userData}/
 ├── .initialized                  # Bootstrap completion flag
-├── settings.json                 # App preferences
+├── settings.json                 # App preferences (including provider configs)
 ├── active-book.json              # { "book": "slug-name" }
 ├── author-profile.md             # Global author profile (all books)
-├── novel-engine.db               # SQLite database (conversations, messages, usage, streams)
+├── novel-engine.db               # SQLite database (conversations, messages, usage, streams, file versions)
 ├── books/
 │   ├── {slug}/
 │   │   ├── about.json            # { title, author, status, created, coverImage }
@@ -543,6 +575,7 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
     ├── VERITY-REVISION.md            # Phase: revision
     ├── VERITY-MECHANICAL.md          # Phase: mechanical fixes
     ├── VERITY-LEDGER.md              # Motif ledger integration
+    ├── VERITY-LEGACY.md              # Legacy Verity prompt (pre-modular)
     ├── VERITY-AUDIT.md               # Quality audit agent
     ├── VERITY-FIX.md                 # Automated fix agent
     ├── GHOSTLIGHT.md
@@ -574,8 +607,9 @@ Agent system prompts live in `custom-agents/` and are fully editable — customi
 | Styling | [Tailwind CSS](https://tailwindcss.com/) + [Typography plugin](https://github.com/tailwindlabs/tailwindcss-typography) | 4.x |
 | State | [Zustand](https://zustand-demo.pmnd.rs/) | 5.x |
 | Database | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | 11.x |
-| AI Backend | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) | (spawned as child process) |
+| AI Backend | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) + OpenAI-compatible endpoints | (spawned / fetched) |
 | Manuscript Export | [Pandoc](https://pandoc.org/) (bundled binary) | — |
+| Diffing | [diff](https://github.com/kpdecker/jsdiff) | 8.x |
 | IDs | [nanoid](https://github.com/ai/nanoid) | 3.x |
 | Markdown Rendering | [marked](https://marked.js.org/) | 15.x |
 | Archive Export | [archiver](https://www.archiverjs.com/) | 7.x |
@@ -592,16 +626,16 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 ```
 
 - **Domain** ([`src/domain/`](./src/domain/)) — Pure TypeScript types, interfaces, and constants. Zero imports. Every other layer depends on this.
-- **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence.
-- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, UsageService, ChapterValidator.
+- **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support.
+- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
-- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (14 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
+- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (16 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
 
 All services are constructor-injected. The only place concrete classes are instantiated is [`src/main/index.ts`](./src/main/index.ts).
 
 ### Database Schema
 
-Five SQLite tables (WAL mode, foreign keys enabled):
+Seven SQLite tables (WAL mode, foreign keys enabled, forward-only migrations):
 
 | Table | Purpose |
 |-------|---------|
@@ -610,6 +644,8 @@ Five SQLite tables (WAL mode, foreign keys enabled):
 | `token_usage` | Per-call token counts (input, output, thinking) by model |
 | `stream_events` | Persisted stream events for session replay and recovery |
 | `stream_sessions` | Tracks CLI invocations for orphan detection and recovery |
+| `file_versions` | Content snapshots with SHA-256 dedup for version history and revert |
+| `schema_version` | Migration tracking — records which schema migrations have been applied |
 
 See [`AGENTS.md`](./AGENTS.md) for the full architecture documentation.
 

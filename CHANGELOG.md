@@ -4,6 +4,44 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Update GitHub Pages website with all latest features
+
+### Summary
+
+Rebuilt all 6 GitHub Pages HTML files to reflect the current state of the codebase. Added multi-model provider support, file version history, and catalog export to landing page feature cards. Updated architecture page with `providers/` infrastructure module, `file_versions` and `schema_version` tables (7 total), 130 source files, 16 stores, and complete service dependency graph including ProviderRegistry. Rebuilt changelog page with all 39 entries (up from 21) including the full multi-model provider series (7 sessions), version history series (6 sessions), and all bug fixes. Updated press page stats (130 files, 16 stores, 7 tables, 80+ IPC channels) and added multi-model differentiator card. Updated contact page architecture rules to match current conventions. Evaluation page unchanged — content is static.
+
+### Changed
+- `docs/index.html` — Added Key Features section (9 cards: Pitch Room, Voice Profile, Auto-Draft, Verity Audit, Motif Ledger, Revision Queue, Version History, Multi-Model, Build & Export). Updated subtitle to mention multi-model. Updated export description for catalog export.
+- `docs/architecture.html` — Added `providers/` to infrastructure modules. Added `file_versions` and `schema_version` to schema table. Updated file count to 130, store count to 16. Added ProviderRegistry and VersionService to dependency graph. Added multi-model and version history to design decisions. Updated source tree with all current files.
+- `docs/changelog.html` — Full rebuild with all 39 entries (was 21). Updated stats: entries 21→39. Added all 2026-03-28 entries (18 new). Expanded highlight reel with version history and multi-model features.
+- `docs/press.html` — Updated stats: 130 files, 16 stores, 7 tables, 80+ IPC channels. Added "Multi-model support" differentiator card. Updated source file count in "Open source" card.
+- `docs/contact.html` — Updated architecture rules to include barrel export requirement. Minor copy refinements.
+
+### Architecture Impact
+- None — website assets only, no source code changes
+
+### Migration Notes
+- None
+
+---
+
+## [2026-03-28] — Comprehensive README rewrite
+
+### Summary
+
+Rewrote `README.md` to accurately reflect the current state of the codebase. Updated file count from 121 to 130. Added documentation for three features missing from the previous README: File Version History (VersionService, VersionHistoryPanel, DiffViewer, versionStore), Multi-Model Provider Support (ProviderRegistry, OpenAiCompatibleProvider, ProviderSection, providerStore), and Catalog Export. Updated source tree to include `infrastructure/providers/`, `database/migrations.ts`, `VersionService.ts`, and all new renderer components/stores. Corrected database table count from 5 to 7 (added `file_versions` and `schema_version`). Updated store count from 14 to 16. Added `VERITY-LEGACY.md` to the agent listing. Updated tech stack to include the `diff` library. Refreshed architecture section with accurate service list and provider registry description.
+
+### Changed
+- `README.md` — Full rewrite per `prompts/meta/readme-deep-update.md` spec. All sections verified against source code.
+
+### Architecture Impact
+- None — no wiring changes. Documentation-only update.
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Multi-model providers: renderer UI (SESSION-07)
 
 ### Summary

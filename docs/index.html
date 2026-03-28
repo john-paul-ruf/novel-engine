@@ -48,7 +48,7 @@
         .hero h1{font-family:'DM Serif Display',serif;font-size:56px;letter-spacing:-1.2px;line-height:1.1;margin-bottom:16px}
         .hero h1 span{color:var(--accent)}
         .hero .tagline{font-size:22px;color:var(--text2);margin-bottom:8px;font-weight:500}
-        .hero .subtitle{font-size:15px;color:var(--text3);max-width:680px;margin:0 auto 32px;line-height:1.6}
+        .hero .subtitle{font-size:15px;color:var(--text3);max-width:700px;margin:0 auto 32px;line-height:1.6}
         .hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
         .btn{font-family:'Space Mono',monospace;font-size:13px;padding:12px 24px;border-radius:8px;text-decoration:none;transition:all 0.2s;letter-spacing:0.3px;display:inline-block}
         .btn-primary{background:var(--accent);color:var(--bg);border:1px solid var(--accent)}
@@ -83,6 +83,14 @@
         .phase-agent{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px}
         .phase-arrow{color:var(--accent);font-size:18px;display:flex;align-items:center;flex-shrink:0}
 
+        /* ── Feature Cards ── */
+        .features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+        .feature-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;transition:border-color 0.2s}
+        .feature-card:hover{border-color:#3a3a44}
+        .feature-card h3{font-size:16px;font-weight:600;margin-bottom:8px}
+        .feature-card p{font-size:13px;color:var(--text3);line-height:1.5}
+        .feature-tag{font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+
         /* ── Getting Started ── */
         .start-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}
         .start-section h3{font-size:18px;font-weight:600;margin-bottom:12px}
@@ -116,6 +124,7 @@
         @media(max-width:1050px){
             .start-grid{grid-template-columns:1fr}
             .footer-inner{grid-template-columns:1fr 1fr}
+            .features-grid{grid-template-columns:1fr}
         }
         @media(max-width:760px){
             .nav-inner{padding:0 14px}
@@ -181,7 +190,7 @@
     <section class="hero">
         <h1>Novel Engine<span>.</span></h1>
         <div class="tagline">Build books, not write them.</div>
-        <div class="subtitle">A desktop book-building pipeline powered by 7 AI editorial agents. Open source. Local-first. No API keys. Electron + React + Claude Code CLI.</div>
+        <div class="subtitle">A desktop book-building pipeline powered by 7 AI editorial agents. Open source. Local-first. No API keys required for Claude. Multi-model provider support. Electron + React + Claude Code CLI.</div>
         <div class="hero-ctas">
             <a href="#getting-started" class="btn btn-primary">Get Started</a>
             <a href="https://github.com/john-paul-ruf/novel-engine" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
@@ -204,7 +213,7 @@
             <div class="agent-card">
                 <div class="agent-name"><span class="agent-dot" style="background:var(--blue)"></span>Verity</div>
                 <div class="agent-role">The Ghostwriter</div>
-                <div class="agent-desc">The only agent that writes prose. Drafts chapters using your captured voice profile, builds the scene outline and story bible, implements revision changes. Phase-specific sub-prompts for scaffolding, drafting, revision, and mechanical fixes.</div>
+                <div class="agent-desc">The only agent that writes prose. Drafts chapters using your captured voice profile, builds the scene outline and story bible, implements revision changes. Phase-specific sub-prompts for scaffolding, drafting, revision, and mechanical fixes. Integrated with the motif ledger.</div>
             </div>
             <div class="agent-card">
                 <div class="agent-name"><span class="agent-dot" style="background:var(--magenta)"></span>Ghostlight</div>
@@ -269,6 +278,59 @@
         </div>
     </section>
 
+    <!-- ═══ KEY FEATURES ═══ -->
+    <section class="section section-border fade-up">
+        <h2>Key Features<span>.</span></h2>
+        <p class="section-sub">Everything you need to go from idea to published manuscript.</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-tag">Creative</div>
+                <h3>Pitch Room</h3>
+                <p>Free brainstorming space with Spark. Explore story ideas before committing. Shelve, restore, or convert pitches into full book projects with one click.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Voice</div>
+                <h3>Voice Profile</h3>
+                <p>A guided interview captures your sentence rhythm, vocabulary, dialogue style, emotional temperature, and tonal anchors. Verity writes in YOUR voice — not generic AI prose.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Automation</div>
+                <h3>Auto-Draft</h3>
+                <p>One click starts a loop where Verity writes chapters in sequence. Per-chapter quality audits catch issues in real-time. Motif audits run every 3 chapters to keep the motif ledger accurate.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Quality</div>
+                <h3>Verity Audit Pipeline</h3>
+                <p>Automated quality assurance after every agent interaction. A Sonnet-powered audit agent scans for editorial narration, anti-patterns, voice drift, and continuity errors. Fixes are applied automatically.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Tracking</div>
+                <h3>Motif Ledger</h3>
+                <p>Seven-panel structured tracker for recurring literary elements: motif systems, character entries, structural devices, foreshadowing, flagged phrases, and audit logs. Stored as JSON per book.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Revision</div>
+                <h3>Revision Queue</h3>
+                <p>Forge builds structured revision plans. The queue parses them into sessions and executes them through Verity with four modes: manual, auto-approve, auto-skip, and selective. Approval gates at every checkpoint.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Version Control</div>
+                <h3>File Version History</h3>
+                <p>Every file written by an agent or saved by the user is automatically versioned in SQLite. Visual diff viewer, one-click revert, SHA-256 dedup, and source tracking (user, agent, or revert).</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Extensible</div>
+                <h3>Multi-Model Providers</h3>
+                <p>Ships with Claude Code CLI as the built-in provider. Add any OpenAI-compatible endpoint — OpenAI, Ollama, LM Studio, vLLM, Groq, Together. Provider management, status checking, and model routing from Settings.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Export</div>
+                <h3>Build &amp; Export</h3>
+                <p>Assembles chapters via Pandoc into Markdown, DOCX, and EPUB. Download All exports a ZIP. Catalog Export creates a ZIP of all books for backup or transfer.</p>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══ GETTING STARTED ═══ -->
     <section class="section section-border fade-up" id="getting-started">
         <h2>For Writers<span>.</span></h2>
@@ -278,8 +340,9 @@
                 <h3>What You Need</h3>
                 <ul>
                     <li><strong>macOS, Windows, or Linux</strong></li>
-                    <li><strong>Claude Code CLI</strong> — installed, authenticated, and on your PATH. The CLI handles all AI calls; no API keys needed.</li>
+                    <li><strong>Claude Code CLI</strong> — installed, authenticated, and on your PATH. The CLI handles all AI calls; no API keys needed in the app.</li>
                     <li>Pre-built installers available from <a href="https://github.com/john-paul-ruf/novel-engine/releases" style="color:var(--accent)">Releases</a>, or build from source with Node.js 20+.</li>
+                    <li>Optional: OpenAI-compatible providers for additional model support (requires their own API keys).</li>
                 </ul>
                 <div class="platform-badges">
                     <span class="platform-badge">macOS .dmg</span>
@@ -309,7 +372,7 @@
                     <li><strong>DOCX</strong> (.docx) — Word-compatible</li>
                     <li><strong>EPUB</strong> (.epub) — e-reader ready with cover image support</li>
                 </ul>
-                <p style="margin-top:8px">Download All exports a ZIP archive of every format.</p>
+                <p style="margin-top:8px">Download All exports a ZIP archive of every format. Catalog Export creates a full backup of all books.</p>
             </div>
         </div>
     </section>
