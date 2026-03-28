@@ -30,7 +30,7 @@
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
 | 1 | SESSION-01 — Domain Types & Interface | Domain | done | 2026-03-28 | Clean implementation, no complications. Types placed after FileEntry section as specified. |
-| 2 | SESSION-02 — Database Migration & Version Repository | Infrastructure | pending | | |
+| 2 | SESSION-02 — Database Migration & Version Repository | Infrastructure | done | 2026-03-28 | Migration v2 added, 7 new methods + 2 private mappers in DatabaseService, 7 new methods in IDatabaseService. |
 | 3 | SESSION-03 — Install diff Package & VersionService | Application | pending | | |
 | 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root (multi-book safe) | IPC / Main | pending | | |
 | 5 | SESSION-05 — Version Store & DiffViewer Component | Renderer | pending | | |
@@ -105,13 +105,11 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-01
+### Last completed session: SESSION-02
 
 ### Observations:
-- All 6 version control types added to `src/domain/types.ts` after the `FileEntry` type
-- `IVersionService` interface added to `src/domain/interfaces.ts` with 8 methods
-- 4 new type imports added to `interfaces.ts` import block: `FileDiff`, `FileVersion`, `FileVersionSource`, `FileVersionSummary`
-- `npx tsc --noEmit` passes with zero errors
-- Next session (SESSION-02) should add the `file_versions` table and extend `IDatabaseService`
+- SESSION-01: Domain types and IVersionService interface added cleanly
+- SESSION-02: Migration v2 creates `file_versions` table with 2 indexes. 7 new methods added to both IDatabaseService and DatabaseService. Private mappers `mapFileVersion` and `mapFileVersionSummary` handle snake_case→camelCase. `deleteFileVersionsBeyondLimit` uses inline prepare (not reusable stmt) since it's called infrequently during pruning.
+- Next session (SESSION-03) should install `diff` package and implement `VersionService` in application layer
 
 ### Warnings:

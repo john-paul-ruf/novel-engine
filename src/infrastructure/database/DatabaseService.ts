@@ -6,6 +6,9 @@ import type {
   ConversationPurpose,
   AgentName,
   FileTouchMap,
+  FileVersion,
+  FileVersionSource,
+  FileVersionSummary,
   PipelinePhaseId,
   PersistedStreamEvent,
   ProgressStage,
@@ -45,6 +48,14 @@ export class DatabaseService implements IDatabaseService {
   private stmtEndStreamSession: Database.Statement;
   private stmtGetActiveStreamSessions: Database.Statement;
   private stmtMarkSessionInterrupted: Database.Statement;
+
+  // File versions
+  private stmtInsertFileVersion: Database.Statement;
+  private stmtGetFileVersion: Database.Statement;
+  private stmtGetLatestFileVersion: Database.Statement;
+  private stmtListFileVersions: Database.Statement;
+  private stmtCountFileVersions: Database.Statement;
+  private stmtGetVersionedFilePaths: Database.Statement;
 
   constructor(dbPath: string) {
     this.db = new Database(dbPath);
@@ -153,6 +164,43 @@ export class DatabaseService implements IDatabaseService {
 
     this.stmtMarkSessionInterrupted = this.db.prepare(`
       UPDATE stream_sessions SET interrupted = 1, final_stage = ?, ended_at = datetime('now') WHERE id = ?
+    `);
+
+    // File versions
+    this.stmtInsertFileVersion = this.db.prepare(`
+      INSERT INTO file_versions (book_slug, file_path, content, content_hash, byte_size, source, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `);
+
+    this.stmtGetFileVersion = this.db.prepare(`
+      SELECT id, book_slug, file_path, content, content_hash, byte_size, source, created_at
+      FROM file_versions WHERE id = ?
+    `);
+
+    this.stmtGetLatestFileVersion = this.db.prepare(`
+      SELECT id, book_slug, file_path, content_hash, byte_size, source, created_at
+      FROM file_versions
+      WHERE book_slug = ? AND file_path = ?
+      ORDER BY id DESC LIMIT 1
+    `);
+
+    this.stmtListFileVersions = this.db.prepare(`
+      SELECT id, book_slug, file_path, content_hash, byte_size, source, created_at
+      FROM file_versions
+      WHERE book_slug = ? AND file_path = ?
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    this.stmtCountFileVersions = this.db.prepare(`
+      SELECT COUNT(*) AS count FROM file_versions
+      WHERE book_slug = ? AND file_path = ?
+    `);
+
+    this.stmtGetVersionedFilePaths = this.db.prepare(`
+      SELECT DISTINCT file_path FROM file_versions
+      WHERE book_slug = ?
+      ORDER BY file_path
     `);
   }
 
@@ -332,6 +380,88 @@ export class DatabaseService implements IDatabaseService {
 
   markSessionInterrupted(sessionId: string, lastStage: ProgressStage): void {
     this.stmtMarkSessionInterrupted.run(lastStage, sessionId);
+  }
+
+  // === File Versions ===
+
+  insertFileVersion(params: {
+    bookSlug: string;
+    filePath: string;
+    content: string;
+    contentHash: string;
+    byteSize: number;
+    source: FileVersionSource;
+  }): FileVersion {
+    const info = this.stmtInsertFileVersion.run(
+      params.bookSlug, params.filePath, params.content,
+      params.contentHash, params.byteSize, params.source,
+    );
+    const id = Number(info.lastInsertRowid);
+    const row = this.stmtGetFileVersion.get(id) as Record<string, unknown>;
+    return this.mapFileVersion(row);
+  }
+
+  getFileVersion(id: number): FileVersion | null {
+    const row = this.stmtGetFileVersion.get(id) as Record<string, unknown> | undefined;
+    return row ? this.mapFileVersion(row) : null;
+  }
+
+  getLatestFileVersion(bookSlug: string, filePath: string): FileVersionSummary | null {
+    const row = this.stmtGetLatestFileVersion.get(bookSlug, filePath) as Record<string, unknown> | undefined;
+    return row ? this.mapFileVersionSummary(row) : null;
+  }
+
+  listFileVersions(bookSlug: string, filePath: string, limit: number, offset: number): FileVersionSummary[] {
+    const rows = this.stmtListFileVersions.all(bookSlug, filePath, limit, offset) as Record<string, unknown>[];
+    return rows.map((r) => this.mapFileVersionSummary(r));
+  }
+
+  countFileVersions(bookSlug: string, filePath: string): number {
+    const row = this.stmtCountFileVersions.get(bookSlug, filePath) as { count: number };
+    return row.count;
+  }
+
+  deleteFileVersionsBeyondLimit(bookSlug: string, filePath: string, keepCount: number): number {
+    const stmt = this.db.prepare(`
+      DELETE FROM file_versions
+      WHERE book_slug = ? AND file_path = ? AND id NOT IN (
+        SELECT id FROM file_versions
+        WHERE book_slug = ? AND file_path = ?
+        ORDER BY id DESC LIMIT ?
+      )
+    `);
+    const info = stmt.run(bookSlug, filePath, bookSlug, filePath, keepCount);
+    return info.changes;
+  }
+
+  getVersionedFilePaths(bookSlug: string): string[] {
+    const rows = this.stmtGetVersionedFilePaths.all(bookSlug) as { file_path: string }[];
+    return rows.map((r) => r.file_path);
+  }
+
+  private mapFileVersion(row: Record<string, unknown>): FileVersion {
+    return {
+      id: row.id as number,
+      bookSlug: row.book_slug as string,
+      filePath: row.file_path as string,
+      content: row.content as string,
+      contentHash: row.content_hash as string,
+      byteSize: row.byte_size as number,
+      source: row.source as FileVersionSource,
+      createdAt: row.created_at as string,
+    };
+  }
+
+  private mapFileVersionSummary(row: Record<string, unknown>): FileVersionSummary {
+    return {
+      id: row.id as number,
+      bookSlug: row.book_slug as string,
+      filePath: row.file_path as string,
+      contentHash: row.content_hash as string,
+      byteSize: row.byte_size as number,
+      source: row.source as FileVersionSource,
+      createdAt: row.created_at as string,
+    };
   }
 
   // === Lifecycle ===

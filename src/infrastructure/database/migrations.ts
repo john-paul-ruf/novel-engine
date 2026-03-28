@@ -26,6 +26,28 @@ export const MIGRATIONS: Migration[] = [
     description: 'Ensure conversations.purpose column exists (migrated from ad hoc ALTER TABLE check)',
     sql: '', // Handled conditionally below — SQLite ALTER TABLE ADD COLUMN doesn't support IF NOT EXISTS
   },
+  {
+    version: 2,
+    description: 'Create file_versions table for content version control',
+    sql: `
+      CREATE TABLE IF NOT EXISTS file_versions (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_slug     TEXT NOT NULL,
+        file_path     TEXT NOT NULL,
+        content       TEXT NOT NULL,
+        content_hash  TEXT NOT NULL,
+        byte_size     INTEGER NOT NULL,
+        source        TEXT NOT NULL CHECK(source IN ('user', 'agent', 'revert')),
+        created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_file_versions_lookup
+        ON file_versions(book_slug, file_path, id DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_file_versions_hash
+        ON file_versions(book_slug, file_path, content_hash);
+    `,
+  },
 ];
 
 /**

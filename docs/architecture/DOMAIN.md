@@ -212,6 +212,13 @@ Implemented by: `DatabaseService` (`src/infrastructure/database/`)
 | `endStreamSession` | `(sessionId, finalStage, filesTouched) => void` | Marks session ended |
 | `getActiveStreamSessions` | `() => StreamSessionRecord[]` | Sessions with null endedAt |
 | `markSessionInterrupted` | `(sessionId, lastStage) => void` | Marks as orphaned |
+| `insertFileVersion` | `(params: { bookSlug, filePath, content, contentHash, byteSize, source }) => FileVersion` | Insert and return new version |
+| `getFileVersion` | `(id) => FileVersion \| null` | Full version with content |
+| `getLatestFileVersion` | `(bookSlug, filePath) => FileVersionSummary \| null` | Most recent version (no content) |
+| `listFileVersions` | `(bookSlug, filePath, limit, offset) => FileVersionSummary[]` | Paginated version list |
+| `countFileVersions` | `(bookSlug, filePath) => number` | Total versions for a file |
+| `deleteFileVersionsBeyondLimit` | `(bookSlug, filePath, keepCount) => number` | Prune old versions |
+| `getVersionedFilePaths` | `(bookSlug) => string[]` | Distinct tracked file paths |
 | `close` | `() => void` | Closes DB connection |
 
 ### IFileSystemService

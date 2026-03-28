@@ -98,6 +98,32 @@ export interface IDatabaseService {
   getActiveStreamSessions(): StreamSessionRecord[];
   markSessionInterrupted(sessionId: string, lastStage: ProgressStage): void;
 
+  // File Versions
+  insertFileVersion(params: {
+    bookSlug: string;
+    filePath: string;
+    content: string;
+    contentHash: string;
+    byteSize: number;
+    source: FileVersionSource;
+  }): FileVersion;
+
+  getFileVersion(id: number): FileVersion | null;
+
+  getLatestFileVersion(bookSlug: string, filePath: string): FileVersionSummary | null;
+
+  listFileVersions(bookSlug: string, filePath: string, limit: number, offset: number): FileVersionSummary[];
+
+  countFileVersions(bookSlug: string, filePath: string): number;
+
+  deleteFileVersionsBeyondLimit(bookSlug: string, filePath: string, keepCount: number): number;
+
+  /**
+   * Get all distinct file paths that have version history for a book.
+   * Used by the pruning job to iterate over all tracked files.
+   */
+  getVersionedFilePaths(bookSlug: string): string[];
+
   // Lifecycle
   close(): void;
 }

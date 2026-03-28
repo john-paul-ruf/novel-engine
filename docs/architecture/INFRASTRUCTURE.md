@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-28
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -173,6 +173,25 @@ Index: `idx_stream_events_session` on `(session_id, sequence_number)`
 | `interrupted` | INTEGER | NOT NULL DEFAULT 0 | 1 = marked as orphaned |
 
 Index: `idx_stream_sessions_active` on `ended_at` WHERE `ended_at IS NULL`
+
+### `file_versions`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | INTEGER | PK AUTOINCREMENT | Sequential version ordering |
+| `book_slug` | TEXT | NOT NULL | Book directory slug |
+| `file_path` | TEXT | NOT NULL | Relative to book root |
+| `content` | TEXT | NOT NULL | Full file content snapshot |
+| `content_hash` | TEXT | NOT NULL | SHA-256 hex digest for dedup |
+| `byte_size` | INTEGER | NOT NULL | Content length in bytes |
+| `source` | TEXT | NOT NULL CHECK(IN 'user','agent','revert') | Who caused this version |
+| `created_at` | TEXT | NOT NULL DEFAULT datetime('now') | ISO 8601 |
+
+Indexes:
+- `idx_file_versions_lookup` on `(book_slug, file_path, id DESC)` — primary query pattern
+- `idx_file_versions_hash` on `(book_slug, file_path, content_hash)` — dedup lookups
+
+Migration: v2 in `migrations.ts`
 
 ---
 

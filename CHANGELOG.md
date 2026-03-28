@@ -4,6 +4,27 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add database migration and version repository for content version control
+
+### Summary
+
+Added SQLite migration v2 creating the `file_versions` table with composite indexes, and extended `IDatabaseService` and `DatabaseService` with 7 new methods for version CRUD: insert, get, list, count, delete-beyond-limit, and get-versioned-paths. All queries use parameterized prepared statements with explicit snake_case→camelCase mapping.
+
+### Changed
+- `src/domain/interfaces.ts` — Extended `IDatabaseService` with 7 new methods in a `// File Versions` section: `insertFileVersion`, `getFileVersion`, `getLatestFileVersion`, `listFileVersions`, `countFileVersions`, `deleteFileVersionsBeyondLimit`, `getVersionedFilePaths`
+- `src/infrastructure/database/migrations.ts` — Added migration v2: creates `file_versions` table with `idx_file_versions_lookup` and `idx_file_versions_hash` indexes
+- `src/infrastructure/database/DatabaseService.ts` — Implemented all 7 new `IDatabaseService` methods. Added 6 prepared statements and 2 private row mappers (`mapFileVersion`, `mapFileVersionSummary`). Added `FileVersion`, `FileVersionSource`, `FileVersionSummary` type imports.
+
+### Architecture Impact
+- Schema change: New `file_versions` table (id, book_slug, file_path, content, content_hash, byte_size, source, created_at)
+- New indexes: `idx_file_versions_lookup` (book_slug, file_path, id DESC), `idx_file_versions_hash` (book_slug, file_path, content_hash)
+- Extended interface: `IDatabaseService` — 7 new methods
+
+### Migration Notes
+- Migration v2 runs automatically on next app startup. Creates `file_versions` table and indexes. Non-destructive — no changes to existing tables.
+
+---
+
 ## [2026-03-28] — Add domain types and interface for content version control
 
 ### Summary
