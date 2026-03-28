@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add intake meta-prompt for document-to-session decomposition
+
+### Summary
+
+Created `prompts/meta/intake.md` — a generic meta-prompt that takes any number of attached documents (feature specs, research, design docs, bug reports, RFCs, raw ideas), analyzes them against the current codebase, and decomposes the work into ordered session prompts under `prompts/feature/{feature-name}/`. Generates a complete build-out directory with numbered `SESSION-NN.md` prompts, a `MASTER.md` loop runner with crash recovery and handoff protocol, and a `STATE.md` tracker. Follows the same patterns established by `address-issues.md` and the `arch/r001/MASTER.md` loop, generalized for arbitrary feature work.
+
+### Added
+- `prompts/meta/intake.md` — Document intake and feature decomposition prompt. Parses attached documents, researches current codebase, decomposes into layered sessions, generates MASTER/STATE/SESSION files.
+
+### Architecture Impact
+- None — no code or wiring changes. Prompt-only addition.
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Fix MotifLedgerService data loss: remove auto-writeback, harden JSON repair
 
 ### Summary
