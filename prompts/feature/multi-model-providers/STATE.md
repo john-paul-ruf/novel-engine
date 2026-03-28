@@ -30,7 +30,7 @@
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
 | 1 | SESSION-01 — Domain Types & Interfaces | Domain | done | 2026-03-28 | Moved AVAILABLE_MODELS and provider constants before DEFAULT_SETTINGS to avoid forward-reference errors. |
-| 2 | SESSION-02 — ClaudeCodeClient Implements IModelProvider | Infrastructure | pending | | |
+| 2 | SESSION-02 — ClaudeCodeClient Implements IModelProvider | Infrastructure | done | 2026-03-28 | Purely additive — no behavioral changes. |
 | 3 | SESSION-03 — ProviderRegistry Infrastructure | Infrastructure | pending | | |
 | 4 | SESSION-04 — OpenAI-Compatible Provider | Infrastructure | pending | | |
 | 5 | SESSION-05 — Service Migration to IProviderRegistry | Application, Main | pending | | |
@@ -110,7 +110,7 @@ graph TD
 
 ## Handoff Notes
 
-### Last completed session: SESSION-01
+### Last completed session: SESSION-02
 
 ### Observations:
 - `AVAILABLE_MODELS` was reordered before `DEFAULT_SETTINGS` in constants.ts to co-locate with new provider constants and avoid forward-reference issues.

@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: ClaudeCodeClient implements IModelProvider (SESSION-02)
+
+### Summary
+
+Made `ClaudeCodeClient` implement `IModelProvider` in addition to `IClaudeClient`. Added `providerId` (`'claude-cli'`) and `capabilities` (`['text-completion', 'tool-use', 'thinking', 'streaming']`) readonly properties. No behavioral changes — purely additive interface conformance.
+
+### Changed
+- `src/infrastructure/claude-cli/ClaudeCodeClient.ts` — Now implements both `IClaudeClient` and `IModelProvider`. Added `providerId` and `capabilities` properties.
+
+### Architecture Impact
+- `ClaudeCodeClient` can now be used wherever `IModelProvider` is expected
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Multi-model providers: domain types, interfaces, constants (SESSION-01)
 
 ### Summary

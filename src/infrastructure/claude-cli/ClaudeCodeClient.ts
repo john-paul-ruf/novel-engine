@@ -4,9 +4,9 @@ import { promisify } from 'util';
 import path from 'node:path';
 import { nanoid } from 'nanoid';
 
-import type { IClaudeClient, IDatabaseService } from '@domain/interfaces';
-import type { MessageRole, StreamEvent } from '@domain/types';
-import { CHARS_PER_TOKEN } from '@domain/constants';
+import type { IClaudeClient, IModelProvider, IDatabaseService } from '@domain/interfaces';
+import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@domain/types';
+import { CHARS_PER_TOKEN, CLAUDE_CLI_PROVIDER_ID } from '@domain/constants';
 import { StreamSessionTracker } from './StreamSessionTracker';
 
 const execFileAsync = promisify(execFile);
@@ -17,7 +17,16 @@ const CLI_NOT_FOUND_MESSAGE =
 /** Grace period (ms) between SIGTERM and SIGKILL on abort. */
 const ABORT_KILL_GRACE_MS = 2000;
 
-export class ClaudeCodeClient implements IClaudeClient {
+export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
+  readonly providerId: ProviderId = CLAUDE_CLI_PROVIDER_ID;
+
+  readonly capabilities: ProviderCapability[] = [
+    'text-completion',
+    'tool-use',
+    'thinking',
+    'streaming',
+  ];
+
   /** Cached availability result — CLI presence doesn't change during a session. */
   private _available: boolean | null = null;
 

@@ -74,7 +74,7 @@ Key behavior:
 
 | File | Purpose |
 |------|---------|
-| `ClaudeCodeClient.ts` | Implements `IClaudeClient`. Spawns `claude` CLI as child process, streams NDJSON responses. |
+| `ClaudeCodeClient.ts` | Implements `IClaudeClient` and `IModelProvider`. Spawns `claude` CLI as child process, streams NDJSON responses. Exposes `providerId` (`'claude-cli'`) and `capabilities` (`text-completion`, `tool-use`, `thinking`, `streaming`). |
 | `StreamSessionTracker.ts` | Tracks active stream sessions for orphan detection/recovery. |
 | `index.ts` | Barrel export |
 
