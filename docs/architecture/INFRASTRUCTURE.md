@@ -96,6 +96,7 @@ Key behavior:
 | File | Purpose |
 |------|---------|
 | `ProviderRegistry.ts` | Implements `IProviderRegistry`. Central hub for all model providers — registration, model routing (reverse index), config CRUD, persistence to settings. Protects built-in providers from deletion. |
+| `OpenAiCompatibleProvider.ts` | Implements `IModelProvider` for OpenAI Chat Completions-compatible APIs. SSE streaming via `fetch`, `AbortController` cancellation, estimated token counts. No tool-use. Runtime `updateApiKey()`/`updateBaseUrl()`. |
 | `index.ts` | Barrel export |
 
 Key behavior:

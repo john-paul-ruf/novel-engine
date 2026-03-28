@@ -4,6 +4,26 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: OpenAI-compatible provider (SESSION-04)
+
+### Summary
+
+Created `OpenAiCompatibleProvider` — the universal BYOK/self-hosted provider. Implements `IModelProvider` using built-in `fetch` + SSE streaming. Works with any OpenAI Chat Completions-compatible endpoint. No tool-use — text completion + streaming only. Token counts estimated at 4 chars/token.
+
+### Added
+- `src/infrastructure/providers/OpenAiCompatibleProvider.ts` — SSE streaming, AbortController cancellation, runtime API key/URL update, `/v1/models` health check
+
+### Changed
+- `src/infrastructure/providers/index.ts` — Added `OpenAiCompatibleProvider` export
+
+### Architecture Impact
+- New provider class in `providers/` module
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Multi-model providers: ProviderRegistry infrastructure (SESSION-03)
 
 ### Summary
