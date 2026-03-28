@@ -349,6 +349,23 @@ Pure utility — no class, no dependencies. Exports three functions.
 
 **Ambiguity detection:** Set `ambiguous = true` if <3 chapters in a >10K word doc, or if any chapter is >5× the smallest, or if using fallback.
 
+### SeriesImportService
+
+File: `src/application/SeriesImportService.ts`
+
+Dependencies: `IManuscriptImportService`, `ISeriesService`
+
+| Method | What It Does |
+|--------|-------------|
+| `preview(filePaths)` | Previews each file via `IManuscriptImportService.preview()`, wraps as `SeriesImportVolume[]`, detects common series name |
+| `commit(config)` | Creates/resolves series, imports each volume sequentially via `IManuscriptImportService.commit()`, links to series via `ISeriesService.addVolume()` |
+
+**Key behaviors:**
+- Series name detection: longest-common-prefix of detected titles → strip trailing noise (Book/Vol/numbers) → fallback to common parent directory → "Imported Series"
+- Sequential import: books created one at a time to avoid filesystem contention
+- No rollback on partial failure: previously imported books remain if a later one fails
+- Volumes sorted by `volumeNumber` before import to ensure correct series ordering
+
 ### SourceGenerationService
 
 File: `src/application/SourceGenerationService.ts`

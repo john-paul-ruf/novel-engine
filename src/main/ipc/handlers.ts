@@ -21,6 +21,7 @@ import type {
   IManuscriptImportService,
   ISeriesService,
   ISourceGenerationService,
+  ISeriesImportService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -39,6 +40,7 @@ import type {
   ProviderConfig,
   ProviderId,
   ImportCommitConfig,
+  SeriesImportCommitConfig,
   SeriesMeta,
   SourceGenerationEvent,
 } from '@domain/types';
@@ -62,6 +64,7 @@ export function registerIpcHandlers(services: {
   manuscriptImport: IManuscriptImportService;
   sourceGeneration: ISourceGenerationService;
   series: ISeriesService;
+  seriesImport: ISeriesImportService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -272,6 +275,41 @@ export function registerIpcHandlers(services: {
       onProgress: broadcastGenProgress,
       onStreamEvent: broadcastStreamEvent,
     });
+  });
+
+  // ── Series Import ──────────────────────────────────────────────────
+
+  ipcMain.handle('import:selectFiles', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Import Series — Select Manuscripts',
+      filters: [
+        { name: 'Manuscripts', extensions: ['md', 'markdown', 'docx'] },
+        { name: 'Markdown', extensions: ['md', 'markdown'] },
+        { name: 'Word Document', extensions: ['docx'] },
+      ],
+      properties: ['openFile', 'multiSelections'],
+    });
+
+    if (canceled || filePaths.length === 0) return null;
+    return filePaths;
+  });
+
+  ipcMain.handle('import:seriesPreview', (_, filePaths: string[]) =>
+    services.seriesImport.preview(filePaths),
+  );
+
+  ipcMain.handle('import:seriesCommit', async (_, config: SeriesImportCommitConfig) => {
+    const result = await services.seriesImport.commit(config);
+
+    // Set the first book as active so the user lands somewhere useful
+    if (result.volumeResults.length > 0) {
+      hooks?.onActiveBookChanged?.(result.volumeResults[0].bookSlug);
+    }
+
+    return result;
   });
 
   // === Files ===

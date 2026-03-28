@@ -244,6 +244,34 @@ File: `stores/importStore.ts`
 | `startGeneration()` | Starts source doc generation, subscribes to progress events |
 | `reset()` | Cleans up generation listener, resets to idle |
 
+### seriesImportStore
+
+File: `stores/seriesImportStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `step` | `'idle' \| 'loading' \| 'preview' \| 'importing' \| 'success' \| 'error'` | State machine phase |
+| `preview` | `SeriesImportPreview \| null` | All volumes with detected metadata |
+| `result` | `SeriesImportResult \| null` | Committed series result |
+| `error` | `string` | Error message |
+| `seriesName` | `string` | Editable series name |
+| `author` | `string` | Author applied to all volumes |
+| `volumes` | `SeriesImportVolume[]` | Editable volume list with skip/reorder |
+| `existingSeriesSlug` | `string \| null` | If adding to existing series |
+
+| Action | What It Does |
+|--------|-------------|
+| `startImport()` | Opens multi-select file dialog, previews all files, detects series name |
+| `updateSeriesName(name)` | Updates the series name |
+| `updateAuthor(author)` | Updates the author |
+| `updateVolumeTitle(index, title)` | Edits a volume's title |
+| `toggleVolumeSkip(index)` | Toggles skip and renumbers active volumes |
+| `moveVolumeUp(index)` | Moves volume up and renumbers |
+| `moveVolumeDown(index)` | Moves volume down and renumbers |
+| `selectExistingSeries(slug)` | Selects existing series to add to |
+| `commitImport()` | Commits all non-skipped volumes via bridge |
+| `reset()` | Resets to idle state |
+
 ### motifLedgerStore
 
 File: `stores/motifLedgerStore.ts`
@@ -405,6 +433,8 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 |------|---------|
 | `ImportWizard.tsx` | Modal wizard for manuscript import. Renders per-step UI: loading spinner, preview (title/author inputs + chapter list), importing spinner, success (stats + "Open Book" / "Generate Source Documents"), generating (step checklist with progress), generated (summary), error (with retry). |
 | `ChapterPreviewList.tsx` | Editable chapter list with inline title rename, word count badges, content preview snippets, "Merge ↓" and "×" actions, summary bar. Reads directly from `importStore`. |
+| `ImportSeriesWizard.tsx` | Modal wizard for batch series import. Steps: loading, preview (series name/author/existing toggle + volume list), importing, success (per-volume breakdown), error. |
+| `VolumePreviewList.tsx` | Editable volume list with inline title editing, reorder up/down arrows, skip toggles, chapter/word count badges, ambiguity warnings. |
 
 ### CliActivity/
 

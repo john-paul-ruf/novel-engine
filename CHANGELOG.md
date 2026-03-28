@@ -4,6 +4,37 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Series Import feature (4 sessions)
+
+### Summary
+
+Added batch manuscript import with series grouping. Users can select multiple files at once, preview them as ordered volumes, edit titles, reorder, skip individual volumes, and either create a new series or add to an existing one. The feature composes the existing `IManuscriptImportService` (single-book import) and `ISeriesService` (series CRUD) through a new `SeriesImportService` in the application layer — no infrastructure changes needed.
+
+### Added
+- `src/domain/types.ts` — Added `SeriesImportVolume`, `SeriesImportPreview`, `SeriesImportCommitConfig`, `SeriesImportResult` types
+- `src/domain/interfaces.ts` — Added `ISeriesImportService` interface (2 methods: `preview`, `commit`)
+- `src/application/SeriesImportService.ts` — Orchestrates batch preview + sequential commit with series name detection (longest-common-prefix strategy)
+- `src/renderer/stores/seriesImportStore.ts` — Zustand store managing wizard state, volume editing, reordering, skip toggles
+- `src/renderer/components/Import/ImportSeriesWizard.tsx` — Full wizard modal with loading/preview/importing/success/error states
+- `src/renderer/components/Import/VolumePreviewList.tsx` — Volume list with inline title editing, reorder arrows, skip toggles
+
+### Changed
+- `src/main/index.ts` — Instantiates `SeriesImportService`, passes to `registerIpcHandlers`
+- `src/main/ipc/handlers.ts` — Added 3 handlers: `import:selectFiles` (multi-select dialog), `import:seriesPreview`, `import:seriesCommit`
+- `src/preload/index.ts` — Added `seriesImport` namespace to preload bridge with `selectFiles`, `preview`, `commit`
+- `src/renderer/components/Sidebar/BookSelector.tsx` — Added "Import Series" button and `ImportSeriesWizard` rendering
+
+### Architecture Impact
+- New service: `SeriesImportService` → `IManuscriptImportService` + `ISeriesService`
+- New IPC channels: `import:selectFiles`, `import:seriesPreview`, `import:seriesCommit`
+- New preload bridge namespace: `window.novelEngine.seriesImport`
+- New Zustand store: `seriesImportStore`
+
+### Migration Notes
+- None — purely additive feature, no breaking changes
+
+---
+
 ## [2026-03-28] — Series Bible feature (7 sessions)
 
 ### Summary

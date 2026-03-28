@@ -40,6 +40,9 @@ import type {
   ImportPreview,
   ImportCommitConfig,
   ImportResult,
+  SeriesImportCommitConfig,
+  SeriesImportPreview,
+  SeriesImportResult,
   SeriesMeta,
   SeriesSummary,
   SourceGenerationEvent,
@@ -115,6 +118,16 @@ const api = {
       ipcRenderer.on('import:generationProgress', handler);
       return () => ipcRenderer.removeListener('import:generationProgress', handler);
     },
+  },
+
+  // Series Import
+  seriesImport: {
+    selectFiles: (): Promise<string[] | null> =>
+      ipcRenderer.invoke('import:selectFiles'),
+    preview: (filePaths: string[]): Promise<SeriesImportPreview> =>
+      ipcRenderer.invoke('import:seriesPreview', filePaths),
+    commit: (config: SeriesImportCommitConfig): Promise<SeriesImportResult> =>
+      ipcRenderer.invoke('import:seriesCommit', config),
   },
 
   // Files

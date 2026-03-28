@@ -74,6 +74,7 @@ src/
 │   ├── MotifLedgerService.ts                # Motif ledger CRUD from JSON on disk
 │   ├── VersionService.ts                   # File versioning: snapshot, diff, revert, prune
 │   ├── ManuscriptImportService.ts           # DOCX/MD import, chapter detection, book creation
+│   ├── SeriesImportService.ts              # Batch import + series creation orchestration
 │   ├── SourceGenerationService.ts           # Multi-agent source document generation
 │   ├── import/
 │   │   └── ChapterDetector.ts               # Pure chapter break detection utility
@@ -121,7 +122,7 @@ src/
     │   ├── PitchRoom/                       # PitchRoomView
     │   ├── RevisionQueue/                   # RevisionQueueView, SessionCard, TaskProgress, etc.
     │   ├── MotifLedger/                     # MotifLedgerView + tabs (Entries, Systems, Foreshadow, etc.)
-    │   ├── Import/                          # ImportWizard, ChapterPreviewList
+    │   ├── Import/                          # ImportWizard, ChapterPreviewList, ImportSeriesWizard, VolumePreviewList
     │   ├── CliActivity/                     # CliActivityPanel
     │   └── ErrorBoundary/                   # ErrorBoundary
     ├── hooks/
@@ -186,6 +187,10 @@ VersionService
 ManuscriptImportService
 ├── IFileSystemService (FileSystemService)
 └── pandocPath: string
+
+SeriesImportService
+├── IManuscriptImportService (ManuscriptImportService)
+└── ISeriesService (SeriesService)
 
 SourceGenerationService
 ├── ISettingsService (SettingsService)

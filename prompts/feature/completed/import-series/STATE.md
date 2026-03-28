@@ -29,10 +29,10 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Domain Types for Series Import | Domain | pending | | |
-| 2 | SESSION-02 — SeriesImportService | Application | pending | | |
-| 3 | SESSION-03 — IPC Wiring, Preload, Composition Root | IPC / Main | pending | | |
-| 4 | SESSION-04 — Renderer Store and UI Components | Renderer | pending | | |
+| 1 | SESSION-01 — Domain Types for Series Import | Domain | done | 2026-03-28 | Clean insertion. Types placed after ImportResult, interface after ISeriesService. |
+| 2 | SESSION-02 — SeriesImportService | Application | done | 2026-03-28 | Implemented exactly per spec. Depends on IManuscriptImportService + ISeriesService via DI. |
+| 3 | SESSION-03 — IPC Wiring, Preload, Composition Root | IPC / Main | done | 2026-03-28 | 3 new IPC channels, preload bridge namespace, composition root wiring. |
+| 4 | SESSION-04 — Renderer Store and UI Components | Renderer | done | 2026-03-28 | Store, wizard, volume list, BookSelector integration. All per spec. |
 
 ---
 
@@ -93,8 +93,16 @@ flowchart TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-04 (FINAL)
 
 ### Observations:
+- Types inserted at line 637 of types.ts, between ImportResult and SourceGenerationStep sections
+- ISeriesImportService interface added at end of interfaces.ts after ISeriesService
+- SeriesImportService composes IManuscriptImportService + ISeriesService via DI
+- 3 new IPC channels: import:selectFiles, import:seriesPreview, import:seriesCommit
+- Preload bridge exposes window.novelEngine.seriesImport namespace
+- BookSelector now has 3 action buttons: New Book, Import, Import Series
+- `npx tsc --noEmit` passes cleanly on all 4 sessions
+- Feature complete — all sessions done
 
 ### Warnings:

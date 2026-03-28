@@ -64,6 +64,9 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `import:preview` | invoke | `manuscriptImport.preview(filePath)` | `ImportPreview` |
 | `import:commit` | invoke | `manuscriptImport.commit(config)` + triggers `onActiveBookChanged` | `ImportResult` |
 | `import:generateSources` | invoke | `sourceGeneration.generate()` — broadcasts progress via `import:generationProgress` | `void` |
+| `import:selectFiles` | invoke | `dialog.showOpenDialog()` — multi-select file picker for .md/.markdown/.docx | `string[] \| null` |
+| `import:seriesPreview` | invoke | `seriesImport.preview(filePaths)` | `SeriesImportPreview` |
+| `import:seriesCommit` | invoke | `seriesImport.commit(config)` + triggers `onActiveBookChanged` for first volume | `SeriesImportResult` |
 
 ### files:*
 
@@ -301,6 +304,12 @@ window.novelEngine: {
     commit(config: ImportCommitConfig): Promise<ImportResult>
     generateSources(bookSlug: string): Promise<void>
     onGenerationProgress(callback: (event: SourceGenerationEvent) => void): () => void
+  }
+
+  seriesImport: {
+    selectFiles(): Promise<string[] | null>
+    preview(filePaths: string[]): Promise<SeriesImportPreview>
+    commit(config: SeriesImportCommitConfig): Promise<SeriesImportResult>
   }
 
   files: {

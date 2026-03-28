@@ -634,6 +634,64 @@ export type ImportResult = {
   totalWordCount: number;
 };
 
+// === Series Import ===
+
+/** A single volume in a series import — wraps an ImportPreview with ordering. */
+export type SeriesImportVolume = {
+  /** Index in the import order (0-based). */
+  index: number;
+  /** The manuscript preview for this volume. */
+  preview: ImportPreview;
+  /** Volume number in the series (1-based). User can reorder. */
+  volumeNumber: number;
+  /** Whether the user has opted to skip importing this volume. */
+  skipped: boolean;
+};
+
+/** Result of analyzing multiple files for series import. */
+export type SeriesImportPreview = {
+  /** Detected or user-provided series name. */
+  seriesName: string;
+  /** All volumes detected from the selected files. */
+  volumes: SeriesImportVolume[];
+  /** Total word count across all non-skipped volumes. */
+  totalWordCount: number;
+  /** Total chapter count across all non-skipped volumes. */
+  totalChapterCount: number;
+};
+
+/** Configuration for committing a series import. User may have edited titles, reordered, etc. */
+export type SeriesImportCommitConfig = {
+  /** Series name (new series will be created, or existing slug to add to). */
+  seriesName: string;
+  /** Existing series slug — if set, volumes are added to this series instead of creating new. */
+  existingSeriesSlug: string | null;
+  /** Author name applied to all volumes. */
+  author: string;
+  /** The volumes to import (skipped volumes excluded by caller). */
+  volumes: Array<{
+    volumeNumber: number;
+    title: string;
+    chapters: DetectedChapter[];
+  }>;
+};
+
+/** Result of committing a series import. */
+export type SeriesImportResult = {
+  /** The series slug (created or existing). */
+  seriesSlug: string;
+  /** The series display name. */
+  seriesName: string;
+  /** Results for each imported volume. */
+  volumeResults: ImportResult[];
+  /** Total books imported. */
+  totalBooks: number;
+  /** Total chapters across all books. */
+  totalChapters: number;
+  /** Total words across all books. */
+  totalWordCount: number;
+};
+
 // === Source Document Generation ===
 
 export type SourceGenerationStep = {

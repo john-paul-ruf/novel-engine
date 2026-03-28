@@ -39,6 +39,9 @@ import type {
   QueueStatus,
   RevisionPlan,
   RevisionQueueEvent,
+  SeriesImportCommitConfig,
+  SeriesImportPreview,
+  SeriesImportResult,
   SeriesMeta,
   SeriesSummary,
   ShelvedPitch,
@@ -747,4 +750,27 @@ export interface ISeriesService {
    * to ensure the reverse lookup stays consistent.
    */
   invalidateCache(): void;
+}
+
+export interface ISeriesImportService {
+  /**
+   * Preview multiple manuscript files for series import.
+   *
+   * Runs the single-book preview for each file, wraps results as
+   * SeriesImportVolume entries, and attempts to detect a common series
+   * name from the file names or detected titles.
+   *
+   * @param filePaths Absolute paths to the source files (.md or .docx)
+   */
+  preview(filePaths: string[]): Promise<SeriesImportPreview>;
+
+  /**
+   * Commit the series import: create each book, create or attach to a
+   * series, and link all books as volumes.
+   *
+   * Books are created in volume order. If any individual book import
+   * fails, previously imported books remain (no rollback) and the error
+   * is reported in the result.
+   */
+  commit(config: SeriesImportCommitConfig): Promise<SeriesImportResult>;
 }

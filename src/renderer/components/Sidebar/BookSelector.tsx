@@ -11,6 +11,8 @@ import { PitchPreviewModal } from './PitchPreviewModal';
 import { usePitchShelfStore } from '../../stores/pitchShelfStore';
 import { ImportWizard } from '../Import/ImportWizard';
 import { useImportStore } from '../../stores/importStore';
+import { ImportSeriesWizard } from '../Import/ImportSeriesWizard';
+import { useSeriesImportStore } from '../../stores/seriesImportStore';
 import { SeriesGroup } from './SeriesGroup';
 import { SeriesModal } from '../Series/SeriesModal';
 
@@ -251,6 +253,8 @@ export function BookSelector(): React.ReactElement {
   const revision = useFileChangeStore((s) => s.revision);
   const importStep = useImportStore((s) => s.step);
   const startImport = useImportStore((s) => s.startImport);
+  const seriesImportStep = useSeriesImportStore((s) => s.step);
+  const startSeriesImport = useSeriesImportStore((s) => s.startImport);
   const { seriesList, loadSeries, openModal, isModalOpen, selectSeries } = useSeriesStore();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -612,6 +616,15 @@ export function BookSelector(): React.ReactElement {
                   </svg>
                   <span>Import</span>
                 </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    startSeriesImport();
+                  }}
+                  className="no-drag flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <span>Import Series</span>
+                </button>
               </div>
             </>
           )}
@@ -640,6 +653,9 @@ export function BookSelector(): React.ReactElement {
 
       {/* Import wizard modal */}
       {importStep !== 'idle' && <ImportWizard />}
+
+      {/* Series import wizard modal */}
+      {seriesImportStep !== 'idle' && <ImportSeriesWizard />}
 
       {/* Series management modal */}
       {isModalOpen && <SeriesModal />}

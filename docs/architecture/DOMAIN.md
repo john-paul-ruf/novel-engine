@@ -191,6 +191,15 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `ImportCommitConfig` | `{ title, author, chapters }` | ManuscriptImportService.commit() |
 | `ImportResult` | `{ bookSlug, title, chapterCount, totalWordCount }` | ImportWizard success step |
 
+### Series Import
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `SeriesImportVolume` | `{ index, preview: ImportPreview, volumeNumber, skipped }` | SeriesImportService, seriesImportStore |
+| `SeriesImportPreview` | `{ seriesName, volumes, totalWordCount, totalChapterCount }` | ImportSeriesWizard |
+| `SeriesImportCommitConfig` | `{ seriesName, existingSeriesSlug, author, volumes[] }` | SeriesImportService.commit() |
+| `SeriesImportResult` | `{ seriesSlug, seriesName, volumeResults, totalBooks, totalChapters, totalWordCount }` | ImportSeriesWizard success step |
+
 ### Source Document Generation
 
 | Type | Shape | Used By |
@@ -495,6 +504,15 @@ Implemented by: `SeriesService` (`src/infrastructure/series/`)
 | `writeSeriesBible` | `(seriesSlug, content) => Promise<void>` | Writes series-bible.md |
 | `getSeriesBiblePath` | `(bookSlug: string) => Promise<string \| null>` | Absolute path for context building |
 | `invalidateCache` | `() => void` | Clears reverse-lookup cache |
+
+### ISeriesImportService
+
+Implemented by: `SeriesImportService` (`src/application/`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `preview` | `(filePaths: string[]) => Promise<SeriesImportPreview>` | Batch-preview multiple files, detect series name |
+| `commit` | `(config: SeriesImportCommitConfig) => Promise<SeriesImportResult>` | Create books sequentially, create/attach series, link volumes |
 
 ---
 
