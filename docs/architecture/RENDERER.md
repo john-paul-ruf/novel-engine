@@ -258,14 +258,14 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `FilesView.tsx` | Container: switches between browser, reader, and editor modes |
+| `FilesView.tsx` | Container: switches between browser, reader, and editor modes. Reader mode has History toggle with split-panel `VersionHistoryPanel` |
 | `FileBrowser.tsx` | Traditional file tree browser |
 | `StructuredBrowser.tsx` | Structured view with source/chapters/dist panels |
-| `FileEditor.tsx` | Markdown editor with save/cancel |
+| `FileEditor.tsx` | Markdown editor with save/cancel, History toggle with split-panel `VersionHistoryPanel` |
 | `FilesHeader.tsx` | Header with view mode toggles |
-| `SourcePanel.tsx` | Source files section in structured browser |
-| `ChaptersPanel.tsx` | Chapters section in structured browser |
-| `AgentOutputPanel.tsx` | Agent output files section |
+| `SourcePanel.tsx` | Source files section in structured browser, with version history icon on hover |
+| `ChaptersPanel.tsx` | Chapters section in structured browser, with version history icons on hover for draft/notes |
+| `AgentOutputPanel.tsx` | Agent output files section, with version history icon on hover |
 | `CollapsibleSection.tsx` | Reusable collapsible section wrapper |
 | `DeleteConfirmModal.tsx` | Confirmation dialog for file/folder deletion |
 | `DiffViewer.tsx` | Renders `FileDiff` as color-coded unified diff (green/red/neutral) |

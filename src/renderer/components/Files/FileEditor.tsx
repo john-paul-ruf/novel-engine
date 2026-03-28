@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { marked } from 'marked';
 import { useBookStore } from '../../stores/bookStore';
+import { VersionHistoryPanel } from './VersionHistoryPanel';
 
 type FileEditorProps = {
   filePath: string;
@@ -23,17 +24,19 @@ export function FileEditor({
   const [content, setContent] = useState(initialContent);
   const [savedContent, setSavedContent] = useState(initialContent);
   const [showPreview, setShowPreview] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasUnsavedChanges = content !== savedContent;
 
-  // Reset content when file changes
+  // Reset content and close history when file changes
   useEffect(() => {
     setContent(initialContent);
     setSavedContent(initialContent);
     setSaveStatus('idle');
+    setShowHistory(false);
   }, [initialContent, filePath]);
 
   // Save handler
@@ -142,6 +145,22 @@ export function FileEditor({
                 : 'Save'}
           </button>
 
+          {/* History toggle */}
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={`rounded px-2.5 py-1 text-xs transition-colors ${
+              showHistory
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+            }`}
+            title="Version history"
+          >
+            <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            History
+          </button>
+
           {/* Cancel button */}
           <button
             onClick={onClose}
@@ -152,26 +171,48 @@ export function FileEditor({
         </div>
       </div>
 
-      {/* Editor area */}
-      <div className="flex flex-1 min-h-0">
-        {/* Textarea */}
-        <div className={`flex-1 min-w-0 ${showPreview ? 'border-r border-zinc-200 dark:border-zinc-800' : ''}`}>
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full h-full bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-400 dark:placeholder-zinc-600"
-            placeholder="Start writing..."
-            spellCheck={false}
-          />
+      {/* Editor area + optional history panel */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Editor content */}
+        <div className={`flex flex-col overflow-hidden ${showHistory ? 'w-1/2' : 'flex-1'}`}>
+          <div className="flex flex-1 min-h-0">
+            {/* Textarea */}
+            <div className={`flex-1 min-w-0 ${showPreview ? 'border-r border-zinc-200 dark:border-zinc-800' : ''}`}>
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="w-full h-full bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-400 dark:placeholder-zinc-600"
+                placeholder="Start writing..."
+                spellCheck={false}
+              />
+            </div>
+
+            {/* Preview pane */}
+            {showPreview && (
+              <div className="flex-1 min-w-0 overflow-y-auto p-6">
+                <div
+                  className="prose dark:prose-invert prose-zinc max-w-none"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Preview pane */}
-        {showPreview && (
-          <div className="flex-1 min-w-0 overflow-y-auto p-6">
-            <div
-              className="prose dark:prose-invert prose-zinc max-w-none"
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
+        {/* Version history panel */}
+        {showHistory && activeSlug && (
+          <div className="w-1/2 border-l border-zinc-200 dark:border-zinc-800">
+            <VersionHistoryPanel
+              bookSlug={activeSlug}
+              filePath={filePath}
+              onClose={() => setShowHistory(false)}
+              onReverted={() => {
+                window.novelEngine.files.read(activeSlug, filePath).then((newContent) => {
+                  setContent(newContent);
+                  setSavedContent(newContent);
+                }).catch((err) => console.error('Failed to reload after revert:', err));
+              }}
             />
           </div>
         )}

@@ -4,6 +4,28 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Integrate version history into all file views
+
+### Summary
+
+Integrated the `VersionHistoryPanel` into every place files are surfaced in the UI. FileEditor and FilesView reader mode now have a "History" toggle button that opens a split-panel with the version timeline on the right. SourcePanel, ChaptersPanel, and AgentOutputPanel show clock icon buttons on hover that navigate to the file's reader view for history access. This completes the content-version-control feature.
+
+### Modified
+- `src/renderer/components/Files/FileEditor.tsx` — History toggle button in toolbar, split-panel with VersionHistoryPanel, auto-reload on revert, close history on file change
+- `src/renderer/components/Files/FilesView.tsx` — History toggle button in reader mode, split-panel layout, auto-reload on revert
+- `src/renderer/components/Files/SourcePanel.tsx` — Clock icon history button on hover for each source file card
+- `src/renderer/components/Files/ChaptersPanel.tsx` — Clock icon history buttons on hover for draft.md and notes.md in both editable and body chapter rows
+- `src/renderer/components/Files/AgentOutputPanel.tsx` — Clock icon history button on hover for each agent output file card
+
+### Architecture Impact
+- No new files or interfaces — integration only
+- All history access uses existing `VersionHistoryPanel` and `versionStore`
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Add VersionHistoryPanel component
 
 ### Summary

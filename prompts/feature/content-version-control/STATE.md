@@ -35,7 +35,7 @@
 | 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root (multi-book safe) | IPC / Main | done | 2026-03-28 | VersionService wired in composition root. 6 IPC channels added. Auto-snapshot hooks in chat:send, hot-take, adhoc-revision, revision queue, files:write, and BookWatcher fallback. Startup pruning added. |
 | 5 | SESSION-05 — Version Store & DiffViewer Component | Renderer | done | 2026-03-28 | versionStore with 6 actions + DiffViewer with hunk/line/summary rendering. |
 | 6 | SESSION-06 — VersionHistory Panel Component | Renderer | done | 2026-03-28 | VersionHistoryPanel with timeline, diff viewer, revert with confirmation, and pagination. |
-| 7 | SESSION-07 — Integrate Version History into FilesView & FileEditor | Renderer | pending | | |
+| 7 | SESSION-07 — Integrate Version History into FilesView & FileEditor | Renderer | done | 2026-03-28 | History button + split panel in FileEditor and FilesView reader mode. Clock icon history links in SourcePanel, ChaptersPanel, and AgentOutputPanel. |
 
 ---
 
@@ -105,11 +105,16 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-06
+### Last completed session: SESSION-07 (FINAL)
 
 ### Observations:
-- SESSION-01–05: Full stack complete from domain to store+DiffViewer
-- SESSION-06: VersionHistoryPanel with version timeline (source badges, relative timestamps, byte sizes), inline revert with confirmation, paginated load-more, and integrated DiffViewer.
-- Next session (SESSION-07) should integrate VersionHistoryPanel into FileEditor, FilesView, SourcePanel, ChaptersPanel, and AgentOutputPanel
+- SESSION-01–06: Full stack complete from domain types through VersionHistoryPanel component
+- SESSION-07: Integrated version history access into all 5 file-surfacing components:
+  - FileEditor: History toggle button in toolbar, split-panel with VersionHistoryPanel on right, auto-reload on revert
+  - FilesView reader mode: History toggle button, split-panel layout, auto-reload on revert
+  - SourcePanel: Clock icon on hover for each source file card
+  - ChaptersPanel: Clock icons on hover for draft.md and notes.md in both editable and body chapter rows
+  - AgentOutputPanel: Clock icon on hover for each agent output file card
+- All 7 sessions complete. Feature is fully implemented end-to-end.
 
 ### Warnings:

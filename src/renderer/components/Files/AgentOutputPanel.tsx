@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AGENT_REGISTRY } from '@domain/constants';
 import type { AgentName } from '@domain/types';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { useViewStore } from '../../stores/viewStore';
 import { DeleteConfirmModal, useDeleteFile } from './DeleteConfirmModal';
 import type { DeleteTarget } from './DeleteConfirmModal';
 
@@ -70,6 +71,7 @@ function AgentOutputCard({
   agentColor,
   onSelect,
   onDelete,
+  onHistory,
 }: {
   file: { path: string; label: string; description: string };
   exists: boolean;
@@ -77,6 +79,7 @@ function AgentOutputCard({
   agentColor: string;
   onSelect: () => void;
   onDelete: (target: DeleteTarget, e: React.MouseEvent) => void;
+  onHistory: (e: React.MouseEvent) => void;
 }): React.ReactElement {
   const fileName = file.path.split('/').pop() ?? file.path;
 
@@ -98,19 +101,30 @@ function AgentOutputCard({
       className="group relative cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-800 border-l-2 bg-zinc-50 dark:bg-zinc-900 p-3 transition-colors hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80"
       style={{ borderLeftColor: agentColor }}
     >
-      {/* Delete button — hover reveal */}
-      <button
-        onClick={(e) =>
-          onDelete(
-            { path: file.path, name: fileName, isDirectory: false },
-            e,
-          )
-        }
-        className="absolute right-2 top-2 rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity"
-        title={`Delete ${file.label}`}
-      >
-        ✕
-      </button>
+      {/* Action buttons — hover reveal */}
+      <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onHistory}
+          className="rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-zinc-500 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+          title="Version history"
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        <button
+          onClick={(e) =>
+            onDelete(
+              { path: file.path, name: fileName, isDirectory: false },
+              e,
+            )
+          }
+          className="rounded bg-zinc-200 dark:bg-zinc-700 p-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+          title={`Delete ${file.label}`}
+        >
+          ✕
+        </button>
+      </div>
 
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{file.label}</span>
@@ -129,6 +143,7 @@ export function AgentOutputPanel({
 }: AgentOutputPanelProps): React.ReactElement {
   const revision = useFileChangeStore((s) => s.revision);
   const notifyChange = useFileChangeStore((s) => s.notifyChange);
+  const { navigate } = useViewStore();
   const [fileStatuses, setFileStatuses] = useState<Record<string, FileStatus>>({});
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -231,6 +246,10 @@ export function AgentOutputPanel({
                     agentColor={agentMeta.color}
                     onSelect={() => onFileSelect(file.path)}
                     onDelete={requestDelete}
+                    onHistory={(e) => {
+                      e.stopPropagation();
+                      navigate('files', { filePath: file.path, fileViewMode: 'reader' });
+                    }}
                   />
                 ))}
               </div>

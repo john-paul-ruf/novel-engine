@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { useViewStore } from '../../stores/viewStore';
 import { DeleteConfirmModal, useDeleteFile } from './DeleteConfirmModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ export function ChaptersPanel({
 }: ChaptersPanelProps): React.ReactElement {
   const fileRevision = useFileChangeStore((s) => s.revision);
   const notifyChange = useFileChangeStore((s) => s.notifyChange);
+  const { navigate } = useViewStore();
 
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -295,6 +297,20 @@ export function ChaptersPanel({
         >
           Draft
         </button>
+        {chapter.hasDraft && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('files', { filePath: `chapters/${chapter.slug}/draft.md`, fileViewMode: 'reader' });
+            }}
+            className="p-0.5 text-zinc-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
+            title="Draft version history"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
         <button
           onClick={() => onFileSelect(`chapters/${chapter.slug}/notes.md`)}
           className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
@@ -306,6 +322,20 @@ export function ChaptersPanel({
         >
           Notes
         </button>
+        {chapter.hasNotes && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('files', { filePath: `chapters/${chapter.slug}/notes.md`, fileViewMode: 'reader' });
+            }}
+            className="p-0.5 text-zinc-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
+            title="Notes version history"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Delete button — hover reveal */}
@@ -379,6 +409,20 @@ export function ChaptersPanel({
           {chapter.hasDraft && <span aria-hidden className="mr-0.5">🔒</span>}
           Draft
         </button>
+        {chapter.hasDraft && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('files', { filePath: `chapters/${chapter.slug}/draft.md`, fileViewMode: 'reader' });
+            }}
+            className="p-0.5 text-zinc-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
+            title="Draft version history"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
 
         {/* Notes remain author-editable */}
         <button
@@ -392,6 +436,20 @@ export function ChaptersPanel({
         >
           Notes
         </button>
+        {chapter.hasNotes && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('files', { filePath: `chapters/${chapter.slug}/notes.md`, fileViewMode: 'reader' });
+            }}
+            className="p-0.5 text-zinc-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
+            title="Notes version history"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Delete button — hover reveal */}

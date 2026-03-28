@@ -6,6 +6,7 @@ import { FilesHeader } from './FilesHeader';
 import { FileBrowser } from './FileBrowser';
 import { FileEditor } from './FileEditor';
 import { StructuredBrowser } from './StructuredBrowser';
+import { VersionHistoryPanel } from './VersionHistoryPanel';
 import type { FileViewMode } from '../../stores/viewStore';
 import type { BookMeta, BookStatus } from '@domain/types';
 
@@ -373,6 +374,11 @@ export function FilesView(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Close history panel when file changes
+  useEffect(() => {
+    setShowHistory(false);
+  }, [filePath]);
+
   // Load file when filePath changes (for reader mode)
   useEffect(() => {
     if (!filePath || !activeSlug) {
@@ -476,6 +482,7 @@ export function FilesView(): React.ReactElement {
     [filePath, activeSlug],
   );
 
+  const [showHistory, setShowHistory] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
 
@@ -533,17 +540,56 @@ export function FilesView(): React.ReactElement {
       )}
 
       {viewMode === 'reader' && (
-        <ReaderContent
-          filePath={filePath}
-          content={content}
-          loading={loading}
-          error={error}
-          activeSlug={activeSlug}
-          readOnly={readOnly}
-          onFileSelect={handleFileSelect}
-          onClearFile={handleBackToBrowser}
-          onContentChange={setContent}
-        />
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className={`flex flex-col overflow-hidden ${showHistory ? 'w-1/2' : 'flex-1'}`}>
+            {/* History toggle bar — only when a file is selected and loaded */}
+            {filePath && !loading && !error && (
+              <div className="shrink-0 flex items-center justify-end border-b border-zinc-200 dark:border-zinc-800 px-6 py-1.5">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className={`rounded px-2.5 py-1 text-xs transition-colors ${
+                    showHistory
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                  }`}
+                  title="Version history"
+                >
+                  <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  History
+                </button>
+              </div>
+            )}
+            <ReaderContent
+              filePath={filePath}
+              content={content}
+              loading={loading}
+              error={error}
+              activeSlug={activeSlug}
+              readOnly={readOnly}
+              onFileSelect={handleFileSelect}
+              onClearFile={handleBackToBrowser}
+              onContentChange={setContent}
+            />
+          </div>
+
+          {/* Version history panel */}
+          {showHistory && activeSlug && filePath && (
+            <div className="w-1/2 border-l border-zinc-200 dark:border-zinc-800">
+              <VersionHistoryPanel
+                bookSlug={activeSlug}
+                filePath={filePath}
+                onClose={() => setShowHistory(false)}
+                onReverted={() => {
+                  window.novelEngine.files.read(activeSlug, filePath).then((newContent) => {
+                    setContent(newContent);
+                  }).catch((err) => console.error('Failed to reload after revert:', err));
+                }}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Editor mode is blocked for Verity-authored drafts — fall back to reader. */}
