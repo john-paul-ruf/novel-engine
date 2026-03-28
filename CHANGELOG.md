@@ -4,6 +4,28 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Wire VersionService into IPC, preload bridge, and composition root
+
+### Summary
+
+Connected `VersionService` to the Electron app. Instantiated in composition root, exposed through 6 new IPC channels (`versions:*`), and added to the preload bridge as `window.novelEngine.versions`. Auto-snapshot hooks added at 5 capture points: `files:write` (user edits), `chat:send` (pipeline agent writes), `hot-take:start`, `adhoc-revision:start`, and revision queue event forwarding (all agent writes). BookWatcher provides fallback snapshotting for active book. Startup pruning trims old versions on app launch.
+
+### Changed
+- `src/main/index.ts` — Import and instantiate `VersionService`. Add startup pruning loop. Add fallback snapshot to BookWatcher callback. Pass `version` to `registerIpcHandlers`.
+- `src/main/ipc/handlers.ts` — Add `IVersionService` to services param. Add `snapshotChangedFiles` helper. Add 6 `versions:*` IPC handlers. Modify `files:write` to auto-snapshot. Add snapshot hooks to `chat:send`, `hot-take:start`, `adhoc-revision:start`, and revision queue event forwarding.
+- `src/preload/index.ts` — Add `versions` namespace with 6 methods: `getHistory`, `getVersion`, `getDiff`, `revert`, `getCount`, `snapshot`. Add type imports for `FileDiff`, `FileVersion`, `FileVersionSource`, `FileVersionSummary`.
+
+### Architecture Impact
+- New IPC channels: `versions:getHistory`, `versions:getVersion`, `versions:getDiff`, `versions:revert`, `versions:getCount`, `versions:snapshot`
+- New preload bridge namespace: `window.novelEngine.versions`
+- New dependency in composition root: `VersionService(db, fs)`
+- Auto-snapshot hooks at 5 capture points across all book-writing flows
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Add VersionService implementation with diff computation
 
 ### Summary

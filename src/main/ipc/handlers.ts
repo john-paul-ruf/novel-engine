@@ -16,6 +16,7 @@ import type {
   IRevisionQueueService,
   IMotifLedgerService,
   IUsageService,
+  IVersionService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -28,6 +29,7 @@ import type {
   PipelinePhaseId,
   QueueMode,
   SendMessageParams,
+  FileVersionSource,
   StreamEvent,
   StreamEventSource,
 } from '@domain/types';
@@ -47,12 +49,26 @@ export function registerIpcHandlers(services: {
   revisionQueue: IRevisionQueueService;
   motifLedger: IMotifLedgerService;
   notifications: NotificationManager;
+  version: IVersionService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
 }, hooks?: {
   onActiveBookChanged?: (slug: string) => void;
 }): void {
+
+  /**
+   * Snapshot changed files after a CLI stream completes.
+   * Called from chat:send, hot-take, adhoc-revision, and revision queue handlers.
+   * Dedup by hash ensures no duplicate versions if the BookWatcher also fires.
+   */
+  const snapshotChangedFiles = (bookSlug: string, changedPaths: string[], source: FileVersionSource = 'agent') => {
+    for (const filePath of changedPaths) {
+      services.version.snapshotFile(bookSlug, filePath, source).catch((err) => {
+        console.warn('[versions] Auto-snapshot failed for', filePath, err);
+      });
+    }
+  };
 
   // === Settings ===
 
@@ -153,9 +169,13 @@ export function registerIpcHandlers(services: {
     services.fs.readFile(bookSlug, path),
   );
 
-  ipcMain.handle('files:write', (_, bookSlug: string, path: string, content: string) =>
-    services.fs.writeFile(bookSlug, path, content),
-  );
+  ipcMain.handle('files:write', async (_, bookSlug: string, path: string, content: string) => {
+    await services.fs.writeFile(bookSlug, path, content);
+    // Auto-snapshot the written content (dedup by hash — no-op if unchanged)
+    await services.version.snapshotContent(bookSlug, path, content, 'user').catch((err) => {
+      console.warn('[versions] Auto-snapshot failed:', err);
+    });
+  });
 
   ipcMain.handle('files:exists', (_, bookSlug: string, path: string) =>
     services.fs.fileExists(bookSlug, path),
@@ -167,6 +187,41 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('files:delete', (_, bookSlug: string, relativePath: string) =>
     services.fs.deletePath(bookSlug, relativePath),
+  );
+
+  // === Versions ===
+
+  ipcMain.handle('versions:getHistory', (_, bookSlug: string, filePath: string, limit?: number, offset?: number) =>
+    services.version.getHistory(bookSlug, filePath, limit ?? 50, offset ?? 0),
+  );
+
+  ipcMain.handle('versions:getVersion', (_, versionId: number) =>
+    services.version.getVersion(versionId),
+  );
+
+  ipcMain.handle('versions:getDiff', (_, oldVersionId: number | null, newVersionId: number) =>
+    services.version.getDiff(oldVersionId, newVersionId),
+  );
+
+  ipcMain.handle('versions:revert', async (_, bookSlug: string, filePath: string, versionId: number) => {
+    const result = await services.version.revertToVersion(bookSlug, filePath, versionId);
+    // Notify renderer that a file was changed (revert is a write)
+    for (const w of BrowserWindow.getAllWindows()) {
+      try {
+        w.webContents.send('chat:filesChanged', [filePath], bookSlug);
+      } catch {
+        // Window may be closing
+      }
+    }
+    return result;
+  });
+
+  ipcMain.handle('versions:getCount', (_, bookSlug: string, filePath: string) =>
+    services.version.getVersionCount(bookSlug, filePath),
+  );
+
+  ipcMain.handle('versions:snapshot', (_, bookSlug: string, filePath: string, source: FileVersionSource) =>
+    services.version.snapshotFile(bookSlug, filePath, source),
   );
 
   // === Conversations ===
@@ -270,6 +325,8 @@ export function registerIpcHandlers(services: {
           // Window may be closing — skip
         }
       }
+      // Snapshot agent-written files (uses params.bookSlug — correct for any book, not just active)
+      snapshotChangedFiles(params.bookSlug, changedFiles);
     }
   });
 
@@ -475,6 +532,7 @@ export function registerIpcHandlers(services: {
       }
     };
 
+    let hotTakeChangedFiles: string[] = [];
     services.chat.sendMessage({
       agentName: 'Ghostlight',
       message: 'Read the full manuscript and give me your honest reaction.',
@@ -483,6 +541,14 @@ export function registerIpcHandlers(services: {
       callId,
       onEvent: (streamEvent) => {
         broadcastStreamEvent({ ...streamEvent, callId, conversationId: conversation.id, source: 'hot-take' });
+
+        // Track changed files for version snapshotting
+        if (streamEvent.type === 'filesChanged') {
+          hotTakeChangedFiles = streamEvent.paths;
+        }
+        if ((streamEvent.type === 'done' || streamEvent.type === 'error') && hotTakeChangedFiles.length > 0) {
+          snapshotChangedFiles(bookSlug, hotTakeChangedFiles);
+        }
       },
     }).catch((err) => {
       console.error('[hot-take] Stream error:', err);
@@ -546,6 +612,8 @@ export function registerIpcHandlers(services: {
                 // Window may be closing
               }
             }
+            // Snapshot agent-written files for this book
+            snapshotChangedFiles(bookSlug, adhocChangedFiles);
           }
         }
       },
@@ -717,6 +785,15 @@ export function registerIpcHandlers(services: {
           source: 'revision' as StreamEventSource,
         });
       }
+    }
+
+    // Snapshot files changed during revision sessions
+    if (event.type === 'session:streamEvent' && event.event.type === 'filesChanged') {
+      services.fs.getActiveBookSlug().then((slug) => {
+        if (slug) {
+          snapshotChangedFiles(slug, event.event.type === 'filesChanged' ? event.event.paths : []);
+        }
+      }).catch(() => {});
     }
 
     // Fire notifications for key revision events

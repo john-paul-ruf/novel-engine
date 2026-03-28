@@ -69,6 +69,7 @@ import { BuildService } from '@app/BuildService';
 import { UsageService } from '@app/UsageService';
 import { RevisionQueueService } from '@app/RevisionQueueService';
 import { MotifLedgerService } from '@app/MotifLedgerService';
+import { VersionService } from '@app/VersionService';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -236,6 +237,7 @@ async function initializeApp(): Promise<void> {
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
   const motifLedger = new MotifLedgerService(fs);
+  const version = new VersionService(db, fs);
   const notifications = new NotificationManager(settings);
 
   // 4b. Recover orphaned stream sessions and prune old event data
@@ -248,6 +250,16 @@ async function initializeApp(): Promise<void> {
     db.pruneStreamEvents(7);
   } catch (err) {
     console.warn('[startup] pruneStreamEvents failed:', err);
+  }
+
+  // Prune old file versions (keep last 50 per file per book)
+  try {
+    const books = await fs.listBooks();
+    for (const book of books) {
+      await version.pruneVersions(book.slug, 50);
+    }
+  } catch (err) {
+    console.warn('[startup] pruneFileVersions failed:', err);
   }
 
   // 5. Sync Electron native theme with user preference (affects window frame color)
@@ -283,9 +295,21 @@ async function initializeApp(): Promise<void> {
 
   // 7. Set up file system watchers
   //    a) Active-book watcher — notifies renderer when files change inside the open book
-  bookWatcher = new BookWatcher(booksDir, (changedPaths) => {
+  bookWatcher = new BookWatcher(booksDir, async (changedPaths) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chat:filesChanged', changedPaths);
+    }
+
+    // Fallback snapshot: catches external edits and manual file drops for active book.
+    // Primary agent-write capture is in the IPC handlers (chat:send, hot-take, etc.)
+    // which have the correct bookSlug for any book, not just the active one.
+    const activeSlug = await fs.getActiveBookSlug().catch(() => '');
+    if (activeSlug) {
+      for (const changedPath of changedPaths) {
+        version.snapshotFile(activeSlug, changedPath, 'agent').catch(() => {
+          // Snapshot failure is non-critical
+        });
+      }
     }
   });
 
@@ -309,7 +333,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

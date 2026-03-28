@@ -12,7 +12,11 @@ import type {
   ContextDiagnostics,
   Conversation,
   ConversationPurpose,
+  FileDiff,
   FileEntry,
+  FileVersion,
+  FileVersionSource,
+  FileVersionSummary,
   Message,
   MotifLedger,
   PipelinePhase,
@@ -98,6 +102,22 @@ const api = {
       ipcRenderer.invoke('files:listDir', bookSlug, path),
     delete: (bookSlug: string, relativePath: string): Promise<void> =>
       ipcRenderer.invoke('files:delete', bookSlug, relativePath),
+  },
+
+  // Versions (file history)
+  versions: {
+    getHistory: (bookSlug: string, filePath: string, limit?: number, offset?: number): Promise<FileVersionSummary[]> =>
+      ipcRenderer.invoke('versions:getHistory', bookSlug, filePath, limit, offset),
+    getVersion: (versionId: number): Promise<FileVersion | null> =>
+      ipcRenderer.invoke('versions:getVersion', versionId),
+    getDiff: (oldVersionId: number | null, newVersionId: number): Promise<FileDiff> =>
+      ipcRenderer.invoke('versions:getDiff', oldVersionId, newVersionId),
+    revert: (bookSlug: string, filePath: string, versionId: number): Promise<FileVersion> =>
+      ipcRenderer.invoke('versions:revert', bookSlug, filePath, versionId),
+    getCount: (bookSlug: string, filePath: string): Promise<number> =>
+      ipcRenderer.invoke('versions:getCount', bookSlug, filePath),
+    snapshot: (bookSlug: string, filePath: string, source: FileVersionSource): Promise<FileVersion | null> =>
+      ipcRenderer.invoke('versions:snapshot', bookSlug, filePath, source),
   },
 
   // Chat

@@ -1,6 +1,6 @@
 # IPC — Channels, Preload Bridge, Handler Registry
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-28
 
 Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between application services and the renderer.
 
@@ -49,10 +49,21 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | Channel | Direction | Handler | Returns |
 |---------|-----------|---------|---------|
 | `files:read` | invoke | `fs.readFile(bookSlug, path)` | `string` |
-| `files:write` | invoke | `fs.writeFile(bookSlug, path, content)` | `void` |
+| `files:write` | invoke | `fs.writeFile(bookSlug, path, content)` + auto-snapshot via `version.snapshotContent(source='user')` | `void` |
 | `files:exists` | invoke | `fs.fileExists(bookSlug, path)` | `boolean` |
 | `files:listDir` | invoke | `fs.listDirectory(bookSlug, path?)` | `FileEntry[]` |
 | `files:delete` | invoke | `fs.deletePath(bookSlug, relativePath)` | `void` |
+
+### versions:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `versions:getHistory` | invoke | `version.getHistory(bookSlug, filePath, limit, offset)` | `FileVersionSummary[]` |
+| `versions:getVersion` | invoke | `version.getVersion(versionId)` | `FileVersion \| null` |
+| `versions:getDiff` | invoke | `version.getDiff(oldVersionId, newVersionId)` | `FileDiff` |
+| `versions:revert` | invoke | `version.revertToVersion(bookSlug, filePath, versionId)` + broadcasts `chat:filesChanged` | `FileVersion` |
+| `versions:getCount` | invoke | `version.getVersionCount(bookSlug, filePath)` | `number` |
+| `versions:snapshot` | invoke | `version.snapshotFile(bookSlug, filePath, source)` | `FileVersion \| null` |
 
 ### chat:*
 
@@ -245,6 +256,15 @@ window.novelEngine: {
     exists(bookSlug: string, path: string): Promise<boolean>
     listDir(bookSlug: string, path?: string): Promise<FileEntry[]>
     delete(bookSlug: string, relativePath: string): Promise<void>
+  }
+
+  versions: {
+    getHistory(bookSlug: string, filePath: string, limit?: number, offset?: number): Promise<FileVersionSummary[]>
+    getVersion(versionId: number): Promise<FileVersion | null>
+    getDiff(oldVersionId: number | null, newVersionId: number): Promise<FileDiff>
+    revert(bookSlug: string, filePath: string, versionId: number): Promise<FileVersion>
+    getCount(bookSlug: string, filePath: string): Promise<number>
+    snapshot(bookSlug: string, filePath: string, source: FileVersionSource): Promise<FileVersion | null>
   }
 
   chat: {

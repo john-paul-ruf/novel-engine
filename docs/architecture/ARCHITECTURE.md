@@ -69,6 +69,7 @@ src/
 │   ├── UsageService.ts                      # Token tracking, cost estimation
 │   ├── RevisionQueueService.ts              # Parses Forge output, executes revision sessions
 │   ├── MotifLedgerService.ts                # Motif ledger CRUD from JSON on disk
+│   ├── VersionService.ts                   # File versioning: snapshot, diff, revert, prune
 │   ├── context/
 │   │   └── TokenEstimator.ts                # Pure token counting utility
 │   └── index.ts                             # Barrel export
@@ -167,6 +168,10 @@ RevisionQueueService
 └── ISettingsService (SettingsService)
 
 MotifLedgerService
+└── IFileSystemService (FileSystemService)
+
+VersionService
+├── IDatabaseService (DatabaseService)
 └── IFileSystemService (FileSystemService)
 
 NotificationManager
