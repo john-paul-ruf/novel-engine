@@ -1,6 +1,6 @@
 # Domain — Types, Interfaces, Constants
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-28
 
 Everything in `src/domain/`. Pure TypeScript declarations — zero imports from other layers.
 
@@ -121,6 +121,18 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | Type | Shape | Used By |
 |------|-------|---------|
 | `FileEntry` | `{ name, path, isDirectory, children? }` | FileTree, FileBrowser |
+
+### Version Control
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `FileVersionSource` | `'user' \| 'agent' \| 'revert'` | VersionService, IPC handlers |
+| `FileVersion` | `{ id, bookSlug, filePath, content, contentHash, byteSize, source, createdAt }` | VersionService, DatabaseService |
+| `FileVersionSummary` | `Omit<FileVersion, 'content'>` | Version history UI |
+| `DiffLineType` | `'add' \| 'remove' \| 'context'` | DiffViewer |
+| `DiffLine` | `{ type, content, oldLineNumber?, newLineNumber? }` | DiffViewer |
+| `DiffHunk` | `{ oldStart, oldLines, newStart, newLines, lines }` | DiffViewer |
+| `FileDiff` | `{ oldVersion, newVersion, hunks, totalAdditions, totalDeletions }` | DiffViewer, VersionHistoryPanel |
 
 ### IPC Parameters
 
@@ -350,6 +362,21 @@ Implemented by: `ChatService` (`src/application/`)
 | `auditChapter` | `(params: { bookSlug, chapterSlug, conversationId?, onEvent? }) => Promise<AuditResult \| null>` | Run audit pass |
 | `fixChapter` | `(params: { bookSlug, chapterSlug, auditResult, conversationId, sessionId, onEvent }) => Promise<void>` | Run fix pass |
 | `runMotifAudit` | `(params: { bookSlug, appSettings, onEvent, sessionId }) => Promise<void>` | Run motif/phrase audit |
+
+### IVersionService
+
+Implemented by: `VersionService` (`src/application/`) — *planned, SESSION-03*
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `snapshotFile` | `(bookSlug, filePath, source) => Promise<FileVersion \| null>` | New version or null (dedup) |
+| `snapshotContent` | `(bookSlug, filePath, content, source) => Promise<FileVersion \| null>` | New version or null (dedup) |
+| `getHistory` | `(bookSlug, filePath, limit?, offset?) => Promise<FileVersionSummary[]>` | Newest-first summaries |
+| `getVersion` | `(versionId) => Promise<FileVersion \| null>` | Full version with content |
+| `getDiff` | `(oldVersionId, newVersionId) => Promise<FileDiff>` | Structured diff |
+| `revertToVersion` | `(bookSlug, filePath, versionId) => Promise<FileVersion>` | New revert snapshot |
+| `getVersionCount` | `(bookSlug, filePath) => Promise<number>` | Total version count |
+| `pruneVersions` | `(bookSlug, keepCount?) => Promise<number>` | Number deleted |
 
 ---
 

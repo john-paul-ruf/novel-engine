@@ -4,6 +4,25 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add domain types and interface for content version control
+
+### Summary
+
+Added version control domain types (`FileVersion`, `FileVersionSummary`, `DiffHunk`, `DiffLine`, `FileDiff`, `FileVersionSource`, `DiffLineType`) and the `IVersionService` interface to `src/domain/`. This is the foundation for the content-version-control feature — snapshot-per-write model with SHA-256 dedup, structured diffs, and revert capability.
+
+### Changed
+- `src/domain/types.ts` — Added 7 version control types after the File System section: `FileVersionSource`, `FileVersion`, `FileVersionSummary`, `DiffLineType`, `DiffLine`, `DiffHunk`, `FileDiff`
+- `src/domain/interfaces.ts` — Added `IVersionService` interface with 8 methods: `snapshotFile`, `snapshotContent`, `getHistory`, `getVersion`, `getDiff`, `revertToVersion`, `getVersionCount`, `pruneVersions`. Added 4 new type imports.
+
+### Architecture Impact
+- New interface: `IVersionService` — will be implemented by `VersionService` in `src/application/` (SESSION-03)
+- New types used across future sessions for database, service, IPC, and UI layers
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Add intake meta-prompt for document-to-session decomposition
 
 ### Summary

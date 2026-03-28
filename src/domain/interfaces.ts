@@ -11,8 +11,12 @@ import type {
   ContextDiagnostics,
   Conversation,
   ConversationPurpose,
+  FileDiff,
   FileEntry,
   FileTouchMap,
+  FileVersion,
+  FileVersionSource,
+  FileVersionSummary,
   Message,
   MessageRole,
   MotifLedger,
@@ -442,4 +446,57 @@ export interface IAdhocRevisionService {
     thinkingBudgetOverride?: number;
     callId?: string;
   }): Promise<void>;
+}
+
+export interface IVersionService {
+  /**
+   * Create a snapshot of a file's current content.
+   *
+   * Reads the file from disk, hashes it, and stores it in the version
+   * history if the content differs from the most recent snapshot.
+   * Returns the new version, or null if the content was unchanged
+   * (dedup by hash).
+   */
+  snapshotFile(bookSlug: string, filePath: string, source: FileVersionSource): Promise<FileVersion | null>;
+
+  /**
+   * Create a snapshot from provided content (when content is already in memory).
+   * Same dedup behavior as snapshotFile.
+   */
+  snapshotContent(bookSlug: string, filePath: string, content: string, source: FileVersionSource): Promise<FileVersion | null>;
+
+  /**
+   * List version history for a file, newest first.
+   * Returns lightweight summaries (no content).
+   */
+  getHistory(bookSlug: string, filePath: string, limit?: number, offset?: number): Promise<FileVersionSummary[]>;
+
+  /**
+   * Get a single version with its full content.
+   */
+  getVersion(versionId: number): Promise<FileVersion | null>;
+
+  /**
+   * Compute a structured diff between two versions.
+   * If oldVersionId is null, diffs against an empty string (shows full content as additions).
+   */
+  getDiff(oldVersionId: number | null, newVersionId: number): Promise<FileDiff>;
+
+  /**
+   * Revert a file to a previous version.
+   * Reads the target version's content, writes it to disk, and creates
+   * a new snapshot with source='revert'.
+   */
+  revertToVersion(bookSlug: string, filePath: string, versionId: number): Promise<FileVersion>;
+
+  /**
+   * Count total versions for a file.
+   */
+  getVersionCount(bookSlug: string, filePath: string): Promise<number>;
+
+  /**
+   * Delete old versions beyond a retention limit per file.
+   * Keeps the most recent `keepCount` versions. Returns the number deleted.
+   */
+  pruneVersions(bookSlug: string, keepCount?: number): Promise<number>;
 }

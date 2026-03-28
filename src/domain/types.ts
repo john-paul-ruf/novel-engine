@@ -376,6 +376,48 @@ export type FileEntry = {
   children?: FileEntry[];
 };
 
+// === Version Control ===
+
+export type FileVersionSource = 'user' | 'agent' | 'revert';
+
+export type FileVersion = {
+  id: number;                // auto-increment PK
+  bookSlug: string;
+  filePath: string;          // relative to book root (e.g. "source/pitch.md")
+  content: string;           // full file content at this version
+  contentHash: string;       // SHA-256 hex digest for dedup
+  byteSize: number;          // content.length in bytes
+  source: FileVersionSource; // who caused this version
+  createdAt: string;         // ISO date
+};
+
+export type FileVersionSummary = Omit<FileVersion, 'content'>;
+
+export type DiffLineType = 'add' | 'remove' | 'context';
+
+export type DiffLine = {
+  type: DiffLineType;
+  content: string;           // the text of this line (without +/- prefix)
+  oldLineNumber?: number;    // line number in old version (undefined for additions)
+  newLineNumber?: number;    // line number in new version (undefined for deletions)
+};
+
+export type DiffHunk = {
+  oldStart: number;          // starting line in old version
+  oldLines: number;          // number of lines from old version
+  newStart: number;          // starting line in new version
+  newLines: number;          // number of lines from new version
+  lines: DiffLine[];
+};
+
+export type FileDiff = {
+  oldVersion: FileVersionSummary | null;  // null for the first version (everything is "added")
+  newVersion: FileVersionSummary;
+  hunks: DiffHunk[];
+  totalAdditions: number;
+  totalDeletions: number;
+};
+
 // === IPC ===
 // These define the exact shape of data crossing the IPC bridge.
 // The preload and handlers both conform to these.
