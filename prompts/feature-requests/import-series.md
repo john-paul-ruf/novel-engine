@@ -1,0 +1,1 @@
+now that we have series aware books - we should be able to import a series as well.
