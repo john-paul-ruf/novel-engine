@@ -29,13 +29,13 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Domain Types, Interfaces & Constants | Domain | pending | | |
-| 2 | SESSION-02 — Infrastructure: SeriesService Implementation | Infrastructure | pending | | |
-| 3 | SESSION-03 — Application: Series-Aware Context Building | Application | pending | | |
-| 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root | IPC / Main | pending | | |
-| 5 | SESSION-05 — Renderer: Series Store | Renderer | pending | | |
-| 6 | SESSION-06 — Renderer: Series Groups in BookSelector Sidebar | Renderer | pending | | |
-| 7 | SESSION-07 — Renderer: Series Management Modal & Bible Editor | Renderer | pending | | |
+| 1 | SESSION-01 — Domain Types, Interfaces & Constants | Domain | done | 2026-03-28 | Clean execution. All types, interface, and constants added. tsc --noEmit passes. |
+| 2 | SESSION-02 — Infrastructure: SeriesService Implementation | Infrastructure | done | 2026-03-28 | Clean execution. SeriesService + barrel export created. tsc passes. |
+| 3 | SESSION-03 — Application: Series-Aware Context Building | Application | done | 2026-03-28 | ContextBuilder + ChatService updated. Also updated composition root to pass SeriesService to ChatService (needed for tsc to pass). |
+| 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root | IPC / Main | done | 2026-03-28 | 11 IPC handlers, preload bridge namespace, bootstrap dir, cache invalidation on books:changed. Composition root was partially done in S03. |
+| 5 | SESSION-05 — Renderer: Series Store | Renderer | done | 2026-03-28 | Zustand store created with full CRUD, volume management, bible editor state. tsc passes. |
+| 6 | SESSION-06 — Renderer: Series Groups in BookSelector Sidebar | Renderer | done | 2026-03-28 | SeriesGroup component created. BookSelector groups books by series with collapsible headers. tsc passes. |
+| 7 | SESSION-07 — Renderer: Series Management Modal & Bible Editor | Renderer | done | 2026-03-28 | SeriesModal, SeriesForm, VolumeList, SeriesBibleEditor created. Modal wired to BookSelector via store. tsc passes. |
 
 ---
 
@@ -105,8 +105,12 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-07 (ALL COMPLETE)
 
 ### Observations:
+- SeriesVolume uses 1-based volumeNumber (not 0-based) per session spec
+- SeriesSummary.totalWordCount will be 0 from infrastructure; renderer computes real values from bookStore
+- Added `series-bible.md` to readIfRelevant for all 7 creative agents including Ghostlight (previously had empty readIfRelevant)
+- `seriesBible` inserted in FILE_MANIFEST_KEYS right after `authorProfile` — both are external paths resolved at runtime
 
 ### Warnings:

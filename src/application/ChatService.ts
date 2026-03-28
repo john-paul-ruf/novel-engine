@@ -8,6 +8,7 @@ import type {
   IProviderRegistry,
   IDatabaseService,
   IFileSystemService,
+  ISeriesService,
   ISettingsService,
 } from '@domain/interfaces';
 import type {
@@ -58,6 +59,7 @@ export class ChatService implements IChatService {
     private hotTake: IHotTakeService,
     private adhocRevision: IAdhocRevisionService,
     private streamManager: StreamManager,
+    private series: ISeriesService,
   ) {}
 
   isCliIdle(bookSlug?: string): boolean {
@@ -230,7 +232,10 @@ export class ChatService implements IChatService {
         );
       }
 
-      // Step 7d: Build context using the lean ContextBuilder (budget-aware compaction)
+      // Step 7d: Resolve series bible path (if book is part of a series)
+      const seriesBiblePath = await this.series.getSeriesBiblePath(bookSlug);
+
+      // Step 7e: Build context using the lean ContextBuilder (budget-aware compaction)
       const authorProfileAbsPath = this.fs.getAuthorProfilePath();
       const assembled = this.contextBuilder.build({
         agentName,
@@ -239,6 +244,7 @@ export class ChatService implements IChatService {
         messages,
         purposeInstructions,
         authorProfilePath: authorProfileAbsPath,
+        seriesBiblePath: seriesBiblePath ?? undefined,
         thinkingBudget,
       });
 

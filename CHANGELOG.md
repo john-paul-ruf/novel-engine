@@ -4,6 +4,49 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Series Bible feature (7 sessions)
+
+### Summary
+
+Added series support — group multiple books into ordered series with a shared story bible that persists across volumes and is automatically loaded into agent context. Series are file-based (JSON manifest + markdown bible), stored in `{userData}/series/{slug}/`. A reverse-lookup cache enables O(1) book→series resolution on every chat message. The ContextBuilder injects the series bible path into agent system prompts when a book belongs to a series. All 7 creative agents have `series-bible.md` added to their `readIfRelevant` guidance.
+
+### Added
+- `src/domain/types.ts` — Added `SeriesVolume`, `SeriesMeta`, `SeriesSummary` types
+- `src/domain/interfaces.ts` — Added `ISeriesService` interface (12 methods: CRUD, volume management, bible I/O, reverse lookup, cache invalidation)
+- `src/infrastructure/series/SeriesService.ts` — Full `ISeriesService` implementation with file-based storage and in-memory reverse-lookup cache
+- `src/infrastructure/series/index.ts` — Barrel export
+- `src/renderer/stores/seriesStore.ts` — Zustand store with full CRUD, volume management, bible editor state, and modal visibility
+- `src/renderer/components/Sidebar/SeriesGroup.tsx` — Collapsible series group for sidebar book list
+- `src/renderer/components/Series/SeriesModal.tsx` — Main series management modal (list/create/edit/bible modes)
+- `src/renderer/components/Series/SeriesForm.tsx` — Create/edit series name and description form
+- `src/renderer/components/Series/VolumeList.tsx` — Volume ordering with up/down arrows, add/remove books
+- `src/renderer/components/Series/SeriesBibleEditor.tsx` — Markdown editor for shared series bible
+
+### Changed
+- `src/domain/constants.ts` — Added `seriesBible` to `FILE_MANIFEST_KEYS`; added `'series-bible.md'` to `readIfRelevant` for all 7 creative agents
+- `src/application/ContextBuilder.ts` — Accepts `seriesBiblePath` param; replaces placeholder in guidance and adds series context block to system prompt
+- `src/application/ChatService.ts` — Added `ISeriesService` dependency; resolves series bible path before context assembly
+- `src/main/index.ts` — Instantiates `SeriesService`, passes to `ChatService` and `registerIpcHandlers`; invalidates series cache on books directory changes
+- `src/main/bootstrap.ts` — Creates `series/` directory on first run
+- `src/main/ipc/handlers.ts` — Added 11 `series:*` IPC handlers
+- `src/preload/index.ts` — Added `series` namespace to preload bridge (11 methods)
+- `src/renderer/components/Sidebar/BookSelector.tsx` — Groups books by series with collapsible headers; added "Manage Series" button; renders SeriesModal
+
+### Architecture Impact
+- New domain types: `SeriesVolume`, `SeriesMeta`, `SeriesSummary`
+- New interface: `ISeriesService`
+- New infrastructure module: `src/infrastructure/series/`
+- New dependency: `ChatService` → `ISeriesService`
+- New IPC channels: `series:list`, `series:get`, `series:create`, `series:update`, `series:delete`, `series:addVolume`, `series:removeVolume`, `series:reorderVolumes`, `series:getForBook`, `series:readBible`, `series:writeBible`
+- New preload bridge namespace: `window.novelEngine.series`
+- New Zustand store: `seriesStore`
+- New components: `SeriesGroup`, `SeriesModal`, `SeriesForm`, `VolumeList`, `SeriesBibleEditor`
+
+### Migration Notes
+None — series data is opt-in. Existing books continue to work as standalone. No schema changes (file-based storage).
+
+---
+
 ## [2026-03-28] — Full rebuild of GitHub Pages website (6 pages)
 
 ### Summary

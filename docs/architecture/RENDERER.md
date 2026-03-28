@@ -39,6 +39,36 @@ File: `stores/bookStore.ts`
 | `setActive(slug)` | Calls bridge, updates local state |
 | `create(title)` | Creates book via bridge, sets as active |
 
+### seriesStore
+
+File: `stores/seriesStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `seriesList` | `SeriesSummary[]` | All series with summary data |
+| `activeSeries` | `SeriesMeta \| null` | Currently selected series for management |
+| `bibleContent` | `string` | Series bible markdown content |
+| `bibleDirty` | `boolean` | Whether bible editor has unsaved changes |
+| `isModalOpen` | `boolean` | Series management modal visibility |
+| `modalMode` | `'list' \| 'create' \| 'edit' \| 'bible'` | Current modal view mode |
+| `loading` | `boolean` | Async operation in progress |
+| `error` | `string \| null` | Last error message |
+
+| Action | What It Does |
+|--------|-------------|
+| `loadSeries()` | Fetches series list from bridge |
+| `createSeries(name, desc?)` | Creates series, refreshes list |
+| `updateSeries(slug, partial)` | Updates name/description |
+| `deleteSeries(slug)` | Deletes series, clears if active |
+| `selectSeries(slug)` | Loads full series + bible |
+| `addVolume(bookSlug, vol?)` | Adds book to active series |
+| `removeVolume(bookSlug)` | Removes book from active series |
+| `reorderVolumes(slugs)` | Reorders volumes |
+| `setBibleContent(content)` | Local edit (marks dirty) |
+| `saveBible()` | Persists bible to disk |
+| `openModal(mode?)` | Opens series management modal |
+| `closeModal()` | Closes modal |
+
 ### chatStore
 
 File: `stores/chatStore.ts`
@@ -277,7 +307,8 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `BookSelector.tsx` | Book list dropdown with create/archive/unarchive. Side-by-side "New Book" + "Import" buttons. Renders `ImportWizard` when import is active. |
+| `BookSelector.tsx` | Book list dropdown with create/archive/unarchive. Groups books by series with collapsible `SeriesGroup` headers. "Manage Series" button opens `SeriesModal`. |
+| `SeriesGroup.tsx` | Collapsible series group header with volume list, gear icon for management |
 | `PipelineTracker.tsx` | Visual 14-phase pipeline with status icons, advance/revert controls |
 | `FileTree.tsx` | Collapsible book directory tree |
 | `VoiceSetupButton.tsx` | Quick action to start voice profile setup with Verity |
@@ -288,6 +319,15 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `PitchHistory.tsx` | Shows pitch conversation history |
 | `PitchPreviewModal.tsx` | Preview modal for shelved pitches |
 | `ShelvedPitchesPanel.tsx` | Lists and manages shelved pitches |
+
+### Series/
+
+| File | Purpose |
+|------|---------|
+| `SeriesModal.tsx` | Main series management modal — list/create/edit/bible modes |
+| `SeriesForm.tsx` | Create/edit series name and description form |
+| `VolumeList.tsx` | Volume ordering (up/down arrows), add/remove books, book picker |
+| `SeriesBibleEditor.tsx` | Markdown editor with word count, save button, dirty indicator |
 
 ### Chat/
 

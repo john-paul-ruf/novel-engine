@@ -19,6 +19,7 @@ import type {
   IVersionService,
   IProviderRegistry,
   IManuscriptImportService,
+  ISeriesService,
   ISourceGenerationService,
 } from '@domain/interfaces';
 import type {
@@ -38,6 +39,7 @@ import type {
   ProviderConfig,
   ProviderId,
   ImportCommitConfig,
+  SeriesMeta,
   SourceGenerationEvent,
 } from '@domain/types';
 import type { NotificationManager } from '../notifications';
@@ -59,6 +61,7 @@ export function registerIpcHandlers(services: {
   providerRegistry: IProviderRegistry;
   manuscriptImport: IManuscriptImportService;
   sourceGeneration: ISourceGenerationService;
+  series: ISeriesService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -942,4 +945,36 @@ export function registerIpcHandlers(services: {
       services.notifications.notifyRevisionQueueDone().catch(() => {});
     }
   });
+
+  // === Series ===
+
+  ipcMain.handle('series:list', () => services.series.listSeries());
+
+  ipcMain.handle('series:get', (_e, slug: string) => services.series.getSeries(slug));
+
+  ipcMain.handle('series:create', (_e, name: string, description?: string) =>
+    services.series.createSeries(name, description));
+
+  ipcMain.handle('series:update', (_e, slug: string, partial: Partial<Pick<SeriesMeta, 'name' | 'description'>>) =>
+    services.series.updateSeries(slug, partial));
+
+  ipcMain.handle('series:delete', (_e, slug: string) => services.series.deleteSeries(slug));
+
+  ipcMain.handle('series:addVolume', (_e, seriesSlug: string, bookSlug: string, volumeNumber?: number) =>
+    services.series.addVolume(seriesSlug, bookSlug, volumeNumber));
+
+  ipcMain.handle('series:removeVolume', (_e, seriesSlug: string, bookSlug: string) =>
+    services.series.removeVolume(seriesSlug, bookSlug));
+
+  ipcMain.handle('series:reorderVolumes', (_e, seriesSlug: string, orderedSlugs: string[]) =>
+    services.series.reorderVolumes(seriesSlug, orderedSlugs));
+
+  ipcMain.handle('series:getForBook', (_e, bookSlug: string) =>
+    services.series.getSeriesForBook(bookSlug));
+
+  ipcMain.handle('series:readBible', (_e, seriesSlug: string) =>
+    services.series.readSeriesBible(seriesSlug));
+
+  ipcMain.handle('series:writeBible', (_e, seriesSlug: string, content: string) =>
+    services.series.writeSeriesBible(seriesSlug, content));
 }

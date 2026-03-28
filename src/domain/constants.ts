@@ -16,37 +16,37 @@ export type ReadGuidance = {
 export const AGENT_READ_GUIDANCE: Record<CreativeAgentName, ReadGuidance> = {
   Spark: {
     alwaysRead: ['author-profile.md'],
-    readIfRelevant: ['source/pitch.md'],
+    readIfRelevant: ['source/pitch.md', 'series-bible.md'],
     neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
   Verity: {
     alwaysRead: ['source/voice-profile.md', 'source/motif-ledger.json'],
-    readIfRelevant: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/revision-prompts.md'],
+    readIfRelevant: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/revision-prompts.md', 'series-bible.md'],
     neverRead: ['source/reader-report.md', 'source/dev-report.md', 'source/audit-report.md'],
   },
   Ghostlight: {
     alwaysRead: [],
-    readIfRelevant: [],
+    readIfRelevant: ['series-bible.md'],
     neverRead: ['source/pitch.md', 'source/scene-outline.md', 'source/story-bible.md', 'author-profile.md', 'source/voice-profile.md', 'source/dev-report.md'],
   },
   Lumen: {
     alwaysRead: ['source/reader-report.md'],
-    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/motif-ledger.json'],
+    readIfRelevant: ['source/scene-outline.md', 'source/story-bible.md', 'source/pitch.md', 'source/motif-ledger.json', 'series-bible.md'],
     neverRead: ['author-profile.md', 'source/revision-prompts.md'],
   },
   Sable: {
     alwaysRead: ['source/style-sheet.md', 'source/story-bible.md'],
-    readIfRelevant: ['source/motif-ledger.json'],
+    readIfRelevant: ['source/motif-ledger.json', 'series-bible.md'],
     neverRead: ['source/scene-outline.md', 'source/pitch.md', 'author-profile.md', 'source/reader-report.md', 'source/dev-report.md'],
   },
   Forge: {
     alwaysRead: ['source/dev-report.md'],
-    readIfRelevant: ['source/reader-report.md', 'source/audit-report.md', 'source/scene-outline.md'],
+    readIfRelevant: ['source/reader-report.md', 'source/audit-report.md', 'source/scene-outline.md', 'series-bible.md'],
     neverRead: ['chapters/', 'author-profile.md'],
   },
   Quill: {
     alwaysRead: ['author-profile.md'],
-    readIfRelevant: ['source/story-bible.md', 'source/pitch.md'],
+    readIfRelevant: ['source/story-bible.md', 'source/pitch.md', 'series-bible.md'],
     neverRead: ['chapters/', 'source/reader-report.md', 'source/dev-report.md'],
   },
 };
@@ -267,6 +267,7 @@ export const FILE_MANIFEST_KEYS: { key: string; path: string }[] = [
   { key: 'storyBible',      path: 'source/story-bible.md' },
   { key: 'pitch',           path: 'source/pitch.md' },
   { key: 'authorProfile',   path: 'author-profile.md' },
+  { key: 'seriesBible',     path: 'series-bible.md' },  // resolved to absolute path at runtime
   { key: 'readerReport',    path: 'source/reader-report.md' },
   { key: 'devReport',       path: 'source/dev-report.md' },
   { key: 'auditReport',     path: 'source/audit-report.md' },

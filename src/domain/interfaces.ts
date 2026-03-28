@@ -39,6 +39,8 @@ import type {
   QueueStatus,
   RevisionPlan,
   RevisionQueueEvent,
+  SeriesMeta,
+  SeriesSummary,
   ShelvedPitch,
   ShelvedPitchMeta,
   StreamEvent,
@@ -691,4 +693,58 @@ export interface ISourceGenerationService {
     onProgress: (event: SourceGenerationEvent) => void;
     onStreamEvent: (event: StreamEvent) => void;
   }): Promise<void>;
+}
+
+export interface ISeriesService {
+  /** List all series with computed summary fields. */
+  listSeries(): Promise<SeriesSummary[]>;
+
+  /** Get a single series by slug. Returns null if not found. */
+  getSeries(slug: string): Promise<SeriesMeta | null>;
+
+  /** Create a new series. Returns the created metadata. */
+  createSeries(name: string, description?: string): Promise<SeriesMeta>;
+
+  /** Update series metadata (name, description). Does not modify volumes. */
+  updateSeries(slug: string, partial: Partial<Pick<SeriesMeta, 'name' | 'description'>>): Promise<SeriesMeta>;
+
+  /** Delete a series. Does not delete the books — only removes the grouping. */
+  deleteSeries(slug: string): Promise<void>;
+
+  /** Add a book to a series at a specific position. Shifts existing volumes. */
+  addVolume(seriesSlug: string, bookSlug: string, volumeNumber?: number): Promise<SeriesMeta>;
+
+  /** Remove a book from a series. Renumbers remaining volumes. */
+  removeVolume(seriesSlug: string, bookSlug: string): Promise<SeriesMeta>;
+
+  /** Reorder volumes within a series. `orderedSlugs` is the new order. */
+  reorderVolumes(seriesSlug: string, orderedSlugs: string[]): Promise<SeriesMeta>;
+
+  /**
+   * Find which series a book belongs to (if any).
+   * Uses an in-memory reverse-lookup cache rebuilt on mutation.
+   */
+  getSeriesForBook(bookSlug: string): Promise<SeriesMeta | null>;
+
+  /**
+   * Read the series bible markdown content.
+   * Returns empty string if the file doesn't exist yet.
+   */
+  readSeriesBible(seriesSlug: string): Promise<string>;
+
+  /** Write (create or overwrite) the series bible markdown. */
+  writeSeriesBible(seriesSlug: string, content: string): Promise<void>;
+
+  /**
+   * Get the absolute path to the series bible file.
+   * Used by ContextBuilder to include in read guidance.
+   * Returns null if the book is not part of a series.
+   */
+  getSeriesBiblePath(bookSlug: string): Promise<string | null>;
+
+  /**
+   * Invalidate the in-memory cache. Called when books are created/deleted/renamed
+   * to ensure the reverse lookup stays consistent.
+   */
+  invalidateCache(): void;
 }

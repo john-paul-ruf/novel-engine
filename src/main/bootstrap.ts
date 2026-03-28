@@ -113,6 +113,7 @@ export async function bootstrap(userDataPath: string, agentsSourceDir: string): 
 
   // 1. Create directories (recursive — idempotent).
   await mkdir(booksDir, { recursive: true });
+  await mkdir(path.join(userDataPath, 'series'), { recursive: true });
 
   // 2. Copy bundled agent .md files (shared logic with the recovery path).
   await ensureAgents(agentsDir, agentsSourceDir);

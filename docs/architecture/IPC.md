@@ -223,6 +223,22 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `window:close` | send (fire-and-forget) | `win.close()` | — |
 | `window:isMaximized` | invoke | `win.isMaximized()` | `boolean` |
 
+### series:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `series:list` | invoke | `seriesService.listSeries()` | `SeriesSummary[]` |
+| `series:get` | invoke | `seriesService.getSeries(slug)` | `SeriesMeta \| null` |
+| `series:create` | invoke | `seriesService.createSeries(name, description?)` | `SeriesMeta` |
+| `series:update` | invoke | `seriesService.updateSeries(slug, partial)` | `SeriesMeta` |
+| `series:delete` | invoke | `seriesService.deleteSeries(slug)` | `void` |
+| `series:addVolume` | invoke | `seriesService.addVolume(seriesSlug, bookSlug, volumeNumber?)` | `SeriesMeta` |
+| `series:removeVolume` | invoke | `seriesService.removeVolume(seriesSlug, bookSlug)` | `SeriesMeta` |
+| `series:reorderVolumes` | invoke | `seriesService.reorderVolumes(seriesSlug, orderedSlugs)` | `SeriesMeta` |
+| `series:getForBook` | invoke | `seriesService.getSeriesForBook(bookSlug)` | `SeriesMeta \| null` |
+| `series:readBible` | invoke | `seriesService.readSeriesBible(seriesSlug)` | `string` |
+| `series:writeBible` | invoke | `seriesService.writeSeriesBible(seriesSlug, content)` | `void` |
+
 ---
 
 ## Push Events

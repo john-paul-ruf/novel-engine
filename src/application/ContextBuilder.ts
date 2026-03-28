@@ -45,8 +45,9 @@ export class ContextBuilder {
     purposeInstructions?: string;
     thinkingBudget?: number;
     authorProfilePath?: string;
+    seriesBiblePath?: string;
   }): AssembledContext {
-    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget, authorProfilePath } = params;
+    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget, authorProfilePath, seriesBiblePath } = params;
 
     // 1. Build file manifest section
     const manifestSection = this.buildManifestSection(manifest);
@@ -58,6 +59,11 @@ export class ContextBuilder {
       guidanceSection = guidanceSection.replace(/`author-profile\.md`/g, `\`${authorProfilePath}\``);
     }
 
+    // Replace placeholder 'series-bible.md' with absolute path so the agent can find it
+    if (guidanceSection && seriesBiblePath) {
+      guidanceSection = guidanceSection.replace(/`series-bible\.md`/g, `\`${seriesBiblePath}\``);
+    }
+
     // 3. Build file-writing instructions
     const writeInstructions = this.buildFileWriteInstructions();
 
@@ -65,6 +71,9 @@ export class ContextBuilder {
     const sections = [agentSystemPrompt, '---', manifestSection];
     if (guidanceSection) sections.push(guidanceSection);
     sections.push(writeInstructions);
+    if (seriesBiblePath) {
+      sections.push(`### Series Context\nThis book is part of a series. The shared series bible is at: \`${seriesBiblePath}\`\nRead it for cross-volume character details, world rules, and timeline.`);
+    }
     if (purposeInstructions) sections.push(purposeInstructions);
 
     const systemPrompt = sections.join('\n\n');

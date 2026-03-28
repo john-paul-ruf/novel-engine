@@ -36,6 +36,30 @@ export type BookSummary = BookMeta & {
   isActive: boolean;
 };
 
+// === Series ===
+
+/** A single volume entry within a series — links a book to its position. */
+export type SeriesVolume = {
+  bookSlug: string;        // slug of the book in books/
+  volumeNumber: number;    // 1-based position in the series
+};
+
+/** Stored metadata for a series. Persisted as series.json in the series directory. */
+export type SeriesMeta = {
+  slug: string;            // kebab-case directory name
+  name: string;            // display name (e.g. "The Stormlight Archive")
+  description: string;     // optional series-level blurb
+  volumes: SeriesVolume[]; // ordered list of books in the series
+  created: string;         // ISO date
+  updated: string;         // ISO date
+};
+
+/** Lightweight summary for UI lists — SeriesMeta plus computed fields. */
+export type SeriesSummary = SeriesMeta & {
+  volumeCount: number;
+  totalWordCount: number;
+};
+
 // === Shelved Pitches ===
 
 export type ShelvedPitchMeta = {

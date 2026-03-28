@@ -25,6 +25,14 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `BookMeta` | `{ slug, title, author, status, created, coverImage }` | FileSystemService |
 | `BookSummary` | `BookMeta & { wordCount, isActive }` | Book list UI |
 
+### Series
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `SeriesVolume` | `{ bookSlug, volumeNumber }` | SeriesService, VolumeList |
+| `SeriesMeta` | `{ slug, name, description, volumes, created, updated }` | SeriesService, seriesStore, UI |
+| `SeriesSummary` | `SeriesMeta & { volumeCount, totalWordCount }` | Series list UI |
+
 ### Shelved Pitches
 
 | Type | Shape | Used By |
@@ -467,6 +475,26 @@ Implemented by: `SourceGenerationService` (`src/application/`)
 | Method | Signature | Returns |
 |--------|-----------|---------|
 | `generate` | `(params: { bookSlug, onProgress, onStreamEvent }) => Promise<void>` | Runs 4 sequential agent calls (Spark pitch, Verity outline+bible, Verity voice, Verity motif) |
+
+### ISeriesService
+
+Implemented by: `SeriesService` (`src/infrastructure/series/`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `listSeries` | `() => Promise<SeriesSummary[]>` | All series with computed summary fields |
+| `getSeries` | `(slug: string) => Promise<SeriesMeta \| null>` | Single series by slug |
+| `createSeries` | `(name: string, description?: string) => Promise<SeriesMeta>` | Creates new series directory |
+| `updateSeries` | `(slug, partial) => Promise<SeriesMeta>` | Updates name/description |
+| `deleteSeries` | `(slug: string) => Promise<void>` | Removes series directory |
+| `addVolume` | `(seriesSlug, bookSlug, volumeNumber?) => Promise<SeriesMeta>` | Adds book at position |
+| `removeVolume` | `(seriesSlug, bookSlug) => Promise<SeriesMeta>` | Removes and renumbers |
+| `reorderVolumes` | `(seriesSlug, orderedSlugs) => Promise<SeriesMeta>` | Reorders volumes |
+| `getSeriesForBook` | `(bookSlug: string) => Promise<SeriesMeta \| null>` | Reverse lookup with cache |
+| `readSeriesBible` | `(seriesSlug: string) => Promise<string>` | Reads series-bible.md |
+| `writeSeriesBible` | `(seriesSlug, content) => Promise<void>` | Writes series-bible.md |
+| `getSeriesBiblePath` | `(bookSlug: string) => Promise<string \| null>` | Absolute path for context building |
+| `invalidateCache` | `() => void` | Clears reverse-lookup cache |
 
 ---
 

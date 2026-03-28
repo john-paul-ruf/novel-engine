@@ -12,7 +12,7 @@ Everything in `src/application/`. Business logic that orchestrates infrastructur
 
 File: `src/application/ChatService.ts`
 
-Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IProviderRegistry`, `IFileSystemService`, `IChapterValidator`, `IPitchRoomService`, `IHotTakeService`, `IAdhocRevisionService`, `StreamManager`
+Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IProviderRegistry`, `IFileSystemService`, `IChapterValidator`, `IPitchRoomService`, `IHotTakeService`, `IAdhocRevisionService`, `StreamManager`, `ISeriesService`
 
 Clean router (403 lines). Delegates special-purpose flows to sub-services. Only the default pipeline flow (context assembly + CLI call) remains inline. Uses `resolveThinkingBudget()` for CLI call configuration.
 
@@ -164,7 +164,9 @@ Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IFileSys
 1. Load the agent's system prompt
 2. Build project manifest (file listing with token estimates)
 3. Apply `AGENT_READ_GUIDANCE` to determine which files to include
-4. Append manifest section to system prompt showing available files
+4. Replace `series-bible.md` placeholder with absolute path in guidance (when book is in a series)
+5. Add "Series Context" block to system prompt with bible path (when applicable)
+6. Append manifest section to system prompt showing available files
 5. Compact conversation history using `TURN_BUDGET_THRESHOLDS`:
    - **Generous** (>40% free): keep all turns, strip old thinking blocks
    - **Moderate** (20-40%): keep last 8 turns, prepend summary

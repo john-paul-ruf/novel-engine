@@ -1,15 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BookStatus, BookSummary } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { useSeriesStore } from '../../stores/seriesStore';
 import { ShelvedPitchesPanel } from './ShelvedPitchesPanel';
 import { PitchPreviewModal } from './PitchPreviewModal';
 import { usePitchShelfStore } from '../../stores/pitchShelfStore';
 import { ImportWizard } from '../Import/ImportWizard';
 import { useImportStore } from '../../stores/importStore';
+import { SeriesGroup } from './SeriesGroup';
+import { SeriesModal } from '../Series/SeriesModal';
 
 const STATUS_COLORS: Record<BookStatus, { bg: string; text: string }> = {
   scaffolded:     { bg: 'bg-zinc-300 dark:bg-zinc-600',    text: 'text-zinc-800 dark:text-zinc-200' },
@@ -248,6 +251,7 @@ export function BookSelector(): React.ReactElement {
   const revision = useFileChangeStore((s) => s.revision);
   const importStep = useImportStore((s) => s.step);
   const startImport = useImportStore((s) => s.startImport);
+  const { seriesList, loadSeries, openModal, isModalOpen, selectSeries } = useSeriesStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showNewBookModal, setShowNewBookModal] = useState(false);
@@ -264,7 +268,13 @@ export function BookSelector(): React.ReactElement {
   useEffect(() => {
     loadBooks().then(() => { hasInitialized.current = true; });
     loadArchivedBooks();
+    loadSeries();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reload series data when the books list changes
+  useEffect(() => {
+    loadSeries();
+  }, [books, loadSeries]);
 
   // Re-scan the books list whenever the main process detects a new directory
   // (e.g. the user manually copies a book folder into the books directory)
@@ -303,6 +313,56 @@ export function BookSelector(): React.ReactElement {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
+  // Build a map of bookSlug to series info
+  const bookToSeries = useMemo(() => {
+    const map = new Map<string, { seriesSlug: string; seriesName: string; volumeNumber: number }>();
+    for (const series of seriesList) {
+      for (const vol of series.volumes) {
+        map.set(vol.bookSlug, {
+          seriesSlug: series.slug,
+          seriesName: series.name,
+          volumeNumber: vol.volumeNumber,
+        });
+      }
+    }
+    return map;
+  }, [seriesList]);
+
+  // Partition books into series groups and standalone
+  const { seriesGroups, standaloneBooks } = useMemo(() => {
+    const groups = new Map<string, {
+      seriesSlug: string;
+      seriesName: string;
+      volumes: Array<{ volumeNumber: number; book: BookSummary }>;
+    }>();
+    const standalone: BookSummary[] = [];
+
+    for (const book of books) {
+      const seriesInfo = bookToSeries.get(book.slug);
+      if (seriesInfo) {
+        let group = groups.get(seriesInfo.seriesSlug);
+        if (!group) {
+          group = {
+            seriesSlug: seriesInfo.seriesSlug,
+            seriesName: seriesInfo.seriesName,
+            volumes: [],
+          };
+          groups.set(seriesInfo.seriesSlug, group);
+        }
+        group.volumes.push({ volumeNumber: seriesInfo.volumeNumber, book });
+      } else {
+        standalone.push(book);
+      }
+    }
+
+    // Sort volumes within each group by volume number
+    for (const group of groups.values()) {
+      group.volumes.sort((a, b) => a.volumeNumber - b.volumeNumber);
+    }
+
+    return { seriesGroups: Array.from(groups.values()), standaloneBooks: standalone };
+  }, [books, bookToSeries]);
 
   const activeBook = books.find((b) => b.slug === activeSlug);
 
@@ -442,7 +502,29 @@ export function BookSelector(): React.ReactElement {
           ) : (
             <>
               <div className="max-h-64 overflow-y-auto">
-                {books.map((book) => (
+                {/* Series groups */}
+                {seriesGroups.map((group) => (
+                  <SeriesGroup
+                    key={group.seriesSlug}
+                    seriesName={group.seriesName}
+                    seriesSlug={group.seriesSlug}
+                    volumes={group.volumes}
+                    activeSlug={activeSlug}
+                    onSelectBook={handleSelectBook}
+                    onManageSeries={(slug) => {
+                      setIsOpen(false);
+                      selectSeries(slug).then(() => openModal('edit'));
+                    }}
+                  />
+                ))}
+
+                {/* Separator between series and standalone books */}
+                {seriesGroups.length > 0 && standaloneBooks.length > 0 && (
+                  <div className="border-t border-zinc-200 dark:border-zinc-800" />
+                )}
+
+                {/* Standalone books */}
+                {standaloneBooks.map((book) => (
                   <BookDropdownItem
                     key={book.slug}
                     book={book}
@@ -481,6 +563,25 @@ export function BookSelector(): React.ReactElement {
                   {archivedCount > 0 && (
                     <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
                       {archivedCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Manage Series */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    openModal('list');
+                  }}
+                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <span>📚</span>
+                  <span>Manage Series</span>
+                  {seriesList.length > 0 && (
+                    <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                      {seriesList.length}
                     </span>
                   )}
                 </button>
@@ -539,6 +640,9 @@ export function BookSelector(): React.ReactElement {
 
       {/* Import wizard modal */}
       {importStep !== 'idle' && <ImportWizard />}
+
+      {/* Series management modal */}
+      {isModalOpen && <SeriesModal />}
     </div>
   );
 }

@@ -114,6 +114,22 @@ Key behavior:
 |------|---------|
 | `index.ts` | `resolvePandocPath(resourcesPath)` — resolves Pandoc binary path based on platform and packaged vs dev mode. |
 
+### series/ — Series Management
+
+| File | Purpose |
+|------|---------|
+| `SeriesService.ts` | Implements `ISeriesService`. File-based storage in `{userData}/series/{slug}/`. Manages `series.json` manifests and `series-bible.md` files. In-memory reverse-lookup cache (`bookSlug → seriesSlug`) rebuilt on mutation or explicit invalidation. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- Constructor takes `userDataDir: string`, creates `series/` root if missing
+- CRUD operations read/write `series.json` in each series directory
+- Volume management auto-renumbers on add/remove/reorder
+- Validates books aren't in multiple series simultaneously
+- `getSeriesForBook()` uses lazy-built reverse cache for O(1) lookups
+- `invalidateCache()` called by BooksDirWatcher when books directory changes
+- `totalWordCount` in summaries is always 0 (renderer computes from bookStore)
+
 ---
 
 ## Schema

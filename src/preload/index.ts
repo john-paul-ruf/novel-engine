@@ -40,6 +40,8 @@ import type {
   ImportPreview,
   ImportCommitConfig,
   ImportResult,
+  SeriesMeta,
+  SeriesSummary,
   SourceGenerationEvent,
 } from '@domain/types';
 
@@ -392,6 +394,29 @@ const api = {
       ipcRenderer.invoke('providers:checkStatus', providerId),
     setDefault: (providerId: ProviderId): Promise<void> =>
       ipcRenderer.invoke('providers:setDefault', providerId),
+  },
+
+  // Series
+  series: {
+    list: (): Promise<SeriesSummary[]> => ipcRenderer.invoke('series:list'),
+    get: (slug: string): Promise<SeriesMeta | null> => ipcRenderer.invoke('series:get', slug),
+    create: (name: string, description?: string): Promise<SeriesMeta> =>
+      ipcRenderer.invoke('series:create', name, description),
+    update: (slug: string, partial: Partial<Pick<SeriesMeta, 'name' | 'description'>>): Promise<SeriesMeta> =>
+      ipcRenderer.invoke('series:update', slug, partial),
+    delete: (slug: string): Promise<void> => ipcRenderer.invoke('series:delete', slug),
+    addVolume: (seriesSlug: string, bookSlug: string, volumeNumber?: number): Promise<SeriesMeta> =>
+      ipcRenderer.invoke('series:addVolume', seriesSlug, bookSlug, volumeNumber),
+    removeVolume: (seriesSlug: string, bookSlug: string): Promise<SeriesMeta> =>
+      ipcRenderer.invoke('series:removeVolume', seriesSlug, bookSlug),
+    reorderVolumes: (seriesSlug: string, orderedSlugs: string[]): Promise<SeriesMeta> =>
+      ipcRenderer.invoke('series:reorderVolumes', seriesSlug, orderedSlugs),
+    getForBook: (bookSlug: string): Promise<SeriesMeta | null> =>
+      ipcRenderer.invoke('series:getForBook', bookSlug),
+    readBible: (seriesSlug: string): Promise<string> =>
+      ipcRenderer.invoke('series:readBible', seriesSlug),
+    writeBible: (seriesSlug: string, content: string): Promise<void> =>
+      ipcRenderer.invoke('series:writeBible', seriesSlug, content),
   },
 };
 

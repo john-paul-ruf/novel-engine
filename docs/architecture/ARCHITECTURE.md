@@ -57,8 +57,11 @@ src/
 │   │   ├── ClaudeCodeClient.ts              # Spawns `claude` process, streams NDJSON, lifecycle
 │   │   ├── StreamSessionTracker.ts          # Tracks active stream sessions for orphan recovery
 │   │   └── index.ts
-│   └── pandoc/
-│       └── index.ts                         # Pandoc binary path resolution (dev vs packaged)
+│   ├── pandoc/
+│   │   └── index.ts                         # Pandoc binary path resolution (dev vs packaged)
+│   └── series/
+│       ├── SeriesService.ts                 # File-based series CRUD, reverse-lookup cache
+│       └── index.ts
 │
 ├── application/                             # LAYER 3: Business logic, depends on interfaces
 │   ├── ContextBuilder.ts                    # Assembles context per agent read guidance + conversation compaction

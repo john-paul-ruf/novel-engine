@@ -56,6 +56,7 @@ import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesyst
 import { ClaudeCodeClient } from '@infra/claude-cli';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
+import { SeriesService } from '@infra/series';
 import { BUILT_IN_PROVIDER_CONFIGS } from '@domain/constants';
 
 // Application
@@ -265,7 +266,8 @@ async function initializeApp(): Promise<void> {
   const pitchRoom = new PitchRoomService(agents, providerRegistry, db, fs, streamManager);
   const hotTake = new HotTakeService(agents, providerRegistry, db, fs, streamManager);
   const adhocRevision = new AdhocRevisionService(agents, audit, providerRegistry, db, fs, streamManager);
-  const chat = new ChatService(settings, agents, db, providerRegistry, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager);
+  const series = new SeriesService(userDataPath);
+  const chat = new ChatService(settings, agents, db, providerRegistry, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager, series);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings);
@@ -369,12 +371,14 @@ async function initializeApp(): Promise<void> {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('books:changed');
     }
+    // Invalidate series reverse-lookup cache when books change
+    series.invalidateCache();
   });
   await booksDirWatcher.start();
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {
