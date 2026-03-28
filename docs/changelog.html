@@ -8,7 +8,7 @@
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/changelog.html">
     <meta property="og:type" content="website">
-    <meta name="description" content="Full development changelog for Novel Engine. 52 entries documenting every feature, fix, and architectural decision.">
+    <meta name="description" content="Full development changelog for Novel Engine. 63 entries documenting every feature, fix, and architectural decision.">
     <title>Novel Engine — Changelog</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     <style>
@@ -91,7 +91,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.1.0</span>
+            <span class="nav-version">v0.6.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -126,14 +126,26 @@
     <p class="page-sub">Full development history. Every feature, fix, and architectural decision documented.</p>
 
     <div class="stats">
-        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">52</div></div>
+        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">63</div></div>
         <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27 — 2026-03-28</div></div>
-        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">136</div></div>
+        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">158</div></div>
         <div class="stat"><div class="stat-label">Bug Fixes</div><div class="stat-value">25+</div></div>
     </div>
 
     <h2>Highlight Reel<span>.</span></h2>
     <div class="highlights">
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>Series Bible (7 sessions) — group books into ordered series with shared story bibles. Automatic context injection into all 7 creative agents. File-based storage with reverse-lookup cache.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>In-App Helper Agent — floating chat panel with comprehensive user guide knowledge base. Answers questions about features, workflows, and troubleshooting. Persistent across views.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Onboarding</div>
+            <p>Guided Tours &amp; Tooltips (5 sessions) — three spotlight-based tours, contextual tooltips on 14 components, keyboard navigation, accessibility attributes, and auto-launch after onboarding.</p>
+        </div>
         <div class="highlight">
             <div class="hl-tag">Major Feature</div>
             <p>Multi-model provider architecture (7 sessions) — pluggable AI backends with OpenAI-compatible endpoint support, ProviderRegistry, and capability-aware model routing.</p>
@@ -161,6 +173,49 @@
     </div>
 
     <h2>All Entries<span>.</span></h2>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add in-app Helper agent (floating help chat)</span></summary>
+<div class="entry-body">
+<p>Added a non-creative Helper agent accessible via a floating chat bubble in the bottom-right corner of the app. The helper uses a comprehensive user guide as its knowledge base and answers questions about Novel Engine features, workflows, agents, troubleshooting, and more. The helper conversation persists across book switches and view navigation.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>agents/HELPER.md</code> — Helper agent system prompt</li><li><code>docs/USER_GUIDE.md</code> — Comprehensive 16-section user guide</li><li><code>src/application/HelperService.ts</code> — Implements IHelperService</li><li><code>src/renderer/stores/helperStore.ts</code> — Zustand store for helper panel state</li><li><code>src/renderer/components/Helper/HelperButton.tsx</code> — Floating help button</li><li><code>src/renderer/components/Helper/HelperPanel.tsx</code> — Slide-up chat panel</li><li><code>src/renderer/components/Helper/HelperMessageList.tsx</code> — Message list with streaming support</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added 'Helper' to AgentName, 'helper' to ConversationPurpose</li><li><code>src/domain/constants.ts</code> — Added Helper to AGENT_REGISTRY</li><li><code>src/domain/interfaces.ts</code> — Added IHelperService interface</li><li><code>src/main/index.ts</code> — Instantiates HelperService</li><li><code>src/main/ipc/handlers.ts</code> — Added 5 helper:* IPC channels</li><li><code>src/preload/index.ts</code> — Added helper namespace to preload bridge</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Onboarding Guide &amp; Tooltips (5 sessions)</span></summary>
+<div class="entry-body">
+<p>Added interactive guided tours and contextual tooltips. Three spotlight-based tours (Welcome, First Book, Pipeline Intro) with CSS clip-path cutouts, keyboard navigation, and auto-launch after onboarding. Tooltips on 14 components (sidebar buttons, pipeline phases, chat controls, window controls). Tour-aware tooltip suppression, accessibility attributes, and a help button in the sidebar.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/components/common/Tooltip.tsx</code> — Portal-based tooltip with arrow and animation</li><li><code>src/renderer/components/common/GuidedTourOverlay.tsx</code> — Spotlight overlay with clip-path</li><li><code>src/renderer/hooks/useTooltip.ts</code> — Positioning hook with viewport clamping</li><li><code>src/renderer/tours/tourDefinitions.ts</code> — 3 tour definitions (16 total steps)</li><li><code>src/renderer/stores/tourStore.ts</code> — Tour lifecycle management</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added TourId, TourStep, TourStepPlacement, TourState types; completedTours to AppSettings</li><li>14 components gained tooltips and data-tour attributes</li><li><code>src/renderer/components/Settings/SettingsView.tsx</code> — Added Guided Tours section with replay buttons</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Series Import feature (4 sessions)</span></summary>
+<div class="entry-body">
+<p>Added batch manuscript import with series grouping. Select multiple files, preview as ordered volumes, edit titles, reorder, skip individual volumes, and commit to a new or existing series. Composes existing ManuscriptImportService and SeriesService through a new SeriesImportService.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/SeriesImportService.ts</code> — Batch preview + sequential commit</li><li><code>src/renderer/stores/seriesImportStore.ts</code> — Wizard state management</li><li><code>src/renderer/components/Import/ImportSeriesWizard.tsx</code> — Full wizard modal</li><li><code>src/renderer/components/Import/VolumePreviewList.tsx</code> — Volume list with editing</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added SeriesImportVolume, SeriesImportPreview, SeriesImportCommitConfig, SeriesImportResult types</li><li><code>src/domain/interfaces.ts</code> — Added ISeriesImportService interface</li><li><code>src/main/ipc/handlers.ts</code> — Added 3 import:series* handlers</li><li><code>src/preload/index.ts</code> — Added seriesImport namespace</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Series Bible feature (7 sessions)</span></summary>
+<div class="entry-body">
+<p>Added series support — group multiple books into ordered series with a shared story bible. Series are file-based (JSON manifest + markdown bible), stored in {userData}/series/{slug}/. A reverse-lookup cache enables O(1) book→series resolution. The ContextBuilder injects the series bible path into agent system prompts. All 7 creative agents have series-bible.md in their readIfRelevant guidance.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/infrastructure/series/SeriesService.ts</code> — Full ISeriesService implementation</li><li><code>src/renderer/stores/seriesStore.ts</code> — Zustand store with full CRUD</li><li><code>src/renderer/components/Series/SeriesModal.tsx</code> — Series management modal</li><li><code>src/renderer/components/Series/SeriesForm.tsx</code> — Create/edit form</li><li><code>src/renderer/components/Series/VolumeList.tsx</code> — Volume ordering</li><li><code>src/renderer/components/Series/SeriesBibleEditor.tsx</code> — Markdown editor</li><li><code>src/renderer/components/Sidebar/SeriesGroup.tsx</code> — Collapsible sidebar group</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added SeriesVolume, SeriesMeta, SeriesSummary types</li><li><code>src/domain/interfaces.ts</code> — Added ISeriesService interface (12 methods)</li><li><code>src/domain/constants.ts</code> — Added seriesBible to FILE_MANIFEST_KEYS and read guidance</li><li><code>src/application/ChatService.ts</code> — Added ISeriesService dependency</li><li><code>src/application/ContextBuilder.ts</code> — Series bible path injection</li><li><code>src/main/ipc/handlers.ts</code> — Added 11 series:* IPC handlers</li><li><code>src/preload/index.ts</code> — Added series namespace (11 methods)</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Full rebuild of GitHub Pages website (6 pages)</span></summary>
+<div class="entry-body">
+<p>Rebuilt the complete 6-page GitHub Pages site in docs/. Landing page with hero, 7 agent cards, 14-phase pipeline, feature cards, getting started, published books. Architecture page with 5-layer diagram, tech stack, dependency graph, schema overview. Changelog page with all entries. Press page with pitch, differentiators, stats, quotes. Contact page with contribution guide. All pages share design tokens, sticky nav, responsive breakpoints.</p>
+</div>
+</details>
 
 <details class="entry">
 <summary><span class="entry-date">2026-03-28</span><span class="entry-title">README deep update from source code analysis</span></summary>
@@ -549,7 +604,7 @@
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.1.0 · AGPL-3.0</p>
+            <p>v0.6.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">

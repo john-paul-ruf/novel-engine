@@ -85,7 +85,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.1.0</span>
+            <span class="nav-version">v0.6.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -117,7 +117,7 @@
     <div class="breadcrumb"><a href="index.html">Home</a> / Architecture</div>
 
     <h1>Architecture<span>.</span></h1>
-    <p class="page-sub">136 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration.</p>
+    <p class="page-sub">158 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration.</p>
 
     <h2>Five-Layer Clean Architecture<span>.</span></h2>
     <p>Every file belongs to exactly one layer. Import rules are strictly enforced — inner layers never depend on outer layers.</p>
@@ -193,6 +193,15 @@ SourceGenerationService
 ├── IFileSystemService
 └── IProviderRegistry
 
+SeriesImportService → IManuscriptImportService, ISeriesService
+HelperService
+├── ISettingsService
+├── IAgentService
+├── IDatabaseService
+├── IFileSystemService
+├── IProviderRegistry
+└── StreamManager
+
 NotificationManager → ISettingsService
 BookWatcher(booksDir, callback)
 BooksDirWatcher(booksDir, callback)</pre>
@@ -254,6 +263,7 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── filesystem/                      # FileSystemService + BookWatcher + BooksDirWatcher
 │   ├── claude-cli/                      # ClaudeCodeClient + StreamSessionTracker
 │   ├── providers/                       # ProviderRegistry + OpenAiCompatibleProvider
+│   ├── series/                          # SeriesService — file-based series CRUD + bible
 │   └── pandoc/                          # Pandoc binary path resolution
 │
 ├── application/                         # Business logic via injected interfaces
@@ -273,6 +283,8 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── VersionService.ts                # File versioning (snapshot/diff/revert)
 │   ├── ManuscriptImportService.ts       # DOCX/MD import + chapter detection
 │   ├── SourceGenerationService.ts       # Multi-agent source doc generation
+│   ├── SeriesImportService.ts           # Batch series import orchestration
+│   ├── HelperService.ts                 # In-app help assistant
 │   ├── thinkingBudget.ts                # Thinking budget resolution
 │   └── context/TokenEstimator.ts        # ~4 chars/token estimation
 │
@@ -287,10 +299,12 @@ BooksDirWatcher(booksDir, callback)</pre>
 └── renderer/                            # React UI
     ├── App.tsx                          # Root component, onboarding gate
     ├── main.tsx                         # React 18 createRoot entry
-    ├── stores/ (16 stores)              # Zustand state management
-    ├── components/ (13 groups)          # Layout, Chat, Files, Build, PitchRoom,
-    │                                    # RevisionQueue, MotifLedger, Import, etc.
-    ├── hooks/ (5 hooks)                 # Resize, theme, events, status
+    ├── stores/ (20 stores)              # Zustand state management
+    ├── components/ (16 groups)          # Layout, Chat, Files, Build, PitchRoom,
+    │                                    # RevisionQueue, MotifLedger, Import,
+    │                                    # Helper, Series, common, etc.
+    ├── hooks/ (6 hooks)                 # Resize, theme, events, status, tooltip
+    ├── tours/                           # Guided tour step definitions
     └── styles/globals.css               # Tailwind CSS v4 base</pre>
 
     <h2>Contributing<span>.</span></h2>
@@ -318,7 +332,7 @@ npm start</pre>
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.1.0 · AGPL-3.0</p>
+            <p>v0.6.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">

@@ -273,6 +273,51 @@ When an agent finishes responding and the app window is not focused, Novel Engin
 
 Beyond the built-in Claude Code CLI, Novel Engine supports **OpenAI-compatible endpoints** (e.g., Ollama, LM Studio, self-hosted models). Add providers in Settings with a base URL and optional API key. Each provider declares its capabilities (text-completion, tool-use, thinking, streaming) so the app gates features accordingly. A central provider registry routes model requests to the correct backend.
 
+### Series Bible
+
+Group multiple books into ordered **series** with a shared story bible. Series are file-based (`{userData}/series/{slug}/`), each with a `series.json` manifest and a `series-bible.md` markdown file. The series bible is automatically injected into all 7 creative agents' context when working on a book that belongs to a series — agents reference it for cross-volume continuity.
+
+Features:
+- **CRUD** — create, rename, delete series from the Series Management modal
+- **Volume ordering** — add/remove books, reorder with up/down arrows
+- **Series Bible editor** — write and edit shared continuity documents in a dedicated markdown editor
+- **Sidebar grouping** — books in series are visually grouped with collapsible headers in the BookSelector
+- **Reverse-lookup cache** — O(1) book→series resolution on every chat message
+
+### Series Import
+
+Import multiple manuscripts at once and group them as a series. The **Import Series Wizard** extends the single-book manuscript import with batch support:
+
+- **Multi-file selection** — select multiple `.md`, `.markdown`, or `.docx` files at once
+- **Series name detection** — automatically detects common series name from file titles (longest-common-prefix strategy)
+- **Volume preview** — shows all volumes with chapter counts and word counts
+- **Per-volume editing** — rename titles, reorder volumes, skip individual books
+- **Create or attach** — create a new series or add volumes to an existing one
+- **Sequential commit** — imports each volume in order, creating the full book directory structure for each
+
+### In-App Helper
+
+A floating **help assistant** accessible via a chat bubble in the bottom-right corner of the app. The Helper agent uses a comprehensive 16-section user guide as its knowledge base and answers questions about Novel Engine features, workflows, agents, troubleshooting, and navigation.
+
+- **Persistent conversation** — the helper conversation persists across book switches and view changes
+- **Non-creative agent** — runs on a 2K thinking budget with 5 max turns; doesn't write to book files
+- **Reset** — clear the conversation and start fresh at any time
+- **Knowledge base** — the user guide (`docs/USER_GUIDE.md`) is bundled and automatically updated on startup
+
+### Guided Tours & Tooltips
+
+An interactive onboarding system that helps new users discover features:
+
+- **Three guided tours** — Welcome (6 steps), First Book (3 steps), Pipeline Intro (7 steps)
+- **Spotlight overlay** — CSS clip-path cutouts highlight target elements with step-by-step popovers
+- **Keyboard navigation** — arrow keys and Escape for tour controls
+- **Auto-launch** — Welcome tour starts automatically after onboarding
+- **Replay from Settings** — replay any tour at any time; green checkmarks for completed tours
+- **Sidebar Help button** — "?" icon to launch tours on demand
+- **Contextual tooltips** — 14 components have descriptive tooltips (sidebar buttons, pipeline phases, chat controls, file view toggles, window controls)
+- **Tour-aware suppression** — tooltips are hidden during active tours to reduce visual clutter
+- **Accessible** — `aria-modal`, `aria-live`, `aria-describedby` on all interactive elements
+
 ### Chapter Validation
 
 The **ChapterValidator** runs automatically after agent interactions to detect and correct misplaced chapter files — files written to the wrong path, wrong extensions, or incorrect directory structures are moved to the correct `chapters/NN-slug/draft.md` layout.
@@ -335,7 +380,7 @@ Electron Forge handles packaging via [`forge.config.ts`](./forge.config.ts). Bun
 
 ### Source Code Architecture
 
-136 TypeScript/TSX files across five clean-architecture layers:
+158 TypeScript/TSX files across five clean-architecture layers:
 
 ```
 src/
@@ -371,6 +416,9 @@ src/
 │   │   ├── ProviderRegistry.ts          # Central registry routing models to providers
 │   │   ├── OpenAiCompatibleProvider.ts  # BYOK provider for OpenAI-compatible endpoints
 │   │   └── index.ts
+│   ├── series/
+│   │   ├── SeriesService.ts             # Series CRUD, volume management, bible I/O, reverse-lookup cache
+│   │   └── index.ts
 │   └── pandoc/
 │       └── index.ts                     # Pandoc binary path resolution
 │
@@ -391,6 +439,8 @@ src/
 │   ├── VersionService.ts                # File version snapshots, diffs, revert, pruning
 │   ├── ManuscriptImportService.ts       # Manuscript import: preview, chapter detection, commit
 │   ├── SourceGenerationService.ts       # Post-import AI source document generation
+│   ├── SeriesImportService.ts           # Batch series import: preview + commit via IManuscriptImportService
+│   ├── HelperService.ts                 # In-app help assistant with persistent conversation
 │   ├── thinkingBudget.ts                # Thinking budget resolution logic
 │   ├── index.ts                         # Barrel export
 │   ├── context/
@@ -428,6 +478,10 @@ src/
     │   ├── providerStore.ts             # Multi-model provider management
     │   ├── versionStore.ts              # File version history and diffs
     │   ├── importStore.ts               # Manuscript import wizard state
+    │   ├── seriesStore.ts               # Series CRUD, volume management, bible editor state
+    │   ├── seriesImportStore.ts         # Series import wizard state
+    │   ├── helperStore.ts               # Helper panel visibility, conversation, streaming
+    │   ├── tourStore.ts                 # Guided tour lifecycle, completion state
     │   └── streamHandler.ts             # Routes stream events to correct stores
     ├── components/
     │   ├── Layout/                      # AppLayout, Sidebar, TitleBar, ResizeHandle
@@ -437,7 +491,8 @@ src/
     │   │                                #   VoiceSetupButton, ShelvedPitchesPanel,
     │   │                                #   PitchPreviewModal, PitchHistory,
     │   │                                #   CliActivityButton, RevisionQueueButton,
-    │   │                                #   HotTakeButton, AdhocRevisionButton
+    │   │                                #   HotTakeButton, AdhocRevisionButton,
+    │   │                                #   SeriesGroup
     │   ├── Chat/                        # ChatView, ChatInput, ChatModal, ChatTitleBar,
     │   │                                #   MessageBubble, MessageList, StreamingMessage,
     │   │                                #   ThinkingBlock, ThinkingBudgetSlider, QuickActions,
@@ -456,14 +511,22 @@ src/
     │   │                                #   MinorCharactersTab, FlaggedPhrasesTab,
     │   │                                #   AuditLogTab
     │   ├── CliActivity/                 # CliActivityPanel, constants
-    │   ├── Import/                      # ImportWizard, ChapterPreviewList
+    │   ├── Import/                      # ImportWizard, ChapterPreviewList,
+    │   │                                #   ImportSeriesWizard, VolumePreviewList
+    │   ├── Helper/                      # HelperButton, HelperPanel, HelperMessageList
+    │   ├── Series/                      # SeriesModal, SeriesForm, VolumeList,
+    │   │                                #   SeriesBibleEditor
+    │   ├── common/                      # Tooltip, GuidedTourOverlay
     │   └── ErrorBoundary/               # ErrorBoundary
     ├── hooks/
     │   ├── useTheme.ts                  # Dark/light/system theme sync
     │   ├── useRotatingStatus.ts         # Fun rotating status messages
     │   ├── useRevisionQueueEvents.ts    # Revision queue event subscription
     │   ├── useResizeHandle.ts           # Horizontal sidebar resize
-    │   └── useVerticalResize.ts         # Vertical panel resize
+    │   ├── useVerticalResize.ts         # Vertical panel resize
+    │   └── useTooltip.ts               # Tooltip positioning and viewport clamping
+    ├── tours/
+    │   └── tourDefinitions.ts           # Welcome, first-book, pipeline-intro tour steps
     └── styles/
         └── globals.css                  # Tailwind v4 import + minimal custom styles
 ```
@@ -515,6 +578,10 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
 │   └── __pitch-room__/              # Pitch Room draft workspace
 │       └── drafts/{conversationId}/
 │           └── source/pitch.md
+├── series/
+│   └── {slug}/
+│       ├── series.json                  # { name, slug, description, volumes, created, updated }
+│       └── series-bible.md              # Shared continuity document for the series
 └── custom-agents/
     ├── SPARK.md                      # Core agent prompts (7 creative agents)
     ├── VERITY-CORE.md                # Verity base prompt
@@ -537,7 +604,8 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
     ├── MOTIF-AUDIT.md                # Motif/phrase audit
     ├── ADHOC-REVISION.md             # Direct feedback → Forge
     ├── REVISION-VERIFICATION.md      # Post-revision verification
-    └── WRANGLER-PARSE.md             # Revision plan parser
+    ├── WRANGLER-PARSE.md             # Revision plan parser
+    └── HELPER.md                     # In-app help assistant
 ```
 
 Agent system prompts live in `custom-agents/` and are fully editable — customize any agent's behavior by modifying its `.md` file. Missing agents are automatically restored from the bundled copies on startup (without overwriting your customizations).
@@ -573,10 +641,10 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 ```
 
 - **Domain** ([`src/domain/`](./src/domain/)) — Pure TypeScript types, interfaces, and constants. Zero imports. Every other layer depends on this.
-- **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support.
-- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, ManuscriptImportService, SourceGenerationService, UsageService, ChapterValidator.
+- **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support, series file-based storage.
+- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, ManuscriptImportService, SourceGenerationService, SeriesImportService, HelperService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
-- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (17 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
+- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (20 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
 
 All services are constructor-injected. The only place concrete classes are instantiated is [`src/main/index.ts`](./src/main/index.ts).
 

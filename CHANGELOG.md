@@ -4,6 +4,32 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Deployment Prep: release notes, README update, website rebuild
+
+### Summary
+
+Executed the full deployment prep pipeline. Generated `RELEASE_NOTES.md` (v0.6.0) cataloging all changes since v0.5.8 — 25 commits, 132 files changed, 4 new features. Updated `README.md` with Series Bible, Series Import, In-App Helper, Guided Tours & Tooltips features; corrected file count (136→158), store count (17→20); added new infrastructure/application/component/store entries to the source tree. Rebuilt all 6 GitHub Pages HTML files — updated version to v0.6.0, added 4 feature cards to landing page, updated stats (158 files, 20 stores, ~44K LOC), added 5 new changelog entries to changelog.html, updated architecture.html source tree and dependency graph.
+
+### Added
+- `RELEASE_NOTES.md` — Release notes for v0.6.0 with categorized changes, highlights, and full commit log
+
+### Changed
+- `README.md` — Added 4 new Key Features sections (Series Bible, Series Import, In-App Helper, Guided Tours & Tooltips); updated source tree with series/, HelperService, SeriesImportService, 4 new stores, 4 new component directories, tours/; corrected counts (158 files, 20 stores)
+- `docs/index.html` — Version v0.6.0; added 4 feature cards (Series Bible, Series Import, In-App Helper, Guided Tours & Tooltips)
+- `docs/architecture.html` — Version v0.6.0; 158 files; added series/ to infra, HelperService + SeriesImportService to app, updated stores (20), hooks (6), component groups (16), added tours/; updated dependency graph
+- `docs/changelog.html` — Version v0.6.0; 63 entries; added 5 new entries + 3 new highlights
+- `docs/press.html` — Version v0.6.0; updated stats (158 files, ~44K LOC, 20 stores)
+- `docs/contact.html` — Version v0.6.0
+- `docs/evaluation.html` — Version v0.6.0
+
+### Architecture Impact
+None — documentation and website assets only, no source code changes.
+
+### Migration Notes
+None
+
+---
+
 ## [2026-03-28] — Add in-app Helper agent (floating help chat)
 
 ### Summary
