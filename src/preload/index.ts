@@ -33,6 +33,10 @@ import type {
   StreamSessionRecord,
   UsageRecord,
   UsageSummary,
+  ModelInfo,
+  ProviderConfig,
+  ProviderId,
+  ProviderStatus,
 } from '@domain/types';
 
 const api = {
@@ -342,10 +346,25 @@ const api = {
     },
   },
 
-  // Models (static data from domain, exposed to renderer via IPC)
+  // Models (from all enabled providers via registry)
   models: {
-    getAvailable: (): Promise<{ id: string; label: string; description: string }[]> =>
+    getAvailable: (): Promise<ModelInfo[]> =>
       ipcRenderer.invoke('settings:getAvailableModels'),
+  },
+
+  // Providers
+  providers: {
+    list: (): Promise<ProviderConfig[]> => ipcRenderer.invoke('providers:list'),
+    getConfig: (providerId: ProviderId): Promise<ProviderConfig | null> =>
+      ipcRenderer.invoke('providers:getConfig', providerId),
+    add: (config: ProviderConfig): Promise<void> => ipcRenderer.invoke('providers:add', config),
+    update: (providerId: ProviderId, partial: Partial<ProviderConfig>): Promise<void> =>
+      ipcRenderer.invoke('providers:update', providerId, partial),
+    remove: (providerId: ProviderId): Promise<void> => ipcRenderer.invoke('providers:remove', providerId),
+    checkStatus: (providerId: ProviderId): Promise<ProviderStatus> =>
+      ipcRenderer.invoke('providers:checkStatus', providerId),
+    setDefault: (providerId: ProviderId): Promise<void> =>
+      ipcRenderer.invoke('providers:setDefault', providerId),
   },
 };
 

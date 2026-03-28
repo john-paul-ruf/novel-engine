@@ -17,6 +17,7 @@ import type {
   IMotifLedgerService,
   IUsageService,
   IVersionService,
+  IProviderRegistry,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -32,8 +33,9 @@ import type {
   FileVersionSource,
   StreamEvent,
   StreamEventSource,
+  ProviderConfig,
+  ProviderId,
 } from '@domain/types';
-import { AVAILABLE_MODELS } from '@domain/constants';
 import type { NotificationManager } from '../notifications';
 
 export function registerIpcHandlers(services: {
@@ -50,6 +52,7 @@ export function registerIpcHandlers(services: {
   motifLedger: IMotifLedgerService;
   notifications: NotificationManager;
   version: IVersionService;
+  providerRegistry: IProviderRegistry;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -85,7 +88,47 @@ export function registerIpcHandlers(services: {
     }
   });
 
-  ipcMain.handle('settings:getAvailableModels', () => AVAILABLE_MODELS);
+  ipcMain.handle('settings:getAvailableModels', () =>
+    services.providerRegistry.listAllModels()
+  );
+
+  // === Providers ===
+
+  ipcMain.handle('providers:list', () =>
+    services.providerRegistry.listProviders()
+  );
+
+  ipcMain.handle('providers:getConfig', (_, providerId: ProviderId) =>
+    services.providerRegistry.getProviderConfig(providerId)
+  );
+
+  ipcMain.handle('providers:add', async (_, config: ProviderConfig) => {
+    if (config.type === 'openai-compatible') {
+      const { OpenAiCompatibleProvider } = await import('@infra/providers');
+      const provider = new OpenAiCompatibleProvider(
+        config.id, config.baseUrl ?? '', config.apiKey ?? '', config.capabilities,
+      );
+      services.providerRegistry.registerProvider(provider, config);
+    }
+  });
+
+  ipcMain.handle('providers:update', (_, providerId: ProviderId, partial: Partial<ProviderConfig>) =>
+    services.providerRegistry.updateProviderConfig(providerId, partial)
+  );
+
+  ipcMain.handle('providers:remove', (_, providerId: ProviderId) =>
+    services.providerRegistry.removeProvider(providerId)
+  );
+
+  ipcMain.handle('providers:checkStatus', (_, providerId: ProviderId) =>
+    services.providerRegistry.checkProviderStatus(providerId)
+  );
+
+  ipcMain.handle('providers:setDefault', async (_, providerId: ProviderId) => {
+    const registry = services.providerRegistry as { setDefaultProvider?: (id: string) => void };
+    registry.setDefaultProvider?.(providerId);
+    await services.settings.update({ activeProviderId: providerId });
+  });
 
   // === Agents ===
 

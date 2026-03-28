@@ -363,7 +363,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

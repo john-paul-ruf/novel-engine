@@ -15,9 +15,21 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `settings:load` | invoke | `settingsService.load()` | `AppSettings` |
 | `settings:detectClaudeCli` | invoke | `settingsService.detectClaudeCli()` | `boolean` |
 | `settings:update` | invoke | `settingsService.update(partial)` + syncs `nativeTheme.themeSource` | `void` |
-| `settings:getAvailableModels` | invoke | Returns `AVAILABLE_MODELS` constant | `{id, label, description}[]` |
+| `settings:getAvailableModels` | invoke | `providerRegistry.listAllModels()` | `ModelInfo[]` |
 | `settings:saveAuthorProfile` | invoke | `fs.writeFile(profilePath, content)` | `void` |
 | `settings:loadAuthorProfile` | invoke | `fs.readFile(profilePath)` | `string` |
+
+### providers:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `providers:list` | invoke | `providerRegistry.listProviders()` | `ProviderConfig[]` |
+| `providers:getConfig` | invoke | `providerRegistry.getProviderConfig(providerId)` | `ProviderConfig \| null` |
+| `providers:add` | invoke | Creates `OpenAiCompatibleProvider`, registers with registry | `void` |
+| `providers:update` | invoke | `providerRegistry.updateProviderConfig(providerId, partial)` | `void` |
+| `providers:remove` | invoke | `providerRegistry.removeProvider(providerId)` | `void` |
+| `providers:checkStatus` | invoke | `providerRegistry.checkProviderStatus(providerId)` | `ProviderStatus` |
+| `providers:setDefault` | invoke | `registry.setDefaultProvider(providerId)` + `settings.update({ activeProviderId })` | `void` |
 
 ### agents:*
 
@@ -385,7 +397,17 @@ window.novelEngine: {
   }
 
   models: {
-    getAvailable(): Promise<{id, label, description}[]>
+    getAvailable(): Promise<ModelInfo[]>
+  }
+
+  providers: {
+    list(): Promise<ProviderConfig[]>
+    getConfig(providerId): Promise<ProviderConfig | null>
+    add(config): Promise<void>
+    update(providerId, partial): Promise<void>
+    remove(providerId): Promise<void>
+    checkStatus(providerId): Promise<ProviderStatus>
+    setDefault(providerId): Promise<void>
   }
 }
 ```

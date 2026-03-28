@@ -4,6 +4,27 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: IPC channels & preload bridge (SESSION-06)
+
+### Summary
+
+Exposed provider management to the renderer through 7 new `providers:*` IPC channels and a `window.novelEngine.providers` preload namespace. Updated `settings:getAvailableModels` to return `ModelInfo[]` from the registry instead of the deprecated static `AVAILABLE_MODELS` array.
+
+### Changed
+- `src/main/ipc/handlers.ts` — Added 7 `providers:*` handlers (list, getConfig, add, update, remove, checkStatus, setDefault). Updated `settings:getAvailableModels` to use `providerRegistry.listAllModels()`. Added `providerRegistry` to services param.
+- `src/preload/index.ts` — Added `providers` namespace with 7 bridge methods. Updated `models.getAvailable` return type to `ModelInfo[]`.
+- `src/main/index.ts` — Added `providerRegistry` to `registerIpcHandlers` call.
+
+### Architecture Impact
+- New IPC channels: `providers:list`, `providers:getConfig`, `providers:add`, `providers:update`, `providers:remove`, `providers:checkStatus`, `providers:setDefault`
+- New preload bridge namespace: `window.novelEngine.providers`
+- `settings:getAvailableModels` now returns `ModelInfo[]` (breaking for renderer — compatible because `ModelInfo` is a superset)
+
+### Migration Notes
+- Renderer code using `models.getAvailable()` now receives `ModelInfo[]` instead of `{id, label, description}[]`. The fields are a superset, so existing destructuring continues to work.
+
+---
+
 ## [2026-03-28] — Multi-model providers: service migration + composition root (SESSION-05)
 
 ### Summary
