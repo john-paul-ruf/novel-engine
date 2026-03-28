@@ -84,7 +84,7 @@ export function AppLayout(): React.ReactElement {
       <StreamManager />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-hidden">
+        <main data-tour="main-content" className="flex-1 overflow-hidden">
           <ViewContent />
         </main>
         {isCliPanelOpen && <CliActivityPanel />}

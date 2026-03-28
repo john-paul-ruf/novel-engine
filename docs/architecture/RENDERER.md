@@ -10,6 +10,24 @@ Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only t
 
 ## Stores
 
+### tourStore
+
+File: `stores/tourStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `activeTourId` | `TourId \| null` | Currently active tour |
+| `completedTours` | `Set<TourId>` | Tours the user has completed (O(1) lookup) |
+| `isHydrated` | `boolean` | True after settings loaded |
+
+| Action | What It Does |
+|--------|-------------|
+| `hydrate(completedTours)` | Called on mount with `settings.completedTours` |
+| `startTour(tourId)` | Sets active tour, no-op if another active |
+| `completeTour()` | Marks active tour done, persists via `settings:update` |
+| `dismissTour()` | Clears active tour without marking complete |
+| `resetTour(tourId)` | Removes from completed set, persists |
+
 ### settingsStore
 
 File: `stores/settingsStore.ts`
@@ -468,6 +486,14 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `useRotatingStatus.ts` | Rotates fun status messages on an interval |
 | `useTheme.ts` | Syncs Tailwind dark mode class with settings theme |
 | `useTooltip.ts` | Tooltip positioning hook — manages show/hide delay, `getBoundingClientRect` positioning, viewport clamping |
+
+## Tours
+
+Directory: `src/renderer/tours/`
+
+| File | Purpose |
+|------|---------|
+| `tourDefinitions.ts` | `Record<TourId, TourStep[]>` — step arrays for 3 tours: welcome (6 steps), first-book (3 steps), pipeline-intro (7 steps) |
 
 ---
 

@@ -303,7 +303,7 @@ export function PipelineTracker(): React.ReactElement {
   };
 
   return (
-    <div className="px-3 pb-3">
+    <div data-tour="pipeline-tracker" className="px-3 pb-3">
 
       {buildForQuillError && (
         <div className="mb-2 rounded bg-red-950 px-2 py-1.5 text-[10px] text-red-300">
@@ -369,7 +369,7 @@ export function PipelineTracker(): React.ReactElement {
             (phase.status === 'active' || phase.status === 'pending-completion' || autoDraftRunning);
 
           return (
-            <div key={phase.id}>
+            <div key={phase.id} data-tour={`pipeline-phase-${phase.id}`}>
               <PhaseRow
                 phase={phase}
                 onPhaseClick={() => handlePhaseClick(phase)}

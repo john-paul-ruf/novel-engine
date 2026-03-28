@@ -423,7 +423,7 @@ export function BookSelector(): React.ReactElement {
   }
 
   return (
-    <div ref={dropdownRef} className="relative border-b border-zinc-200 dark:border-zinc-800">
+    <div ref={dropdownRef} data-tour="book-selector" className="relative border-b border-zinc-200 dark:border-zinc-800">
       {/* Closed state — always visible */}
       <div
         role="button"

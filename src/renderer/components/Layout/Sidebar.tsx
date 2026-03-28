@@ -131,7 +131,7 @@ export function Sidebar(): React.ReactElement {
             </button>
           </div>
           {filesOpen && (
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div data-tour="file-tree" className="min-h-0 flex-1 overflow-y-auto">
               <FileTree />
             </div>
           )}
@@ -147,7 +147,7 @@ export function Sidebar(): React.ReactElement {
       )}
 
       {/* Bottom nav */}
-      <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-2">
+      <div data-tour="sidebar-nav" className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-2">
         {NAV_ITEMS.map((item) => (
           <NavButton
             key={item.id}

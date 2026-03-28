@@ -74,7 +74,7 @@ export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOn
   const showQuickActions = !readOnly && agentName;
 
   return (
-    <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
+    <div data-tour="chat-input" className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
       {!readOnly && (
         <ThinkingBudgetSlider
           value={thinkingBudget}

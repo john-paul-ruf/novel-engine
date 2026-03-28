@@ -30,7 +30,7 @@
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
 | 1 | SESSION-01 — Tooltip Component & Guide Domain Types | Domain / Renderer | done | 2026-03-28 | Clean implementation. No complications. |
-| 2 | SESSION-02 — Tour Definitions & Tour Store | Domain / Renderer | pending | | |
+| 2 | SESSION-02 — Tour Definitions & Tour Store | Domain / Renderer | done | 2026-03-28 | All data-tour attributes placed. tourStore and tourDefinitions created. |
 | 3 | SESSION-03 — Wire Tours into App, Auto-Launch Welcome Tour | Renderer | pending | | |
 | 4 | SESSION-04 — Tooltips Everywhere | Renderer | pending | | |
 | 5 | SESSION-05 — Polish, Edge Cases & Documentation | Renderer / Domain | pending | | |
@@ -109,7 +109,7 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-01
+### Last completed session: SESSION-02
 
 ### Observations:
 - Created `src/renderer/components/common/` directory (did not exist before)

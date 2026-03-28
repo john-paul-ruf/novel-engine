@@ -117,7 +117,7 @@ export function ChatView(): React.ReactElement {
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-tour="chat-view" className="flex h-full flex-col">
       <ChatTitleBar />
       <ConversationList
         expanded={conversationsExpanded}

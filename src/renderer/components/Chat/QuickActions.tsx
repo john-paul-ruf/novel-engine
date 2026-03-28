@@ -50,7 +50,7 @@ export function QuickActions({ agentName, onSelect, disabled }: QuickActionsProp
   );
 
   return (
-    <div className="relative">
+    <div data-tour="quick-actions" className="relative">
       <button
         ref={buttonRef}
         onClick={() => setOpen((prev) => !prev)}

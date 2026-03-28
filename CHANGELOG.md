@@ -4,6 +4,35 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-02: Tour definitions, store, and data-tour attributes
+
+### Summary
+
+Created the three guided tour content definitions (welcome, first-book, pipeline-intro), a Zustand store for tour lifecycle management, and added `data-tour` attributes to 8 existing components for spotlight anchoring. The tour store persists completion state through the existing `settings:update` IPC channel.
+
+### Added
+- `src/renderer/tours/tourDefinitions.ts` — Tour step arrays for 3 tours: welcome (6 steps), first-book (3 steps), pipeline-intro (7 steps)
+- `src/renderer/stores/tourStore.ts` — Zustand store: `activeTourId`, `completedTours`, `hydrate`, `startTour`, `completeTour`, `dismissTour`, `resetTour`
+
+### Changed
+- `src/renderer/components/Layout/Sidebar.tsx` — Added `data-tour="sidebar-nav"` and `data-tour="file-tree"`
+- `src/renderer/components/Layout/AppLayout.tsx` — Added `data-tour="main-content"` to `<main>`
+- `src/renderer/components/Sidebar/BookSelector.tsx` — Added `data-tour="book-selector"`
+- `src/renderer/components/Sidebar/PipelineTracker.tsx` — Added `data-tour="pipeline-tracker"` and per-phase `data-tour="pipeline-phase-{id}"`
+- `src/renderer/components/Chat/ChatView.tsx` — Added `data-tour="chat-view"`
+- `src/renderer/components/Chat/ChatInput.tsx` — Added `data-tour="chat-input"`
+- `src/renderer/components/Chat/QuickActions.tsx` — Added `data-tour="quick-actions"`
+
+### Architecture Impact
+- New store: `tourStore` (persists via existing `settings:update` channel)
+- New directory: `src/renderer/tours/`
+- 8 components gained inert `data-tour` attributes — zero behavioral change
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-01: Foundation types and components
 
 ### Summary
