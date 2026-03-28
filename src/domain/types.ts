@@ -232,6 +232,49 @@ export type ActiveStreamInfo = {
   textBuffer: string;            // accumulated response text so far (for recovery after reload)
 };
 
+// === Model Providers ===
+
+/** Unique identifier for a provider instance. Stable across sessions. */
+export type ProviderId = string;
+
+/** The implementation strategy for a provider. Determines which infrastructure class is instantiated. */
+export type ProviderType = 'claude-cli' | 'opencode-cli' | 'openai-compatible';
+
+/** Capabilities a provider may support. Used to gate features in the UI and services. */
+export type ProviderCapability =
+  | 'text-completion'   // basic chat — all providers
+  | 'tool-use'          // can read/write files via agent loop — CLI providers only
+  | 'thinking'          // extended thinking / reasoning traces
+  | 'streaming';        // real-time token streaming
+
+/** Runtime status of a provider — checked on app startup and on demand. */
+export type ProviderStatus = 'available' | 'unavailable' | 'unchecked' | 'error';
+
+/** Stored configuration for a single provider instance. Persisted in settings.json. */
+export type ProviderConfig = {
+  id: ProviderId;
+  type: ProviderType;
+  name: string;                          // user-facing display name
+  enabled: boolean;
+  isBuiltIn: boolean;                    // true for Claude CLI (cannot be deleted)
+  apiKey?: string;                       // for BYOK providers (stored in settings)
+  baseUrl?: string;                      // custom endpoint for self-hosted / proxied
+  models: ModelInfo[];                   // models available through this provider
+  defaultModel?: string;                 // preferred model ID from this provider
+  capabilities: ProviderCapability[];
+};
+
+/** Describes a single model available through a provider. */
+export type ModelInfo = {
+  id: string;                            // e.g. 'claude-opus-4-20250514', 'gpt-4o'
+  label: string;                         // display name
+  description: string;
+  providerId: ProviderId;                // which provider offers this model
+  contextWindow?: number;                // max tokens (informational)
+  supportsThinking?: boolean;            // whether extended thinking is available
+  supportsToolUse?: boolean;             // whether agent-loop tool use works
+};
+
 // === Settings ===
 
 export type AppSettings = {
@@ -246,6 +289,9 @@ export type AppSettings = {
   theme: 'light' | 'dark' | 'system';
   initialized: boolean;    // false until onboarding is complete
   authorName: string;      // display name for book covers
+  // Multi-provider configuration
+  providers: ProviderConfig[];           // all configured providers (persisted)
+  activeProviderId: ProviderId;          // which provider is currently selected
 };
 
 // === Token Usage ===

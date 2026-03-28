@@ -4,6 +4,27 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: domain types, interfaces, constants (SESSION-01)
+
+### Summary
+
+Foundation for pluggable AI provider architecture. Added provider-related types (`ProviderId`, `ProviderType`, `ProviderCapability`, `ProviderConfig`, `ModelInfo`, `ProviderStatus`), new interfaces (`IModelProvider`, `IProviderRegistry`), and built-in provider constants. `AppSettings` extended with `providers` and `activeProviderId`. `IClaudeClient` and `AVAILABLE_MODELS` deprecated but retained for backward compatibility.
+
+### Changed
+- `src/domain/types.ts` — Added 6 provider types (`ProviderId`, `ProviderType`, `ProviderCapability`, `ProviderStatus`, `ProviderConfig`, `ModelInfo`). Extended `AppSettings` with `providers: ProviderConfig[]` and `activeProviderId: ProviderId`.
+- `src/domain/interfaces.ts` — Added `IModelProvider` interface (same shape as `IClaudeClient` plus `providerId` and `capabilities`). Added `IProviderRegistry` interface (router + CRUD + convenience delegates). Deprecated `IClaudeClient` with JSDoc.
+- `src/domain/constants.ts` — Added `CLAUDE_CLI_PROVIDER_ID`, `OPENCODE_CLI_PROVIDER_ID`, `BUILT_IN_PROVIDER_CONFIGS`. Deprecated `AVAILABLE_MODELS` with JSDoc. Updated `DEFAULT_SETTINGS` with provider fields. Reordered declarations to avoid forward-reference errors.
+
+### Architecture Impact
+- New interfaces: `IModelProvider`, `IProviderRegistry`
+- `AppSettings` shape changed (backward-compatible additions)
+- `IClaudeClient` deprecated (not removed)
+
+### Migration Notes
+- Existing `settings.json` files missing `providers`/`activeProviderId` will get defaults from `DEFAULT_SETTINGS` merge in `SettingsService.load()`.
+
+---
+
 ## [2026-03-28] — Add catalog export (ZIP all books)
 
 ### Summary

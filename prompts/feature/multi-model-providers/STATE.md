@@ -29,7 +29,7 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Domain Types & Interfaces | Domain | pending | | |
+| 1 | SESSION-01 — Domain Types & Interfaces | Domain | done | 2026-03-28 | Moved AVAILABLE_MODELS and provider constants before DEFAULT_SETTINGS to avoid forward-reference errors. |
 | 2 | SESSION-02 — ClaudeCodeClient Implements IModelProvider | Infrastructure | pending | | |
 | 3 | SESSION-03 — ProviderRegistry Infrastructure | Infrastructure | pending | | |
 | 4 | SESSION-04 — OpenAI-Compatible Provider | Infrastructure | pending | | |
@@ -110,8 +110,12 @@ graph TD
 
 ## Handoff Notes
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-01
 
 ### Observations:
+- `AVAILABLE_MODELS` was reordered before `DEFAULT_SETTINGS` in constants.ts to co-locate with new provider constants and avoid forward-reference issues.
+- `IClaudeClient` and `IModelProvider` have identical method signatures — ClaudeCodeClient can implement both trivially in SESSION-02.
+- `ModelInfo` type does not include `ProviderId` (unused import warning avoidance) — wait, it does. The `ModelInfo.providerId` field links models to their provider.
 
 ### Warnings:
+- SESSION-02, 03, 04 are all unblocked and can proceed in any order.

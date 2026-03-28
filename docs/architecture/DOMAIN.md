@@ -74,11 +74,22 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `StreamEvent` | Discriminated union (12 variants: `callStart`, `status`, `blockStart`, `thinkingDelta`, `textDelta`, `blockEnd`, `toolUse`, `filesChanged`, `done`, `progressStage`, `thinkingSummary`, `toolDuration`, `error`) | IPC streaming |
 | `ActiveStreamInfo` | `{ conversationId, agentName, model, bookSlug, startedAt, sessionId, callId, progressStage, filesTouched, thinkingBuffer, textBuffer }` | Renderer refresh recovery |
 
+### Model Providers
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `ProviderId` | `string` | ProviderConfig, IModelProvider, IProviderRegistry |
+| `ProviderType` | `'claude-cli' \| 'opencode-cli' \| 'openai-compatible'` | ProviderConfig, infrastructure |
+| `ProviderCapability` | `'text-completion' \| 'tool-use' \| 'thinking' \| 'streaming'` | ProviderConfig, IModelProvider |
+| `ProviderStatus` | `'available' \| 'unavailable' \| 'unchecked' \| 'error'` | IProviderRegistry.checkProviderStatus |
+| `ProviderConfig` | `{ id, type, name, enabled, isBuiltIn, apiKey?, baseUrl?, models, defaultModel?, capabilities }` | Settings, ProviderRegistry |
+| `ModelInfo` | `{ id, label, description, providerId, contextWindow?, supportsThinking?, supportsToolUse? }` | ProviderConfig.models, IProviderRegistry.listAllModels |
+
 ### Settings
 
 | Type | Shape | Used By |
 |------|-------|---------|
-| `AppSettings` | `{ hasClaudeCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName }` | SettingsService, SettingsView |
+| `AppSettings` | `{ hasClaudeCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId }` | SettingsService, SettingsView |
 
 ### Token Usage
 
@@ -264,18 +275,56 @@ Implemented by: `FileSystemService` (`src/infrastructure/filesystem/`)
 | `shelvePitchDraft` | `(conversationId, logline?) => Promise<ShelvedPitchMeta>` | Shelves pitch room draft |
 | `getPitchDraftPath` | `(conversationId) => string` | Absolute path for Spark working dir |
 
-### IClaudeClient
+### IClaudeClient (deprecated)
+
+> **Deprecated:** Use `IModelProvider` or `IProviderRegistry` instead. Retained during multi-model migration.
 
 Implemented by: `ClaudeCodeClient` (`src/infrastructure/claude-cli/`)
 
 | Method | Signature | Returns |
 |--------|-----------|---------|
-| `sendMessage` | `(params) => Promise<{ changedFiles: string[] }>` | Streams events via onEvent callback; returns changed files |
+| `sendMessage` | `(params) => Promise<void>` | Streams events via onEvent callback |
 | `abortStream` | `(conversationId) => void` | SIGTERM then SIGKILL |
 | `isAvailable` | `() => Promise<boolean>` | CLI accessible check |
 | `invalidateAvailabilityCache` | `() => void` | Forces re-check |
 | `hasActiveProcesses` | `() => boolean` | Any CLI running |
 | `hasActiveProcessesForBook` | `(bookSlug) => boolean` | CLI running for specific book |
+
+### IModelProvider
+
+The core abstraction for all AI backends. Providers declare capabilities so services can adapt behavior.
+
+| Method / Property | Signature | Returns |
+|-------------------|-----------|---------|
+| `providerId` | `readonly ProviderId` | Stable ID matching ProviderConfig.id |
+| `capabilities` | `readonly ProviderCapability[]` | What the provider supports |
+| `sendMessage` | `(params) => Promise<void>` | Streams events via onEvent callback |
+| `abortStream` | `(conversationId) => void` | Kill active stream |
+| `isAvailable` | `() => Promise<boolean>` | Backend reachable check |
+| `invalidateAvailabilityCache` | `() => void` | Force re-check |
+| `hasActiveProcesses` | `() => boolean` | Any active requests |
+| `hasActiveProcessesForBook` | `(bookSlug) => boolean` | Active requests for book |
+
+### IProviderRegistry
+
+Router/manager for all configured providers. Services call with a model ID; registry resolves which provider handles it.
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `registerProvider` | `(provider, config) => void` | — |
+| `removeProvider` | `(providerId) => void` | No-op for built-in |
+| `getProvider` | `(providerId) => IModelProvider \| null` | — |
+| `getDefaultProvider` | `() => IModelProvider` | Active provider |
+| `getProviderForModel` | `(modelId) => IModelProvider \| null` | Provider owning model |
+| `listProviders` | `() => ProviderConfig[]` | All configs |
+| `listAllModels` | `() => ModelInfo[]` | All models from enabled providers |
+| `checkProviderStatus` | `(providerId) => Promise<ProviderStatus>` | Availability check |
+| `getProviderConfig` | `(providerId) => ProviderConfig \| null` | — |
+| `updateProviderConfig` | `(providerId, partial) => void` | Update config |
+| `sendMessage` | `(params) => Promise<void>` | Routes to correct provider |
+| `abortStream` | `(conversationId) => void` | Checks all providers |
+| `hasActiveProcesses` | `() => boolean` | Any provider active |
+| `hasActiveProcessesForBook` | `(bookSlug) => boolean` | Any provider active for book |
 
 ### IPipelineService
 
@@ -434,8 +483,11 @@ Implemented by: `VersionService` (`src/application/`)
 | `CREATIVE_AGENT_NAMES` | 7-element array | UI agent lists (excludes Wrangler) |
 | `WRANGLER_MODEL` | `'claude-sonnet-4-20250514'` | Model for plan parsing |
 | `AGENT_RESPONSE_BUFFER` | `Record<AgentName, number>` | Per-agent expected response sizes |
-| `DEFAULT_SETTINGS` | `AppSettings` | Default values for all settings |
-| `AVAILABLE_MODELS` | 2-element array | Opus 4 and Sonnet 4 |
+| `DEFAULT_SETTINGS` | `AppSettings` | Default values for all settings (includes `providers` and `activeProviderId`) |
+| `AVAILABLE_MODELS` | 2-element array | **(deprecated)** Opus 4 and Sonnet 4. Use `BUILT_IN_PROVIDER_CONFIGS[0].models` or `IProviderRegistry.listAllModels()` |
+| `CLAUDE_CLI_PROVIDER_ID` | `'claude-cli'` | Built-in Claude CLI provider ID |
+| `OPENCODE_CLI_PROVIDER_ID` | `'opencode-cli'` | Reserved for future OpenCode CLI provider |
+| `BUILT_IN_PROVIDER_CONFIGS` | `ProviderConfig[]` (1 element) | Default Claude CLI provider with Opus 4 and Sonnet 4 models |
 | `FILE_MANIFEST_KEYS` | 13-element array | Canonical file paths for context |
 | `VERITY_PHASE_FILES` | Partial record | Maps pipeline phases to Verity sub-prompt filenames |
 | `VERITY_AUDIT_MODEL` | `'claude-sonnet-4-20250514'` | Model for audit pass |

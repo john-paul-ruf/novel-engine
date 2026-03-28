@@ -3,7 +3,7 @@
  * (value imports, not type-only). Permitted for pure data constants
  * with zero Node.js dependencies. See docs/architecture/ARCHITECTURE.md.
  */
-import type { AgentName, AgentMeta, AuditSeverity, CreativeAgentName, PipelinePhaseId, AppSettings } from './types';
+import type { AgentName, AgentMeta, AuditSeverity, CreativeAgentName, PipelinePhaseId, AppSettings, ProviderId, ProviderConfig } from './types';
 
 // === Per-Agent Read Guidance ===
 
@@ -87,6 +87,55 @@ export const PIPELINE_PHASES: { id: PipelinePhaseId; label: string; agent: Agent
   { id: 'publish',            label: 'Publish & Audit',       agent: 'Quill',      description: 'Audit outputs and prepare metadata' },
 ];
 
+/**
+ * @deprecated Use `BUILT_IN_PROVIDER_CONFIGS[0].models` or
+ * `IProviderRegistry.listAllModels()` instead. Retained for backward
+ * compatibility until the renderer SettingsView is updated.
+ */
+export const AVAILABLE_MODELS = [
+  { id: 'claude-opus-4-20250514',   label: 'Claude Opus 4',   description: 'Best quality — recommended for all agents' },
+  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', description: 'Faster and cheaper — good for copy editing' },
+] as const;
+
+/** The built-in Claude CLI provider ID. Always present, cannot be removed. */
+export const CLAUDE_CLI_PROVIDER_ID: ProviderId = 'claude-cli';
+
+/** Reserved provider ID for OpenCode CLI (future implementation). */
+export const OPENCODE_CLI_PROVIDER_ID: ProviderId = 'opencode-cli';
+
+/** Default provider configurations shipped with the app. */
+export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
+  {
+    id: CLAUDE_CLI_PROVIDER_ID,
+    type: 'claude-cli',
+    name: 'Claude CLI',
+    enabled: true,
+    isBuiltIn: true,
+    models: [
+      {
+        id: 'claude-opus-4-20250514',
+        label: 'Claude Opus 4',
+        description: 'Best quality — recommended for all agents',
+        providerId: CLAUDE_CLI_PROVIDER_ID,
+        contextWindow: 200_000,
+        supportsThinking: true,
+        supportsToolUse: true,
+      },
+      {
+        id: 'claude-sonnet-4-20250514',
+        label: 'Claude Sonnet 4',
+        description: 'Faster and cheaper — good for copy editing',
+        providerId: CLAUDE_CLI_PROVIDER_ID,
+        contextWindow: 200_000,
+        supportsThinking: true,
+        supportsToolUse: true,
+      },
+    ],
+    defaultModel: 'claude-opus-4-20250514',
+    capabilities: ['text-completion', 'tool-use', 'thinking', 'streaming'],
+  },
+];
+
 // Default settings
 export const DEFAULT_SETTINGS: AppSettings = {
   hasClaudeCli: false,
@@ -100,13 +149,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   initialized: false,
   authorName: '',
+  providers: BUILT_IN_PROVIDER_CONFIGS,
+  activeProviderId: CLAUDE_CLI_PROVIDER_ID,
 };
-
-// Available models for the settings dropdown
-export const AVAILABLE_MODELS = [
-  { id: 'claude-opus-4-20250514',   label: 'Claude Opus 4',   description: 'Best quality — recommended for all agents' },
-  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', description: 'Faster and cheaper — good for copy editing' },
-] as const;
 
 // === Agent Quick Actions ===
 // Pre-built prompts shown in a dropdown next to the chat input, per agent.

@@ -19,6 +19,7 @@ import type {
   FileVersionSummary,
   Message,
   MessageRole,
+  ModelInfo,
   MotifLedger,
   PersistedStreamEvent,
   PipelinePhase,
@@ -26,6 +27,10 @@ import type {
   PitchDraft,
   ProgressStage,
   ProjectManifest,
+  ProviderCapability,
+  ProviderConfig,
+  ProviderId,
+  ProviderStatus,
   QueueMode,
   QueueStatus,
   RevisionPlan,
@@ -196,6 +201,13 @@ export interface IFileSystemService {
   getPitchDraftPath(conversationId: string): string;
 }
 
+/**
+ * @deprecated Use `IModelProvider` for the provider interface or `IProviderRegistry`
+ * for routed access to all providers. This interface is retained during the
+ * multi-model migration. ClaudeCodeClient implements both IClaudeClient and
+ * IModelProvider (they have the same method signatures). Will be removed
+ * after all services migrate to IProviderRegistry.
+ */
 export interface IClaudeClient {
   sendMessage(params: {
     model: string;
@@ -224,6 +236,120 @@ export interface IClaudeClient {
   invalidateAvailabilityCache(): void;
 
   hasActiveProcesses(): boolean;
+  hasActiveProcessesForBook(bookSlug: string): boolean;
+}
+
+/**
+ * A model provider that can send messages and stream responses.
+ *
+ * This is the core abstraction for all AI backends. Claude CLI, OpenCode CLI,
+ * and OpenAI-compatible API providers all implement this interface.
+ *
+ * Providers declare their capabilities (tool-use, thinking, streaming) so
+ * services can adapt their behavior based on what the backend supports.
+ */
+export interface IModelProvider {
+  /** Stable identifier matching the ProviderConfig.id this provider was created from. */
+  readonly providerId: ProviderId;
+
+  /** What this provider can do. Checked by services to gate features. */
+  readonly capabilities: ProviderCapability[];
+
+  /**
+   * Send a message and stream the response via onEvent callbacks.
+   * The provider translates its native streaming format into StreamEvent.
+   */
+  sendMessage(params: {
+    model: string;
+    systemPrompt: string;
+    messages: { role: MessageRole; content: string }[];
+    maxTokens: number;
+    thinkingBudget?: number;
+    maxTurns?: number;
+    bookSlug?: string;
+    workingDir?: string;
+    sessionId?: string;
+    conversationId?: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<void>;
+
+  /** Kill an active stream for the given conversation. No-op if nothing is active. */
+  abortStream(conversationId: string): void;
+
+  /** Check if this provider's backend is reachable and authenticated. */
+  isAvailable(): Promise<boolean>;
+
+  /** Force re-check on next isAvailable() call. */
+  invalidateAvailabilityCache(): void;
+
+  /** Whether this provider has any active (in-flight) requests. */
+  hasActiveProcesses(): boolean;
+
+  /** Whether this provider has active requests for a specific book. */
+  hasActiveProcessesForBook(bookSlug: string): boolean;
+}
+
+/**
+ * Registry that manages all configured model providers.
+ *
+ * Acts as a router — services call it with a model ID, and it resolves
+ * which provider handles that model. Also provides CRUD for provider configs.
+ */
+export interface IProviderRegistry {
+  /** Register a provider instance. Called during app initialization. */
+  registerProvider(provider: IModelProvider, config: ProviderConfig): void;
+
+  /** Remove a provider. No-op for built-in providers. */
+  removeProvider(providerId: ProviderId): void;
+
+  /** Get a specific provider by ID. Returns null if not registered. */
+  getProvider(providerId: ProviderId): IModelProvider | null;
+
+  /** Get the provider designated as default (Claude CLI initially). */
+  getDefaultProvider(): IModelProvider;
+
+  /** Resolve which provider handles a given model ID. Returns null if no provider claims it. */
+  getProviderForModel(modelId: string): IModelProvider | null;
+
+  /** List all registered provider configs. */
+  listProviders(): ProviderConfig[];
+
+  /** List all models from all enabled providers. */
+  listAllModels(): ModelInfo[];
+
+  /** Check availability of a specific provider. */
+  checkProviderStatus(providerId: ProviderId): Promise<ProviderStatus>;
+
+  /** Get the current config for a provider. */
+  getProviderConfig(providerId: ProviderId): ProviderConfig | null;
+
+  /** Update a provider's config (e.g. API key, base URL, enabled state, model list). */
+  updateProviderConfig(providerId: ProviderId, partial: Partial<ProviderConfig>): void;
+
+  // === Convenience delegates (route to the appropriate provider) ===
+
+  /** Send a message using whichever provider owns the specified model. */
+  sendMessage(params: {
+    model: string;
+    systemPrompt: string;
+    messages: { role: MessageRole; content: string }[];
+    maxTokens: number;
+    thinkingBudget?: number;
+    maxTurns?: number;
+    bookSlug?: string;
+    workingDir?: string;
+    sessionId?: string;
+    conversationId?: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<void>;
+
+  /** Abort a stream — checks all providers since the caller may not know which is active. */
+  abortStream(conversationId: string): void;
+
+  /** Whether any provider has active requests. */
+  hasActiveProcesses(): boolean;
+
+  /** Whether any provider has active requests for a specific book. */
   hasActiveProcessesForBook(bookSlug: string): boolean;
 }
 
