@@ -8,6 +8,8 @@ import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { ShelvedPitchesPanel } from './ShelvedPitchesPanel';
 import { PitchPreviewModal } from './PitchPreviewModal';
 import { usePitchShelfStore } from '../../stores/pitchShelfStore';
+import { ImportWizard } from '../Import/ImportWizard';
+import { useImportStore } from '../../stores/importStore';
 
 const STATUS_COLORS: Record<BookStatus, { bg: string; text: string }> = {
   scaffolded:     { bg: 'bg-zinc-300 dark:bg-zinc-600',    text: 'text-zinc-800 dark:text-zinc-200' },
@@ -244,6 +246,8 @@ export function BookSelector(): React.ReactElement {
   const { loadPipeline, setDisplayedBook } = usePipelineStore();
   const { loadConversations } = useChatStore();
   const revision = useFileChangeStore((s) => s.revision);
+  const importStep = useImportStore((s) => s.step);
+  const startImport = useImportStore((s) => s.startImport);
 
   const [isOpen, setIsOpen] = useState(false);
   const [showNewBookModal, setShowNewBookModal] = useState(false);
@@ -482,17 +486,30 @@ export function BookSelector(): React.ReactElement {
                 </button>
               </div>
 
-              {/* New Book button */}
-              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
+              {/* New Book + Import buttons */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2 flex gap-1">
                 <button
                   onClick={() => {
                     setIsOpen(false);
                     setShowNewBookModal(true);
                   }}
-                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="no-drag flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 >
                   <span>+</span>
                   <span>New Book</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    startImport();
+                  }}
+                  className="no-drag flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                    <path d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z" />
+                    <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+                  </svg>
+                  <span>Import</span>
                 </button>
               </div>
             </>
@@ -519,6 +536,9 @@ export function BookSelector(): React.ReactElement {
 
       {/* Pitch preview modal */}
       <PitchPreviewModal />
+
+      {/* Import wizard modal */}
+      {importStep !== 'idle' && <ImportWizard />}
     </div>
   );
 }

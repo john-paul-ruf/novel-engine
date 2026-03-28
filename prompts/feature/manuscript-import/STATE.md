@@ -29,12 +29,12 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Domain Types & Interface | Domain | pending | | |
-| 2 | SESSION-02 — Chapter Detection & ManuscriptImportService | Application | pending | | |
-| 3 | SESSION-03 — IPC Wiring, Preload & Composition Root | IPC / Main | pending | | |
-| 4 | SESSION-04 — Import Store & Import Wizard UI | Renderer | pending | | |
-| 5 | SESSION-05 — BookSelector Integration & Polish | Renderer | pending | | |
-| 6 | SESSION-06 — Multi-Agent Source Document Generation | Domain, Application, IPC, Renderer | pending | | |
+| 1 | SESSION-01 — Domain Types & Interface | Domain | done | 2026-03-28 | Clean append — no conflicts with existing types |
+| 2 | SESSION-02 — Chapter Detection & ManuscriptImportService | Application | done | 2026-03-28 | Added .txt as valid markdown format. Slugify mirrors BuildService pattern. |
+| 3 | SESSION-03 — IPC Wiring, Preload & Composition Root | IPC / Main | done | 2026-03-28 | Clean wiring. import:commit calls onActiveBookChanged hook. |
+| 4 | SESSION-04 — Import Store & Import Wizard UI | Renderer | done | 2026-03-28 | Generate Source Documents button is a placeholder for SESSION-06. |
+| 5 | SESSION-05 — BookSelector Integration & Polish | Renderer | done | 2026-03-28 | No global.d.ts needed — preload types flow through contextBridge. |
+| 6 | SESSION-06 — Multi-Agent Source Document Generation | Domain, Application, IPC, Renderer | done | 2026-03-28 | Used real ContextBuilder.build() signature (agentName + agentSystemPrompt, not agent object). |
 
 ---
 
@@ -100,8 +100,15 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-06 (FINAL)
 
 ### Observations:
+- All 6 sessions completed. Feature is fully implemented.
+- Types appended after Motif Ledger section as specified
+- `IManuscriptImportService` and `ISourceGenerationService` placed after `IVersionService` at end of interfaces.ts
+- Barrel export in `src/domain/index.ts` already re-exports `* from './types'` and `* from './interfaces'` — no changes needed
+- `ContextBuilder.build()` takes `agentName` + `agentSystemPrompt` as separate params (not an `agent` object) — SESSION-06 prompt's suggested code was adapted to match the real signature
+- `.txt` files accepted as markdown format in `ManuscriptImportService.resolveFormat()`
+- IPC listener cleanup for generation progress events is handled in `importStore.reset()`
 
 ### Warnings:

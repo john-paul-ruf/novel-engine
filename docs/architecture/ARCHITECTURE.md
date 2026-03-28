@@ -1,6 +1,6 @@
 # Architecture — Novel Engine
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-28
 
 Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Pandoc
 
@@ -70,6 +70,10 @@ src/
 │   ├── RevisionQueueService.ts              # Parses Forge output, executes revision sessions
 │   ├── MotifLedgerService.ts                # Motif ledger CRUD from JSON on disk
 │   ├── VersionService.ts                   # File versioning: snapshot, diff, revert, prune
+│   ├── ManuscriptImportService.ts           # DOCX/MD import, chapter detection, book creation
+│   ├── SourceGenerationService.ts           # Multi-agent source document generation
+│   ├── import/
+│   │   └── ChapterDetector.ts               # Pure chapter break detection utility
 │   ├── context/
 │   │   └── TokenEstimator.ts                # Pure token counting utility
 │   └── index.ts                             # Barrel export
@@ -101,6 +105,7 @@ src/
     │   ├── fileChangeStore.ts
     │   ├── modalChatStore.ts
     │   ├── motifLedgerStore.ts
+    │   ├── importStore.ts
     │   └── streamHandler.ts              # Shared stream event handler factory
     ├── components/
     │   ├── Layout/                          # AppLayout, Sidebar, TitleBar, ResizeHandle
@@ -113,6 +118,7 @@ src/
     │   ├── PitchRoom/                       # PitchRoomView
     │   ├── RevisionQueue/                   # RevisionQueueView, SessionCard, TaskProgress, etc.
     │   ├── MotifLedger/                     # MotifLedgerView + tabs (Entries, Systems, Foreshadow, etc.)
+    │   ├── Import/                          # ImportWizard, ChapterPreviewList
     │   ├── CliActivity/                     # CliActivityPanel
     │   └── ErrorBoundary/                   # ErrorBoundary
     ├── hooks/
@@ -173,6 +179,17 @@ MotifLedgerService
 VersionService
 ├── IDatabaseService (DatabaseService)
 └── IFileSystemService (FileSystemService)
+
+ManuscriptImportService
+├── IFileSystemService (FileSystemService)
+└── pandocPath: string
+
+SourceGenerationService
+├── ISettingsService (SettingsService)
+├── IAgentService (AgentService)
+├── IDatabaseService (DatabaseService)
+├── IFileSystemService (FileSystemService)
+└── IProviderRegistry (ProviderRegistry)
 
 NotificationManager
 └── ISettingsService (SettingsService)

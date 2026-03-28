@@ -316,6 +316,55 @@ Dependencies: `IDatabaseService`, `IFileSystemService`
 - Exception: `revertToVersion()` always creates a snapshot for auditability
 - Diff uses `diff.structuredPatch()` with 3 lines of context, producing `DiffHunk[]` with per-line numbering
 
+### ManuscriptImportService
+
+File: `src/application/ManuscriptImportService.ts`
+
+Dependencies: `IFileSystemService`, `pandocPath: string`
+
+| Method | What It Does |
+|--------|-------------|
+| `preview(filePath)` | Reads file, converts DOCX via Pandoc if needed, runs chapter detection, returns `ImportPreview` |
+| `commit(config)` | Creates book via `IFileSystemService.createBook()`, writes each chapter as `chapters/{slug}/draft.md`, updates status to `first-draft` |
+
+**Key behaviors:**
+- Accepts `.md`, `.markdown`, `.txt` (as markdown) and `.docx` files
+- DOCX conversion uses bundled Pandoc binary (`pandoc -f docx -t markdown --wrap=none`)
+- Imports `child_process` and `fs` directly (same exception as BuildService)
+- Chapter slugs: `{NN}-{slugified-title}` (e.g., `01-the-beginning`)
+
+### ChapterDetector
+
+File: `src/application/import/ChapterDetector.ts`
+
+Pure utility — no class, no dependencies. Exports three functions.
+
+| Function | What It Does |
+|----------|-------------|
+| `detectChapters(markdown)` | Detects chapter boundaries by heading patterns (≥3 matches), "Chapter N" patterns (≥3 matches), or fallback single-chapter |
+| `detectTitle(markdown)` | Extracts title from first `# Heading` |
+| `detectAuthor(markdown)` | Extracts author from "by Author" or "Author: Name" patterns |
+
+**Ambiguity detection:** Set `ambiguous = true` if <3 chapters in a >10K word doc, or if any chapter is >5× the smallest, or if using fallback.
+
+### SourceGenerationService
+
+File: `src/application/SourceGenerationService.ts`
+
+Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IFileSystemService`, `IProviderRegistry`
+
+| Method | What It Does |
+|--------|-------------|
+| `generate(params)` | Runs 4 sequential agent calls with per-step progress events |
+
+**Steps:**
+1. **Spark** → `source/pitch.md`
+2. **Verity** → `source/scene-outline.md` + `source/story-bible.md`
+3. **Verity** → `source/voice-profile.md`
+4. **Verity** → `source/motif-ledger.json`
+
+Each step creates its own conversation. Step errors are caught and reported without aborting remaining steps.
+
 ---
 
 ## Context Assembly

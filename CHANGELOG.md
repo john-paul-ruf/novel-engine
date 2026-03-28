@@ -4,6 +4,41 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Manuscript Import feature (6 sessions)
+
+### Summary
+
+Added the ability to import an existing manuscript (.md, .markdown, .txt, or .docx) into Novel Engine. The import wizard detects chapter boundaries via pattern matching, lets the user review/rename/merge chapters, then creates the full book directory structure with status set to `first-draft`. After import, the user can optionally trigger multi-agent source document generation (Spark for pitch, Verity for outline/bible/voice/motif) with per-step progress tracking.
+
+### Added
+- `src/domain/types.ts` — Added `ImportSourceFormat`, `DetectedChapter`, `ImportPreview`, `ImportCommitConfig`, `ImportResult`, `SourceGenerationStep`, `SourceGenerationEvent` types
+- `src/domain/interfaces.ts` — Added `IManuscriptImportService` and `ISourceGenerationService` interfaces
+- `src/application/import/ChapterDetector.ts` — Pure utility: detects chapter boundaries by heading patterns, "Chapter N" patterns, or fallback single-chapter. Includes ambiguity detection for uneven splits and short documents.
+- `src/application/ManuscriptImportService.ts` — Implements `IManuscriptImportService`. Reads files, converts DOCX via Pandoc, runs chapter detection, commits by creating book structure.
+- `src/application/SourceGenerationService.ts` — Implements `ISourceGenerationService`. Runs 4 sequential agent calls (Spark pitch, Verity outline+bible, Verity voice, Verity motif) with per-step progress events.
+- `src/renderer/stores/importStore.ts` — Zustand store managing the multi-step import wizard state machine (idle → loading → preview → importing → success → generating → generated).
+- `src/renderer/components/Import/ImportWizard.tsx` — Modal wizard with step-based rendering: file analysis, chapter preview with editing, import progress, success, source generation progress.
+- `src/renderer/components/Import/ChapterPreviewList.tsx` — Scrollable chapter list with inline rename, merge, and remove controls.
+
+### Changed
+- `src/main/index.ts` — Instantiates `ManuscriptImportService` and `SourceGenerationService`, passes to `registerIpcHandlers`
+- `src/main/ipc/handlers.ts` — Added `import:selectFile`, `import:preview`, `import:commit`, `import:generateSources` handlers
+- `src/preload/index.ts` — Added `window.novelEngine.import` namespace with `selectFile`, `preview`, `commit`, `generateSources`, `onGenerationProgress`
+- `src/renderer/components/Sidebar/BookSelector.tsx` — Replaced single "New Book" button with "New Book" + "Import" side-by-side. Renders `ImportWizard` modal.
+
+### Architecture Impact
+- New services: `ManuscriptImportService` → `IFileSystemService`, `SourceGenerationService` → `ISettingsService`, `IAgentService`, `IDatabaseService`, `IFileSystemService`, `IProviderRegistry`
+- New IPC channels: `import:selectFile`, `import:preview`, `import:commit`, `import:generateSources`
+- New push event: `import:generationProgress`
+- New preload bridge namespace: `window.novelEngine.import`
+- New Zustand store: `importStore`
+- New components: `Import/ImportWizard.tsx`, `Import/ChapterPreviewList.tsx`
+
+### Migration Notes
+- None — no schema changes, no breaking API changes
+
+---
+
 ## [2026-03-28] — Update GitHub Pages website with all latest features
 
 ### Summary

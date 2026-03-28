@@ -72,6 +72,8 @@ import { UsageService } from '@app/UsageService';
 import { RevisionQueueService } from '@app/RevisionQueueService';
 import { MotifLedgerService } from '@app/MotifLedgerService';
 import { VersionService } from '@app/VersionService';
+import { ManuscriptImportService } from '@app/ManuscriptImportService';
+import { SourceGenerationService } from '@app/SourceGenerationService';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -269,6 +271,8 @@ async function initializeApp(): Promise<void> {
   const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings);
   const motifLedger = new MotifLedgerService(fs);
   const version = new VersionService(db, fs);
+  const manuscriptImport = new ManuscriptImportService(fs, pandocPath);
+  const sourceGeneration = new SourceGenerationService(settings, agents, db, fs, providerRegistry);
   const notifications = new NotificationManager(settings);
 
   // 4b. Recover orphaned stream sessions and prune old event data
@@ -363,7 +367,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

@@ -17,6 +17,10 @@ import type {
   FileVersion,
   FileVersionSource,
   FileVersionSummary,
+  ImportCommitConfig,
+  ImportPreview,
+  ImportResult,
+  SourceGenerationEvent,
   Message,
   MessageRole,
   ModelInfo,
@@ -651,4 +655,40 @@ export interface IVersionService {
    * Keeps the most recent `keepCount` versions. Returns the number deleted.
    */
   pruneVersions(bookSlug: string, keepCount?: number): Promise<number>;
+}
+
+export interface IManuscriptImportService {
+  /**
+   * Read a manuscript file, convert from DOCX if needed, detect chapter
+   * boundaries, and return a preview for user review before committing.
+   *
+   * @param filePath Absolute path to the source file (.md or .docx)
+   */
+  preview(filePath: string): Promise<ImportPreview>;
+
+  /**
+   * Commit the import: create the book directory structure, write each
+   * chapter as a separate draft.md file, populate about.json, and set
+   * the book status to 'first-draft'.
+   *
+   * The chapters array may have been edited by the user (renamed, merged,
+   * reordered) compared to what preview() originally returned.
+   */
+  commit(config: ImportCommitConfig): Promise<ImportResult>;
+}
+
+export interface ISourceGenerationService {
+  /**
+   * Generate source documents for an imported book by running sequential
+   * agent calls: Spark for pitch, Verity for outline/bible/voice/motif.
+   *
+   * Emits SourceGenerationEvent progress updates and StreamEvent for
+   * individual agent streams. Resolves when all steps are complete
+   * (or rejects on unrecoverable error).
+   */
+  generate(params: {
+    bookSlug: string;
+    onProgress: (event: SourceGenerationEvent) => void;
+    onStreamEvent: (event: StreamEvent) => void;
+  }): Promise<void>;
 }

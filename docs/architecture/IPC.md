@@ -56,6 +56,15 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `books:unarchive` | invoke | `fs.unarchiveBook(slug)` + triggers watcher switch | `BookMeta` |
 | `books:listArchived` | invoke | `fs.listArchivedBooks()` | `BookSummary[]` |
 
+### import:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `import:selectFile` | invoke | `dialog.showOpenDialog()` — file picker for .md/.markdown/.docx | `string \| null` |
+| `import:preview` | invoke | `manuscriptImport.preview(filePath)` | `ImportPreview` |
+| `import:commit` | invoke | `manuscriptImport.commit(config)` + triggers `onActiveBookChanged` | `ImportResult` |
+| `import:generateSources` | invoke | `sourceGeneration.generate()` — broadcasts progress via `import:generationProgress` | `void` |
+
 ### files:*
 
 | Channel | Direction | Handler | Returns |
@@ -229,6 +238,7 @@ Events from main → renderer (not request/response).
 | `revision:event` | `RevisionQueueEvent` | RevisionQueueService during queue processing |
 | `window:maximized` | (none) | Main window maximize event |
 | `window:unmaximized` | (none) | Main window unmaximize event |
+| `import:generationProgress` | `SourceGenerationEvent` | SourceGenerationService during multi-agent source generation |
 
 ---
 
@@ -266,6 +276,14 @@ window.novelEngine: {
     unarchive(slug: string): Promise<BookMeta>
     listArchived(): Promise<BookSummary[]>
     onChanged(callback: () => void): () => void   // returns cleanup fn
+  }
+
+  import: {
+    selectFile(): Promise<string | null>
+    preview(filePath: string): Promise<ImportPreview>
+    commit(config: ImportCommitConfig): Promise<ImportResult>
+    generateSources(bookSlug: string): Promise<void>
+    onGenerationProgress(callback: (event: SourceGenerationEvent) => void): () => void
   }
 
   files: {

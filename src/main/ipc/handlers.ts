@@ -18,6 +18,8 @@ import type {
   IUsageService,
   IVersionService,
   IProviderRegistry,
+  IManuscriptImportService,
+  ISourceGenerationService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -35,6 +37,8 @@ import type {
   StreamEventSource,
   ProviderConfig,
   ProviderId,
+  ImportCommitConfig,
+  SourceGenerationEvent,
 } from '@domain/types';
 import type { NotificationManager } from '../notifications';
 
@@ -53,6 +57,8 @@ export function registerIpcHandlers(services: {
   notifications: NotificationManager;
   version: IVersionService;
   providerRegistry: IProviderRegistry;
+  manuscriptImport: IManuscriptImportService;
+  sourceGeneration: ISourceGenerationService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -205,6 +211,65 @@ export function registerIpcHandlers(services: {
   });
 
   ipcMain.handle('books:listArchived', () => services.fs.listArchivedBooks());
+
+  // === Manuscript Import ===
+
+  ipcMain.handle('import:selectFile', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Import Manuscript',
+      filters: [
+        { name: 'Manuscripts', extensions: ['md', 'markdown', 'docx'] },
+        { name: 'Markdown', extensions: ['md', 'markdown'] },
+        { name: 'Word Document', extensions: ['docx'] },
+      ],
+      properties: ['openFile'],
+    });
+
+    if (canceled || filePaths.length === 0) return null;
+    return filePaths[0];
+  });
+
+  ipcMain.handle('import:preview', (_, filePath: string) =>
+    services.manuscriptImport.preview(filePath),
+  );
+
+  ipcMain.handle('import:commit', async (_, config: ImportCommitConfig) => {
+    const result = await services.manuscriptImport.commit(config);
+    hooks?.onActiveBookChanged?.(result.bookSlug);
+    return result;
+  });
+
+  ipcMain.handle('import:generateSources', async (_, bookSlug: string) => {
+    const broadcastGenProgress = (genEvent: SourceGenerationEvent) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        try {
+          w.webContents.send('import:generationProgress', genEvent);
+        } catch { /* window closing */ }
+      }
+    };
+
+    const broadcastStreamEvent = (streamEvent: StreamEvent) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        try {
+          w.webContents.send('chat:streamEvent', {
+            ...streamEvent,
+            callId: `source-gen:${bookSlug}`,
+            conversationId: `source-gen:${bookSlug}`,
+            source: 'chat',
+          });
+        } catch { /* window closing */ }
+      }
+    };
+
+    await services.sourceGeneration.generate({
+      bookSlug,
+      onProgress: broadcastGenProgress,
+      onStreamEvent: broadcastStreamEvent,
+    });
+  });
 
   // === Files ===
 

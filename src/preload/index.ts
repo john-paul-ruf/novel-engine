@@ -37,6 +37,10 @@ import type {
   ProviderConfig,
   ProviderId,
   ProviderStatus,
+  ImportPreview,
+  ImportCommitConfig,
+  ImportResult,
+  SourceGenerationEvent,
 } from '@domain/types';
 
 const api = {
@@ -91,6 +95,23 @@ const api = {
       const handler = () => callback();
       ipcRenderer.on('books:changed', handler);
       return () => ipcRenderer.removeListener('books:changed', handler);
+    },
+  },
+
+  // Manuscript Import
+  import: {
+    selectFile: (): Promise<string | null> =>
+      ipcRenderer.invoke('import:selectFile'),
+    preview: (filePath: string): Promise<ImportPreview> =>
+      ipcRenderer.invoke('import:preview', filePath),
+    commit: (config: ImportCommitConfig): Promise<ImportResult> =>
+      ipcRenderer.invoke('import:commit', config),
+    generateSources: (bookSlug: string): Promise<void> =>
+      ipcRenderer.invoke('import:generateSources', bookSlug),
+    onGenerationProgress: (callback: (event: SourceGenerationEvent) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, event: SourceGenerationEvent) => callback(event);
+      ipcRenderer.on('import:generationProgress', handler);
+      return () => ipcRenderer.removeListener('import:generationProgress', handler);
     },
   },
 

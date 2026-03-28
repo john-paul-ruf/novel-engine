@@ -572,3 +572,58 @@ export type MotifLedger = {
   flaggedPhrases: FlaggedPhrase[];
   auditLog: LedgerAuditRecord[];
 };
+
+// === Manuscript Import ===
+
+export type ImportSourceFormat = 'markdown' | 'docx';
+
+export type DetectedChapter = {
+  index: number;
+  title: string;
+  startLine: number;
+  endLine: number;
+  wordCount: number;
+  content: string;
+};
+
+export type ImportPreview = {
+  sourceFile: string;
+  sourceFormat: ImportSourceFormat;
+  markdownContent: string;
+  chapters: DetectedChapter[];
+  totalWordCount: number;
+  detectedTitle: string;
+  detectedAuthor: string;
+  ambiguous: boolean;
+};
+
+export type ImportCommitConfig = {
+  title: string;
+  author: string;
+  chapters: DetectedChapter[];
+};
+
+export type ImportResult = {
+  bookSlug: string;
+  title: string;
+  chapterCount: number;
+  totalWordCount: number;
+};
+
+// === Source Document Generation ===
+
+export type SourceGenerationStep = {
+  index: number;
+  label: string;
+  agentName: AgentName;
+  status: 'pending' | 'running' | 'done' | 'error';
+  error?: string;
+};
+
+export type SourceGenerationEvent =
+  | { type: 'started'; steps: SourceGenerationStep[] }
+  | { type: 'step-started'; index: number }
+  | { type: 'step-done'; index: number }
+  | { type: 'step-error'; index: number; message: string }
+  | { type: 'done' }
+  | { type: 'error'; message: string };

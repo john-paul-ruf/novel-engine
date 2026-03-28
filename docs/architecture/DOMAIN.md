@@ -173,6 +173,23 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `LedgerAuditRecord` | `{ id, chapterSlug, auditedAt, entriesAdded, entriesUpdated, notes }` | AuditLogTab |
 | `MotifLedger` | `{ systems, entries, structuralDevices, foreshadows, minorCharacters, flaggedPhrases, auditLog }` | MotifLedgerService |
 
+### Manuscript Import
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `ImportSourceFormat` | `'markdown' \| 'docx'` | ManuscriptImportService |
+| `DetectedChapter` | `{ index, title, startLine, endLine, wordCount, content }` | ChapterDetector, ImportWizard |
+| `ImportPreview` | `{ sourceFile, sourceFormat, markdownContent, chapters, totalWordCount, detectedTitle, detectedAuthor, ambiguous }` | ImportWizard |
+| `ImportCommitConfig` | `{ title, author, chapters }` | ManuscriptImportService.commit() |
+| `ImportResult` | `{ bookSlug, title, chapterCount, totalWordCount }` | ImportWizard success step |
+
+### Source Document Generation
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `SourceGenerationStep` | `{ index, label, agentName, status, error? }` | SourceGenerationService, importStore |
+| `SourceGenerationEvent` | discriminated union: `started \| step-started \| step-done \| step-error \| done \| error` | SourceGenerationService, importStore |
+
 ---
 
 ## Interfaces
@@ -433,6 +450,23 @@ Implemented by: `VersionService` (`src/application/`)
 | `revertToVersion` | `(bookSlug, filePath, versionId) => Promise<FileVersion>` | New revert snapshot |
 | `getVersionCount` | `(bookSlug, filePath) => Promise<number>` | Total version count |
 | `pruneVersions` | `(bookSlug, keepCount?) => Promise<number>` | Number deleted |
+
+### IManuscriptImportService
+
+Implemented by: `ManuscriptImportService` (`src/application/`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `preview` | `(filePath: string) => Promise<ImportPreview>` | Chapter detection results + metadata |
+| `commit` | `(config: ImportCommitConfig) => Promise<ImportResult>` | Creates book, writes chapters, sets status to first-draft |
+
+### ISourceGenerationService
+
+Implemented by: `SourceGenerationService` (`src/application/`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `generate` | `(params: { bookSlug, onProgress, onStreamEvent }) => Promise<void>` | Runs 4 sequential agent calls (Spark pitch, Verity outline+bible, Verity voice, Verity motif) |
 
 ---
 

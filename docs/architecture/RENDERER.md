@@ -190,6 +190,30 @@ File: `stores/modalChatStore.ts`
 
 State for modal chat overlays (e.g., hot-take, ad-hoc revision modal conversations). Has `_closeRequested` flag — when user clicks close during streaming, the modal auto-closes when the stream completes or errors.
 
+### importStore
+
+File: `stores/importStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `step` | `'idle' \| 'loading' \| 'preview' \| 'importing' \| 'success' \| 'generating' \| 'generated' \| 'error'` | State machine phase |
+| `preview` | `ImportPreview \| null` | Parsed chapter breakdown from file |
+| `result` | `ImportResult \| null` | Committed book result |
+| `error` | `string \| null` | Error message |
+| `generationSteps` | `SourceGenerationStep[]` | Per-step progress for source generation |
+
+| Action | What It Does |
+|--------|-------------|
+| `startImport()` | Opens file dialog, calls preview, transitions to `preview` |
+| `updateTitle(title)` | Updates preview title |
+| `updateAuthor(author)` | Updates preview author |
+| `renameChapter(index, title)` | Renames a detected chapter |
+| `mergeWithNext(index)` | Merges chapter with the following one |
+| `removeChapter(index)` | Removes a detected chapter |
+| `commitImport()` | Commits import via bridge, transitions to `success` |
+| `startGeneration()` | Starts source doc generation, subscribes to progress events |
+| `reset()` | Cleans up generation listener, resets to idle |
+
 ### motifLedgerStore
 
 File: `stores/motifLedgerStore.ts`
@@ -245,7 +269,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `BookSelector.tsx` | Book list dropdown with create/archive/unarchive |
+| `BookSelector.tsx` | Book list dropdown with create/archive/unarchive. Side-by-side "New Book" + "Import" buttons. Renders `ImportWizard` when import is active. |
 | `PipelineTracker.tsx` | Visual 14-phase pipeline with status icons, advance/revert controls |
 | `FileTree.tsx` | Collapsible book directory tree |
 | `VoiceSetupButton.tsx` | Quick action to start voice profile setup with Verity |
@@ -326,6 +350,13 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `FlaggedPhrasesTab.tsx` | Flagged phrase management |
 | `StructuralTab.tsx` | Structural devices catalog |
 | `AuditLogTab.tsx` | Chapter audit history |
+
+### Import/
+
+| File | Purpose |
+|------|---------|
+| `ImportWizard.tsx` | Modal wizard for manuscript import. Renders per-step UI: loading spinner, preview (title/author inputs + chapter list), importing spinner, success (stats + "Open Book" / "Generate Source Documents"), generating (step checklist with progress), generated (summary), error (with retry). |
+| `ChapterPreviewList.tsx` | Editable chapter list with inline title rename, word count badges, content preview snippets, "Merge ↓" and "×" actions, summary bar. Reads directly from `importStore`. |
 
 ### CliActivity/
 
