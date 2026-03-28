@@ -278,20 +278,20 @@ Uses Wrangler model (Sonnet) with `WRANGLER-PARSE.md` (loaded via `AgentService.
 
 File: `src/application/MotifLedgerService.ts`
 
-Dependencies: `IFileSystemService`
+Dependencies: `IFileSystemService`, `IProviderRegistry`
 
 | Method | What It Does |
 |--------|-------------|
-| `load(bookSlug)` | Reads `source/motif-ledger.json`, repairs malformed JSON, normalizes agent-written data to canonical shapes, returns `MotifLedger`. Read-only — never writes back to disk. |
+| `load(bookSlug)` | Reads `source/motif-ledger.json`, repairs malformed JSON. If the data uses a non-canonical schema, normalizes via a CLI call (Sonnet) then saves the canonical version back to disk. Returns `MotifLedger`. |
 | `save(bookSlug, ledger)` | Writes `source/motif-ledger.json` |
 | `getUnauditedChapters(bookSlug)` | Compares chapter list against audit log |
+| `setNormalizationCallback(cb)` | Registers a callback to receive `'started'`/`'done'`/`'error'` events during CLI normalization. Used by the composition root to broadcast to the renderer. |
 
-**JSON repair:** Agents frequently produce JSON with minor syntax errors. `load()` first attempts a standard `JSON.parse()`. On failure, it runs `repairJson()` which operates line-by-line, only fixing lines that are purely structural (lone `}` or `]`): inserting missing commas between adjacent objects and removing trailing commas. Never touches string content. Never writes back to disk — `load()` is strictly read-only.
+**JSON repair:** Agents frequently produce JSON with minor syntax errors. `load()` first attempts a standard `JSON.parse()`. On failure, it runs `repairJson()` which operates line-by-line, only fixing lines that are purely structural (lone `}` or `]`): inserting missing commas between adjacent objects and removing trailing commas. Never touches string content.
 
-**Data normalization:** Agents write ledger data with different field names than the UI expects. `load()` normalizes all records on read:
-- **Audit records:** `chapter`→`chapterSlug`, `date`→`auditedAt`, `findings`→`notes`; fills missing `id`, `entriesAdded`, `entriesUpdated`
-- **Systems:** Fills missing `components` array, `arcTrajectory`
-- **Entries:** Fills missing `phrase` (falls back to `description`), `occurrences` array, `systemId`
+**Schema normalization (CLI):** Agents write the motif ledger with arbitrary field names, nested objects where flat strings are expected, and missing fields. `isCanonicalShape()` checks the first entry in `systems`, `entries`, `foreshadows`, and `structuralDevices` for known non-canonical patterns (e.g. `associatedCharacters` on systems, object-typed `firstAppearance` on entries, `plant`/`payoff` on foreshadows). If non-canonical, `normalizeViaCli()` sends the raw JSON to a Sonnet CLI call with a structured prompt containing the full target schema and field mapping rules. The CLI returns canonical JSON which is parsed, validated, saved back to disk (so normalization only fires once per malformed file), and returned to the caller. If CLI normalization fails, falls back to a best-effort `parseLedgerFromCanonical()` which fills missing fields with defaults.
+
+**Normalization callback:** The composition root (`src/main/index.ts`) registers a callback via `setNormalizationCallback()` that broadcasts `motifLedger:normalizing` events to all renderer windows. The `MotifLedgerView` subscribes to these events and shows a spinner during normalization.
 
 ### VersionService
 

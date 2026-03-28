@@ -16,6 +16,7 @@ type MotifLedgerState = {
   ledger: MotifLedger | null;
   activeTab: LedgerTab;
   isLoading: boolean;
+  isNormalizing: boolean;
   isDirty: boolean;
   isSaving: boolean;
   error: string | null;
@@ -25,6 +26,7 @@ type MotifLedgerState = {
   load: (bookSlug: string) => Promise<void>;
   save: (bookSlug: string) => Promise<void>;
   loadUnauditedChapters: (bookSlug: string) => Promise<void>;
+  setNormalizing: (val: boolean) => void;
 
   // Systems
   addSystem: (system: MotifSystem) => void;
@@ -73,12 +75,14 @@ export const useMotifLedgerStore = create<MotifLedgerState>()((set, get) => ({
   ledger: null,
   activeTab: 'systems',
   isLoading: false,
+  isNormalizing: false,
   isDirty: false,
   isSaving: false,
   error: null,
   unauditedChapters: [],
 
   setTab: (tab) => set({ activeTab: tab }),
+  setNormalizing: (val) => set({ isNormalizing: val }),
 
   load: async (bookSlug) => {
     set({ isLoading: true, error: null });

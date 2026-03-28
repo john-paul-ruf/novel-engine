@@ -269,7 +269,14 @@ async function initializeApp(): Promise<void> {
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings);
-  const motifLedger = new MotifLedgerService(fs);
+  const motifLedger = new MotifLedgerService(fs, providerRegistry);
+  motifLedger.setNormalizationCallback((status, error) => {
+    for (const w of BrowserWindow.getAllWindows()) {
+      try {
+        w.webContents.send('motifLedger:normalizing', status, error);
+      } catch { /* window closing */ }
+    }
+  });
   const version = new VersionService(db, fs);
   const manuscriptImport = new ManuscriptImportService(fs, pandocPath);
   const sourceGeneration = new SourceGenerationService(settings, agents, db, fs, providerRegistry);

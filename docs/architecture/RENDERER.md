@@ -220,6 +220,14 @@ File: `stores/motifLedgerStore.ts`
 
 Manages motif ledger loading, saving, and tab state.
 
+| Field | Type | Purpose |
+|-------|------|---------|
+| `isNormalizing` | `boolean` | True during CLI-based schema normalization |
+
+| Action | What It Does |
+|--------|-------------|
+| `setNormalizing(val)` | Sets `isNormalizing` state (driven by `motifLedger:normalizing` push events) |
+
 ---
 
 ## Views

@@ -4,6 +4,29 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — CLI-based motif ledger schema normalization
+
+### Summary
+
+Replaced the hardcoded field-mapping normalizers in `MotifLedgerService` with a CLI-based normalization step. When `load()` detects a non-canonical JSON shape (agent-written fields like `associatedCharacters`, object-typed `firstAppearance`, `plant`/`payoff` foreshadow objects, etc.), it sends the raw JSON to a Sonnet CLI call with a structured prompt containing the full target schema and mapping rules. The normalized result is saved back to disk so normalization only fires once per malformed file. Falls back to a best-effort parse if the CLI call fails. A spinner in the Motif Ledger UI shows progress during normalization.
+
+### Changed
+- `src/application/MotifLedgerService.ts` — Added `IProviderRegistry` dependency. Replaced per-type normalizer functions with `isCanonicalShape()` shape detection + `normalizeViaCli()` CLI call. Added `parseLedgerFromCanonical()` as best-effort fallback. Added `setNormalizationCallback()` for progress events. `load()` now saves normalized data back to disk.
+- `src/main/index.ts` — Passes `providerRegistry` to `MotifLedgerService` constructor. Registers normalization callback that broadcasts `motifLedger:normalizing` events to all renderer windows.
+- `src/preload/index.ts` — Added `onNormalizing()` event listener to `motifLedger` namespace.
+- `src/renderer/stores/motifLedgerStore.ts` — Added `isNormalizing` state and `setNormalizing()` action.
+- `src/renderer/components/MotifLedger/MotifLedgerView.tsx` — Subscribes to `motifLedger:normalizing` push events. Shows animated spinner with "Normalizing ledger format via AI..." message during CLI normalization.
+
+### Architecture Impact
+- `MotifLedgerService` now depends on `IProviderRegistry` (was `IFileSystemService` only)
+- New push event: `motifLedger:normalizing`
+- New preload bridge method: `motifLedger.onNormalizing()`
+
+### Migration Notes
+None — backward compatible. Existing canonical ledger files are loaded without CLI calls. Non-canonical files are normalized on first load and saved back to disk.
+
+---
+
 ## [2026-03-28] — Manuscript Import feature (6 sessions)
 
 ### Summary

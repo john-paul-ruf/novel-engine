@@ -22,9 +22,16 @@ const TABS = [
 export function MotifLedgerView(): React.ReactElement {
   const activeSlug = useBookStore((s) => s.activeSlug);
   const books = useBookStore((s) => s.books);
-  const { ledger, activeTab, isLoading, isDirty, isSaving, error, load, save, setTab, loadUnauditedChapters } = useMotifLedgerStore();
+  const { ledger, activeTab, isLoading, isNormalizing, isDirty, isSaving, error, load, save, setTab, setNormalizing, loadUnauditedChapters } = useMotifLedgerStore();
 
   const activeBook = books.find((b) => b.slug === activeSlug);
+
+  useEffect(() => {
+    const cleanup = window.novelEngine.motifLedger.onNormalizing((status) => {
+      setNormalizing(status === 'started');
+    });
+    return () => { cleanup(); };
+  }, [setNormalizing]);
 
   useEffect(() => {
     if (activeSlug) {
@@ -109,9 +116,20 @@ export function MotifLedgerView(): React.ReactElement {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-sm text-zinc-400 dark:text-zinc-500">Loading ledger...</p>
+        {isLoading || isNormalizing ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <svg className="h-6 w-6 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p className="text-sm text-zinc-400 dark:text-zinc-500">
+              {isNormalizing ? 'Normalizing ledger format via AI...' : 'Loading ledger...'}
+            </p>
+            {isNormalizing && (
+              <p className="text-xs text-zinc-400/70 dark:text-zinc-500/70">
+                Converting agent-written JSON to canonical schema
+              </p>
+            )}
           </div>
         ) : (
           <>

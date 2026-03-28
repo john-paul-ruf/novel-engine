@@ -239,6 +239,7 @@ Events from main → renderer (not request/response).
 | `window:maximized` | (none) | Main window maximize event |
 | `window:unmaximized` | (none) | Main window unmaximize event |
 | `import:generationProgress` | `SourceGenerationEvent` | SourceGenerationService during multi-agent source generation |
+| `motifLedger:normalizing` | `status: 'started' \| 'done' \| 'error', error?: string` | MotifLedgerService during CLI schema normalization |
 
 ---
 
@@ -395,6 +396,7 @@ window.novelEngine: {
     load(bookSlug: string): Promise<MotifLedger>
     save(bookSlug: string, ledger: MotifLedger): Promise<void>
     getUnauditedChapters(bookSlug: string): Promise<string[]>
+    onNormalizing(callback): () => void            // returns cleanup fn
   }
 
   context: {

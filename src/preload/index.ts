@@ -333,6 +333,12 @@ const api = {
       ipcRenderer.invoke('motifLedger:save', bookSlug, ledger),
     getUnauditedChapters: (bookSlug: string): Promise<string[]> =>
       ipcRenderer.invoke('motifLedger:getUnauditedChapters', bookSlug),
+    onNormalizing: (callback: (status: 'started' | 'done' | 'error', error?: string) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, status: 'started' | 'done' | 'error', error?: string) =>
+        callback(status, error);
+      ipcRenderer.on('motifLedger:normalizing', handler);
+      return () => ipcRenderer.removeListener('motifLedger:normalizing', handler);
+    },
   },
 
   // Context Diagnostics
