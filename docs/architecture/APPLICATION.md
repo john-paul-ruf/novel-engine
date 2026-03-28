@@ -282,9 +282,14 @@ Dependencies: `IFileSystemService`
 
 | Method | What It Does |
 |--------|-------------|
-| `load(bookSlug)` | Reads `source/motif-ledger.json`, returns `MotifLedger` |
+| `load(bookSlug)` | Reads `source/motif-ledger.json`, normalizes agent-written data to canonical shapes, returns `MotifLedger` |
 | `save(bookSlug, ledger)` | Writes `source/motif-ledger.json` |
 | `getUnauditedChapters(bookSlug)` | Compares chapter list against audit log |
+
+**Data normalization:** Agents write ledger data with different field names than the UI expects. `load()` normalizes all records on read:
+- **Audit records:** `chapter`→`chapterSlug`, `date`→`auditedAt`, `findings`→`notes`; fills missing `id`, `entriesAdded`, `entriesUpdated`
+- **Systems:** Fills missing `components` array, `arcTrajectory`
+- **Entries:** Fills missing `phrase` (falls back to `description`), `occurrences` array, `systemId`
 
 ---
 

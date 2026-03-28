@@ -30,7 +30,7 @@ export function AuditLogTab(): React.ReactElement {
     resetDraft();
   };
 
-  const sorted = [...auditLog].sort((a, b) => b.auditedAt.localeCompare(a.auditedAt));
+  const sorted = [...auditLog].sort((a, b) => (b.auditedAt ?? '').localeCompare(a.auditedAt ?? ''));
 
   return (
     <div className="space-y-4">

@@ -4,6 +4,24 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Fix Motif Ledger Audit Log crash from agent-written data shape mismatch
+
+### Summary
+
+The Audit Log tab in the Motif Ledger crashed with a `TypeError` when clicking it. Root cause: the MOTIF-AUDIT agent writes audit log records with fields `{ chapter, date, findings }`, but the UI expects `{ id, chapterSlug, auditedAt, entriesAdded, entriesUpdated, notes }`. The sort on line 33 of `AuditLogTab.tsx` called `.localeCompare()` on `undefined`, killing the React render tree. Fixed by normalizing all agent-written data in `MotifLedgerService.load()` and adding a defensive fallback in the component sort.
+
+### Fixed
+- `src/application/MotifLedgerService.ts` — Added `normalizeAuditRecord()` to map agent field names (`chapter`→`chapterSlug`, `date`→`auditedAt`, `findings`→`notes`) and fill missing fields (`id`, `entriesAdded`, `entriesUpdated`). Also added `normalizeSystem()` (fills missing `components` array) and `normalizeEntry()` (fills missing `phrase` field). Added `safeArray()` helper to guard against non-array values.
+- `src/renderer/components/MotifLedger/AuditLogTab.tsx` — Sort comparison now uses `(b.auditedAt ?? '').localeCompare(a.auditedAt ?? '')` as a defensive fallback.
+
+### Architecture Impact
+- None — no wiring changes
+
+### Migration Notes
+- None — normalization is transparent; existing JSON files are read correctly without modification
+
+---
+
 ## [2026-03-27] — Fix Hot Take button not appearing after chapters are created mid-session
 
 ### Summary
