@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-27] — Fix Hot Take button not appearing after chapters are created mid-session
+
+### Summary
+
+`HotTakeButton` only re-checked for chapters when `activeSlug` changed, not when files were created on disk. After auto-drafting chapters, the button stayed hidden until app restart. Fixed by subscribing to `fileChangeStore.revision` — the same pattern `AdhocRevisionButton` already used.
+
+### Fixed
+- `src/renderer/components/Sidebar/HotTakeButton.tsx` — Added `fileRevision` from `useFileChangeStore` to the `useEffect` dependency array so the chapter existence check re-runs when files change on disk.
+
+### Architecture Impact
+- None — no wiring changes
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-27] — Update GitHub Pages website with latest changelog entries
 
 ### Summary

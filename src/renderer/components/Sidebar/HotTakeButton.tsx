@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 
 export function HotTakeButton(): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
@@ -10,6 +11,7 @@ export function HotTakeButton(): React.ReactElement | null {
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
   const attachToExternalStream = useChatStore((s) => s.attachToExternalStream);
   const navigate = useViewStore((s) => s.navigate);
+  const fileRevision = useFileChangeStore((s) => s.revision);
   const [hasChapters, setHasChapters] = useState(false);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function HotTakeButton(): React.ReactElement | null {
       );
       setHasChapters(hasDrafts);
     }).catch(() => setHasChapters(false));
-  }, [activeSlug]);
+  }, [activeSlug, fileRevision]);
 
   const handleClick = useCallback(async () => {
     if (!activeSlug || isStreaming) return;
