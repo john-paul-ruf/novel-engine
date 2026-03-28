@@ -35,7 +35,7 @@
 | 4 | SESSION-04 — OpenAI-Compatible Provider | Infrastructure | done | 2026-03-28 | No npm deps — uses built-in fetch + SSE parsing. No tool-use capability. |
 | 5 | SESSION-05 — Service Migration to IProviderRegistry | Application, Main | done | 2026-03-28 | All 6 services migrated. Composition root wires ProviderRegistry + OpenAI providers from settings. Removed redundant settings.load() call. |
 | 6 | SESSION-06 — IPC Channels & Preload Bridge | IPC, Preload | done | 2026-03-28 | 7 new providers:* channels. models:getAvailable now returns ModelInfo[] from registry. |
-| 7 | SESSION-07 — Renderer: Provider Settings UI | Renderer | pending | | |
+| 7 | SESSION-07 — Renderer: Provider Settings UI | Renderer | done | 2026-03-28 | providerStore, ProviderSection component, ModelSelectionSection grouped by provider with "Text only" badges. |
 
 ---
 
@@ -110,7 +110,7 @@ graph TD
 
 ## Handoff Notes
 
-### Last completed session: SESSION-06
+### Last completed session: SESSION-07 (FEATURE COMPLETE)
 
 ### Observations:
 - `AVAILABLE_MODELS` was reordered before `DEFAULT_SETTINGS` in constants.ts to co-locate with new provider constants and avoid forward-reference issues.

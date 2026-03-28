@@ -3,9 +3,9 @@ import { marked } from 'marked';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
-import type { UsageSummary } from '@domain/types';
-
-type ModelOption = { id: string; label: string; description: string };
+import type { ModelInfo, UsageSummary } from '@domain/types';
+import { ProviderSection } from './ProviderSection';
+import { useProviderStore } from '../../stores/providerStore';
 
 function SectionDivider(): React.ReactElement {
   return <div className="border-b border-zinc-200 dark:border-zinc-800" />;
@@ -69,7 +69,8 @@ function ClaudeCliSection(): React.ReactElement {
 
 function ModelSelectionSection(): React.ReactElement {
   const { settings, update } = useSettingsStore();
-  const [models, setModels] = useState<ModelOption[]>([]);
+  const { providers } = useProviderStore();
+  const [models, setModels] = useState<ModelInfo[]>([]);
 
   useEffect(() => {
     window.novelEngine.models.getAvailable().then(setModels).catch(console.error);
@@ -78,49 +79,82 @@ function ModelSelectionSection(): React.ReactElement {
   const selected = settings?.model ?? 'claude-opus-4-20250514';
 
   const handleSelect = useCallback(
-    async (modelId: string) => {
-      await update({ model: modelId });
+    async (model: ModelInfo) => {
+      await update({ model: model.id });
+      // If selecting a model from a different provider, update the active provider
+      const currentProvider = settings?.activeProviderId;
+      if (model.providerId && model.providerId !== currentProvider) {
+        await window.novelEngine.providers.setDefault(model.providerId);
+      }
     },
-    [update],
+    [update, settings?.activeProviderId],
   );
+
+  // Group models by provider
+  const groupedModels: Record<string, ModelInfo[]> = {};
+  for (const model of models) {
+    const pid = model.providerId || 'unknown';
+    if (!groupedModels[pid]) groupedModels[pid] = [];
+    groupedModels[pid].push(model);
+  }
+
+  // Resolve provider names
+  const providerNames: Record<string, string> = {};
+  for (const p of providers) {
+    providerNames[p.id] = p.name;
+  }
 
   return (
     <section className="space-y-3">
       <SectionHeading>Model Selection</SectionHeading>
-      <div className="space-y-2">
-        {models.map((model) => (
-          <button
-            key={model.id}
-            onClick={() => handleSelect(model.id)}
-            className={`w-full rounded-lg border p-3 text-left transition-colors ${
-              selected === model.id
-                ? 'border-blue-500 bg-blue-500/10'
-                : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-600'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className={`h-4 w-4 rounded-full border-2 ${
+      <div className="space-y-4">
+        {Object.entries(groupedModels).map(([providerId, providerModels]) => (
+          <div key={providerId} className="space-y-2">
+            {Object.keys(groupedModels).length > 1 && (
+              <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                {providerNames[providerId] ?? providerId}
+              </h4>
+            )}
+            {providerModels.map((model) => (
+              <button
+                key={model.id}
+                onClick={() => handleSelect(model)}
+                className={`w-full rounded-lg border p-3 text-left transition-colors ${
                   selected === model.id
-                    ? 'border-blue-500 bg-blue-500'
-                    : 'border-zinc-300 dark:border-zinc-600'
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-600'
                 }`}
               >
-                {selected === model.id && (
-                  <div className="flex h-full items-center justify-center">
-                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-4 w-4 rounded-full border-2 ${
+                      selected === model.id
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-zinc-300 dark:border-zinc-600'
+                    }`}
+                  >
+                    {selected === model.id && (
+                      <div className="flex h-full items-center justify-center">
+                        <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
-              {model.id === 'claude-opus-4-20250514' && (
-                <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-                  Recommended
-                </span>
-              )}
-            </div>
-            <p className="mt-1 pl-6 text-xs text-zinc-500">{model.description}</p>
-          </button>
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
+                  {model.id === 'claude-opus-4-20250514' && (
+                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                      Recommended
+                    </span>
+                  )}
+                  {model.supportsToolUse === false && (
+                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400">
+                      Text only
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 pl-6 text-xs text-zinc-500">{model.description}</p>
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </section>
@@ -587,6 +621,8 @@ export function SettingsView(): React.ReactElement {
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h2>
 
         <ClaudeCliSection />
+        <SectionDivider />
+        <ProviderSection />
         <SectionDivider />
         <ModelSelectionSection />
         <SectionDivider />

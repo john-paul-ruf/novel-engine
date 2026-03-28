@@ -61,6 +61,25 @@ File: `stores/chatStore.ts`
 | `sendMessage(content)` | Sends via bridge, attaches stream listener |
 | `abortStream()` | Kills active CLI process |
 
+### providerStore
+
+File: `stores/providerStore.ts`
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `providers` | `ProviderConfig[]` | All configured providers |
+| `statuses` | `Record<ProviderId, ProviderStatus>` | Cached status per provider |
+| `loading` | `boolean` | True during load |
+
+| Action | What It Does |
+|--------|-------------|
+| `load()` | Calls `window.novelEngine.providers.list()` |
+| `addProvider(config)` | Adds via bridge, reloads |
+| `updateProvider(id, partial)` | Updates via bridge, reloads |
+| `removeProvider(id)` | Removes via bridge, reloads |
+| `checkStatus(id)` | Tests connectivity, caches result |
+| `setDefault(id)` | Sets active provider via bridge |
+
 ### pipelineStore
 
 File: `stores/pipelineStore.ts`
@@ -219,7 +238,8 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `SettingsView.tsx` | Full settings panel: model, thinking, theme, author profile, usage stats, catalog export |
+| `SettingsView.tsx` | Full settings panel: CLI status, providers, model selection (grouped by provider), thinking, theme, author profile, usage stats, catalog export |
+| `ProviderSection.tsx` | Provider management: cards with status dots, test connectivity, add/remove/toggle, "Add Provider" form |
 
 ### Sidebar/
 

@@ -4,6 +4,28 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: renderer UI (SESSION-07)
+
+### Summary
+
+Added provider management UI to Settings. New `providerStore` (Zustand) manages provider state. New `ProviderSection` component shows provider cards with status indicators, test connectivity, add/remove/toggle. Updated `ModelSelectionSection` to group models by provider with "Text only" badges for non-tool-use models. Selecting a model from a different provider auto-updates `activeProviderId`.
+
+### Added
+- `src/renderer/stores/providerStore.ts` — Zustand store for provider CRUD, status checking
+- `src/renderer/components/Settings/ProviderSection.tsx` — Provider management: cards, status dots, add form, enable/disable/remove
+
+### Changed
+- `src/renderer/components/Settings/SettingsView.tsx` — Added `ProviderSection` between CLI status and model selection. Rewrote `ModelSelectionSection` to group models by provider, show "Text only" badge, and update `activeProviderId` on cross-provider model selection.
+
+### Architecture Impact
+- New Zustand store: `providerStore`
+- New component: `ProviderSection`
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Multi-model providers: IPC channels & preload bridge (SESSION-06)
 
 ### Summary
