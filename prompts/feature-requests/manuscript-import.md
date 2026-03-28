@@ -4,3 +4,4 @@ The import should detect chapter breaks (headings, "Chapter N" patterns, scene b
 
 A button in the book creation flow like "Import existing manuscript" alongside the current "Create new book" would be the natural place for this.
 
+It should also fill out as much of the typical source files as it can: pitch, bible, outline, voice profile, motif json.
