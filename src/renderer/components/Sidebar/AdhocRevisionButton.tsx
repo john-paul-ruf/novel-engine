@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { Tooltip } from '../common/Tooltip';
 
 export function AdhocRevisionButton(): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
@@ -50,6 +51,7 @@ export function AdhocRevisionButton(): React.ReactElement | null {
 
   return (
     <>
+      <Tooltip content="Start a one-off revision session outside the pipeline" placement="right">
       <button
         onClick={() => setIsModalOpen(true)}
         disabled={disabled}
@@ -76,6 +78,7 @@ export function AdhocRevisionButton(): React.ReactElement | null {
         </svg>
         <span>Ad Hoc Revisions</span>
       </button>
+      </Tooltip>
 
       {isModalOpen && (
         <AdhocRevisionModal onClose={handleClose} />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Tooltip } from '../common/Tooltip';
 
 const isMac = navigator.userAgent.includes('Macintosh');
 
@@ -14,6 +15,7 @@ function WindowControls(): React.ReactElement {
   return (
     <div className="no-drag flex items-center">
       {/* Minimize */}
+      <Tooltip content="Minimize window" placement="bottom">
       <button
         onClick={() => window.novelEngine.window.minimize()}
         className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -23,8 +25,10 @@ function WindowControls(): React.ReactElement {
           <rect width="10" height="1" />
         </svg>
       </button>
+      </Tooltip>
 
       {/* Maximize / Restore */}
+      <Tooltip content={isMaximized ? 'Restore window' : 'Maximize window'} placement="bottom">
       <button
         onClick={() => window.novelEngine.window.maximize()}
         className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -42,8 +46,10 @@ function WindowControls(): React.ReactElement {
           </svg>
         )}
       </button>
+      </Tooltip>
 
       {/* Close */}
+      <Tooltip content="Close window" placement="bottom">
       <button
         onClick={() => window.novelEngine.window.close()}
         className="flex h-8 w-11 items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-red-600 hover:text-white"
@@ -54,6 +60,7 @@ function WindowControls(): React.ReactElement {
           <line x1="9" y1="1" x2="1" y2="9" />
         </svg>
       </button>
+      </Tooltip>
     </div>
   );
 }

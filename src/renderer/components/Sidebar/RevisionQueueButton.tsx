@@ -3,6 +3,7 @@ import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
+import { Tooltip } from '../common/Tooltip';
 
 export function RevisionQueueButton() {
   const { activeSlug } = useBookStore();
@@ -53,6 +54,7 @@ export function RevisionQueueButton() {
   if (!hasRevisionPlan) return null;
 
   return (
+    <Tooltip content="Open the automated revision queue" placement="right">
     <button
       onClick={() => navigate('revision-queue')}
       className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
@@ -97,5 +99,6 @@ export function RevisionQueueButton() {
         </span>
       )}
     </button>
+    </Tooltip>
   );
 }

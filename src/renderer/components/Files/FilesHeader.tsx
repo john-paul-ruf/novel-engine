@@ -1,4 +1,5 @@
 import type { FileViewMode } from '../../stores/viewStore';
+import { Tooltip } from '../common/Tooltip';
 
 type FilesHeaderProps = {
   viewMode: FileViewMode;
@@ -157,6 +158,7 @@ export function FilesHeader({
         )}
 
         <div className="flex items-center gap-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5">
+          <Tooltip content="Browse all project files in a tree view" placement="bottom">
           <button
             onClick={() => onModeChange('browser')}
             className={`rounded px-2.5 py-1 text-xs transition-colors ${
@@ -168,6 +170,8 @@ export function FilesHeader({
           >
             ⊞
           </button>
+          </Tooltip>
+          <Tooltip content="Read-only view of the selected file" placement="bottom">
           <button
             onClick={() => onModeChange('reader')}
             disabled={!filePath}
@@ -180,6 +184,7 @@ export function FilesHeader({
           >
             👁
           </button>
+          </Tooltip>
         </div>
       </div>
     </div>

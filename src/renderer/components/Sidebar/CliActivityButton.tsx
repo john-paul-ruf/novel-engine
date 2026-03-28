@@ -1,4 +1,5 @@
 import { useCliActivityStore } from '../../stores/cliActivityStore';
+import { Tooltip } from '../common/Tooltip';
 
 /**
  * Sidebar button that toggles the CLI Activity panel.
@@ -14,6 +15,7 @@ export function CliActivityButton(): React.ReactElement {
   const isActive = activeCount > 0;
 
   return (
+    <Tooltip content="View active and recent AI agent activity" placement="right">
     <button
       onClick={toggle}
       title={isOpen ? 'Hide CLI activity' : 'Show CLI activity'}
@@ -59,5 +61,6 @@ export function CliActivityButton(): React.ReactElement {
         </span>
       )}
     </button>
+    </Tooltip>
   );
 }

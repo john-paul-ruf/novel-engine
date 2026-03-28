@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Tooltip } from '../common/Tooltip';
 
 type ThinkingBudgetSliderProps = {
   value: number;
@@ -37,9 +38,11 @@ export function ThinkingBudgetSlider({
 
   return (
     <div className="flex items-center gap-3 px-2 py-1.5">
-      <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500 select-none">
+      <Tooltip content="Controls how much the agent reasons before responding.\nHigher = deeper thinking, more tokens." placement="top">
+      <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500 select-none cursor-help">
         {formatBudget(value)}
       </span>
+      </Tooltip>
 
       <div className="relative flex-1">
         {/* Default position marker */}
@@ -78,6 +81,7 @@ export function ThinkingBudgetSlider({
       </div>
 
       {isModified && (
+        <Tooltip content="Reset to agent's default thinking budget" placement="top">
         <button
           type="button"
           onClick={handleReset}
@@ -87,6 +91,7 @@ export function ThinkingBudgetSlider({
         >
           Reset
         </button>
+        </Tooltip>
       )}
     </div>
   );

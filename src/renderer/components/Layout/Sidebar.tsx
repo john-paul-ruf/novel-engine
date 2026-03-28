@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { useViewStore } from '../../stores/viewStore';
 import { useResizeHandle } from '../../hooks/useResizeHandle';
 import { ResizeHandle } from './ResizeHandle';
@@ -9,8 +9,18 @@ import { PipelineTracker } from '../Sidebar/PipelineTracker';
 import { FileTree } from '../Sidebar/FileTree';
 import { CliActivityButton } from '../Sidebar/CliActivityButton';
 import { PitchHistory } from '../Sidebar/PitchHistory';
+import { Tooltip } from '../common/Tooltip';
 
 type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'motif-ledger' | 'settings';
+
+const NAV_TOOLTIPS: Record<ViewId, string> = {
+  chat: 'Talk to AI agents about your book',
+  files: 'Browse and edit your manuscript files',
+  build: 'Export your manuscript to DOCX, EPUB, or PDF',
+  'pitch-room': 'Free brainstorming space — pitch ideas without committing to a book',
+  'motif-ledger': 'Track motifs, foreshadowing, and flagged phrases across your manuscript',
+  settings: 'App preferences, model selection, and guided tours',
+};
 
 const NAV_ITEMS: { id: ViewId; label: string; icon: string }[] = [
   { id: 'chat', label: 'Chat', icon: '💬' },
@@ -21,21 +31,16 @@ const NAV_ITEMS: { id: ViewId; label: string; icon: string }[] = [
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
-function NavButton({
-  icon,
-  label,
-  view,
-  isActive,
-  onClick,
-}: {
+const NavButton = forwardRef<HTMLButtonElement, {
   icon: string;
   label: string;
   view: ViewId;
   isActive: boolean;
   onClick: () => void;
-}): React.ReactElement {
+}>(function NavButton({ icon, label, view, isActive, onClick, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       onClick={onClick}
       className={`no-drag mb-0.5 flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
         isActive
@@ -44,12 +49,13 @@ function NavButton({
             : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
           : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:hover:text-zinc-200'
       }`}
+      {...rest}
     >
       <span className="text-base">{icon}</span>
       <span>{label}</span>
     </button>
   );
-}
+});
 
 const SIDEBAR_DEFAULT = 260;
 const SIDEBAR_MIN = 200;
@@ -149,14 +155,15 @@ export function Sidebar(): React.ReactElement {
       {/* Bottom nav */}
       <div data-tour="sidebar-nav" className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-2">
         {NAV_ITEMS.map((item) => (
-          <NavButton
-            key={item.id}
-            icon={item.icon}
-            label={item.label}
-            view={item.id}
-            isActive={currentView === item.id}
-            onClick={() => navigate(item.id)}
-          />
+          <Tooltip key={item.id} content={NAV_TOOLTIPS[item.id]} placement="right">
+            <NavButton
+              icon={item.icon}
+              label={item.label}
+              view={item.id}
+              isActive={currentView === item.id}
+              onClick={() => navigate(item.id)}
+            />
+          </Tooltip>
         ))}
         {/* CLI Activity toggle — docks/undocks the right-side activity panel from any view */}
         <div className="mt-0.5 border-t border-zinc-200 dark:border-zinc-800 pt-1">

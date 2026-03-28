@@ -3,6 +3,7 @@ import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { Tooltip } from '../common/Tooltip';
 
 export function HotTakeButton(): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
@@ -45,6 +46,7 @@ export function HotTakeButton(): React.ReactElement | null {
   if (!activeSlug || !hasChapters) return null;
 
   return (
+    <Tooltip content="Get Ghostlight's unfiltered first impression of your manuscript" placement="right">
     <button
       onClick={handleClick}
       disabled={isStreaming}
@@ -65,5 +67,6 @@ export function HotTakeButton(): React.ReactElement | null {
       </svg>
       <span>Hot Take</span>
     </button>
+    </Tooltip>
   );
 }

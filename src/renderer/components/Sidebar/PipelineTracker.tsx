@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, forwardRef } from 'react';
 import type { PhaseStatus, PipelinePhase, PipelinePhaseId } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -6,6 +6,7 @@ import { usePipelineStore } from '../../stores/pipelineStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 import { useAutoDraftStore } from '../../stores/autoDraftStore';
+import { Tooltip } from '../common/Tooltip';
 
 /**
  * Phases that have dedicated completion controls — the generic "Done" button
@@ -370,6 +371,7 @@ export function PipelineTracker(): React.ReactElement {
 
           return (
             <div key={phase.id} data-tour={`pipeline-phase-${phase.id}`}>
+              <Tooltip content={`${phase.agent ?? 'Manual'} — ${phase.description}`} placement="right">
               <PhaseRow
                 phase={phase}
                 onPhaseClick={() => handlePhaseClick(phase)}
@@ -384,6 +386,7 @@ export function PipelineTracker(): React.ReactElement {
                 isConfirmingRevert={confirmingRevert === phase.id}
                 onRevert={() => handleRevertPhase(phase.id)}
               />
+              </Tooltip>
               {showRevisionSub && (
                 <RevisionQueueSubButton
                   isActive={currentView === 'revision-queue'}
@@ -733,7 +736,20 @@ function AutoDraftStopConfirm({ chaptersWritten, onConfirm, onCancel }: {
   );
 }
 
-function PhaseRow({
+type PhaseRowProps = {
+  phase: PipelinePhase;
+  onPhaseClick: () => void;
+  showMarkComplete: boolean;
+  onMarkComplete: () => void;
+  isBuildingForQuill?: boolean;
+  showConfirmAdvancement: boolean;
+  onConfirmAdvancement: () => void;
+  showRevert?: boolean;
+  isConfirmingRevert?: boolean;
+  onRevert?: () => void;
+};
+
+const PhaseRow = forwardRef<HTMLDivElement, PhaseRowProps>(function PhaseRow({
   phase,
   onPhaseClick,
   showMarkComplete,
@@ -744,20 +760,8 @@ function PhaseRow({
   showRevert = false,
   isConfirmingRevert = false,
   onRevert,
-}: {
-  phase: PipelinePhase;
-  onPhaseClick: () => void;
-  showMarkComplete: boolean;
-  onMarkComplete: () => void;
-  isBuildingForQuill?: boolean;
-  /** Show the "Advance →" button — only true when status is 'pending-completion'. */
-  showConfirmAdvancement: boolean;
-  onConfirmAdvancement: () => void;
-  /** Show the "← Back" revert button — true for completed and pending-completion phases. */
-  showRevert?: boolean;
-  isConfirmingRevert?: boolean;
-  onRevert?: () => void;
-}): React.ReactElement {
+  ...rest
+}, ref) {
   const isBuildPhase = phase.id === 'build';
   const isPendingCompletion = phase.status === 'pending-completion';
   // Build is always interactive regardless of its locked/active/complete status.
@@ -769,6 +773,7 @@ function PhaseRow({
 
   return (
     <div
+      ref={ref}
       className={`group flex items-center gap-2 rounded-md px-1 py-1 ${
         isClickable
           ? 'cursor-pointer hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
@@ -777,6 +782,7 @@ function PhaseRow({
         isActive ? 'bg-blue-500/15 ring-1 ring-blue-500/40' : ''
       }`}
       onClick={onPhaseClick}
+      {...rest}
       title={
         phase.status === 'locked' && !isBuildPhase
           ? 'Complete the previous phase first'
@@ -858,4 +864,4 @@ function PhaseRow({
       </div>
     </div>
   );
-}
+});

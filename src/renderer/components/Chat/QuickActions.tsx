@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AGENT_QUICK_ACTIONS } from '@domain/constants';
 import type { CreativeAgentName } from '@domain/types';
+import { Tooltip } from '../common/Tooltip';
 
 type QuickActionsProps = {
   agentName: CreativeAgentName;
@@ -51,6 +52,7 @@ export function QuickActions({ agentName, onSelect, disabled }: QuickActionsProp
 
   return (
     <div data-tour="quick-actions" className="relative">
+      <Tooltip content="Pre-built prompts for the active agent" placement="top">
       <button
         ref={buttonRef}
         onClick={() => setOpen((prev) => !prev)}
@@ -71,6 +73,7 @@ export function QuickActions({ agentName, onSelect, disabled }: QuickActionsProp
           />
         </svg>
       </button>
+      </Tooltip>
 
       {open && (
         <div

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreativeAgentName } from '@domain/types';
 import { QuickActions } from './QuickActions';
 import { ThinkingBudgetSlider } from './ThinkingBudgetSlider';
+import { Tooltip } from '../common/Tooltip';
 
 type ChatInputProps = {
   onSend: (message: string) => void;
@@ -107,6 +108,7 @@ export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOn
           rows={3}
           className="min-h-[72px] flex-1 resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         />
+        <Tooltip content="Send message (Enter)" placement="top">
         <button
           onClick={handleSend}
           disabled={!canSend}
@@ -114,6 +116,7 @@ export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOn
         >
           Send
         </button>
+        </Tooltip>
       </div>
     </div>
   );

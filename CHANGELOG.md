@@ -4,6 +4,34 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-04: Tooltips everywhere
+
+### Summary
+
+Added contextual tooltips to 14 components across the renderer. Every sidebar button, pipeline phase, nav item, chat control, file view toggle, and window control now has a descriptive tooltip. NavButton and PhaseRow converted to `forwardRef` to support Tooltip's `cloneElement` ref merging. No business logic changes — purely presentational.
+
+### Changed
+- `src/renderer/components/Layout/Sidebar.tsx` — Import Tooltip; wrap each NavButton with placement="right" tooltips; convert NavButton to forwardRef
+- `src/renderer/components/Layout/TitleBar.tsx` — Tooltips on minimize/maximize/close buttons
+- `src/renderer/components/Sidebar/HotTakeButton.tsx` — Tooltip: "Get Ghostlight's unfiltered first impression"
+- `src/renderer/components/Sidebar/AdhocRevisionButton.tsx` — Tooltip: "Start a one-off revision session"
+- `src/renderer/components/Sidebar/VoiceSetupButton.tsx` — Tooltip: "Set up your writing voice profile"
+- `src/renderer/components/Sidebar/CliActivityButton.tsx` — Tooltip: "View active and recent AI agent activity"
+- `src/renderer/components/Sidebar/RevisionQueueButton.tsx` — Tooltip: "Open the automated revision queue"
+- `src/renderer/components/Sidebar/PipelineTracker.tsx` — Tooltip per phase row showing agent + description; convert PhaseRow to forwardRef
+- `src/renderer/components/Chat/ChatInput.tsx` — Tooltip on send button
+- `src/renderer/components/Chat/QuickActions.tsx` — Tooltip on quick actions trigger
+- `src/renderer/components/Chat/ThinkingBudgetSlider.tsx` — Tooltip on label and reset button
+- `src/renderer/components/Files/FilesHeader.tsx` — Tooltips on browser/reader view mode buttons
+
+### Architecture Impact
+- None — purely presentational changes. No new state, IPC channels, or stores.
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-02: Tour definitions, store, and data-tour attributes
 
 ### Summary

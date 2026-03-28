@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
+import { Tooltip } from '../common/Tooltip';
 
 export function VoiceSetupButton(): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
@@ -14,6 +15,7 @@ export function VoiceSetupButton(): React.ReactElement | null {
   if (!activeSlug) return null;
 
   return (
+    <Tooltip content="Set up your writing voice profile with Verity" placement="right">
     <button
       onClick={handleClick}
       className="flex w-full items-center gap-2 px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:hover:text-zinc-200"
@@ -21,5 +23,6 @@ export function VoiceSetupButton(): React.ReactElement | null {
       <span className="text-purple-600 dark:text-purple-400">🎙</span>
       <span>Set Up Voice Profile</span>
     </button>
+    </Tooltip>
   );
 }
