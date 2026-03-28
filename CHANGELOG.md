@@ -4,6 +4,26 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add catalog export (ZIP all books)
+
+### Summary
+
+Added the ability to export the entire book catalog as a single ZIP archive from the Settings view. A new `catalog:exportZip` IPC channel zips the full `books/` directory using `archiver` (already a dependency), and a new `CatalogExportSection` component in SettingsView provides the trigger button with success feedback.
+
+### Changed
+- `src/main/ipc/handlers.ts` — Added `catalog:exportZip` handler between build and usage sections. Zips `paths.booksDir` into a user-chosen location with default filename `novel-engine-catalog-YYYY-MM-DD.zip`.
+- `src/preload/index.ts` — Added `catalog` namespace with `exportZip()` bridge method.
+- `src/renderer/components/Settings/SettingsView.tsx` — Added `CatalogExportSection` component between UsageSection and AuthorProfileSection. Shows export button, disabled state during export, and clickable "Saved to:" path on success.
+
+### Architecture Impact
+- New IPC channel: `catalog:exportZip`
+- New preload bridge namespace: `catalog`
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Integrate version history into all file views
 
 ### Summary

@@ -29,8 +29,8 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — IPC Handler + Preload Bridge | IPC | pending | | |
-| 2 | SESSION-02 — Export Catalog Button in Settings UI | Renderer | pending | | |
+| 1 | SESSION-01 — IPC Handler + Preload Bridge | IPC | done | 2026-03-28 | Handler placed after build:exportZip. Uses `archiver` with `zlib: { level: 9 }` and wraps contents in top-level `books/` folder. |
+| 2 | SESSION-02 — Export Catalog Button in Settings UI | Renderer | done | 2026-03-28 | CatalogExportSection placed between UsageSection and AuthorProfileSection. Includes disabled state during export and clickable saved-path feedback. |
 
 ---
 
@@ -83,8 +83,13 @@ graph LR
 
 ## Handoff Notes
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-02
 
 ### Observations:
+- Both sessions were straightforward — no ambiguity or complications.
+- The existing `build:exportZip` handler provided a clean pattern to follow for `catalog:exportZip`.
+- `shell.openPath` was already available on the preload bridge, so the "Saved to" clickable link worked without any additional wiring.
+- `archiver` was already a dependency — no new packages needed.
 
 ### Warnings:
+- None

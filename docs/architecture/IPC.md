@@ -99,6 +99,12 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `build:isPandocAvailable` | invoke | `build.isPandocAvailable()` | `boolean` |
 | `build:exportZip` | invoke | `dialog.showSaveDialog()` → creates ZIP of dist/ | `string \| null` |
 
+### catalog:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `catalog:exportZip` | invoke | `dialog.showSaveDialog()` → creates ZIP of entire books/ directory | `string \| null` |
+
 ### usage:*
 
 | Channel | Direction | Handler | Returns |
@@ -296,6 +302,10 @@ window.novelEngine: {
     isPandocAvailable(): Promise<boolean>
     onProgress(callback): () => void               // returns cleanup fn
     exportZip(bookSlug: string): Promise<string | null>
+  }
+
+  catalog: {
+    exportZip(): Promise<string | null>
   }
 
   pitches: {

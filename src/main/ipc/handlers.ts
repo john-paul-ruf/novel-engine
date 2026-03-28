@@ -407,6 +407,35 @@ export function registerIpcHandlers(services: {
     });
   });
 
+  // === Catalog Export ===
+
+  ipcMain.handle('catalog:exportZip', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Export Book Catalog',
+      defaultPath: `novel-engine-catalog-${dateStr}.zip`,
+      filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+    });
+
+    if (canceled || !filePath) return null;
+
+    return new Promise<string>((resolve, reject) => {
+      const output = createWriteStream(filePath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      output.on('close', () => resolve(filePath));
+      archive.on('error', reject);
+
+      archive.pipe(output);
+      archive.directory(paths.booksDir, 'books');
+      archive.finalize();
+    });
+  });
+
   // === Usage ===
 
   ipcMain.handle('usage:summary', (_, bookSlug?: string) => services.usage.getSummary(bookSlug));

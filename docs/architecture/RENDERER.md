@@ -219,7 +219,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `SettingsView.tsx` | Full settings panel: model, thinking, theme, author profile, usage stats |
+| `SettingsView.tsx` | Full settings panel: model, thinking, theme, author profile, usage stats, catalog export |
 
 ### Sidebar/
 

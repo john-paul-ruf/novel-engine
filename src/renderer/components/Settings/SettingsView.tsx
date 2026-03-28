@@ -354,6 +354,53 @@ function UsageSection(): React.ReactElement {
   );
 }
 
+function CatalogExportSection(): React.ReactElement {
+  const [exporting, setExporting] = useState(false);
+  const [lastExport, setLastExport] = useState<string | null>(null);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    setLastExport(null);
+    try {
+      const savedPath = await window.novelEngine.catalog.exportZip();
+      if (savedPath) {
+        setLastExport(savedPath);
+      }
+    } catch (error) {
+      console.error('Failed to export catalog:', error);
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Catalog Export</SectionHeading>
+      <HelpText>
+        Export all your books as a single ZIP archive. Includes all source files, chapters, and build outputs.
+      </HelpText>
+      <button
+        onClick={handleExport}
+        disabled={exporting}
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+      >
+        {exporting ? 'Exporting...' : 'Export All Books to ZIP'}
+      </button>
+      {lastExport && (
+        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+          <span>Saved to:</span>
+          <button
+            onClick={() => window.novelEngine.shell.openPath(lastExport)}
+            className="underline decoration-green-600/30 dark:decoration-green-400/30 hover:text-green-700 dark:hover:text-green-300"
+          >
+            {lastExport}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AuthorProfileSection(): React.ReactElement {
   const { settings, update } = useSettingsStore();
   const [authorName, setAuthorName] = useState('');
@@ -550,6 +597,8 @@ export function SettingsView(): React.ReactElement {
         <AppearanceSection />
         <SectionDivider />
         <UsageSection />
+        <SectionDivider />
+        <CatalogExportSection />
         <SectionDivider />
         <AuthorProfileSection />
         <SectionDivider />

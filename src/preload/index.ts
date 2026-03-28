@@ -200,6 +200,12 @@ const api = {
       ipcRenderer.invoke('build:exportZip', bookSlug),
   },
 
+  // Catalog Export
+  catalog: {
+    exportZip: (): Promise<string | null> =>
+      ipcRenderer.invoke('catalog:exportZip'),
+  },
+
   // Shelved Pitches
   pitches: {
     list: (): Promise<ShelvedPitchMeta[]> => ipcRenderer.invoke('pitches:list'),
