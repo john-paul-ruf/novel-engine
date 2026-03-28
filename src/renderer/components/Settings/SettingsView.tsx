@@ -3,9 +3,11 @@ import { marked } from 'marked';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
-import type { ModelInfo, UsageSummary } from '@domain/types';
+import type { ModelInfo, TourId, UsageSummary } from '@domain/types';
 import { ProviderSection } from './ProviderSection';
 import { useProviderStore } from '../../stores/providerStore';
+import { useTourStore } from '../../stores/tourStore';
+import { useViewStore } from '../../stores/viewStore';
 
 function SectionDivider(): React.ReactElement {
   return <div className="border-b border-zinc-200 dark:border-zinc-800" />;
@@ -614,6 +616,55 @@ function AboutSection(): React.ReactElement {
   );
 }
 
+const TOUR_INFO: { id: TourId; label: string; description: string }[] = [
+  { id: 'welcome', label: 'Welcome Tour', description: 'Overview of the main UI areas' },
+  { id: 'first-book', label: 'First Book Guide', description: 'Pitch to scaffold workflow' },
+  { id: 'pipeline-intro', label: 'Pipeline Deep Dive', description: 'All 14 phases explained' },
+];
+
+function GuidedToursSection(): React.ReactElement {
+  const isTourCompleted = useTourStore((s) => s.isTourCompleted);
+  const resetTour = useTourStore((s) => s.resetTour);
+  const startTour = useTourStore((s) => s.startTour);
+  const navigate = useViewStore((s) => s.navigate);
+
+  const handleReplay = async (tourId: TourId) => {
+    await resetTour(tourId);
+    navigate('chat');
+    setTimeout(() => {
+      startTour(tourId);
+    }, 300);
+  };
+
+  return (
+    <div>
+      <SectionHeading>Guided Tours</SectionHeading>
+      <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+        Replay the guided tours to refresh your memory of how the app works.
+      </p>
+      <div className="space-y-2">
+        {TOUR_INFO.map((tour) => {
+          const completed = isTourCompleted(tour.id);
+          return (
+            <div key={tour.id} className="flex items-center gap-3">
+              <button
+                onClick={() => handleReplay(tour.id)}
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-900 dark:text-zinc-100"
+              >
+                {tour.label}
+              </button>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{tour.description}</span>
+              {completed && (
+                <span className="text-green-500 text-sm" title="Tour completed">✓</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsView(): React.ReactElement {
   return (
     <div className="h-full overflow-y-auto">
@@ -637,6 +688,8 @@ export function SettingsView(): React.ReactElement {
         <CatalogExportSection />
         <SectionDivider />
         <AuthorProfileSection />
+        <SectionDivider />
+        <GuidedToursSection />
         <SectionDivider />
         <AboutSection />
       </div>

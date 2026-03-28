@@ -4,6 +4,26 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-03: Wire tours into app, auto-launch
+
+### Summary
+
+Wired the guided tour system into the app. `TourManager` hydrates the tour store from settings on mount. `TourOverlayRenderer` conditionally renders `GuidedTourOverlay` when a tour is active. The welcome tour auto-launches after onboarding via a 500ms delayed `startTour('welcome')`. Settings now has a "Guided Tours" section with replay buttons for all three tours, showing green checkmarks for completed ones.
+
+### Changed
+- `src/renderer/components/Layout/AppLayout.tsx` — Added `TourManager` + `TourOverlayRenderer` components; imports for tourStore, settingsStore, TOUR_DEFINITIONS, GuidedTourOverlay
+- `src/renderer/components/Onboarding/OnboardingWizard.tsx` — Auto-launches welcome tour after `navigate('chat')` with 500ms delay
+- `src/renderer/components/Settings/SettingsView.tsx` — Added `GuidedToursSection` with replay buttons for all 3 tours, green checkmarks for completed
+
+### Architecture Impact
+- No new IPC channels, stores, or infrastructure changes
+- Tour lifecycle fully contained in renderer layer
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-04: Tooltips everywhere
 
 ### Summary

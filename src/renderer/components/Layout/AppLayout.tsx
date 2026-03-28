@@ -4,6 +4,9 @@ import { useModalChatStore } from '../../stores/modalChatStore';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { useTourStore } from '../../stores/tourStore';
+import { TOUR_DEFINITIONS } from '../../tours/tourDefinitions';
 import { ChatView } from '../Chat/ChatView';
 import { FilesView } from '../Files/FilesView';
 import { BuildView } from '../Build/BuildView';
@@ -13,6 +16,7 @@ import { PitchRoomView } from '../PitchRoom/PitchRoomView';
 import { MotifLedgerView } from '../MotifLedger/MotifLedgerView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
+import { GuidedTourOverlay } from '../common/GuidedTourOverlay';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 
@@ -74,6 +78,41 @@ function ViewContent(): React.ReactElement {
   );
 }
 
+/** Hydrates the tour store from settings on app mount. */
+function TourManager(): null {
+  const settings = useSettingsStore((s) => s.settings);
+  const { hydrate, isHydrated } = useTourStore();
+
+  useEffect(() => {
+    if (settings && !isHydrated) {
+      hydrate(settings.completedTours ?? []);
+    }
+  }, [settings, isHydrated, hydrate]);
+
+  return null;
+}
+
+/** Renders the guided tour overlay when a tour is active. */
+function TourOverlayRenderer(): React.ReactElement | null {
+  const activeTourId = useTourStore((s) => s.activeTourId);
+  const completeTour = useTourStore((s) => s.completeTour);
+  const dismissTour = useTourStore((s) => s.dismissTour);
+
+  if (!activeTourId) return null;
+
+  const steps = TOUR_DEFINITIONS[activeTourId];
+  if (!steps) return null;
+
+  return (
+    <GuidedTourOverlay
+      steps={steps}
+      isActive={true}
+      onComplete={completeTour}
+      onDismiss={dismissTour}
+    />
+  );
+}
+
 export function AppLayout(): React.ReactElement {
   const isModalOpen = useModalChatStore((s) => s.isOpen);
   const isCliPanelOpen = useCliActivityStore((s) => s.isOpen);
@@ -91,6 +130,8 @@ export function AppLayout(): React.ReactElement {
       </div>
       {isModalOpen && <ChatModal />}
       <CliActivityListener />
+      <TourManager />
+      <TourOverlayRenderer />
     </div>
   );
 }

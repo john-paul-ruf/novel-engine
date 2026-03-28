@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useTourStore } from '../../stores/tourStore';
 
 type Step = 'welcome' | 'claude-setup' | 'model-select' | 'author-profile' | 'ready';
 
@@ -432,6 +433,14 @@ export function OnboardingWizard(): React.ReactElement {
         }
       }
       navigate('chat');
+
+      // Start the welcome tour after a short delay to let the UI render
+      setTimeout(() => {
+        const tourStore = useTourStore.getState();
+        if (!tourStore.isTourCompleted('welcome')) {
+          tourStore.startTour('welcome');
+        }
+      }, 500);
     },
     [update, createBook, setActiveBook, navigate],
   );
