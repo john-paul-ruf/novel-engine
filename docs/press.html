@@ -18,7 +18,9 @@
             --accent:#c4ff4d;--accent2:#9dcc3e;--amber:#efb100;--teal:#3dd4a0;
             --blue:#6fb8ff;--magenta:#d4a0ff;--red:#ff6b6b;--orange:#ff9f43;--slate:#94a3b8;
         }
+        html,body{overflow-x:clip}
         body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+        .page,.site-footer{max-width:100vw}
         .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,12,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
         .nav-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px}
         .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
@@ -54,25 +56,25 @@
 
         .pitch-block{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:24px 28px;margin:20px 0 32px;font-size:15px;line-height:1.7;color:var(--text)}
 
-        .diff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin:16px 0 24px}
+        .diff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px;margin:16px 0 24px}
         .diff-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px}
         .diff-card h3{font-size:15px;font-weight:600;margin-bottom:8px}
         .diff-card p{font-size:13px;color:var(--text3);line-height:1.5;margin:0}
 
-        .books-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin:16px 0}
+        .books-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(200px,100%),1fr));gap:16px;margin:16px 0}
         .book-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center;text-decoration:none;color:var(--text);display:block;transition:border-color 0.2s}
         .book-card:hover{border-color:var(--accent)}
         .book-title{font-family:'DM Serif Display',serif;font-size:17px;margin-bottom:6px}
         .book-link{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
 
-        .numbers{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin:16px 0 24px}
+        .numbers{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:12px;margin:16px 0 24px}
         .num-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
         .num-val{font-family:'DM Serif Display',serif;font-size:28px;color:var(--accent);margin-bottom:4px}
         .num-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
 
         .quotes{display:grid;grid-template-columns:1fr;gap:12px;margin:16px 0 24px}
         .quote{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;font-size:15px;color:var(--text);font-style:italic;position:relative;padding-left:32px}
-        .quote::before{content:""";position:absolute;left:12px;top:12px;font-family:'DM Serif Display',serif;font-size:28px;color:var(--accent);font-style:normal}
+        .quote::before{content:"\201C";position:absolute;left:12px;top:12px;font-family:'DM Serif Display',serif;font-size:28px;color:var(--accent);font-style:normal}
 
         .assets-list{list-style:none;padding:0;margin:16px 0}
         .assets-list li{margin-bottom:10px;font-size:14px}
