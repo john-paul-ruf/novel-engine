@@ -33,7 +33,7 @@
 | 2 | SESSION-02 — Tour Definitions & Tour Store | Domain / Renderer | done | 2026-03-28 | All data-tour attributes placed. tourStore and tourDefinitions created. |
 | 3 | SESSION-03 — Wire Tours into App, Auto-Launch Welcome Tour | Renderer | done | 2026-03-28 | Tour overlay mounted in AppLayout. Welcome tour auto-launches after onboarding. Replay section in Settings. |
 | 4 | SESSION-04 — Tooltips Everywhere | Renderer | done | 2026-03-28 | Core tooltips added to 14 components. Skipped VersionHistoryPanel, ConversationList, BuildView, AgentHeader, SettingsView — lower priority, can add in polish. |
-| 5 | SESSION-05 — Polish, Edge Cases & Documentation | Renderer / Domain | pending | | |
+| 5 | SESSION-05 — Polish, Edge Cases & Documentation | Renderer / Domain | done | 2026-03-28 | Tooltip suppression during tours, resize handling, accessibility, help button, docs updated. |
 
 ---
 
@@ -109,13 +109,16 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-03 (after SESSION-04)
+### Last completed session: SESSION-05 (final)
 
 ### Observations:
-- Created `src/renderer/components/common/` directory (did not exist before)
-- Tooltip uses `useLayoutEffect` for post-mount position refinement — measures actual tooltip size via portal ref
-- GuidedTourOverlay uses `clip-path: polygon()` for spotlight cutout — approximates rounded corners with 8 corner points
-- All three new renderer files compile clean with strict mode
+- All 5 sessions completed successfully — feature is fully implemented
+- Tooltip suppression uses `useTourStore` selector for O(1) reactivity — no extra state
+- GuidedTourOverlay now has both `window.resize` listener and `ResizeObserver` for robust repositioning
+- Help "?" button uses outside-click detection via `mousedown` listener on `document`
+- `useId()` (React 18) generates stable IDs for `aria-describedby` ↔ tooltip `id` pairing
+- All architecture docs (ARCHITECTURE.md, RENDERER.md, DOMAIN.md) reflect final state
+- Source tree in ARCHITECTURE.md updated with tourStore, tours/, common/, useTooltip.ts
 
 ### Warnings:
 - None

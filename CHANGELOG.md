@@ -4,6 +4,29 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-05: Polish, edge cases & documentation
+
+### Summary
+
+Final polish for the onboarding/tooltip system. Tooltips are now suppressed during active guided tours to prevent visual clutter. GuidedTourOverlay handles window resize and element resize (sidebar collapse/expand) via `resize` event listener and `ResizeObserver`. Accessibility improvements: `aria-modal`, `aria-live="polite"` on step body, `aria-describedby` on tooltip triggers, auto-focus on Next button. Added a help "?" button in the sidebar header with a popover to launch tours on demand. Updated all architecture documentation.
+
+### Changed
+- `src/renderer/components/common/Tooltip.tsx` — Suppress tooltips during active tours via `useTourStore`; added `aria-describedby` with `useId()`; added `id` to tooltip portal
+- `src/renderer/components/common/GuidedTourOverlay.tsx` — Window resize listener; `ResizeObserver` on target element; `aria-modal="true"`; `aria-live="polite"` on step body; auto-focus Next button via ref
+- `src/renderer/components/Layout/Sidebar.tsx` — Added `HelpButton` component with "?" icon and popover for launching Welcome Tour and Pipeline Guide
+- `docs/architecture/ARCHITECTURE.md` — Updated source tree with tourStore, tours/, common/, useTooltip.ts
+- `docs/architecture/RENDERER.md` — Updated Tooltip, GuidedTourOverlay, and Sidebar descriptions
+
+### Architecture Impact
+- No new IPC channels, stores, or infrastructure changes
+- Tooltip suppression reads existing tourStore state — no new business logic
+- Help button uses existing `startTour()` action
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-03: Wire tours into app, auto-launch
 
 ### Summary

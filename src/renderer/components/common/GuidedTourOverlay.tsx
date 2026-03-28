@@ -157,6 +157,35 @@ export function GuidedTourOverlay({ steps, isActive, onComplete, onDismiss }: Gu
     }
   }, [isActive]);
 
+  // Reposition on window resize
+  useEffect(() => {
+    if (!isActive) return;
+
+    const handleResize = () => positionElements();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isActive, positionElements]);
+
+  // ResizeObserver on target element (handles sidebar collapse/expand)
+  useEffect(() => {
+    if (!isActive || !currentStep) return;
+
+    const target = document.querySelector(currentStep.targetSelector);
+    if (!target) return;
+
+    const observer = new ResizeObserver(() => positionElements());
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [isActive, currentStep, positionElements]);
+
+  // Auto-focus "Next" button on step change
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (isActive && nextButtonRef.current) {
+      nextButtonRef.current.focus();
+    }
+  }, [isActive, currentStepIndex]);
+
   // Keyboard navigation
   useEffect(() => {
     if (!isActive) return;
@@ -224,6 +253,7 @@ export function GuidedTourOverlay({ steps, isActive, onComplete, onDismiss }: Gu
       <div
         ref={popoverRef}
         role="dialog"
+        aria-modal="true"
         aria-label={`Tour step ${currentStepIndex + 1} of ${steps.length}: ${currentStep.title}`}
         className="fixed z-[10000] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl p-5 max-w-[320px]"
         style={{
@@ -235,7 +265,7 @@ export function GuidedTourOverlay({ steps, isActive, onComplete, onDismiss }: Gu
         <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
           {currentStep.title}
         </h3>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2" aria-live="polite">
           {currentStep.body}
         </p>
 
@@ -263,6 +293,7 @@ export function GuidedTourOverlay({ steps, isActive, onComplete, onDismiss }: Gu
             )}
 
             <button
+              ref={nextButtonRef}
               onClick={handleNext}
               className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
             >

@@ -1,5 +1,6 @@
-import { useState, forwardRef } from 'react';
+import { useState, useRef, useEffect, forwardRef } from 'react';
 import { useViewStore } from '../../stores/viewStore';
+import { useTourStore } from '../../stores/tourStore';
 import { useResizeHandle } from '../../hooks/useResizeHandle';
 import { ResizeHandle } from './ResizeHandle';
 import { BookSelector } from '../Sidebar/BookSelector';
@@ -10,6 +11,7 @@ import { FileTree } from '../Sidebar/FileTree';
 import { CliActivityButton } from '../Sidebar/CliActivityButton';
 import { PitchHistory } from '../Sidebar/PitchHistory';
 import { Tooltip } from '../common/Tooltip';
+import type { TourId } from '@domain/types';
 
 type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'motif-ledger' | 'settings';
 
@@ -57,6 +59,61 @@ const NavButton = forwardRef<HTMLButtonElement, {
   );
 });
 
+const HELP_TOURS: { id: TourId; label: string }[] = [
+  { id: 'welcome', label: 'Welcome Tour' },
+  { id: 'pipeline-intro', label: 'Pipeline Guide' },
+];
+
+function HelpButton(): React.ReactElement {
+  const [isOpen, setIsOpen] = useState(false);
+  const startTour = useTourStore((s) => s.startTour);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Tooltip content="Interactive guides and tours" placement="right">
+        <button
+          onClick={() => setIsOpen((v) => !v)}
+          className="no-drag flex h-6 w-6 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs transition-colors"
+          aria-label="Help menu"
+          aria-expanded={isOpen}
+        >
+          ?
+        </button>
+      </Tooltip>
+
+      {isOpen && (
+        <div className="absolute left-full top-0 ml-2 z-50 w-44 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg py-1">
+          {HELP_TOURS.map((tour) => (
+            <button
+              key={tour.id}
+              onClick={() => {
+                startTour(tour.id);
+                setIsOpen(false);
+              }}
+              className="w-full px-3 py-1.5 text-left text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+            >
+              {tour.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SIDEBAR_DEFAULT = 260;
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 440;
@@ -85,8 +142,13 @@ export function Sidebar(): React.ReactElement {
       className="relative flex h-full shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
       style={{ width }}
     >
-      {/* Book selector */}
-      <BookSelector />
+      {/* Book selector + help button */}
+      <div className="flex items-center gap-1.5 pr-2">
+        <div className="flex-1 min-w-0">
+          <BookSelector />
+        </div>
+        <HelpButton />
+      </div>
 
       {/* Accordion sections — share remaining vertical space */}
       <div className="flex min-h-0 flex-1 flex-col">

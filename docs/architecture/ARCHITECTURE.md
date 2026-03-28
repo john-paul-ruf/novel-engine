@@ -101,6 +101,7 @@ src/
     │   ├── chatStore.ts
     │   ├── pipelineStore.ts
     │   ├── viewStore.ts
+    │   ├── tourStore.ts                  # Tour lifecycle: start, complete, dismiss, replay
     │   ├── pitchRoomStore.ts
     │   ├── pitchShelfStore.ts
     │   ├── revisionQueueStore.ts
@@ -111,7 +112,10 @@ src/
     │   ├── motifLedgerStore.ts
     │   ├── importStore.ts
     │   └── streamHandler.ts              # Shared stream event handler factory
+    ├── tours/
+    │   └── tourDefinitions.ts            # Step arrays for welcome, first-book, pipeline-intro tours
     ├── components/
+    │   ├── common/                          # Tooltip, GuidedTourOverlay
     │   ├── Layout/                          # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                      # OnboardingWizard
     │   ├── Settings/                        # SettingsView
@@ -130,6 +134,7 @@ src/
     │   ├── useRevisionQueueEvents.ts
     │   ├── useRotatingStatus.ts
     │   ├── useTheme.ts
+    │   ├── useTooltip.ts                 # Tooltip positioning, delays, viewport clamping
     │   └── useVerticalResize.ts
     └── styles/
         └── globals.css

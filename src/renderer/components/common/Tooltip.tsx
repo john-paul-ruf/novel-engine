@@ -1,7 +1,8 @@
-import React, { cloneElement, useRef, useLayoutEffect, useState, useCallback } from 'react';
+import React, { cloneElement, useRef, useLayoutEffect, useState, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import type { TourStepPlacement } from '@domain/types';
 import { useTooltip } from '../../hooks/useTooltip';
+import { useTourStore } from '../../stores/tourStore';
 
 type TooltipProps = {
   /** The tooltip text content. Supports \n for line breaks. */
@@ -60,10 +61,13 @@ function renderContent(content: string): React.ReactNode {
 }
 
 export function Tooltip({ content, placement = 'top', enterDelay = 300, disabled = false, children }: TooltipProps) {
+  const isTourActive = useTourStore((s) => s.activeTourId !== null);
+  const tooltipDescId = useId();
+
   const { isVisible, position, triggerRef, triggerProps } = useTooltip({
     placement,
     enterDelay,
-    disabled,
+    disabled: disabled || isTourActive,
   });
 
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -144,6 +148,7 @@ export function Tooltip({ content, placement = 'top', enterDelay = 300, disabled
     ...triggerProps,
     ref: mergedRef,
     'data-tooltip-id': tooltipId.current,
+    'aria-describedby': isVisible ? tooltipDescId : undefined,
   } as Record<string, unknown>);
 
   if (!isVisible) return trigger;
@@ -151,6 +156,7 @@ export function Tooltip({ content, placement = 'top', enterDelay = 300, disabled
   const tooltip = createPortal(
     <div
       ref={tooltipRef}
+      id={tooltipDescId}
       role="tooltip"
       className="bg-zinc-800 dark:bg-zinc-700 text-zinc-100 text-xs px-2.5 py-1.5 rounded-md shadow-lg max-w-[240px] z-[9999] pointer-events-none"
       style={{

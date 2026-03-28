@@ -331,15 +331,15 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `Tooltip.tsx` | Reusable tooltip with portal rendering, configurable placement/delay, arrow, multi-line support |
-| `GuidedTourOverlay.tsx` | Spotlight-based tour overlay with CSS clip-path cutout, keyboard navigation, step popovers |
+| `Tooltip.tsx` | Reusable tooltip with portal rendering, configurable placement/delay, arrow, multi-line support. Suppressed during active tours via `useTourStore`. `aria-describedby` for accessibility. |
+| `GuidedTourOverlay.tsx` | Spotlight-based tour overlay with CSS clip-path cutout, keyboard navigation, step popovers. Handles window resize + `ResizeObserver`. Auto-focuses Next button. `aria-modal`, `aria-live="polite"`. |
 
 ### Layout/
 
 | File | Purpose |
 |------|---------|
 | `AppLayout.tsx` | Main shell: sidebar + content area, view routing. `StreamManager` component initializes pitchRoomStore stream listener lifecycle (mount → `initStreamListener`, unmount → `destroyStreamListener`). |
-| `Sidebar.tsx` | Left panel: book selector + pipeline + file tree + action buttons |
+| `Sidebar.tsx` | Left panel: book selector + pipeline + file tree + action buttons + help "?" button with tour replay popover |
 | `TitleBar.tsx` | Custom window title bar (traffic lights on macOS, buttons on Windows/Linux) |
 | `ResizeHandle.tsx` | Sidebar resize drag handle |
 
