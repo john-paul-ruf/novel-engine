@@ -34,7 +34,7 @@
 | 3 | SESSION-03 — Install diff Package & VersionService | Application | done | 2026-03-28 | diff + @types/diff installed. VersionService implements all 8 IVersionService methods. |
 | 4 | SESSION-04 — IPC Wiring, Preload Bridge & Composition Root (multi-book safe) | IPC / Main | done | 2026-03-28 | VersionService wired in composition root. 6 IPC channels added. Auto-snapshot hooks in chat:send, hot-take, adhoc-revision, revision queue, files:write, and BookWatcher fallback. Startup pruning added. |
 | 5 | SESSION-05 — Version Store & DiffViewer Component | Renderer | done | 2026-03-28 | versionStore with 6 actions + DiffViewer with hunk/line/summary rendering. |
-| 6 | SESSION-06 — VersionHistory Panel Component | Renderer | pending | | |
+| 6 | SESSION-06 — VersionHistory Panel Component | Renderer | done | 2026-03-28 | VersionHistoryPanel with timeline, diff viewer, revert with confirmation, and pagination. |
 | 7 | SESSION-07 — Integrate Version History into FilesView & FileEditor | Renderer | pending | | |
 
 ---
@@ -105,11 +105,11 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-05
+### Last completed session: SESSION-06
 
 ### Observations:
-- SESSION-01–04: Backend fully wired — domain types, DB, service, IPC, preload
-- SESSION-05: `versionStore` created with pagination (PAGE_SIZE=30), version selection with auto-diff, revert with auto-reload. `DiffViewer` renders unified diff with green/red color coding, dual line numbers, hunk headers, and addition/deletion summary.
-- Next session (SESSION-06) should create the VersionHistoryPanel component
+- SESSION-01–05: Full stack complete from domain to store+DiffViewer
+- SESSION-06: VersionHistoryPanel with version timeline (source badges, relative timestamps, byte sizes), inline revert with confirmation, paginated load-more, and integrated DiffViewer.
+- Next session (SESSION-07) should integrate VersionHistoryPanel into FileEditor, FilesView, SourcePanel, ChaptersPanel, and AgentOutputPanel
 
 ### Warnings:

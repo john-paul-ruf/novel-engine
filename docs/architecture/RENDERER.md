@@ -269,6 +269,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `CollapsibleSection.tsx` | Reusable collapsible section wrapper |
 | `DeleteConfirmModal.tsx` | Confirmation dialog for file/folder deletion |
 | `DiffViewer.tsx` | Renders `FileDiff` as color-coded unified diff (green/red/neutral) |
+| `VersionHistoryPanel.tsx` | Slide-over panel: version timeline, diff viewer, revert with confirmation |
 
 ### Build/
 

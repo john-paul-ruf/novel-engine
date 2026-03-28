@@ -4,6 +4,23 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Add VersionHistoryPanel component
+
+### Summary
+
+Created the `VersionHistoryPanel` — a slide-over panel that displays a file's version history as a timeline with source badges (user/agent/revert), relative timestamps, and byte sizes. Clicking a version computes and displays the diff. Each version entry has a "Revert to this version" button with inline confirmation. Supports paginated loading for files with many versions.
+
+### Added
+- `src/renderer/components/Files/VersionHistoryPanel.tsx` — Full version history UI: timeline with `VersionEntry` sub-component, integrated `DiffViewer`, revert with confirmation, pagination, error handling, empty states.
+
+### Architecture Impact
+- New component: `VersionHistoryPanel` (in Files/ directory)
+
+### Migration Notes
+- None
+
+---
+
 ## [2026-03-28] — Add version store and DiffViewer component
 
 ### Summary
