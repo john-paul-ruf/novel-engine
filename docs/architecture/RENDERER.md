@@ -309,6 +309,13 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 ## Components
 
+### common/
+
+| File | Purpose |
+|------|---------|
+| `Tooltip.tsx` | Reusable tooltip with portal rendering, configurable placement/delay, arrow, multi-line support |
+| `GuidedTourOverlay.tsx` | Spotlight-based tour overlay with CSS clip-path cutout, keyboard navigation, step popovers |
+
 ### Layout/
 
 | File | Purpose |
@@ -460,6 +467,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `useRevisionQueueEvents.ts` | Subscribes to revision queue IPC events |
 | `useRotatingStatus.ts` | Rotates fun status messages on an interval |
 | `useTheme.ts` | Syncs Tailwind dark mode class with settings theme |
+| `useTooltip.ts` | Tooltip positioning hook — manages show/hide delay, `getBoundingClientRect` positioning, viewport clamping |
 
 ---
 

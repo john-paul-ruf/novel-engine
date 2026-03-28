@@ -4,6 +4,32 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Onboarding Guide & Tooltips — SESSION-01: Foundation types and components
+
+### Summary
+
+Added the domain types and renderer foundation for the guided tour and tooltip system. New types (`TourId`, `TourStep`, `TourStepPlacement`, `TourState`) define the tour data model. A reusable `Tooltip` component renders via React portal with configurable placement, delay, and arrow. A `GuidedTourOverlay` component provides a spotlight-based tour engine with clip-path cutouts, keyboard navigation, and step-by-step popovers. `AppSettings` extended with `completedTours` to persist tour completion state.
+
+### Added
+- `src/renderer/hooks/useTooltip.ts` — Hook for tooltip positioning via `getBoundingClientRect`, configurable delays, viewport edge clamping
+- `src/renderer/components/common/Tooltip.tsx` — Portal-based tooltip with arrow, fade+slide animation, multi-line support
+- `src/renderer/components/common/GuidedTourOverlay.tsx` — Spotlight overlay with CSS clip-path, step navigation (keyboard + buttons), view auto-navigation
+
+### Changed
+- `src/domain/types.ts` — Added `TourId`, `TourStepPlacement`, `TourStep`, `TourState` types; added `completedTours: TourId[]` to `AppSettings`
+- `src/domain/constants.ts` — Added `completedTours: []` to `DEFAULT_SETTINGS`
+
+### Architecture Impact
+- New types: `TourId`, `TourStep`, `TourStepPlacement`, `TourState`
+- `AppSettings` extended with `completedTours` field
+- New directory: `src/renderer/components/common/`
+- No new IPC channels — tour state uses existing `settings:update`
+
+### Migration Notes
+- None — `completedTours` defaults to `[]`, existing settings files will be backfilled by the settings merge logic
+
+---
+
 ## [2026-03-28] — Series Import feature (4 sessions)
 
 ### Summary

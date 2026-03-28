@@ -97,7 +97,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 
 | Type | Shape | Used By |
 |------|-------|---------|
-| `AppSettings` | `{ hasClaudeCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId }` | SettingsService, SettingsView |
+| `AppSettings` | `{ hasClaudeCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId, completedTours }` | SettingsService, SettingsView, tourStore |
 
 ### Token Usage
 
@@ -199,6 +199,15 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `SeriesImportPreview` | `{ seriesName, volumes, totalWordCount, totalChapterCount }` | ImportSeriesWizard |
 | `SeriesImportCommitConfig` | `{ seriesName, existingSeriesSlug, author, volumes[] }` | SeriesImportService.commit() |
 | `SeriesImportResult` | `{ seriesSlug, seriesName, volumeResults, totalBooks, totalChapters, totalWordCount }` | ImportSeriesWizard success step |
+
+### Guided Tour
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `TourId` | `'welcome' \| 'first-book' \| 'pipeline-intro'` | tourStore, GuidedTourOverlay |
+| `TourStepPlacement` | `'top' \| 'bottom' \| 'left' \| 'right'` | TourStep, Tooltip, useTooltip |
+| `TourStep` | `{ id, targetSelector, title, body, placement, requiredView? }` | Tour definitions, GuidedTourOverlay |
+| `TourState` | `{ completedTours: TourId[] }` | tourStore |
 
 ### Source Document Generation
 

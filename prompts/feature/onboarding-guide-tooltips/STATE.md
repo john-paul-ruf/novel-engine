@@ -29,7 +29,7 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Tooltip Component & Guide Domain Types | Domain / Renderer | pending | | |
+| 1 | SESSION-01 — Tooltip Component & Guide Domain Types | Domain / Renderer | done | 2026-03-28 | Clean implementation. No complications. |
 | 2 | SESSION-02 — Tour Definitions & Tour Store | Domain / Renderer | pending | | |
 | 3 | SESSION-03 — Wire Tours into App, Auto-Launch Welcome Tour | Renderer | pending | | |
 | 4 | SESSION-04 — Tooltips Everywhere | Renderer | pending | | |
@@ -109,8 +109,13 @@ graph TD
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-01
 
 ### Observations:
+- Created `src/renderer/components/common/` directory (did not exist before)
+- Tooltip uses `useLayoutEffect` for post-mount position refinement — measures actual tooltip size via portal ref
+- GuidedTourOverlay uses `clip-path: polygon()` for spotlight cutout — approximates rounded corners with 8 corner points
+- All three new renderer files compile clean with strict mode
 
 ### Warnings:
+- None

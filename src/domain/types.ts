@@ -316,6 +316,8 @@ export type AppSettings = {
   // Multi-provider configuration
   providers: ProviderConfig[];           // all configured providers (persisted)
   activeProviderId: ProviderId;          // which provider is currently selected
+  // Guided tour completion tracking
+  completedTours: TourId[];             // which tours the user has finished
 };
 
 // === Token Usage ===
@@ -709,3 +711,29 @@ export type SourceGenerationEvent =
   | { type: 'step-error'; index: number; message: string }
   | { type: 'done' }
   | { type: 'error'; message: string };
+
+// === Guided Tour ===
+
+export type TourId = 'welcome' | 'first-book' | 'pipeline-intro';
+
+export type TourStepPlacement = 'top' | 'bottom' | 'left' | 'right';
+
+export type TourStep = {
+  /** Unique step identifier within the tour. */
+  id: string;
+  /** CSS selector to anchor to (e.g. '[data-tour="sidebar-pipeline"]'). */
+  targetSelector: string;
+  /** Main heading for the popover. */
+  title: string;
+  /** Explanation text — 1-3 sentences. */
+  body: string;
+  /** Preferred popover placement relative to the target. */
+  placement: TourStepPlacement;
+  /** If set, navigate to this view before highlighting the target. */
+  requiredView?: string;
+};
+
+export type TourState = {
+  /** Which tours the user has completed. Persisted to settings. */
+  completedTours: TourId[];
+};

@@ -151,6 +151,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   authorName: '',
   providers: BUILT_IN_PROVIDER_CONFIGS,
   activeProviderId: CLAUDE_CLI_PROVIDER_ID,
+  completedTours: [],
 };
 
 // === Agent Quick Actions ===
