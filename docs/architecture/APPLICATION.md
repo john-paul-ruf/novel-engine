@@ -12,7 +12,7 @@ Everything in `src/application/`. Business logic that orchestrates infrastructur
 
 File: `src/application/ChatService.ts`
 
-Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IClaudeClient`, `IFileSystemService`, `IChapterValidator`, `IPitchRoomService`, `IHotTakeService`, `IAdhocRevisionService`, `StreamManager`
+Dependencies: `ISettingsService`, `IAgentService`, `IDatabaseService`, `IProviderRegistry`, `IFileSystemService`, `IChapterValidator`, `IPitchRoomService`, `IHotTakeService`, `IAdhocRevisionService`, `StreamManager`
 
 Clean router (403 lines). Delegates special-purpose flows to sub-services. Only the default pipeline flow (context assembly + CLI call) remains inline. Uses `resolveThinkingBudget()` for CLI call configuration.
 
@@ -38,7 +38,7 @@ Clean router (403 lines). Delegates special-purpose flows to sub-services. Only 
 2. Load settings (model, thinking budget)
 3. Build context via `ContextBuilder`
 4. Save user message to database
-5. Spawn CLI stream via `IClaudeClient.sendMessage`
+5. Spawn CLI stream via `IProviderRegistry.sendMessage`
 6. Forward stream events to `onEvent` callback
 7. On `done`: save assistant message, record usage, run chapter validation
 8. On `error`: emit error event
@@ -54,7 +54,7 @@ Clean router (403 lines). Delegates special-purpose flows to sub-services. Only 
 
 File: `src/application/HotTakeService.ts`
 
-Dependencies: `IAgentService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
+Dependencies: `IAgentService`, `IProviderRegistry`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
 
 Implements: `IHotTakeService`
 
@@ -68,7 +68,7 @@ Handles Ghostlight "hot take" conversations. Always uses Opus (`HOT_TAKE_MODEL`)
 
 File: `src/application/AdhocRevisionService.ts`
 
-Dependencies: `IAgentService`, `IAuditService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
+Dependencies: `IAgentService`, `IAuditService`, `IProviderRegistry`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
 
 Implements: `IAdhocRevisionService`
 
@@ -82,7 +82,7 @@ Handles ad hoc revision conversations with Forge. Runs a motif audit pre-step, t
 
 File: `src/application/PitchRoomService.ts`
 
-Dependencies: `IAgentService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
+Dependencies: `IAgentService`, `IProviderRegistry`, `IDatabaseService`, `IFileSystemService`, `StreamManager`
 
 Implements: `IPitchRoomService`
 
@@ -96,7 +96,7 @@ Handles pitch-room conversations with the Spark agent. Unique concerns: custom w
 
 File: `src/application/AuditService.ts`
 
-Dependencies: `ISettingsService`, `IAgentService`, `IClaudeClient`, `IDatabaseService`, `IFileSystemService`, `IUsageService`
+Dependencies: `ISettingsService`, `IAgentService`, `IProviderRegistry`, `IDatabaseService`, `IFileSystemService`, `IUsageService`
 
 Implements: `IAuditService`
 
@@ -246,7 +246,7 @@ Dependencies: `IDatabaseService`
 
 File: `src/application/RevisionQueueService.ts`
 
-Dependencies: `IFileSystemService`, `IClaudeClient`, `IAgentService`, `IDatabaseService`, `ISettingsService`
+Dependencies: `IFileSystemService`, `IProviderRegistry`, `IAgentService`, `IDatabaseService`, `ISettingsService`
 
 | Method | What It Does |
 |--------|-------------|

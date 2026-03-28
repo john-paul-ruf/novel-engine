@@ -2,7 +2,7 @@ import type {
   IAdhocRevisionService,
   IAgentService,
   IAuditService,
-  IClaudeClient,
+  IProviderRegistry,
   IDatabaseService,
   IFileSystemService,
 } from '@domain/interfaces';
@@ -24,7 +24,7 @@ export class AdhocRevisionService implements IAdhocRevisionService {
   constructor(
     private agents: IAgentService,
     private audit: IAuditService,
-    private claude: IClaudeClient,
+    private providers: IProviderRegistry,
     private db: IDatabaseService,
     private fs: IFileSystemService,
     private streamManager: StreamManager,
@@ -89,7 +89,7 @@ export class AdhocRevisionService implements IAdhocRevisionService {
 
     onEvent({ type: 'status', message: randomWaitingStatus() });
 
-    await this.claude.sendMessage({
+    await this.providers.sendMessage({
       model: appSettings.model,
       systemPrompt,
       messages: conversationMessages,

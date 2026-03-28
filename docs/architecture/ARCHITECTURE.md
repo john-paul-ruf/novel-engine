@@ -147,7 +147,7 @@ ChatService
 ├── ISettingsService (SettingsService)
 ├── IAgentService (AgentService)
 ├── IDatabaseService (DatabaseService)
-├── IClaudeClient (ClaudeCodeClient)
+├── IProviderRegistry (ProviderRegistry)
 ├── IFileSystemService (FileSystemService)
 ├── UsageService
 └── ChapterValidator
@@ -162,7 +162,7 @@ BuildService
 
 RevisionQueueService
 ├── IFileSystemService (FileSystemService)
-├── IClaudeClient (ClaudeCodeClient)
+├── IProviderRegistry (ProviderRegistry)
 ├── IAgentService (AgentService)
 ├── IDatabaseService (DatabaseService)
 └── ISettingsService (SettingsService)

@@ -4,6 +4,31 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Multi-model providers: service migration + composition root (SESSION-05)
+
+### Summary
+
+Migrated all 6 application services from `IClaudeClient` to `IProviderRegistry`. Rewired the composition root to instantiate `ProviderRegistry`, register the built-in Claude CLI provider, and initialize any user-configured OpenAI-compatible providers from settings. No behavioral changes — all services use the same `sendMessage`/`abortStream` interface.
+
+### Changed
+- `src/application/ChatService.ts` — `IClaudeClient` → `IProviderRegistry`, `this.claude` → `this.providers`, `isAvailable()` routes through `getDefaultProvider()`
+- `src/application/HotTakeService.ts` — `IClaudeClient` → `IProviderRegistry`
+- `src/application/PitchRoomService.ts` — `IClaudeClient` → `IProviderRegistry`
+- `src/application/AdhocRevisionService.ts` — `IClaudeClient` → `IProviderRegistry`
+- `src/application/AuditService.ts` — `IClaudeClient` → `IProviderRegistry`
+- `src/application/RevisionQueueService.ts` — `IClaudeClient` → `IProviderRegistry`
+- `src/main/index.ts` — Added ProviderRegistry + OpenAiCompatibleProvider setup between infra and service instantiation. Removed redundant `settings.load()` call.
+
+### Architecture Impact
+- All services now depend on `IProviderRegistry` (not `IClaudeClient`)
+- Composition root wires `ProviderRegistry` → `ClaudeCodeClient` + user providers
+- `IClaudeClient` is no longer imported by any application service
+
+### Migration Notes
+- None — behavioral parity maintained
+
+---
+
 ## [2026-03-28] — Multi-model providers: OpenAI-compatible provider (SESSION-04)
 
 ### Summary

@@ -1,6 +1,6 @@
 import type {
   IAgentService,
-  IClaudeClient,
+  IProviderRegistry,
   IDatabaseService,
   IFileSystemService,
   IHotTakeService,
@@ -22,7 +22,7 @@ import { resolveThinkingBudget } from './thinkingBudget';
 export class HotTakeService implements IHotTakeService {
   constructor(
     private agents: IAgentService,
-    private claude: IClaudeClient,
+    private providers: IProviderRegistry,
     private db: IDatabaseService,
     private fs: IFileSystemService,
     private streamManager: StreamManager,
@@ -80,7 +80,7 @@ export class HotTakeService implements IHotTakeService {
 
     onEvent({ type: 'status', message: randomWaitingStatus() });
 
-    await this.claude.sendMessage({
+    await this.providers.sendMessage({
       model: HOT_TAKE_MODEL,
       systemPrompt,
       messages: conversationMessages.length > 0

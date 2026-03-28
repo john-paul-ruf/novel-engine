@@ -16,7 +16,7 @@ import type {
 import type {
   IRevisionQueueService,
   IFileSystemService,
-  IClaudeClient,
+  IProviderRegistry,
   IAgentService,
   IDatabaseService,
   ISettingsService,
@@ -100,7 +100,7 @@ export class RevisionQueueService implements IRevisionQueueService {
 
   constructor(
     private fs: IFileSystemService,
-    private claude: IClaudeClient,
+    private providers: IProviderRegistry,
     private agents: IAgentService,
     private db: IDatabaseService,
     private settings: ISettingsService,
@@ -370,7 +370,7 @@ export class RevisionQueueService implements IRevisionQueueService {
       let cliError = '';
       const wranglerSettings = await this.settings.load();
       const wranglerThinkingBudget = wranglerSettings.enableThinking ? 4000 : undefined;
-      await this.claude.sendMessage({
+      await this.providers.sendMessage({
         model: WRANGLER_MODEL,
         systemPrompt: await this.agents.loadRaw('WRANGLER-PARSE.md'),
         messages: [{ role: 'user' as const, content: userMessage }],
@@ -617,7 +617,7 @@ export class RevisionQueueService implements IRevisionQueueService {
     });
 
     try {
-      await this.claude.sendMessage({
+      await this.providers.sendMessage({
         model,
         systemPrompt,
         messages: conversationMessages,

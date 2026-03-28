@@ -1,7 +1,7 @@
 import type {
   IAuditService,
   IAgentService,
-  IClaudeClient,
+  IProviderRegistry,
   IDatabaseService,
   IFileSystemService,
   ISettingsService,
@@ -24,7 +24,7 @@ export class AuditService implements IAuditService {
   constructor(
     private settings: ISettingsService,
     private agents: IAgentService,
-    private claude: IClaudeClient,
+    private providers: IProviderRegistry,
     private db: IDatabaseService,
     private fs: IFileSystemService,
     private usage: IUsageService,
@@ -112,7 +112,7 @@ export class AuditService implements IAuditService {
       onEvent({ type: 'callStart', agentName: 'Verity', model: VERITY_AUDIT_MODEL, bookSlug });
       onEvent({ type: 'status', message: `Auditing ${chapterSlug} for voice/style violations…` });
 
-      const cliPromise = this.claude.sendMessage({
+      const cliPromise = this.providers.sendMessage({
         model: VERITY_AUDIT_MODEL,
         systemPrompt: auditorPrompt,
         messages: [{ role: 'user' as const, content: userMessage }],
@@ -142,7 +142,7 @@ export class AuditService implements IAuditService {
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          this.claude.abortStream(auditConversationId);
+          this.providers.abortStream(auditConversationId);
           reject(new Error(`Audit timed out after ${AUDIT_TIMEOUT_MS / 1000}s`));
         }, AUDIT_TIMEOUT_MS);
       });
@@ -219,7 +219,7 @@ export class AuditService implements IAuditService {
     onEvent({ type: 'callStart', agentName: 'Verity', model: appSettings.model, bookSlug });
     onEvent({ type: 'status', message: `Fixing ${auditResult.violations.length} violations in ${chapterSlug}…` });
 
-    const cliPromise = this.claude.sendMessage({
+    const cliPromise = this.providers.sendMessage({
       model: appSettings.model, // Opus for fix pass — needs creative judgment
       systemPrompt,
       messages: [{ role: 'user' as const, content: userMessage }],
@@ -261,7 +261,7 @@ export class AuditService implements IAuditService {
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        this.claude.abortStream(fixConversationId);
+        this.providers.abortStream(fixConversationId);
         reject(new Error(`Fix pass timed out after ${FIX_TIMEOUT_MS / 1000}s`));
       }, FIX_TIMEOUT_MS);
     });
@@ -322,7 +322,7 @@ export class AuditService implements IAuditService {
     onEvent({ type: 'callStart', agentName: 'Lumen', model: appSettings.model, bookSlug });
     onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript…' });
 
-    await this.claude.sendMessage({
+    await this.providers.sendMessage({
       model: appSettings.model,
       systemPrompt,
       messages: [{ role: 'user' as const, content: 'Run the motif/phrase audit now. Read every chapter, build the inventory, and update the flaggedPhrases section in source/motif-ledger.json.' }],

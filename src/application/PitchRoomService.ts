@@ -1,6 +1,6 @@
 import type {
   IAgentService,
-  IClaudeClient,
+  IProviderRegistry,
   IDatabaseService,
   IFileSystemService,
   IPitchRoomService,
@@ -22,7 +22,7 @@ import { resolveThinkingBudget } from './thinkingBudget';
 export class PitchRoomService implements IPitchRoomService {
   constructor(
     private agents: IAgentService,
-    private claude: IClaudeClient,
+    private providers: IProviderRegistry,
     private db: IDatabaseService,
     private fs: IFileSystemService,
     private streamManager: StreamManager,
@@ -89,7 +89,7 @@ export class PitchRoomService implements IPitchRoomService {
 
     onEvent({ type: 'status', message: randomWaitingStatus() });
 
-    await this.claude.sendMessage({
+    await this.providers.sendMessage({
       model: appSettings.model,
       systemPrompt,
       messages: conversationMessages,

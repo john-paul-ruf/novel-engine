@@ -5,7 +5,7 @@ import type {
   IHotTakeService,
   IPitchRoomService,
   IChapterValidator,
-  IClaudeClient,
+  IProviderRegistry,
   IDatabaseService,
   IFileSystemService,
   ISettingsService,
@@ -51,7 +51,7 @@ export class ChatService implements IChatService {
     private settings: ISettingsService,
     private agents: IAgentService,
     private db: IDatabaseService,
-    private claude: IClaudeClient,
+    private providers: IProviderRegistry,
     private fs: IFileSystemService,
     private chapterValidator: IChapterValidator,
     private pitchRoom: IPitchRoomService,
@@ -62,9 +62,9 @@ export class ChatService implements IChatService {
 
   isCliIdle(bookSlug?: string): boolean {
     if (bookSlug) {
-      return !this.claude.hasActiveProcessesForBook(bookSlug);
+      return !this.providers.hasActiveProcessesForBook(bookSlug);
     }
-    return !this.claude.hasActiveProcesses();
+    return !this.providers.hasActiveProcesses();
   }
 
   /**
@@ -113,7 +113,7 @@ export class ChatService implements IChatService {
     const { agentName, message, conversationId, bookSlug, onEvent } = params;
 
     // Step 1: Check Claude CLI availability
-    const available = await this.claude.isAvailable();
+    const available = await this.providers.getDefaultProvider().isAvailable();
     if (!available) {
       onEvent({
         type: 'error',
@@ -280,7 +280,7 @@ export class ChatService implements IChatService {
 
       onEvent({ type: 'status', message: randomWaitingStatus() });
 
-      await this.claude.sendMessage({
+      await this.providers.sendMessage({
         model: appSettings.model,
         systemPrompt: assembled.systemPrompt,
         messages: assembled.conversationMessages,
@@ -367,7 +367,7 @@ export class ChatService implements IChatService {
    */
   abortStream(conversationId: string): void {
     // Kill the CLI child process
-    this.claude.abortStream(conversationId);
+    this.providers.abortStream(conversationId);
 
     // Clean up active stream state and save partial response
     const aborted = this.streamManager.cleanupAbortedStream(conversationId);

@@ -54,7 +54,9 @@ import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
 import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
+import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
+import { BUILT_IN_PROVIDER_CONFIGS } from '@domain/constants';
 
 // Application
 import { AuditService } from '@app/AuditService';
@@ -211,6 +213,35 @@ async function initializeApp(): Promise<void> {
   const fs = new FileSystemService(booksDir, userDataPath);
   const claudeClient = new ClaudeCodeClient(booksDir, db);
 
+  // 3b. Initialize provider registry
+  const providerRegistry = new ProviderRegistry(settings);
+
+  // Register the built-in Claude CLI provider
+  const appSettings = await settings.load();
+  const claudeConfig = appSettings.providers.find(p => p.id === 'claude-cli');
+  providerRegistry.registerProvider(
+    claudeClient,
+    claudeConfig ?? BUILT_IN_PROVIDER_CONFIGS[0],
+  );
+
+  // Initialize user-configured providers from settings
+  for (const config of appSettings.providers) {
+    if (config.id === 'claude-cli') continue;
+    if (!config.enabled) continue;
+
+    if (config.type === 'openai-compatible') {
+      const provider = new OpenAiCompatibleProvider(
+        config.id,
+        config.baseUrl ?? 'http://localhost:11434',
+        config.apiKey ?? '',
+        config.capabilities,
+      );
+      providerRegistry.registerProvider(provider, config);
+    }
+  }
+
+  providerRegistry.setDefaultProvider(appSettings.activeProviderId);
+
   // 3.5 Auto-reconcile any book folders whose name diverged from the
   //      title stored in about.json (e.g. after a direct on-disk edit).
   //      This runs once at startup before the window opens, so it is
@@ -228,14 +259,14 @@ async function initializeApp(): Promise<void> {
   const usage = new UsageService(db);
   const chapterValidator = new ChapterValidator(booksDir);
   const streamManager = new StreamManager(db, usage);
-  const audit = new AuditService(settings, agents, claudeClient, db, fs, usage);
-  const pitchRoom = new PitchRoomService(agents, claudeClient, db, fs, streamManager);
-  const hotTake = new HotTakeService(agents, claudeClient, db, fs, streamManager);
-  const adhocRevision = new AdhocRevisionService(agents, audit, claudeClient, db, fs, streamManager);
-  const chat = new ChatService(settings, agents, db, claudeClient, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager);
+  const audit = new AuditService(settings, agents, providerRegistry, db, fs, usage);
+  const pitchRoom = new PitchRoomService(agents, providerRegistry, db, fs, streamManager);
+  const hotTake = new HotTakeService(agents, providerRegistry, db, fs, streamManager);
+  const adhocRevision = new AdhocRevisionService(agents, audit, providerRegistry, db, fs, streamManager);
+  const chat = new ChatService(settings, agents, db, providerRegistry, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
-  const revisionQueue = new RevisionQueueService(fs, claudeClient, agents, db, settings);
+  const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings);
   const motifLedger = new MotifLedgerService(fs);
   const version = new VersionService(db, fs);
   const notifications = new NotificationManager(settings);
@@ -263,8 +294,7 @@ async function initializeApp(): Promise<void> {
   }
 
   // 5. Sync Electron native theme with user preference (affects window frame color)
-  const initialSettings = await settings.load();
-  nativeTheme.themeSource = initialSettings.theme === 'system' ? 'system' : initialSettings.theme;
+  nativeTheme.themeSource = appSettings.theme === 'system' ? 'system' : appSettings.theme;
 
   // 6. Register custom protocol handler for serving local assets to renderer
   protocol.handle('novel-asset', (request) => {
