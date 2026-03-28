@@ -4,6 +4,46 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — Full rebuild of GitHub Pages website (6 pages)
+
+### Summary
+
+Rebuilt the complete 6-page GitHub Pages site in `docs/`. Landing page (`index.html`) rebuilt with hero, 7 agent cards, 14-phase pipeline visualization, 10 feature cards, getting started guide, published books grid, and screenshot gallery. Architecture page (`architecture.html`) rebuilt with CSS-based 5-layer diagram, 14-row tech stack table, service dependency graph, 6 design decision cards, 7-table schema overview, annotated source tree, and contributing guide. Changelog page (`changelog.html`) built from scratch — parsed all 52 CHANGELOG.md entries into collapsible `<details>` elements with categorized sections, summary stats (52 entries, 136 source files), and a 6-item highlight reel. Press page (`press.html`) built from scratch — quotable pitch, 8 differentiator cards, published books grid with Amazon links, evaluation callout (7.0–9.4/10), 8 stats cards (7 agents, 14 phases, 80+ IPC channels, 136 files, ~31K LOC, 17 stores, 7 tables, 5 novels), 5 quotable lines, 5 asset links, and contact block. Contact page (`contact.html`) built from scratch — 3 contact cards, 5-step contribution flow, 6 architecture rules, 4 bug report fields, testers-wanted callout with platform badges, and AGPL-3.0 license block. Evaluation page (`evaluation.html`) left untouched — already has nav/footer from prior session. All pages share identical design tokens, sticky nav with hamburger mobile menu, 3-column footer, IntersectionObserver fade-up animations, and responsive breakpoints (1050px, 760px). No external CSS, no JS frameworks, no tracking.
+
+### Added
+- `docs/changelog.html` — Full formatted changelog with 52 collapsible entries, stats, and highlight reel
+- `docs/press.html` — Press kit with pitch, differentiators, books, stats, quotes, assets, contact
+- `docs/contact.html` — Contact cards, contribution guide, bug reporting, testers-wanted, license
+
+### Changed
+- `docs/index.html` — Rebuilt with updated feature cards (Manuscript Import added), corrected stats (17 stores, 136 files), updated screenshots
+- `docs/architecture.html` — Rebuilt with current source tree, updated dependency graph, corrected file/store/table counts
+
+### Architecture Impact
+None — website assets only, no source code changes
+
+### Migration Notes
+None
+
+---
+
+## [2026-03-28] — README deep update from source code analysis
+
+### Summary
+
+Comprehensive rewrite of `README.md` based on a full audit of every source file across all five architecture layers. Every feature, type, service, pipeline phase, agent, and IPC channel was verified against actual code. New features added: Manuscript Import, Source Generation, CLI Activity Monitor, Modal Chat, File Version History, File Watchers, OS Notifications, Book Management (archive/unarchive/covers/catalog export), Multi-Model Provider Support, Chapter Validation. Source tree updated to reflect current 136-file codebase including `import/` subdirectories, `importStore.ts`, and all 17 Zustand stores. Store count corrected from 16 to 17. Application service list updated to include ManuscriptImportService and SourceGenerationService. Removed `VERITY-LEGACY.md` from the custom-agents listing (it's excluded from restoration).
+
+### Changed
+- `README.md` — Full rewrite. Verified all 7 agents against `constants.ts`. Verified all 14 pipeline phases against `PipelineService.ts`. Verified all npm scripts against `package.json`. Verified tech stack versions. Updated src/ tree to include `import/ChapterDetector.ts`, `ManuscriptImportService.ts`, `SourceGenerationService.ts`, `Import/` components, `importStore.ts`. Added 8 new Key Features sections (Manuscript Import, CLI Activity Monitor, Modal Chat, File Version History, File Watchers, OS Notifications, Book Management, Multi-Model Provider Support, Chapter Validation). Corrected store count to 17. Corrected application service listing. Preserved Dedication, Book list, and Testers Needed sections verbatim.
+
+### Architecture Impact
+None — no wiring changes.
+
+### Migration Notes
+None
+
+---
+
 ## [2026-03-28] — CLI-based motif ledger schema normalization
 
 ### Summary

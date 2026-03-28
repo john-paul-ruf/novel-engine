@@ -8,7 +8,8 @@
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/architecture.html">
     <meta property="og:type" content="website">
-    <title>Novel Engine — Architecture & Technical Docs</title>
+    <meta name="description" content="Technical architecture of Novel Engine. 5-layer clean architecture, dependency injection, streaming CLI integration, and full source tree.">
+    <title>Novel Engine — Architecture &amp; Technical Docs</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
@@ -37,55 +38,35 @@
         .mobile-menu a{display:block;padding:10px 0;color:var(--text2);text-decoration:none;font-size:14px;border-bottom:1px solid var(--border)}
         .mobile-menu a:last-child{border-bottom:none}
         .mobile-menu.open{display:block}
-
         .page{max-width:1200px;margin:0 auto;padding:44px 32px 64px}
         .breadcrumb{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:24px}
         .breadcrumb a{color:var(--accent);text-decoration:none}
         .breadcrumb a:hover{text-decoration:underline}
-
-        h1{font-family:'DM Serif Display',serif;font-size:42px;letter-spacing:-1px;margin-bottom:8px}
+        h1{font-family:'DM Serif Display',serif;font-size:36px;color:var(--text);letter-spacing:-0.6px;line-height:1.1;margin-bottom:8px}
         h1 span{color:var(--accent)}
-        .page-sub{color:var(--text3);font-size:15px;margin-bottom:48px;max-width:700px}
-
-        .section{padding:48px 0;border-top:1px solid var(--border)}
-        .section:first-of-type{border-top:none;padding-top:0}
-        .section h2{font-family:'DM Serif Display',serif;font-size:28px;letter-spacing:-0.4px;margin-bottom:8px}
-        .section h2 span{color:var(--accent)}
-        .section h3{font-size:18px;font-weight:600;margin:24px 0 12px}
-        .section-sub{color:var(--text3);font-size:14px;margin-bottom:24px}
-        .section p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
-
-        /* ── Layer Diagram ── */
-        .layer-diagram{display:flex;flex-direction:column;gap:4px;margin:24px 0 32px}
-        .layer-box{padding:16px 20px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;transition:border-color 0.2s}
-        .layer-box:hover{border-color:#3a3a44}
-        .layer-num{font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);min-width:60px}
-        .layer-name{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;min-width:160px}
-        .layer-desc{font-size:13px;color:var(--text3)}
-        .layer-arrow{text-align:center;color:var(--accent);font-size:14px;padding:2px 0}
-
-        /* ── Tables ── */
-        table{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:13px}
-        th{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
-        td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
-        tr:hover td{background:var(--surface)}
-        code{font-family:'Space Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:3px;color:var(--accent)}
-
-        /* ── Tree ── */
-        .tree{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin:16px 0 24px;overflow-x:auto}
-        .tree pre{font-family:'Space Mono',monospace;font-size:12px;line-height:1.7;color:var(--text2);white-space:pre;margin:0}
-        .tree-comment{color:var(--text3)}
-
-        /* ── Dep graph ── */
-        .dep-graph{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin:16px 0 24px}
-        .dep-graph pre{font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;color:var(--text2);white-space:pre;margin:0}
-
-        /* ── Cards ── */
-        .decision-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin:16px 0 24px}
-        .decision-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px}
-        .decision-card h4{font-size:14px;font-weight:600;margin-bottom:8px}
-        .decision-card p{font-size:13px;color:var(--text3);line-height:1.5;margin:0}
-
+        .page-sub{font-size:14px;color:var(--text3);margin-bottom:40px}
+        h2{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-0.3px;margin:48px 0 16px;padding-top:24px;border-top:1px solid var(--border)}
+        h2 span{color:var(--accent)}
+        h2:first-of-type{border-top:none;margin-top:0}
+        h3{font-size:16px;font-weight:600;margin:24px 0 12px;color:var(--text)}
+        p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+        .layer-diagram{display:flex;flex-wrap:wrap;gap:4px;margin:24px 0;align-items:center}
+        .layer-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 20px;text-align:center;flex:1;min-width:140px}
+        .layer-box .lnum{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:4px}
+        .layer-box .lname{font-size:14px;font-weight:600;margin-bottom:4px}
+        .layer-box .lpath{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)}
+        .layer-box .ldesc{font-size:12px;color:var(--text3);margin-top:6px}
+        .layer-arrow{color:var(--accent);font-size:16px;flex-shrink:0}
+        table{width:100%;border-collapse:collapse;margin:16px 0 24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+        th{text-align:left;font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
+        td{padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:top}
+        tr:last-child td{border-bottom:none}
+        code{font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px}
+        pre{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;overflow-x:auto;margin:16px 0 24px;font-family:'Space Mono',monospace;font-size:12px;color:var(--text2);line-height:1.6}
+        .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:16px 0 24px}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+        .card h4{font-size:14px;font-weight:600;margin-bottom:8px}
+        .card p{font-size:13px;color:var(--text3);line-height:1.5;margin-bottom:0}
         .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
         .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
         .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
@@ -94,28 +75,8 @@
         .footer-col a:hover{color:var(--accent)}
         .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
         .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
-
-        @media(max-width:1050px){
-            .decision-grid{grid-template-columns:1fr}
-            .footer-inner{grid-template-columns:1fr 1fr}
-        }
-        @media(max-width:760px){
-            .nav-inner{padding:0 14px}
-            .nav-links{display:none}
-            .hamburger{display:block}
-            .mobile-menu{padding:12px 14px}
-            .page{padding:24px 14px 48px}
-            h1{font-size:32px}
-            .layer-box{flex-direction:column;align-items:flex-start;gap:4px}
-            .layer-name{min-width:auto}
-            .footer-inner{grid-template-columns:1fr;padding:0 14px}
-            .footer-bottom{padding:16px 14px 0}
-            table{font-size:12px}
-            th,td{padding:8px 6px}
-        }
-
-        .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
-        .fade-up.visible{opacity:1;transform:translateY(0)}
+        @media(max-width:1050px){.footer-inner{grid-template-columns:1fr 1fr}.card-grid{grid-template-columns:1fr}}
+        @media(max-width:760px){.nav-inner{padding:0 14px}.nav-links{display:none}.hamburger{display:block}.mobile-menu{padding:12px 14px}.page{padding:24px 14px 40px}h1{font-size:28px}.layer-diagram{flex-direction:column}.layer-arrow{transform:rotate(90deg)}.footer-inner{grid-template-columns:1fr;padding:0 14px}.footer-bottom{padding:16px 14px 0}}
     </style>
 </head>
 <body>
@@ -156,334 +117,201 @@
     <div class="breadcrumb"><a href="index.html">Home</a> / Architecture</div>
 
     <h1>Architecture<span>.</span></h1>
-    <p class="page-sub">130 TypeScript/TSX source files across five clean architecture layers. Dependency injection, streaming CLI integration, and strict import boundaries.</p>
+    <p class="page-sub">136 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration.</p>
 
-    <!-- ═══ LAYERS ═══ -->
-    <section class="section fade-up">
-        <h2>The Five Layers<span>.</span></h2>
-        <p class="section-sub">Every file belongs to exactly one layer. Import rules are strictly enforced.</p>
+    <h2>Five-Layer Clean Architecture<span>.</span></h2>
+    <p>Every file belongs to exactly one layer. Import rules are strictly enforced — inner layers never depend on outer layers.</p>
+    <div class="layer-diagram">
+        <div class="layer-box"><div class="lnum">LAYER 1</div><div class="lname">Domain</div><div class="lpath">src/domain/</div><div class="ldesc">Pure types. Zero imports. Everything depends on this.</div></div>
+        <div class="layer-arrow">←</div>
+        <div class="layer-box"><div class="lnum">LAYER 2</div><div class="lname">Infrastructure</div><div class="lpath">src/infrastructure/</div><div class="ldesc">Implements domain interfaces. Isolated modules.</div></div>
+        <div class="layer-arrow">←</div>
+        <div class="layer-box"><div class="lnum">LAYER 3</div><div class="lname">Application</div><div class="lpath">src/application/</div><div class="ldesc">Orchestrates infrastructure through injected interfaces.</div></div>
+        <div class="layer-arrow">←</div>
+        <div class="layer-box"><div class="lnum">LAYER 4</div><div class="lname">Main / IPC</div><div class="lpath">src/main/ + src/preload/</div><div class="ldesc">Composition root + thin IPC adapters.</div></div>
+        <div class="layer-arrow">←</div>
+        <div class="layer-box"><div class="lnum">LAYER 5</div><div class="lname">Renderer</div><div class="lpath">src/renderer/</div><div class="ldesc">React + Zustand. Preload bridge only.</div></div>
+    </div>
 
-        <div class="layer-diagram">
-            <div class="layer-box" style="border-left:3px solid var(--accent)">
-                <div class="layer-num">LAYER 1</div>
-                <div class="layer-name" style="color:var(--accent)">Domain</div>
-                <div class="layer-desc"><code>src/domain/</code> — Pure types, interfaces, constants. Zero imports. Everything depends on this.</div>
-            </div>
-            <div class="layer-arrow">↑ imports from</div>
-            <div class="layer-box" style="border-left:3px solid var(--blue)">
-                <div class="layer-num">LAYER 2</div>
-                <div class="layer-name" style="color:var(--blue)">Infrastructure</div>
-                <div class="layer-desc"><code>src/infrastructure/</code> — Implements domain interfaces. Isolated modules: database, filesystem, CLI client, settings, agents, providers, Pandoc.</div>
-            </div>
-            <div class="layer-arrow">↑ imports from</div>
-            <div class="layer-box" style="border-left:3px solid var(--teal)">
-                <div class="layer-num">LAYER 3</div>
-                <div class="layer-name" style="color:var(--teal)">Application</div>
-                <div class="layer-desc"><code>src/application/</code> — Orchestrates infrastructure through injected interfaces. 14 services.</div>
-            </div>
-            <div class="layer-arrow">↑ imports from</div>
-            <div class="layer-box" style="border-left:3px solid var(--orange)">
-                <div class="layer-num">LAYER 4</div>
-                <div class="layer-name" style="color:var(--orange)">Main / IPC</div>
-                <div class="layer-desc"><code>src/main/</code> + <code>src/preload/</code> — Composition root (the only place concrete classes are instantiated) + thin IPC adapters.</div>
-            </div>
-            <div class="layer-arrow">↑ imports from</div>
-            <div class="layer-box" style="border-left:3px solid var(--magenta)">
-                <div class="layer-num">LAYER 5</div>
-                <div class="layer-name" style="color:var(--magenta)">Renderer</div>
-                <div class="layer-desc"><code>src/renderer/</code> — React + Zustand. 16 stores. Talks to backend only through the <code>window.novelEngine</code> preload bridge.</div>
-            </div>
-        </div>
-    </section>
+    <h2>Technology Stack<span>.</span></h2>
+    <table>
+        <tr><th>Layer</th><th>Technology</th><th>Version</th></tr>
+        <tr><td>Shell</td><td>Electron</td><td>33.4.0</td></tr>
+        <tr><td>Bundler</td><td>Vite (via Electron Forge)</td><td>^5.4.21</td></tr>
+        <tr><td>Framework</td><td>React</td><td>^18.3.0</td></tr>
+        <tr><td>Language</td><td>TypeScript</td><td>~5.5.0</td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS</td><td>^4.0.0</td></tr>
+        <tr><td>State</td><td>Zustand</td><td>^5.0.0</td></tr>
+        <tr><td>Database</td><td>better-sqlite3</td><td>^11.0.0</td></tr>
+        <tr><td>AI Backend</td><td>Claude Code CLI</td><td>(system-installed)</td></tr>
+        <tr><td>Build</td><td>Pandoc</td><td>(bundled binary)</td></tr>
+        <tr><td>IDs</td><td>nanoid</td><td>3</td></tr>
+        <tr><td>Markdown</td><td>marked</td><td>^15.0.0</td></tr>
+        <tr><td>Diff</td><td>diff</td><td>^8.0.4</td></tr>
+        <tr><td>Archive</td><td>archiver</td><td>^7.0.1</td></tr>
+        <tr><td>Build Tool</td><td>Electron Forge</td><td>^7.11.1</td></tr>
+    </table>
 
-    <!-- ═══ TECH STACK ═══ -->
-    <section class="section fade-up">
-        <h2>Tech Stack<span>.</span></h2>
-        <table>
-            <thead><tr><th>Layer</th><th>Technology</th><th>Version</th></tr></thead>
-            <tbody>
-                <tr><td>Shell</td><td>Electron via Electron Forge</td><td>33.4</td></tr>
-                <tr><td>Bundler</td><td>Vite (Forge plugin)</td><td>5.x</td></tr>
-                <tr><td>UI</td><td>React + TypeScript</td><td>18.3 / ~5.5</td></tr>
-                <tr><td>Styling</td><td>Tailwind CSS + Typography plugin</td><td>4.x</td></tr>
-                <tr><td>State</td><td>Zustand</td><td>5.x</td></tr>
-                <tr><td>Database</td><td>better-sqlite3</td><td>11.x</td></tr>
-                <tr><td>AI Backend</td><td>Claude Code CLI + OpenAI-compatible endpoints</td><td>(spawned / fetched)</td></tr>
-                <tr><td>Manuscript Export</td><td>Pandoc (bundled binary)</td><td>—</td></tr>
-                <tr><td>Diffing</td><td>diff (jsdiff)</td><td>8.x</td></tr>
-                <tr><td>IDs</td><td>nanoid</td><td>3.x</td></tr>
-                <tr><td>Markdown</td><td>marked</td><td>15.x</td></tr>
-                <tr><td>Archive Export</td><td>archiver</td><td>7.x</td></tr>
-                <tr><td>IPC</td><td>Electron contextBridge + ipcMain/ipcRenderer</td><td>—</td></tr>
-            </tbody>
-        </table>
-    </section>
+    <h2>Service Dependency Graph<span>.</span></h2>
+    <p>All services are composed in <code>src/main/index.ts</code> (the composition root) and injected via constructors. No DI container — plain constructor injection.</p>
+    <pre>SettingsService(userDataPath)
+DatabaseService(dbPath)
+AgentService(agentsDir)
+FileSystemService(booksDir, userDataPath)
+ClaudeCodeClient(booksDir, db)
+ProviderRegistry(settingsService)
 
-    <!-- ═══ SERVICE DEPENDENCY GRAPH ═══ -->
-    <section class="section fade-up">
-        <h2>Service Dependency Graph<span>.</span></h2>
-        <p class="section-sub">Composition root: <code>src/main/index.ts</code>. All services depend on interfaces, not concrete classes.</p>
+UsageService → IDatabaseService
+ChapterValidator(booksDir)
 
-        <div class="dep-graph">
-<pre>ChatService
-├── ISettingsService (SettingsService)
-├── IAgentService (AgentService)
-├── IDatabaseService (DatabaseService)
-├── IProviderRegistry (ProviderRegistry)
-├── IContextBuilder (ContextBuilder)
-├── IPitchRoomService (PitchRoomService)
-├── IHotTakeService (HotTakeService)
-├── IAdhocRevisionService (AdhocRevisionService)
-└── StreamManager (shared)
-
-PitchRoomService
+ChatService
 ├── ISettingsService
 ├── IAgentService
 ├── IDatabaseService
 ├── IProviderRegistry
-├── IFileSystemService (FileSystemService)
-└── StreamManager (shared)
+├── IFileSystemService
+├── UsageService
+└── ChapterValidator
 
-HotTakeService
-├── ISettingsService
-├── IAgentService
-├── IDatabaseService
-├── IProviderRegistry
-└── StreamManager (shared)
-
-AdhocRevisionService
-├── ISettingsService
-├── IAgentService
-├── IDatabaseService
-├── IProviderRegistry
-└── StreamManager (shared)
-
-AuditService
-├── ISettingsService
-├── IAgentService
-├── IDatabaseService
-├── IProviderRegistry
-└── StreamManager (shared)
+PipelineService → IFileSystemService
+BuildService → IFileSystemService, pandocPath, booksDir
 
 RevisionQueueService
+├── IFileSystemService
+├── IProviderRegistry
+├── IAgentService
+├── IDatabaseService
+└── ISettingsService
+
+MotifLedgerService → IFileSystemService, IProviderRegistry
+VersionService → IDatabaseService, IFileSystemService
+ManuscriptImportService → IFileSystemService, pandocPath
+SourceGenerationService
 ├── ISettingsService
 ├── IAgentService
 ├── IDatabaseService
-├── IProviderRegistry
 ├── IFileSystemService
-└── StreamManager (shared)
+└── IProviderRegistry
 
-PipelineService
-├── IFileSystemService
-└── IDatabaseService
+NotificationManager → ISettingsService
+BookWatcher(booksDir, callback)
+BooksDirWatcher(booksDir, callback)</pre>
 
-BuildService
-├── IFileSystemService
-└── ISettingsService
-
-VersionService
-├── IDatabaseService
-└── IFileSystemService
-
-ProviderRegistry
-├── ISettingsService
-├── ClaudeCodeClient (built-in)
-└── OpenAiCompatibleProvider[] (user-configured)</pre>
+    <h2>Key Design Decisions<span>.</span></h2>
+    <div class="card-grid">
+        <div class="card">
+            <h4>Constructor Injection</h4>
+            <p>No DI container. Services depend on interfaces, not concrete classes. The composition root in <code>src/main/index.ts</code> is the only place concrete classes are instantiated.</p>
         </div>
-    </section>
-
-    <!-- ═══ KEY DESIGN DECISIONS ═══ -->
-    <section class="section fade-up">
-        <h2>Key Design Decisions<span>.</span></h2>
-        <div class="decision-grid">
-            <div class="decision-card">
-                <h4>Constructor Injection</h4>
-                <p>No DI container. Services declare interfaces in their constructor. The composition root in <code>src/main/index.ts</code> instantiates concrete classes and wires everything.</p>
-            </div>
-            <div class="decision-card">
-                <h4>No API Keys Stored</h4>
-                <p>The Claude Code CLI handles its own authentication through the Anthropic subscription. The app stores no secrets. OpenAI-compatible providers store API keys in user settings only.</p>
-            </div>
-            <div class="decision-card">
-                <h4>Multi-Model Provider Architecture</h4>
-                <p>A <code>ProviderRegistry</code> routes model requests to the correct provider. Built-in Claude CLI + any number of OpenAI-compatible endpoints. Capability-aware: providers declare what they support.</p>
-            </div>
-            <div class="decision-card">
-                <h4>Streaming CLI Integration</h4>
-                <p>Claude Code CLI outputs NDJSON events. The client parses text deltas, thinking blocks, tool use, and result events. Batched DB persistence (100ms flush, max 20 events) reduces I/O pressure.</p>
-            </div>
-            <div class="decision-card">
-                <h4>Budget-Aware Context Assembly</h4>
-                <p>Every agent call builds context using a token budget. Per-agent read guidance, file manifests with word counts, and dynamic conversation compaction (generous → moderate → tight → critical).</p>
-            </div>
-            <div class="decision-card">
-                <h4>File Version History</h4>
-                <p>Every file write is automatically snapshotted in SQLite with SHA-256 dedup. Structured diffs via the <code>diff</code> library. One-click revert with audit trail. Version pruning prevents unbounded storage.</p>
-            </div>
+        <div class="card">
+            <h4>No API Keys</h4>
+            <p>Claude Code CLI handles its own authentication through the user's Anthropic subscription. The app stores no secrets. Additional OpenAI-compatible providers manage their own keys.</p>
         </div>
-    </section>
-
-    <!-- ═══ DATABASE SCHEMA ═══ -->
-    <section class="section fade-up">
-        <h2>Database Schema<span>.</span></h2>
-        <p class="section-sub">Seven SQLite tables. WAL mode. Foreign keys enabled. Forward-only migration system.</p>
-
-        <table>
-            <thead><tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr></thead>
-            <tbody>
-                <tr><td><code>conversations</code></td><td>All agent conversations per book</td><td>id, book_slug, agent_name, pipeline_phase, purpose, title, timestamps</td></tr>
-                <tr><td><code>messages</code></td><td>Individual messages with thinking blocks</td><td>id, conversation_id, role, content, thinking, timestamps</td></tr>
-                <tr><td><code>token_usage</code></td><td>Per-call token counts by model</td><td>id, conversation_id, model, input_tokens, output_tokens, thinking_tokens</td></tr>
-                <tr><td><code>stream_events</code></td><td>Persisted stream events for replay/recovery</td><td>id, call_id, conversation_id, event_type, data, timestamp</td></tr>
-                <tr><td><code>stream_sessions</code></td><td>CLI invocations for orphan detection</td><td>id, call_id, conversation_id, book_slug, agent_name, status, timestamps</td></tr>
-                <tr><td><code>file_versions</code></td><td>Content snapshots with SHA-256 dedup</td><td>id, book_slug, file_path, content, content_hash, byte_size, source, created_at</td></tr>
-                <tr><td><code>schema_version</code></td><td>Migration tracking</td><td>version, applied_at, description</td></tr>
-            </tbody>
-        </table>
-    </section>
-
-    <!-- ═══ SOURCE TREE ═══ -->
-    <section class="section fade-up">
-        <h2>Source Tree<span>.</span></h2>
-        <p class="section-sub">130 TypeScript/TSX files. Every file has a single responsibility.</p>
-
-        <div class="tree">
-<pre>src/
-├── domain/                              <span class="tree-comment"># LAYER 1: Pure types, zero imports</span>
-│   ├── types.ts                         <span class="tree-comment"># All shared type definitions (60+ types)</span>
-│   ├── interfaces.ts                    <span class="tree-comment"># Service contracts (11+ interfaces)</span>
-│   ├── constants.ts                     <span class="tree-comment"># Agent registry, pipeline phases, defaults</span>
-│   ├── statusMessages.ts               <span class="tree-comment"># Rotating fun status messages for UI</span>
-│   └── index.ts                         <span class="tree-comment"># Barrel export</span>
-│
-├── infrastructure/                      <span class="tree-comment"># LAYER 2: Implements domain interfaces</span>
-│   ├── settings/
-│   │   ├── SettingsService.ts           <span class="tree-comment"># Settings persistence, CLI detection</span>
-│   │   └── index.ts
-│   ├── database/
-│   │   ├── schema.ts                    <span class="tree-comment"># SQLite schema, WAL mode, foreign keys</span>
-│   │   ├── migrations.ts               <span class="tree-comment"># Forward-only schema migrations</span>
-│   │   ├── DatabaseService.ts           <span class="tree-comment"># All query methods with prepared statements</span>
-│   │   └── index.ts
-│   ├── agents/
-│   │   ├── AgentService.ts              <span class="tree-comment"># Loads .md prompts, composite assembly</span>
-│   │   └── index.ts
-│   ├── filesystem/
-│   │   ├── FileSystemService.ts         <span class="tree-comment"># Book CRUD, file I/O, pitches, covers</span>
-│   │   ├── BookWatcher.ts               <span class="tree-comment"># Watches active book for changes</span>
-│   │   ├── BooksDirWatcher.ts           <span class="tree-comment"># Watches books/ for new/removed books</span>
-│   │   └── index.ts
-│   ├── claude-cli/
-│   │   ├── ClaudeCodeClient.ts          <span class="tree-comment"># CLI wrapper, streaming, tool tracking</span>
-│   │   ├── StreamSessionTracker.ts      <span class="tree-comment"># Progress stage inference</span>
-│   │   └── index.ts
-│   ├── providers/
-│   │   ├── ProviderRegistry.ts          <span class="tree-comment"># Central model→provider routing hub</span>
-│   │   ├── OpenAiCompatibleProvider.ts  <span class="tree-comment"># BYOK provider for OpenAI endpoints</span>
-│   │   └── index.ts
-│   └── pandoc/
-│       └── index.ts                     <span class="tree-comment"># Pandoc binary path resolution</span>
-│
-├── application/                         <span class="tree-comment"># LAYER 3: Business logic via injected interfaces</span>
-│   ├── ChatService.ts                   <span class="tree-comment"># Send → stream → save orchestration</span>
-│   ├── ContextBuilder.ts                <span class="tree-comment"># Budget-aware context assembly</span>
-│   ├── PipelineService.ts               <span class="tree-comment"># Phase detection + confirmation gates</span>
-│   ├── BuildService.ts                  <span class="tree-comment"># Pandoc execution for DOCX/EPUB</span>
-│   ├── UsageService.ts                  <span class="tree-comment"># Token tracking</span>
-│   ├── RevisionQueueService.ts          <span class="tree-comment"># Revision plan parsing + execution</span>
-│   ├── ChapterValidator.ts              <span class="tree-comment"># Auto-corrects misplaced chapter files</span>
-│   ├── AuditService.ts                  <span class="tree-comment"># Verity audit/fix pipeline</span>
-│   ├── PitchRoomService.ts              <span class="tree-comment"># Pitch Room message handling</span>
-│   ├── HotTakeService.ts                <span class="tree-comment"># Ghostlight hot-take orchestration</span>
-│   ├── AdhocRevisionService.ts          <span class="tree-comment"># Direct feedback → Forge</span>
-│   ├── StreamManager.ts                 <span class="tree-comment"># Stream lifecycle, session tracking</span>
-│   ├── MotifLedgerService.ts            <span class="tree-comment"># Motif ledger CRUD</span>
-│   ├── VersionService.ts                <span class="tree-comment"># File versioning: snapshot, diff, revert</span>
-│   ├── thinkingBudget.ts                <span class="tree-comment"># Thinking budget resolution</span>
-│   ├── index.ts                         <span class="tree-comment"># Barrel export</span>
-│   └── context/
-│       └── TokenEstimator.ts            <span class="tree-comment"># ~4 chars/token estimation</span>
-│
-├── main/                                <span class="tree-comment"># LAYER 4: Electron main process</span>
-│   ├── index.ts                         <span class="tree-comment"># COMPOSITION ROOT</span>
-│   ├── bootstrap.ts                     <span class="tree-comment"># First-run directory/file creation</span>
-│   ├── notifications.ts                 <span class="tree-comment"># OS notification manager</span>
-│   └── ipc/
-│       └── handlers.ts                  <span class="tree-comment"># Thin adapter: IPC channel → service</span>
-│
-├── preload/
-│   └── index.ts                         <span class="tree-comment"># contextBridge: typed API for renderer</span>
-│
-└── renderer/                            <span class="tree-comment"># LAYER 5: React UI</span>
-    ├── App.tsx                          <span class="tree-comment"># Root component, onboarding gate</span>
-    ├── main.tsx                         <span class="tree-comment"># React 18 createRoot entry</span>
-    ├── stores/ (16 stores)              <span class="tree-comment"># Zustand state management</span>
-    │   ├── settingsStore, bookStore, chatStore, pipelineStore,
-    │   ├── viewStore, pitchRoomStore, pitchShelfStore, revisionQueueStore,
-    │   ├── modalChatStore, cliActivityStore, autoDraftStore,
-    │   ├── fileChangeStore, motifLedgerStore, providerStore,
-    │   ├── versionStore, streamHandler
-    │   └── ...
-    ├── components/                      <span class="tree-comment"># 50+ React components</span>
-    │   ├── Layout/                      <span class="tree-comment"># AppLayout, Sidebar, TitleBar, ResizeHandle</span>
-    │   ├── Onboarding/                  <span class="tree-comment"># OnboardingWizard</span>
-    │   ├── Settings/                    <span class="tree-comment"># SettingsView, ProviderSection</span>
-    │   ├── Sidebar/                     <span class="tree-comment"># BookSelector, PipelineTracker, FileTree, ...</span>
-    │   ├── Chat/                        <span class="tree-comment"># ChatView, ChatInput, MessageBubble, ...</span>
-    │   ├── PitchRoom/                   <span class="tree-comment"># PitchRoomView</span>
-    │   ├── Files/                       <span class="tree-comment"># FilesView, FileEditor, VersionHistoryPanel, DiffViewer, ...</span>
-    │   ├── Build/                       <span class="tree-comment"># BuildView</span>
-    │   ├── RevisionQueue/               <span class="tree-comment"># RevisionQueueView, SessionCard, QueueControls, ...</span>
-    │   ├── MotifLedger/                 <span class="tree-comment"># MotifLedgerView + 7 tab panels</span>
-    │   ├── CliActivity/                 <span class="tree-comment"># CliActivityPanel</span>
-    │   └── ErrorBoundary/               <span class="tree-comment"># ErrorBoundary</span>
-    ├── hooks/                           <span class="tree-comment"># useTheme, useRotatingStatus, useResizeHandle, ...</span>
-    └── styles/
-        └── globals.css                  <span class="tree-comment"># Tailwind v4 import</span></pre>
+        <div class="card">
+            <h4>Multi-Model Provider Registry</h4>
+            <p>Central <code>ProviderRegistry</code> routes model requests to the correct provider. O(1) reverse model index. Protects built-in providers from deletion. Config persisted to settings.json.</p>
         </div>
-    </section>
+        <div class="card">
+            <h4>Streaming CLI Integration</h4>
+            <p>Claude CLI spawned as child process with <code>--output-format stream-json</code>. NDJSON events parsed line-by-line and mapped to a 12-variant <code>StreamEvent</code> discriminated union.</p>
+        </div>
+        <div class="card">
+            <h4>Context Budget System</h4>
+            <p>Per-agent read guidance determines which files to include. Dynamic conversation compaction based on available context window: generous (all turns), moderate (8), tight (4), critical (2).</p>
+        </div>
+        <div class="card">
+            <h4>File Version History</h4>
+            <p>Every file write (agent or user) creates a snapshot in SQLite. SHA-256 dedup prevents duplicate storage. Structured diffs via the <code>diff</code> library. One-click revert with audit trail.</p>
+        </div>
+    </div>
 
-    <!-- ═══ CONTRIBUTING ═══ -->
-    <section class="section fade-up">
-        <h2>Contributing<span>.</span></h2>
+    <h2>Database Schema<span>.</span></h2>
+    <p>7 tables in SQLite with WAL mode and foreign keys enabled. Forward-only migration system via <code>src/infrastructure/database/migrations.ts</code>.</p>
+    <table>
+        <tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr>
+        <tr><td><code>conversations</code></td><td>Chat conversations per book/agent</td><td>id, book_slug, agent_name, pipeline_phase, purpose, title</td></tr>
+        <tr><td><code>messages</code></td><td>Message history with thinking</td><td>id, conversation_id (FK), role, content, thinking</td></tr>
+        <tr><td><code>token_usage</code></td><td>Token consumption per call</td><td>conversation_id (FK), input/output/thinking tokens, model</td></tr>
+        <tr><td><code>stream_events</code></td><td>Persisted stream events for replay</td><td>session_id, sequence_number, event_type, payload</td></tr>
+        <tr><td><code>stream_sessions</code></td><td>CLI call lifecycle tracking</td><td>id, conversation_id, agent_name, model, ended_at, interrupted</td></tr>
+        <tr><td><code>file_versions</code></td><td>File snapshots with dedup</td><td>book_slug, file_path, content, content_hash, source</td></tr>
+        <tr><td><code>schema_version</code></td><td>Migration tracking</td><td>version, applied_at, description</td></tr>
+    </table>
 
-        <h3>Prerequisites</h3>
-        <p>Node.js 20+, Claude Code CLI (installed, authenticated, on PATH), npm 9+.</p>
+    <h2>Source Tree<span>.</span></h2>
+    <pre>src/
+├── domain/                              # Pure types, zero imports
+│   ├── types.ts                         # All shared type definitions
+│   ├── interfaces.ts                    # Service contracts (ports)
+│   ├── constants.ts                     # Agent registry, pipeline phases, defaults
+│   ├── statusMessages.ts               # Rotating status messages
+│   └── index.ts                         # Barrel export
+│
+├── infrastructure/                      # Implements domain interfaces
+│   ├── settings/                        # SettingsService — JSON preferences
+│   ├── database/                        # DatabaseService + schema + migrations
+│   ├── agents/                          # AgentService — .md prompt loader
+│   ├── filesystem/                      # FileSystemService + BookWatcher + BooksDirWatcher
+│   ├── claude-cli/                      # ClaudeCodeClient + StreamSessionTracker
+│   ├── providers/                       # ProviderRegistry + OpenAiCompatibleProvider
+│   └── pandoc/                          # Pandoc binary path resolution
+│
+├── application/                         # Business logic via injected interfaces
+│   ├── ChatService.ts                   # Send → stream → save orchestration
+│   ├── ContextBuilder.ts                # Budget-aware context assembly
+│   ├── PipelineService.ts              # Phase detection + user confirmation gates
+│   ├── BuildService.ts                  # Pandoc execution for DOCX/EPUB
+│   ├── UsageService.ts                  # Token tracking
+│   ├── RevisionQueueService.ts          # Revision plan parsing + session execution
+│   ├── ChapterValidator.ts              # Auto-corrects misplaced chapter files
+│   ├── AuditService.ts                  # Verity audit/fix pipeline
+│   ├── PitchRoomService.ts              # Pitch Room message handling
+│   ├── HotTakeService.ts                # Ghostlight hot-take orchestration
+│   ├── AdhocRevisionService.ts          # Direct feedback → Forge revision plan
+│   ├── StreamManager.ts                 # Stream lifecycle + session tracking
+│   ├── MotifLedgerService.ts            # Motif ledger CRUD + CLI normalization
+│   ├── VersionService.ts                # File versioning (snapshot/diff/revert)
+│   ├── ManuscriptImportService.ts       # DOCX/MD import + chapter detection
+│   ├── SourceGenerationService.ts       # Multi-agent source doc generation
+│   ├── thinkingBudget.ts                # Thinking budget resolution
+│   └── context/TokenEstimator.ts        # ~4 chars/token estimation
+│
+├── main/                                # Electron main process
+│   ├── index.ts                         # Composition root
+│   ├── bootstrap.ts                     # First-run directory/file creation
+│   ├── notifications.ts                 # OS notification manager
+│   └── ipc/handlers.ts                  # Thin IPC adapter (80+ channels)
+│
+├── preload/index.ts                     # contextBridge: typed API for renderer
+│
+└── renderer/                            # React UI
+    ├── App.tsx                          # Root component, onboarding gate
+    ├── main.tsx                         # React 18 createRoot entry
+    ├── stores/ (16 stores)              # Zustand state management
+    ├── components/ (13 groups)          # Layout, Chat, Files, Build, PitchRoom,
+    │                                    # RevisionQueue, MotifLedger, Import, etc.
+    ├── hooks/ (5 hooks)                 # Resize, theme, events, status
+    └── styles/globals.css               # Tailwind CSS v4 base</pre>
 
-        <h3>Development Setup</h3>
-        <div class="tree">
-<pre>git clone https://github.com/john-paul-ruf/novel-engine.git
+    <h2>Contributing<span>.</span></h2>
+    <h3>Prerequisites</h3>
+    <p>Node.js 20+, npm 9+, <a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--accent)">Claude Code CLI</a> installed and authenticated.</p>
+    <h3>Development</h3>
+    <pre>git clone https://github.com/john-paul-ruf/novel-engine.git
 cd novel-engine
 npm install
 npm run download-pandoc
 npm start</pre>
-        </div>
-
-        <h3>Available Scripts</h3>
-        <table>
-            <thead><tr><th>Script</th><th>Purpose</th></tr></thead>
-            <tbody>
-                <tr><td><code>npm start</code></td><td>Start in development mode (Electron Forge + Vite HMR)</td></tr>
-                <tr><td><code>npm run package</code></td><td>Package the app (no installer)</td></tr>
-                <tr><td><code>npm run make</code></td><td>Build platform-specific installers</td></tr>
-                <tr><td><code>npm run download-pandoc</code></td><td>Download platform-specific Pandoc binary</td></tr>
-                <tr><td><code>npm run lint</code></td><td>Type-check with <code>tsc --noEmit</code></td></tr>
-                <tr><td><code>npm run clean</code></td><td>Remove build artifacts</td></tr>
-            </tbody>
-        </table>
-
-        <h3>Architecture Rules</h3>
-        <p>These are non-negotiable for contributions:</p>
-        <ul style="padding-left:20px;margin:12px 0">
-            <li style="color:var(--text2);margin-bottom:8px;font-size:14px">Domain imports from nothing. Infrastructure imports from domain only. Application depends on interfaces, not concrete classes.</li>
-            <li style="color:var(--text2);margin-bottom:8px;font-size:14px">No business logic in IPC handlers — they are one-liner delegations to services.</li>
-            <li style="color:var(--text2);margin-bottom:8px;font-size:14px">Renderer accesses backend only through <code>window.novelEngine</code>. May import types from domain, never values (except pure constants/functions).</li>
-            <li style="color:var(--text2);margin-bottom:8px;font-size:14px">Constructor injection for all services. The composition root is the only place concrete classes are instantiated.</li>
-            <li style="color:var(--text2);margin-bottom:8px;font-size:14px">Every infrastructure subdirectory gets a barrel export <code>index.ts</code>.</li>
-        </ul>
-
-        <p>Full architecture docs: <a href="https://github.com/john-paul-ruf/novel-engine/tree/main/docs/architecture" style="color:var(--accent)">docs/architecture/</a> on GitHub — ARCHITECTURE.md, DOMAIN.md, INFRASTRUCTURE.md, APPLICATION.md, IPC.md, RENDERER.md.</p>
-    </section>
+    <h3>Architecture Rules</h3>
+    <p>If you contribute, respect these non-negotiable rules:</p>
+    <ul style="padding-left:20px;margin-bottom:24px">
+        <li style="font-size:14px;color:var(--text2);margin-bottom:6px">Domain imports from <strong>nothing</strong>. Infrastructure imports from domain + npm. Application imports from domain interfaces only.</li>
+        <li style="font-size:14px;color:var(--text2);margin-bottom:6px">No business logic in IPC handlers — they are one-liner delegations to services.</li>
+        <li style="font-size:14px;color:var(--text2);margin-bottom:6px">Renderer accesses backend only through <code>window.novelEngine</code> (the preload bridge).</li>
+        <li style="font-size:14px;color:var(--text2);margin-bottom:6px">Barrel exports (<code>index.ts</code>) in every infrastructure subdirectory.</li>
+        <li style="font-size:14px;color:var(--text2);margin-bottom:6px">No <code>any</code> types. No API keys stored. <code>contextIsolation: true</code> always.</li>
+    </ul>
+    <p>Detailed architecture docs are maintained in the repo at <a href="https://github.com/john-paul-ruf/novel-engine/tree/main/docs/architecture" style="color:var(--accent)">docs/architecture/</a> — ARCHITECTURE.md, DOMAIN.md, INFRASTRUCTURE.md, APPLICATION.md, IPC.md, RENDERER.md.</p>
 </div>
 
 <footer class="site-footer">
@@ -513,10 +341,9 @@ npm start</pre>
 </footer>
 
 <script>
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
-}, { threshold: 0.1 });
-document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+document.querySelector('.hamburger').addEventListener('click', function() {
+    document.querySelector('.mobile-menu').classList.toggle('open');
+});
 </script>
 </body>
 </html>

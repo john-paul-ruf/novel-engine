@@ -8,6 +8,7 @@
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/">
     <meta property="og:type" content="website">
+    <meta name="description" content="Novel Engine is a desktop book-building pipeline powered by 7 AI editorial agents. Open source, local-first, no API keys for Claude.">
     <title>Novel Engine — Build Books, Not Write Them</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     <style>
@@ -20,7 +21,6 @@
         }
         body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
 
-        /* ── Nav ── */
         .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,12,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
         .nav-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px}
         .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
@@ -40,10 +40,8 @@
         .mobile-menu a:last-child{border-bottom:none}
         .mobile-menu.open{display:block}
 
-        /* ── Page ── */
         .page{max-width:1200px;margin:0 auto;padding:0 32px}
 
-        /* ── Hero ── */
         .hero{padding:80px 0 60px;text-align:center}
         .hero h1{font-family:'DM Serif Display',serif;font-size:56px;letter-spacing:-1.2px;line-height:1.1;margin-bottom:16px}
         .hero h1 span{color:var(--accent)}
@@ -58,14 +56,12 @@
         .hero-img{max-width:900px;width:100%;border-radius:12px;border:1px solid var(--border);margin:0 auto;display:block}
         .hero-caption{font-size:12px;color:var(--text3);margin-top:12px;font-style:italic}
 
-        /* ── Section ── */
         .section{padding:64px 0}
         .section-border{border-top:1px solid var(--border)}
         .section h2{font-family:'DM Serif Display',serif;font-size:32px;letter-spacing:-0.5px;margin-bottom:8px}
         .section h2 span{color:var(--accent)}
         .section .section-sub{color:var(--text3);font-size:14px;margin-bottom:36px}
 
-        /* ── Agent Cards ── */
         .agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
         .agent-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;transition:border-color 0.2s}
         .agent-card:hover{border-color:#3a3a44}
@@ -74,7 +70,6 @@
         .agent-desc{font-size:13px;color:var(--text3);line-height:1.5}
         .agent-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px}
 
-        /* ── Pipeline ── */
         .pipeline{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:24px}
         .phase{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;flex:1;min-width:120px;position:relative;transition:border-color 0.2s}
         .phase:hover{border-color:var(--accent)}
@@ -83,7 +78,6 @@
         .phase-agent{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px}
         .phase-arrow{color:var(--accent);font-size:18px;display:flex;align-items:center;flex-shrink:0}
 
-        /* ── Feature Cards ── */
         .features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
         .feature-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;transition:border-color 0.2s}
         .feature-card:hover{border-color:#3a3a44}
@@ -91,7 +85,6 @@
         .feature-card p{font-size:13px;color:var(--text3);line-height:1.5}
         .feature-tag{font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
 
-        /* ── Getting Started ── */
         .start-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}
         .start-section h3{font-size:18px;font-weight:600;margin-bottom:12px}
         .start-section p,.start-section li{font-size:14px;color:var(--text2);line-height:1.7}
@@ -103,14 +96,12 @@
         .steps li{counter-increment:step;list-style:none;position:relative;padding-left:32px;margin-bottom:12px}
         .steps li::before{content:counter(step);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);font-family:'Space Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;color:var(--accent)}
 
-        /* ── Books Grid ── */
         .books-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
         .book-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center;transition:border-color 0.2s;text-decoration:none;color:var(--text);display:block}
         .book-card:hover{border-color:var(--accent)}
         .book-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:8px}
         .book-link{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
 
-        /* ── Footer ── */
         .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
         .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
         .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
@@ -120,11 +111,15 @@
         .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
         .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
 
-        /* ── Responsive ── */
+        .screenshot-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px}
+        .screenshot-grid img{width:100%;border-radius:10px;border:1px solid var(--border)}
+        .screenshot-grid .cap{font-size:12px;color:var(--text3);margin-top:8px;font-style:italic;text-align:center}
+
         @media(max-width:1050px){
             .start-grid{grid-template-columns:1fr}
             .footer-inner{grid-template-columns:1fr 1fr}
             .features-grid{grid-template-columns:1fr}
+            .screenshot-grid{grid-template-columns:1fr}
         }
         @media(max-width:760px){
             .nav-inner{padding:0 14px}
@@ -144,14 +139,13 @@
             .agents-grid{grid-template-columns:1fr}
         }
 
-        /* ── Animations ── */
         .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
         .fade-up.visible{opacity:1;transform:translateY(0)}
     </style>
 </head>
 <body>
 
-<!-- ═══ NAV ═══ -->
+<!-- NAV -->
 <nav class="nav">
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
@@ -186,7 +180,7 @@
 
 <div class="page">
 
-    <!-- ═══ HERO ═══ -->
+    <!-- HERO -->
     <section class="hero">
         <h1>Novel Engine<span>.</span></h1>
         <div class="tagline">Build books, not write them.</div>
@@ -200,7 +194,7 @@
         <div class="hero-caption">Verity ghostwriting Chapter 21 during the First Draft phase — pipeline tracker on the left, real-time CLI activity on the right</div>
     </section>
 
-    <!-- ═══ THE 7 AGENTS ═══ -->
+    <!-- THE 7 AGENTS -->
     <section class="section section-border fade-up">
         <h2>The Seven Agents<span>.</span></h2>
         <p class="section-sub">Not one general AI — a team of specialists. Each agent has a distinct role, perspective, and editorial voice.</p>
@@ -228,27 +222,27 @@
             <div class="agent-card">
                 <div class="agent-name"><span class="agent-dot" style="background:var(--red)"></span>Sable</div>
                 <div class="agent-role">The Copy Editor</div>
-                <div class="agent-desc">Line-level precision — grammar, style consistency, mechanical errors. Produces the audit report, maintains the style sheet, and tracks motif consistency across the manuscript.</div>
+                <div class="agent-desc">Line-level polish: grammar, style consistency, mechanical errors. Produces the audit report and maintains the style sheet. Precision at the sentence level.</div>
             </div>
             <div class="agent-card">
                 <div class="agent-name"><span class="agent-dot" style="background:var(--orange)"></span>Forge</div>
                 <div class="agent-role">The Task Master</div>
-                <div class="agent-desc">Synthesizes reader and dev reports into a prioritized, phased revision plan with session-by-session execution prompts for Verity. Builds the actual revision queue.</div>
+                <div class="agent-desc">Synthesizes reader and dev reports into a prioritized, phased revision plan with session-by-session execution prompts for Verity. Also handles direct feedback revision plans.</div>
             </div>
             <div class="agent-card">
                 <div class="agent-name"><span class="agent-dot" style="background:var(--slate)"></span>Quill</div>
-                <div class="agent-role">The Query Crafter</div>
-                <div class="agent-desc">Audits the final manuscript and prepares publication metadata — title, description, keywords, BISAC categories, back-cover copy. Your publishing-ready package.</div>
+                <div class="agent-role">The Publisher</div>
+                <div class="agent-desc">Audits build outputs and generates publication metadata — title, description, keywords, BISAC categories, back-cover copy. The final quality gate.</div>
             </div>
         </div>
     </section>
 
-    <!-- ═══ THE PIPELINE ═══ -->
+    <!-- THE PIPELINE -->
     <section class="section section-border fade-up">
         <h2>The 14-Phase Pipeline<span>.</span></h2>
-        <p class="section-sub">A build process, not a chat session. Source material goes in, a production-ready manuscript comes out. Each phase has a completion gate the author explicitly confirms.</p>
+        <p class="section-sub">A structured build process from concept to published manuscript. Each phase has a designated agent, defined inputs and outputs, and a completion gate that you confirm before the next phase unlocks.</p>
         <div class="pipeline">
-            <div class="phase"><div class="phase-num">01</div><div class="phase-name">Pitch</div><div class="phase-agent">Spark</div></div>
+            <div class="phase"><div class="phase-num">01</div><div class="phase-name">Story Pitch</div><div class="phase-agent">Spark</div></div>
             <div class="phase-arrow">→</div>
             <div class="phase"><div class="phase-num">02</div><div class="phase-name">Scaffold</div><div class="phase-agent">Verity</div></div>
             <div class="phase-arrow">→</div>
@@ -264,86 +258,104 @@
             <div class="phase-arrow">→</div>
             <div class="phase"><div class="phase-num">08</div><div class="phase-name">Second Read</div><div class="phase-agent">Ghostlight</div></div>
             <div class="phase-arrow">→</div>
-            <div class="phase"><div class="phase-num">09</div><div class="phase-name">Second Assessment</div><div class="phase-agent">Lumen</div></div>
+            <div class="phase"><div class="phase-num">09</div><div class="phase-name">2nd Assessment</div><div class="phase-agent">Lumen</div></div>
             <div class="phase-arrow">→</div>
             <div class="phase"><div class="phase-num">10</div><div class="phase-name">Copy Edit</div><div class="phase-agent">Sable</div></div>
             <div class="phase-arrow">→</div>
             <div class="phase"><div class="phase-num">11</div><div class="phase-name">Fix Planning</div><div class="phase-agent">Forge</div></div>
             <div class="phase-arrow">→</div>
-            <div class="phase"><div class="phase-num">12</div><div class="phase-name">Mechanical Fixes</div><div class="phase-agent">Verity</div></div>
+            <div class="phase"><div class="phase-num">12</div><div class="phase-name">Mech. Fixes</div><div class="phase-agent">Verity</div></div>
             <div class="phase-arrow">→</div>
             <div class="phase"><div class="phase-num">13</div><div class="phase-name">Build</div><div class="phase-agent">Pandoc</div></div>
             <div class="phase-arrow">→</div>
             <div class="phase"><div class="phase-num">14</div><div class="phase-name">Publish</div><div class="phase-agent">Quill</div></div>
         </div>
+        <p style="font-size:13px;color:var(--text3)">Three user actions per phase: <strong style="color:var(--text2)">Advance</strong> (confirm completion), <strong style="color:var(--text2)">Done</strong> (manually mark complete), <strong style="color:var(--text2)">Revert</strong> (roll back).</p>
     </section>
 
-    <!-- ═══ KEY FEATURES ═══ -->
+    <!-- KEY FEATURES -->
     <section class="section section-border fade-up">
         <h2>Key Features<span>.</span></h2>
-        <p class="section-sub">Everything you need to go from idea to published manuscript.</p>
+        <p class="section-sub">Everything you need to build a novel from concept to export-ready manuscript.</p>
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-tag">Creative</div>
+                <div class="feature-tag">Brainstorm</div>
                 <h3>Pitch Room</h3>
-                <p>Free brainstorming space with Spark. Explore story ideas before committing. Shelve, restore, or convert pitches into full book projects with one click.</p>
+                <p>A free brainstorming space where you explore story ideas with Spark before committing to a book. Each pitch conversation gets its own draft folder. Promote to a book, shelve for later, or discard.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-tag">Voice</div>
-                <h3>Voice Profile</h3>
-                <p>A guided interview captures your sentence rhythm, vocabulary, dialogue style, emotional temperature, and tonal anchors. Verity writes in YOUR voice — not generic AI prose.</p>
+                <h3>Voice Profile System</h3>
+                <p>Before Verity writes a word, you establish a Voice Profile — capturing your sentence rhythm, vocabulary register, dialogue style, emotional temperature, and more through a guided interview. The AI writes in YOUR voice.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-tag">Automation</div>
                 <h3>Auto-Draft</h3>
-                <p>One click starts a loop where Verity writes chapters in sequence. Per-chapter quality audits catch issues in real-time. Motif audits run every 3 chapters to keep the motif ledger accurate.</p>
+                <p>One click starts a loop where Verity writes one chapter at a time — reading the scene outline, drafting prose, updating the story bible. Continues until every chapter is done. Includes integrated audit/fix passes.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-tag">Quality</div>
                 <h3>Verity Audit Pipeline</h3>
-                <p>Automated quality assurance after every agent interaction. A Sonnet-powered audit agent scans for editorial narration, anti-patterns, voice drift, and continuity errors. Fixes are applied automatically.</p>
+                <p>Automated QA after every agent interaction. A Sonnet-powered audit scans for editorial narration, flagged phrases, anti-patterns, and voice drift. Targeted fix pass auto-corrects moderate or heavy issues.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-tag">Tracking</div>
                 <h3>Motif Ledger</h3>
-                <p>Seven-panel structured tracker for recurring literary elements: motif systems, character entries, structural devices, foreshadowing, flagged phrases, and audit logs. Stored as JSON per book.</p>
+                <p>Structured tracking for recurring literary elements — motif systems, foreshadowing threads, structural devices, minor character motifs, flagged phrases, and audit logs. Seven-panel tabbed editor.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-tag">Revision</div>
                 <h3>Revision Queue</h3>
-                <p>Forge builds structured revision plans. The queue parses them into sessions and executes them through Verity with four modes: manual, auto-approve, auto-skip, and selective. Approval gates at every checkpoint.</p>
+                <p>Forge produces a revision plan; the queue parses it into structured sessions and executes them. Four modes: manual (approve each gate), auto-approve, auto-skip, or selective. Full task progress tracking.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-tag">Version Control</div>
+                <div class="feature-tag">History</div>
                 <h3>File Version History</h3>
-                <p>Every file written by an agent or saved by the user is automatically versioned in SQLite. Visual diff viewer, one-click revert, SHA-256 dedup, and source tracking (user, agent, or revert).</p>
+                <p>Every file written by an agent or saved by the user is automatically versioned in SQLite. SHA-256 dedup, visual diff viewer, one-click revert, source tracking (user/agent/revert), and version pruning.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-tag">Extensible</div>
-                <h3>Multi-Model Providers</h3>
-                <p>Ships with Claude Code CLI as the built-in provider. Add any OpenAI-compatible endpoint — OpenAI, Ollama, LM Studio, vLLM, Groq, Together. Provider management, status checking, and model routing from Settings.</p>
+                <div class="feature-tag">Providers</div>
+                <h3>Multi-Model Support</h3>
+                <p>Ships with Claude Code CLI as the built-in provider. Add OpenAI-compatible endpoints (OpenAI, Ollama, LM Studio, Groq, etc.) for text completion. Capability-aware model routing with status checking.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-tag">Export</div>
                 <h3>Build &amp; Export</h3>
-                <p>Assembles chapters via Pandoc into Markdown, DOCX, and EPUB. Download All exports a ZIP. Catalog Export creates a ZIP of all books for backup or transfer.</p>
+                <p>Assembles all chapters via Pandoc into Markdown, DOCX, and EPUB. Download All creates a ZIP archive. Catalog Export backs up your entire books library. Copyright page auto-generated from metadata.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-tag">Import</div>
+                <h3>Manuscript Import</h3>
+                <p>Import an existing manuscript (.md, .markdown, .txt, or .docx). Chapter detection, preview/rename/merge, then optional multi-agent source document generation (pitch, outline, bible, voice, motif).</p>
+            </div>
+        </div>
+
+        <div class="screenshot-grid" style="margin-top:40px">
+            <div>
+                <img src="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/pitch-room.png" alt="Pitch Room with Spark agent brainstorming story concepts">
+                <div class="cap">Pitch Room — Spark brainstorming story concepts with extended thinking</div>
+            </div>
+            <div>
+                <img src="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/revision-queue.png" alt="Revision Queue with 13 sessions and 30 tasks">
+                <div class="cap">Revision Queue — 13 sessions, 30 tasks, with manual/auto execution modes</div>
             </div>
         </div>
     </section>
 
-    <!-- ═══ GETTING STARTED ═══ -->
-    <section class="section section-border fade-up" id="getting-started">
-        <h2>For Writers<span>.</span></h2>
-        <p class="section-sub">You bring the story. The agents build it into a book.</p>
+    <!-- GETTING STARTED -->
+    <section id="getting-started" class="section section-border fade-up">
+        <h2>Getting Started<span>.</span></h2>
+        <p class="section-sub">Everything you need to start building books.</p>
         <div class="start-grid">
             <div class="start-section">
                 <h3>What You Need</h3>
                 <ul>
-                    <li><strong>macOS, Windows, or Linux</strong></li>
-                    <li><strong>Claude Code CLI</strong> — installed, authenticated, and on your PATH. The CLI handles all AI calls; no API keys needed in the app.</li>
-                    <li>Pre-built installers available from <a href="https://github.com/john-paul-ruf/novel-engine/releases" style="color:var(--accent)">Releases</a>, or build from source with Node.js 20+.</li>
-                    <li>Optional: OpenAI-compatible providers for additional model support (requires their own API keys).</li>
+                    <li>macOS, Windows, or Linux</li>
+                    <li><a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--accent)">Claude Code CLI</a> — installed, authenticated, and on your PATH</li>
+                    <li>No API key needed for Claude — the CLI handles its own authentication through your Anthropic subscription</li>
                 </ul>
+                <h3 style="margin-top:24px">Install Options</h3>
+                <p>Pre-built installers on the <a href="https://github.com/john-paul-ruf/novel-engine/releases" style="color:var(--accent)">Releases</a> page, or build from source with Node.js 20+.</p>
                 <div class="platform-badges">
                     <span class="platform-badge">macOS .dmg</span>
                     <span class="platform-badge">Windows Squirrel</span>
@@ -353,50 +365,23 @@
             <div class="start-section">
                 <h3>Quick Start</h3>
                 <ul class="steps">
-                    <li>Install Novel Engine (download or build from source)</li>
-                    <li>Launch — the Onboarding Wizard detects your Claude Code CLI</li>
-                    <li>Set up your Author Profile and Voice Profile — the AI learns YOUR writing voice through an interview process</li>
-                    <li>Create a book and start with Spark in the Pitch Room</li>
-                    <li>Work through the pipeline — pitch, scaffold, draft, read, revise, copy-edit, build</li>
+                    <li>Install Novel Engine (download or <code style="color:var(--accent);font-family:'Space Mono',monospace;font-size:13px">npm install && npm start</code>)</li>
+                    <li>The onboarding wizard detects your Claude Code CLI</li>
+                    <li>Set your name, preferred model, and create your Author Profile</li>
+                    <li>Create a book — or import an existing manuscript</li>
+                    <li>Start with Spark to pitch your story concept</li>
+                    <li>Follow the 14-phase pipeline to a finished manuscript</li>
                 </ul>
-            </div>
-            <div class="start-section">
-                <h3>Voice Profile</h3>
-                <p>Before Verity writes a single word, you establish a Voice Profile — a detailed document capturing your sentence rhythm, vocabulary register, dialogue style, emotional temperature, interiority depth, punctuation habits, and tonal anchors. Verity conducts a guided interview to extract your authentic voice. The result: prose that sounds like you wrote it.</p>
-            </div>
-            <div class="start-section">
-                <h3>Export Formats</h3>
-                <p>The Build phase assembles all chapters via Pandoc and exports to:</p>
-                <ul>
-                    <li><strong>Markdown</strong> (.md) — concatenated with title page</li>
-                    <li><strong>DOCX</strong> (.docx) — Word-compatible</li>
-                    <li><strong>EPUB</strong> (.epub) — e-reader ready with cover image support</li>
-                </ul>
-                <p style="margin-top:8px">Download All exports a ZIP archive of every format. Catalog Export creates a full backup of all books.</p>
+                <h3 style="margin-top:24px">Voice Profile</h3>
+                <p>Verity conducts a guided interview to capture your authentic writing voice — sentence rhythm, vocabulary, dialogue style, emotional temperature. Stored per-book and loaded into every Verity session.</p>
             </div>
         </div>
     </section>
 
-    <!-- ═══ MORE SCREENSHOTS ═══ -->
-    <section class="section section-border fade-up">
-        <h2>In Action<span>.</span></h2>
-        <p class="section-sub">Screenshots from actual book-building sessions.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-            <div>
-                <img src="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/pitch-room.png" alt="Pitch Room with Spark agent brainstorming" style="width:100%;border-radius:10px;border:1px solid var(--border)">
-                <p style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center">Spark brainstorming in the Pitch Room — extended thinking and file browser visible</p>
-            </div>
-            <div>
-                <img src="https://raw.githubusercontent.com/john-paul-ruf/novel-engine/main/screenshots/revision-queue.png" alt="Revision Queue interface" style="width:100%;border-radius:10px;border:1px solid var(--border)">
-                <p style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center">Revision Queue — 13 sessions, 30 tasks, with execution modes and chapter targeting</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ═══ PUBLISHED BOOKS ═══ -->
+    <!-- PUBLISHED BOOKS -->
     <section class="section section-border fade-up">
         <h2>Published Books<span>.</span></h2>
-        <p class="section-sub">Real novels built with this engine. On Amazon. Scored 7.0–9.4 by dual AI evaluation.</p>
+        <p class="section-sub">Real novels built with this engine, available on Amazon.</p>
         <div class="books-grid">
             <a href="https://www.amazon.com/dp/B0GTN8DRM8" class="book-card" target="_blank" rel="noopener">
                 <div class="book-title">Cleartext</div>
@@ -419,12 +404,12 @@
                 <div class="book-link">Amazon →</div>
             </a>
         </div>
-        <p style="margin-top:20px;text-align:center"><a href="evaluation.html" style="color:var(--accent);font-size:14px">Read the full 10-book evaluation →</a></p>
+        <p style="margin-top:20px;text-align:center"><a href="evaluation.html" style="color:var(--accent);font-size:14px">Read the full 10-book dual AI evaluation →</a></p>
     </section>
 
 </div>
 
-<!-- ═══ FOOTER ═══ -->
+<!-- FOOTER -->
 <footer class="site-footer">
     <div class="footer-inner">
         <div class="footer-col">
@@ -452,17 +437,14 @@
 </footer>
 
 <script>
-// Fade-up animation on scroll
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
 }, { threshold: 0.1 });
-document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
-
-// Smooth scroll for anchor links
-document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', e => {
+document.querySelectorAll('.fade-up').forEach(function(el) { observer.observe(el); });
+document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
         e.preventDefault();
-        const t = document.querySelector(a.getAttribute('href'));
+        var t = document.querySelector(a.getAttribute('href'));
         if (t) t.scrollIntoView({ behavior: 'smooth' });
     });
 });

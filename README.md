@@ -1,4 +1,5 @@
 # Dedication
+# Dedication
 *To everyone who has an idea for a good book but doesn't know how to craft it, this is for you...*
 
 *For everyone else who may be impacted by this work, or whose sensibilities I have offended.*
@@ -133,6 +134,17 @@ Before Verity writes a single word, you establish a **Voice Profile** — a deta
 
 A global **Author Profile** — your creative DNA — persists across all books. It captures your genres, influences, recurring themes, process, and aspirations. Spark and Quill use it for consistent creative direction. You can create or refine it through a guided conversation at any time.
 
+### Manuscript Import
+
+Import an existing manuscript into Novel Engine. The **Import Wizard** accepts `.md`, `.markdown`, or `.docx` files and automatically detects chapter boundaries via heading patterns and "Chapter N" matching. After detection you can:
+
+- **Rename** individual chapters inline
+- **Merge** adjacent chapters
+- **Remove** chapters (content folds into the previous chapter)
+- **Edit** title and author metadata
+
+On commit, the wizard creates a full book directory with all chapters written as `draft.md` files and the status set to `first-draft`. Optionally, trigger **AI-powered source document generation** — four sequential agent calls (Spark for pitch, Verity for outline/bible, voice profile, and motif ledger) to bring the imported book up to feature parity with natively-created ones.
+
 ### Context Building
 
 Every agent interaction assembles context intelligently using a token-budget-aware system:
@@ -176,7 +188,7 @@ A structured tracking system for recurring literary elements across the manuscri
 - **Flagged Phrases** — words and constructions to retire, limit, or avoid — with alternatives and per-chapter limits
 - **Audit Log** — records of which chapters have been audited and what was found
 
-The ledger is stored as `source/motif-ledger.json` per book and is editable through a tabbed interface with seven panels. Verity reads the ledger during drafting and revision to maintain motif consistency.
+The ledger is stored as `source/motif-ledger.json` per book and is editable through a tabbed interface with seven panels. Verity reads the ledger during drafting and revision to maintain motif consistency. Malformed agent-written JSON is automatically normalized via a Sonnet CLI call on load.
 
 ### Hot Take
 
@@ -220,172 +232,102 @@ Enable **extended thinking** globally or override it per-message with the **thin
 
 Each agent has pre-built prompts accessible from a dropdown next to the chat input — common tasks like "Next chapter" for Verity, "Full assessment" for Lumen, or "Create revision plan" for Forge. One click fills the chat input with a well-crafted prompt.
 
-### Build & Export
+### CLI Activity Monitor
 
-The **Build** phase assembles all chapters in order (front matter → body → back matter) and runs [Pandoc](https://pandoc.org/) to generate:
+A real-time panel showing all active Claude CLI processes. Tracks every stream across the app — chat, auto-draft, hot takes, ad hoc revisions, revision queue sessions, audits, and motif audits. Each stream shows the agent name, progress stage (reading → thinking → drafting → editing → reviewing → complete), active tool use with file paths, and elapsed time. The panel persists across view changes.
 
-- **Markdown** (`.md`) — concatenated chapters with title page
-- **DOCX** (`.docx`) — Word-compatible format
-- **EPUB** (`.epub`) — e-reader ready (with cover image support)
+### Modal Chat
 
-After building, use **Download All** to export a ZIP archive of all formats via a native save dialog. A separate **Catalog Export** creates a ZIP of all books for backup or transfer.
-
-The copyright page is auto-generated from book metadata at creation time and regenerated during build if the draft is empty.
-
-### Structured File Browser
-
-A tabbed file viewer with three panels:
-
-- **Source** — all pipeline artifacts (pitch, outline, bible, reports, tasks, metadata) with rendered markdown
-- **Chapters** — chapter list with per-chapter word counts and draft/notes access
-- **Agent Output** — files recently written by agents during the current session
-
-The `about.json` card (title, author, cover image) is inline-editable. Files can be opened, edited, deleted (with confirmation), and saved directly.
+An overlay chat window that works from any view. Start a conversation in the main chat, then switch to Files or Build while keeping the chat accessible as a floating modal. The modal shares the same stream infrastructure — messages continue streaming even while you browse files.
 
 ### File Version History
 
-Every file written by an agent or saved by the user is automatically versioned in SQLite. The version history system provides:
+Every file edit — whether by the author or an agent — is automatically snapshotted with SHA-256 content deduplication. The version history panel shows a timeline of changes per file with:
 
-- **Snapshot-on-write** — file content is hashed and stored after each change (deduplicated by SHA-256)
-- **Source tracking** — each version records whether the change came from the user, an agent, or a revert
-- **Visual diff viewer** — unified diff display with line-by-line additions and deletions
-- **One-click revert** — restore any previous version, which creates a new "revert" snapshot for auditability
-- **Version pruning** — old versions beyond a configurable retention limit are automatically cleaned up
+- **Diff viewer** — structured line-by-line diff between any two versions
+- **Revert** — restore any previous version with one click (creates a new `revert` snapshot)
+- **Source tracking** — each version tagged as `user`, `agent`, or `revert`
+- **Automatic pruning** — keeps the most recent 50 versions per file per book
 
-Accessible from the file browser for any versioned file.
+### File Watchers
 
-### Multi-Model Provider Support
+Two filesystem watchers run in the background:
 
-Novel Engine ships with **Claude Code CLI** as the built-in provider but supports adding additional AI backends:
-
-- **OpenAI-compatible endpoints** — any service speaking the OpenAI Chat Completions format (OpenAI, Ollama, LM Studio, vLLM, Groq, Together, etc.)
-- **Provider management** — add, configure, test, and remove providers from the Settings panel
-- **Status checking** — verify provider availability with one click
-- **Model routing** — the provider registry resolves which backend handles each model ID
-- **Capability-aware** — providers declare what they support (text completion, tool use, thinking, streaming); services adapt accordingly
-
-> **Note:** Only Claude CLI providers support full tool-use (file read/write via the agent loop). OpenAI-compatible providers support text completion and streaming only.
-
-### CLI Activity Monitor
-
-A real-time view of what the Claude CLI is doing — visible from the sidebar. Shows:
-
-- **Progress stages** — idle, reading, thinking, drafting, editing, reviewing, complete
-- **Tool use tracking** — which files the agent is reading, writing, or editing, with durations
-- **Files touched** — accumulated map of all files written or edited during the session
-- **Thinking summaries** — condensed first ~200 characters of each thinking block
+- **Book Watcher** — monitors the active book's directory for file changes (edits by agents or external tools) and pushes change notifications to the renderer
+- **Books Directory Watcher** — monitors the `books/` root for new or removed book folders, automatically refreshing the book list when books are added or deleted from outside the app
 
 ### OS Notifications
 
-Desktop notifications fire when the app window is unfocused:
-- Agent conversation completed (with book title)
-- Agent error
-- Revision session completed
-- Revision queue finished
-- Build completed (with format count)
+When an agent finishes responding and the app window is not focused, Novel Engine fires an OS-level notification (macOS, Windows, Linux). Notifications cover chat completions, errors, revision session completions, queue completions, and build completions. Click a notification to bring the window to front. Configurable in Settings.
 
-Notifications can be toggled in settings. Clicking a notification brings the app to front.
+### Book Management
 
-### Stream Recovery
+- **Create** new books with auto-generated copyright pages and pipeline state
+- **Archive / unarchive** books to a `_archived/` directory
+- **Cover images** — upload JPG/PNG/WebP covers served via a custom `novel-asset://` protocol
+- **Slug reconciliation** — automatically renames book folders when titles change
+- **Per-chapter word counts** — displayed in the sidebar and files view
+- **Catalog export** — export the entire `books/` directory as a ZIP archive
 
-If you refresh the window (Cmd+R / F5) while an agent is streaming, the app recovers:
-- The active stream's accumulated text and thinking buffers are preserved in memory
-- The renderer re-subscribes to live events via `getActiveStream()`
-- Stream events are persisted to SQLite for replay and are pruned after 7 days
-- Orphaned sessions (started but never finished, e.g., after a crash) are detected at startup and marked as interrupted
+### Multi-Model Provider Support
 
-### Multi-Book Management
-
-- **Create** books from the sidebar with automatic slug generation
-- **Switch** between books — each has isolated files, conversations, pipeline state, and word counts
-- **Archive** books to `_archived/` (moves them out of the active list; unarchive to restore)
-- **Cover images** — upload JPG/PNG/WebP/GIF covers, displayed in the sidebar and used for EPUB export
-- **Auto-import** — directories placed in the books folder without `about.json` are auto-detected and imported
-- **Slug reconciliation** — if the title in `about.json` changes, the folder is auto-renamed at startup
+Beyond the built-in Claude Code CLI, Novel Engine supports **OpenAI-compatible endpoints** (e.g., Ollama, LM Studio, self-hosted models). Add providers in Settings with a base URL and optional API key. Each provider declares its capabilities (text-completion, tool-use, thinking, streaming) so the app gates features accordingly. A central provider registry routes model requests to the correct backend.
 
 ### Chapter Validation
 
-After every agent interaction, the `ChapterValidator` scans the chapters directory and auto-corrects misplaced files:
-- Files in the chapters root (e.g., `chapters/draft.md`) are moved to the correct `chapters/NN-slug/draft.md` structure
-- Misnamed files (e.g., `chapter-5-draft.md`) are normalized to `draft.md` or `notes.md`
-- Chapter numbers are extracted from various filename patterns and zero-padded
-
-### Usage Tracking
-
-Every Claude CLI call records input, output, and thinking token counts. The app tracks cumulative token usage across conversations — viewable per-book or globally. Since billing is handled by the Claude Code CLI subscription, no cost estimation is performed; token counts are recorded for informational purposes.
-
-### File Change Watching
-
-Two file system watchers run in the background:
-- **BookWatcher** — monitors the active book's directory for changes (triggers UI refresh when agents write files outside the app). Debounces rapid changes (500ms) and filters OS noise (.DS_Store, swap files, etc.)
-- **BooksDirWatcher** — monitors the top-level books directory for new or removed book folders (triggers book list refresh). Debounces at 800ms.
-
-### Theme Support
-
-Three appearance modes: **dark** (default), **light**, and **system** (follows OS preference). The Electron native theme is synced with the user's choice.
+The **ChapterValidator** runs automatically after agent interactions to detect and correct misplaced chapter files — files written to the wrong path, wrong extensions, or incorrect directory structures are moved to the correct `chapters/NN-slug/draft.md` layout.
 
 ---
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20+
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — installed, authenticated, and on your `$PATH`
-- npm 9+
-
-> **No API key needed for Claude.** Novel Engine delegates AI calls to the Claude Code CLI, which handles its own authentication through your Anthropic subscription. Additional OpenAI-compatible providers require their own API keys, configured in the Settings panel.
+- **Node.js** 18+
+- **Claude Code CLI** — install via `npm install -g @anthropic-ai/claude-code`, then authenticate with `claude login`
+- **Pandoc** (optional) — required for DOCX/EPUB export. Run `npm run download-pandoc` to fetch a platform-specific binary, or install separately
 
 ---
 
 ## Getting Started
 
 ```bash
+# Clone the repository
+git clone https://github.com/john-paul-ruf/novel-engine.git
+cd novel-engine
+
 # Install dependencies
 npm install
 
-# Download the bundled Pandoc binary
+# (Optional) Download Pandoc binary for manuscript export
 npm run download-pandoc
 
-# Start in development mode
+# Start the app in development mode
 npm start
 ```
 
-The first run launches the **Onboarding Wizard**, which:
-1. Verifies the Claude Code CLI is installed and authenticated
-2. Collects your name and preferred default model
-3. Helps you set up your Author Profile
-4. Creates your first book project
+On first launch the **Onboarding Wizard** walks you through five steps:
+
+1. **Welcome** — introduction
+2. **Claude CLI Setup** — auto-detects the `claude` binary; links to install instructions if not found
+3. **Model Selection** — choose a default Claude model (Opus or Sonnet)
+4. **Author Profile** — write or skip your creative DNA document
+5. **Ready** — creates your first book or enters the app
 
 ---
 
 ## Building for Distribution
 
 ```bash
-# Package (no installer — just the .app / .exe)
+# Package the app (no installer)
 npm run package
 
-# Create platform-specific installers
+# Create platform installers (DMG, Squirrel, DEB, RPM)
 npm run make
+
+# CI build script (used by GitHub Actions)
+npm run ci-build
 ```
 
-Outputs land in `out/`. Supported platforms:
-- **macOS** — `.zip` + `.dmg` via `@electron-forge/maker-zip` and `@electron-forge/maker-dmg`
-- **Windows** — Squirrel installer via `@electron-forge/maker-squirrel`
-- **Linux** — `.deb` via `@electron-forge/maker-deb`, `.rpm` via `@electron-forge/maker-rpm`
-
-macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` environment variables.
-
-### Available Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `npm start` | Start in development mode (Electron Forge + Vite HMR) |
-| `npm run package` | Package the app (no installer) |
-| `npm run make` | Build platform-specific installers |
-| `npm run download-pandoc` | Download the platform-specific Pandoc binary to `resources/pandoc/` |
-| `npm run generate-icons` | Generate app icons from source image |
-| `npm run ci-build` | CI/CD build script |
-| `npm run lint` | Type-check with `tsc --noEmit` |
-| `npm run clean` | Remove `out/`, `.vite/`, and `dist/` directories |
+Electron Forge handles packaging via [`forge.config.ts`](./forge.config.ts). Bundled resources include the Pandoc binary and all agent `.md` prompt files. macOS code signing and notarization are supported via environment variables (`APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`).
 
 ---
 
@@ -393,7 +335,7 @@ macOS code signing and notarization are supported via `APPLE_ID`, `APPLE_PASSWOR
 
 ### Source Code Architecture
 
-130 TypeScript/TSX source files across five clean architecture layers:
+136 TypeScript/TSX files across five clean-architecture layers:
 
 ```
 src/
@@ -445,12 +387,16 @@ src/
 │   ├── HotTakeService.ts                # Ghostlight hot-take orchestration
 │   ├── AdhocRevisionService.ts          # Direct feedback → Forge revision plan
 │   ├── StreamManager.ts                 # Stream lifecycle, session tracking, file change detection
-│   ├── MotifLedgerService.ts            # Motif ledger CRUD and unaudited chapter detection
+│   ├── MotifLedgerService.ts            # Motif ledger CRUD, JSON normalization, unaudited chapter detection
 │   ├── VersionService.ts                # File version snapshots, diffs, revert, pruning
+│   ├── ManuscriptImportService.ts       # Manuscript import: preview, chapter detection, commit
+│   ├── SourceGenerationService.ts       # Post-import AI source document generation
 │   ├── thinkingBudget.ts                # Thinking budget resolution logic
 │   ├── index.ts                         # Barrel export
-│   └── context/
-│       └── TokenEstimator.ts            # ~4 chars/token estimation
+│   ├── context/
+│   │   └── TokenEstimator.ts            # ~4 chars/token estimation
+│   └── import/
+│       └── ChapterDetector.ts           # Chapter boundary detection for import
 │
 ├── main/                                # LAYER 4: Electron main process
 │   ├── index.ts                         # Composition root — instantiates everything
@@ -481,6 +427,7 @@ src/
     │   ├── motifLedgerStore.ts          # Motif ledger CRUD and tab state
     │   ├── providerStore.ts             # Multi-model provider management
     │   ├── versionStore.ts              # File version history and diffs
+    │   ├── importStore.ts               # Manuscript import wizard state
     │   └── streamHandler.ts             # Routes stream events to correct stores
     ├── components/
     │   ├── Layout/                      # AppLayout, Sidebar, TitleBar, ResizeHandle
@@ -509,6 +456,7 @@ src/
     │   │                                #   MinorCharactersTab, FlaggedPhrasesTab,
     │   │                                #   AuditLogTab
     │   ├── CliActivity/                 # CliActivityPanel, constants
+    │   ├── Import/                      # ImportWizard, ChapterPreviewList
     │   └── ErrorBoundary/               # ErrorBoundary
     ├── hooks/
     │   ├── useTheme.ts                  # Dark/light/system theme sync
@@ -575,7 +523,6 @@ All user data lives outside the app bundle, in the OS user data path (`~/Library
     ├── VERITY-REVISION.md            # Phase: revision
     ├── VERITY-MECHANICAL.md          # Phase: mechanical fixes
     ├── VERITY-LEDGER.md              # Motif ledger integration
-    ├── VERITY-LEGACY.md              # Legacy Verity prompt (pre-modular)
     ├── VERITY-AUDIT.md               # Quality audit agent
     ├── VERITY-FIX.md                 # Automated fix agent
     ├── GHOSTLIGHT.md
@@ -627,9 +574,9 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 
 - **Domain** ([`src/domain/`](./src/domain/)) — Pure TypeScript types, interfaces, and constants. Zero imports. Every other layer depends on this.
 - **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support.
-- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, UsageService, ChapterValidator.
+- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, ManuscriptImportService, SourceGenerationService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
-- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (16 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
+- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (17 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
 
 All services are constructor-injected. The only place concrete classes are instantiated is [`src/main/index.ts`](./src/main/index.ts).
 

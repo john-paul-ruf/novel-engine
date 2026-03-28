@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta property="og:title" content="Novel Engine — Contact & Contributing">
-    <meta property="og:description" content="Get in touch, report bugs, contribute code, or test pre-built installers.">
+    <meta property="og:title" content="Novel Engine — Contact & Community">
+    <meta property="og:description" content="Get in touch, contribute to the project, report bugs, or sign up to test Novel Engine.">
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/contact.html">
     <meta property="og:type" content="website">
-    <title>Novel Engine — Contact & Contributing</title>
+    <meta name="description" content="Contact information, contribution guide, bug reporting, and tester recruitment for Novel Engine.">
+    <title>Novel Engine — Contact &amp; Community</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
@@ -37,49 +38,54 @@
         .mobile-menu a{display:block;padding:10px 0;color:var(--text2);text-decoration:none;font-size:14px;border-bottom:1px solid var(--border)}
         .mobile-menu a:last-child{border-bottom:none}
         .mobile-menu.open{display:block}
-
         .page{max-width:1200px;margin:0 auto;padding:44px 32px 64px}
         .breadcrumb{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:24px}
         .breadcrumb a{color:var(--accent);text-decoration:none}
-
-        h1{font-family:'DM Serif Display',serif;font-size:42px;letter-spacing:-1px;margin-bottom:8px}
+        .breadcrumb a:hover{text-decoration:underline}
+        h1{font-family:'DM Serif Display',serif;font-size:36px;color:var(--text);letter-spacing:-0.6px;line-height:1.1;margin-bottom:8px}
         h1 span{color:var(--accent)}
-        .page-sub{color:var(--text3);font-size:15px;margin-bottom:48px;max-width:700px}
-
-        .section{padding:48px 0;border-top:1px solid var(--border)}
-        .section:first-of-type{border-top:none;padding-top:0}
-        .section h2{font-family:'DM Serif Display',serif;font-size:28px;letter-spacing:-0.4px;margin-bottom:16px}
-        .section h2 span{color:var(--accent)}
-        .section h3{font-size:18px;font-weight:600;margin:24px 0 12px}
-        .section p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
-
-        .contact-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:16px 0 24px}
-        .contact-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px}
-        .contact-card h3{font-size:15px;font-weight:600;margin-bottom:12px}
-        .contact-card p{font-size:14px;color:var(--text2);margin-bottom:4px}
-        .contact-card a{color:var(--accent);text-decoration:none}
-        .contact-card a:hover{text-decoration:underline}
-
-        .rules-list{list-style:none;padding:0;margin:16px 0}
-        .rules-list li{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:8px;font-size:14px;color:var(--text2);line-height:1.5}
-        .rules-list li strong{color:var(--text)}
-
-        .flow-steps{counter-reset:flow;list-style:none;padding:0;margin:16px 0}
-        .flow-steps li{counter-increment:flow;position:relative;padding-left:36px;margin-bottom:16px;font-size:14px;color:var(--text2);line-height:1.6}
-        .flow-steps li::before{content:counter(flow);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);font-family:'Space Mono',monospace;font-size:12px;display:flex;align-items:center;justify-content:center;color:var(--accent)}
-
-        .bug-template{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 0;font-size:13px;color:var(--text3);line-height:1.6}
-        .bug-template strong{color:var(--text2)}
-
-        .platform-badges{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
-        .platform-badge{font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);border:1px solid var(--border);padding:6px 12px;border-radius:4px;background:var(--surface)}
-
-        .tester-callout{background:var(--surface);border:1px solid var(--amber);border-radius:10px;padding:24px;margin:16px 0}
-        .tester-callout h3{color:var(--amber);font-size:16px;margin-bottom:12px}
-        .tester-callout p{font-size:14px;color:var(--text2);margin-bottom:8px}
-        .tester-callout ul{padding-left:20px}
-        .tester-callout li{font-size:14px;color:var(--text2);margin-bottom:4px}
-
+        .page-sub{font-size:14px;color:var(--text3);margin-bottom:40px}
+        h2{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-0.3px;margin:48px 0 16px;padding-top:24px;border-top:1px solid var(--border)}
+        h2 span{color:var(--accent)}
+        h2:first-of-type{border-top:none;margin-top:0}
+        p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+        a.link{color:var(--accent);text-decoration:none}
+        a.link:hover{text-decoration:underline}
+        .contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:16px 0}
+        .contact-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;transition:border-color 0.2s;text-decoration:none;color:var(--text);display:block}
+        .contact-card:hover{border-color:var(--accent)}
+        .contact-card h3{font-size:15px;font-weight:600;margin-bottom:6px}
+        .contact-card p{font-size:13px;color:var(--text3);margin:0}
+        .contact-card .cc-link{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);margin-top:8px;display:block}
+        .rules{margin:16px 0 24px}
+        .rule{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+        .rule-icon{font-family:'Space Mono',monospace;font-size:14px;color:var(--accent);flex-shrink:0;width:24px;text-align:center}
+        .rule p{font-size:13px;color:var(--text2);line-height:1.5;margin:0}
+        .rule strong{color:var(--text)}
+        .steps{counter-reset:step;margin:16px 0}
+        .step{counter-increment:step;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:8px;display:flex;gap:16px;align-items:flex-start}
+        .step::before{content:counter(step);font-family:'Space Mono',monospace;font-size:14px;color:var(--accent);background:var(--surface2);border:1px solid var(--border);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .step p{font-size:13px;color:var(--text2);line-height:1.5;margin:0}
+        .step strong{color:var(--text)}
+        .callout{background:var(--surface2);border:1px solid var(--accent);border-radius:12px;padding:24px;margin:16px 0}
+        .callout h3{font-size:18px;font-weight:600;margin-bottom:8px;color:var(--accent)}
+        .callout p{font-size:14px;line-height:1.7}
+        .callout a{color:var(--accent);text-decoration:none}
+        .callout a:hover{text-decoration:underline}
+        .test-list{margin:12px 0;padding-left:20px}
+        .test-list li{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:2px}
+        .platforms{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+        .platform{font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);border:1px solid var(--border);padding:6px 12px;border-radius:6px;background:var(--surface);text-decoration:none;transition:border-color 0.2s}
+        .platform:hover{border-color:var(--accent);color:var(--text)}
+        .bug-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+        .bug-field{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}
+        .bug-field h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:4px}
+        .bug-field p{font-size:12px;color:var(--text3);margin:0}
+        .license-block{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:16px 0}
+        .license-block h3{font-size:16px;font-weight:600;margin-bottom:8px}
+        .license-block p{font-size:13px;color:var(--text3);line-height:1.6}
+        .license-block a{color:var(--accent);text-decoration:none}
+        .license-block a:hover{text-decoration:underline}
         .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
         .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
         .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
@@ -88,24 +94,8 @@
         .footer-col a:hover{color:var(--accent)}
         .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
         .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
-
-        @media(max-width:1050px){
-            .contact-cards{grid-template-columns:1fr}
-            .footer-inner{grid-template-columns:1fr 1fr}
-        }
-        @media(max-width:760px){
-            .nav-inner{padding:0 14px}
-            .nav-links{display:none}
-            .hamburger{display:block}
-            .mobile-menu{padding:12px 14px}
-            .page{padding:24px 14px 48px}
-            h1{font-size:32px}
-            .footer-inner{grid-template-columns:1fr;padding:0 14px}
-            .footer-bottom{padding:16px 14px 0}
-        }
-
-        .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
-        .fade-up.visible{opacity:1;transform:translateY(0)}
+        @media(max-width:1050px){.footer-inner{grid-template-columns:1fr 1fr}.bug-fields{grid-template-columns:1fr}}
+        @media(max-width:760px){.nav-inner{padding:0 14px}.nav-links{display:none}.hamburger{display:block}.mobile-menu{padding:12px 14px}.page{padding:24px 14px 40px}h1{font-size:28px}.contact-grid{grid-template-columns:1fr}.bug-fields{grid-template-columns:1fr}.footer-inner{grid-template-columns:1fr;padding:0 14px}.footer-bottom{padding:16px 14px 0}}
     </style>
 </head>
 <body>
@@ -145,106 +135,105 @@
 <div class="page">
     <div class="breadcrumb"><a href="index.html">Home</a> / Contact</div>
 
-    <h1>Contact<span>.</span></h1>
-    <p class="page-sub">Get in touch, contribute code, report bugs, or test pre-built installers.</p>
+    <h1>Contact &amp; Community<span>.</span></h1>
+    <p class="page-sub">Get in touch, contribute, report bugs, or help test.</p>
 
-    <!-- ═══ GET IN TOUCH ═══ -->
-    <section class="section fade-up">
-        <h2>Get In Touch<span>.</span></h2>
-        <div class="contact-cards">
-            <div class="contact-card">
-                <h3>Email</h3>
-                <p><a href="mailto:john.paul.ruf@gmail.com?subject=Novel%20Engine">john.paul.ruf@gmail.com</a></p>
-            </div>
-            <div class="contact-card">
-                <h3>GitHub Issues</h3>
-                <p><a href="https://github.com/john-paul-ruf/novel-engine/issues">github.com/john-paul-ruf/novel-engine/issues</a></p>
-                <p style="color:var(--text3);font-size:13px;margin-top:4px">Bug reports, feature requests, questions</p>
-            </div>
-            <div class="contact-card">
-                <h3>GitHub</h3>
-                <p><a href="https://github.com/john-paul-ruf">github.com/john-paul-ruf</a></p>
-            </div>
+    <h2>Get In Touch<span>.</span></h2>
+    <div class="contact-grid">
+        <a href="mailto:john.paul.ruf@gmail.com" class="contact-card">
+            <h3>Email</h3>
+            <p>For questions, feedback, collaboration, or press inquiries.</p>
+            <span class="cc-link">john.paul.ruf@gmail.com</span>
+        </a>
+        <a href="https://github.com/john-paul-ruf/novel-engine/issues" class="contact-card" target="_blank" rel="noopener">
+            <h3>GitHub Issues</h3>
+            <p>Bug reports, feature requests, and technical discussions.</p>
+            <span class="cc-link">github.com/.../issues</span>
+        </a>
+        <a href="https://github.com/john-paul-ruf" class="contact-card" target="_blank" rel="noopener">
+            <h3>GitHub Profile</h3>
+            <p>John Ruf &mdash; creator and maintainer of Novel Engine.</p>
+            <span class="cc-link">github.com/john-paul-ruf</span>
+        </a>
+    </div>
+
+    <h2>Contributing<span>.</span></h2>
+    <p>Novel Engine welcomes contributions. The codebase follows strict clean architecture with 5 layers, dependency injection, and typed IPC. Understanding the architecture before contributing will save time.</p>
+    <p>Start by reading the <a class="link" href="architecture.html">Architecture page</a> or the <a class="link" href="https://github.com/john-paul-ruf/novel-engine/tree/main/docs/architecture" target="_blank" rel="noopener">architecture docs on GitHub</a>. Then check <a class="link" href="https://github.com/john-paul-ruf/novel-engine/issues" target="_blank" rel="noopener">open issues</a> for work that needs doing.</p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Contribution Flow</h3>
+    <div class="steps">
+        <div class="step"><p><strong>Fork</strong> the repository on GitHub.</p></div>
+        <div class="step"><p><strong>Clone</strong> your fork. Run <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px">npm install</code> and <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px">npm start</code> to verify the app runs.</p></div>
+        <div class="step"><p><strong>Branch</strong> from <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px">main</code>. Use descriptive branch names.</p></div>
+        <div class="step"><p><strong>Implement</strong> your change. Follow the architecture rules below.</p></div>
+        <div class="step"><p><strong>Open a PR</strong> with a clear description of what changed and why.</p></div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Architecture Rules</h3>
+    <div class="rules">
+        <div class="rule"><div class="rule-icon">&rarr;</div><p><strong>Respect layer boundaries.</strong> Domain imports nothing. Infrastructure imports only domain + npm packages. Application imports only domain interfaces. Renderer accesses backend only through the preload bridge.</p></div>
+        <div class="rule"><div class="rule-icon">&rarr;</div><p><strong>No business logic in IPC handlers.</strong> Every handler is a one-liner delegation to a service method. Zero logic, zero branching, zero data transformation.</p></div>
+        <div class="rule"><div class="rule-icon">&rarr;</div><p><strong>Use dependency injection.</strong> Application services depend on interfaces, not concrete classes. Concrete classes are instantiated only in <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px">src/main/index.ts</code> (the composition root).</p></div>
+        <div class="rule"><div class="rule-icon">&rarr;</div><p><strong>Create barrel exports.</strong> Every infrastructure subdirectory gets an <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px">index.ts</code> that re-exports the public API.</p></div>
+        <div class="rule"><div class="rule-icon">&rarr;</div><p><strong>Type everything.</strong> No <code style="font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);background:var(--surface2);padding:2px 6px;border-radius:3px">any</code> unless wrapping an untyped third-party API. Narrow immediately.</p></div>
+        <div class="rule"><div class="rule-icon">&rarr;</div><p><strong>Handle all errors.</strong> Every async operation has try/catch or error propagation. No silent failures.</p></div>
+    </div>
+
+    <h2>Report a Bug<span>.</span></h2>
+    <p>Found something broken? <a class="link" href="https://github.com/john-paul-ruf/novel-engine/issues/new" target="_blank" rel="noopener">Open a GitHub issue</a> with the following information:</p>
+    <div class="bug-fields">
+        <div class="bug-field">
+            <h4>Platform</h4>
+            <p>Operating system and version (e.g., macOS 15.3, Windows 11, Ubuntu 24.04)</p>
         </div>
-    </section>
-
-    <!-- ═══ CONTRIBUTING ═══ -->
-    <section class="section fade-up">
-        <h2>Contributing<span>.</span></h2>
-        <p>Novel Engine welcomes contributions. The codebase follows strict clean architecture — understanding the layer boundaries is the most important thing before writing code.</p>
-
-        <h3>Getting Started</h3>
-        <ol class="flow-steps">
-            <li>Fork the repo and clone it locally</li>
-            <li>Install prerequisites: Node.js 20+, Claude Code CLI (installed and authenticated)</li>
-            <li>Run <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:3px;color:var(--accent)">npm install</code> then <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:3px;color:var(--accent)">npm run download-pandoc</code></li>
-            <li>Start in dev mode with <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:3px;color:var(--accent)">npm start</code></li>
-            <li>Create a branch, make your changes, open a PR</li>
-        </ol>
-
-        <h3>Architecture Rules</h3>
-        <p>These are non-negotiable. PRs that violate them will be asked to refactor:</p>
-        <ul class="rules-list">
-            <li><strong>Domain imports from nothing.</strong> Pure types, interfaces, and constants only. Zero imports.</li>
-            <li><strong>Infrastructure imports from domain only.</strong> Each module is isolated — database doesn't import from filesystem, etc.</li>
-            <li><strong>Application depends on interfaces, not concrete classes.</strong> Constructor injection. No <code style="font-family:'Space Mono',monospace;font-size:11px;background:var(--surface2);padding:1px 4px;border-radius:3px;color:var(--accent)">new ConcreteClass()</code> in service code.</li>
-            <li><strong>No business logic in IPC handlers.</strong> Every handler is a one-liner delegation to a service method.</li>
-            <li><strong>Renderer accesses backend only through <code style="font-family:'Space Mono',monospace;font-size:11px;background:var(--surface2);padding:1px 4px;border-radius:3px;color:var(--accent)">window.novelEngine</code>.</strong> May import types from domain, never values (except pure constants).</li>
-            <li><strong>Every infrastructure subdirectory gets a barrel export.</strong> <code style="font-family:'Space Mono',monospace;font-size:11px;background:var(--surface2);padding:1px 4px;border-radius:3px;color:var(--accent)">index.ts</code> that re-exports the public API.</li>
-        </ul>
-
-        <p>Read the full architecture docs: <a href="architecture.html" style="color:var(--accent)">Architecture page</a> or the <a href="https://github.com/john-paul-ruf/novel-engine/tree/main/docs/architecture" style="color:var(--accent)">Markdown docs on GitHub</a>.</p>
-    </section>
-
-    <!-- ═══ REPORT A BUG ═══ -->
-    <section class="section fade-up">
-        <h2>Report a Bug<span>.</span></h2>
-        <p>Open a <a href="https://github.com/john-paul-ruf/novel-engine/issues/new" style="color:var(--accent)">new issue on GitHub</a> with the following:</p>
-        <div class="bug-template">
-            <strong>Platform:</strong> macOS / Windows / Linux (version)<br>
-            <strong>App Version:</strong> v0.1.0 (or commit hash)<br>
-            <strong>Steps to reproduce:</strong> What you did<br>
-            <strong>Expected:</strong> What should have happened<br>
-            <strong>Actual:</strong> What actually happened<br>
-            <strong>Console output:</strong> Any error messages (Cmd+Opt+I / Ctrl+Shift+I to open DevTools)
+        <div class="bug-field">
+            <h4>App Version</h4>
+            <p>From Settings or the title bar (e.g., v0.1.0)</p>
         </div>
-    </section>
-
-    <!-- ═══ TESTERS WANTED ═══ -->
-    <section class="section fade-up">
-        <h2>Testers Wanted<span>.</span></h2>
-        <div class="tester-callout">
-            <h3>Pre-built installers need testing!</h3>
-            <p>Installers are available on the <a href="https://github.com/john-paul-ruf/novel-engine/releases" style="color:var(--amber)">Releases</a> page. The developer builds on macOS — Windows and Linux installers especially need eyes on them.</p>
-            <div class="platform-badges">
-                <span class="platform-badge">macOS .dmg</span>
-                <span class="platform-badge">Windows Squirrel</span>
-                <span class="platform-badge">Linux .deb</span>
-            </div>
-            <p style="margin-top:12px">Things to test:</p>
-            <ul>
-                <li>Does the installer run and complete without errors?</li>
-                <li>Does the app launch after installation?</li>
-                <li>Does the onboarding wizard detect your Claude Code CLI?</li>
-                <li>Can you create a book and chat with an agent?</li>
-                <li>Any UI glitches, missing fonts, or broken layouts?</li>
-            </ul>
-            <p style="margin-top:12px">Report results via <a href="https://github.com/john-paul-ruf/novel-engine/issues" style="color:var(--amber)">GitHub Issues</a> or email <a href="mailto:john.paul.ruf@gmail.com?subject=Novel%20Engine%20Installer%20Testing" style="color:var(--amber)">john.paul.ruf@gmail.com</a>.</p>
+        <div class="bug-field">
+            <h4>Steps to Reproduce</h4>
+            <p>Numbered list of actions that trigger the bug</p>
         </div>
-    </section>
+        <div class="bug-field">
+            <h4>Expected vs Actual</h4>
+            <p>What should happen and what actually happened</p>
+        </div>
+    </div>
 
-    <!-- ═══ LICENSE ═══ -->
-    <section class="section fade-up">
-        <h2>License<span>.</span></h2>
-        <p><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/LICENSE" style="color:var(--accent)">AGPL-3.0-only</a> — GNU Affero General Public License v3.0.</p>
-    </section>
+    <h2>Testers Wanted<span>.</span></h2>
+    <div class="callout">
+        <h3>Help Test Novel Engine</h3>
+        <p>Pre-built installers are available on the <a href="https://github.com/john-paul-ruf/novel-engine/releases" target="_blank" rel="noopener">Releases page</a> for macOS, Windows, and Linux. These are early builds &mdash; the Windows and Linux installers especially need testing.</p>
+    </div>
+    <div class="platforms">
+        <a href="https://github.com/john-paul-ruf/novel-engine/releases" class="platform" target="_blank" rel="noopener">macOS .dmg</a>
+        <a href="https://github.com/john-paul-ruf/novel-engine/releases" class="platform" target="_blank" rel="noopener">Windows Squirrel</a>
+        <a href="https://github.com/john-paul-ruf/novel-engine/releases" class="platform" target="_blank" rel="noopener">Linux .deb</a>
+    </div>
+    <p style="margin-top:16px">Things to test:</p>
+    <ul class="test-list">
+        <li>Does the installer run and complete without errors?</li>
+        <li>Does the app launch after installation?</li>
+        <li>Does the onboarding wizard detect your Claude Code CLI?</li>
+        <li>Can you create a book and chat with an agent?</li>
+        <li>Any UI glitches, missing fonts, or broken layouts?</li>
+    </ul>
+    <p>Report results via <a class="link" href="https://github.com/john-paul-ruf/novel-engine/issues" target="_blank" rel="noopener">GitHub Issues</a> or email <a class="link" href="mailto:john.paul.ruf@gmail.com?subject=Novel%20Engine%20Installer%20Testing">john.paul.ruf@gmail.com</a>.</p>
+
+    <h2>License<span>.</span></h2>
+    <div class="license-block">
+        <h3>AGPL-3.0-only</h3>
+        <p>Novel Engine is licensed under the GNU Affero General Public License v3.0. You can use, modify, and distribute the software, but modifications must be shared under the same license.</p>
+        <p style="margin-top:8px"><a href="https://github.com/john-paul-ruf/novel-engine/blob/main/LICENSE" target="_blank" rel="noopener">View the full license on GitHub &rarr;</a></p>
+    </div>
 </div>
 
 <footer class="site-footer">
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.1.0 · AGPL-3.0</p>
+            <p>v0.1.0 &middot; AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">
@@ -267,10 +256,9 @@
 </footer>
 
 <script>
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
-}, { threshold: 0.1 });
-document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+document.querySelectorAll('.contact-card,.rule,.step,.bug-field,.platform').forEach(function(el){el.style.opacity='0';el.style.transform='translateY(16px)';el.style.transition='opacity 0.4s ease, transform 0.4s ease'});
+var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';obs.unobserve(e.target)}})},{threshold:0.1});
+document.querySelectorAll('.contact-card,.rule,.step,.bug-field,.platform').forEach(function(el){obs.observe(el)});
 </script>
 </body>
 </html>

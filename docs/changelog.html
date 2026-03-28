@@ -8,6 +8,7 @@
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/changelog.html">
     <meta property="og:type" content="website">
+    <meta name="description" content="Full development changelog for Novel Engine. 52 entries documenting every feature, fix, and architectural decision.">
     <title>Novel Engine — Changelog</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     <style>
@@ -37,53 +38,41 @@
         .mobile-menu a{display:block;padding:10px 0;color:var(--text2);text-decoration:none;font-size:14px;border-bottom:1px solid var(--border)}
         .mobile-menu a:last-child{border-bottom:none}
         .mobile-menu.open{display:block}
-
         .page{max-width:1200px;margin:0 auto;padding:44px 32px 64px}
         .breadcrumb{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:24px}
         .breadcrumb a{color:var(--accent);text-decoration:none}
         .breadcrumb a:hover{text-decoration:underline}
-
-        h1{font-family:'DM Serif Display',serif;font-size:42px;letter-spacing:-1px;margin-bottom:8px}
+        h1{font-family:'DM Serif Display',serif;font-size:36px;color:var(--text);letter-spacing:-0.6px;line-height:1.1;margin-bottom:8px}
         h1 span{color:var(--accent)}
-        .page-sub{color:var(--text3);font-size:15px;margin-bottom:48px;max-width:700px}
-
-        .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:48px}
-        .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
-        .stat-num{font-family:'DM Serif Display',serif;font-size:32px;color:var(--accent);margin-bottom:4px}
-        .stat-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
-
-        .highlights{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:48px}
-        .highlights h2{font-family:'DM Serif Display',serif;font-size:24px;margin-bottom:16px}
-        .highlights h2 span{color:var(--accent)}
-        .highlight-group{margin-bottom:20px}
-        .highlight-group:last-child{margin-bottom:0}
-        .highlight-group h3{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
-        .highlight-item{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:6px;padding-left:16px;position:relative}
-        .highlight-item::before{content:"→";position:absolute;left:0;color:var(--accent)}
-
-        .date-group{margin-bottom:16px}
-        .date-header{font-family:'Space Mono',monospace;font-size:13px;color:var(--accent);letter-spacing:0.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
-
-        .entry{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden}
-        .entry summary{padding:16px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:500;list-style:none}
-        .entry summary::-webkit-details-marker{display:none}
-        .entry summary::before{content:"▸";color:var(--accent);font-size:12px;transition:transform 0.2s}
-        .entry[open] summary::before{transform:rotate(90deg)}
-        .entry summary:hover{background:var(--surface2)}
-        .entry-tag{font-family:'Space Mono',monospace;font-size:10px;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0}
-        .tag-feature{background:rgba(196,255,77,0.12);color:var(--accent)}
-        .tag-fix{background:rgba(255,107,107,0.12);color:var(--red)}
-        .tag-refactor{background:rgba(111,184,255,0.12);color:var(--blue)}
-        .tag-docs{background:rgba(148,163,184,0.12);color:var(--slate)}
-        .tag-infra{background:rgba(255,159,67,0.12);color:var(--orange)}
-
-        .entry-body{padding:0 20px 20px;border-top:1px solid var(--border)}
+        .page-sub{font-size:14px;color:var(--text3);margin-bottom:32px}
+        .stats{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap}
+        .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;flex:1;min-width:140px}
+        .stat .stat-label{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:4px}
+        .stat .stat-value{font-size:18px;font-weight:700;color:var(--accent)}
+        h2{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-0.3px;margin:40px 0 16px;padding-top:24px;border-top:1px solid var(--border)}
+        h2 span{color:var(--accent)}
+        .highlights{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:40px}
+        .highlight{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+        .highlight .hl-tag{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px}
+        .highlight p{font-size:13px;color:var(--text2);line-height:1.5;margin:0}
+        details.entry{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden}
+        details.entry summary{padding:14px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:14px;list-style:none}
+        details.entry summary::-webkit-details-marker{display:none}
+        details.entry summary::before{content:'+';font-family:'Space Mono',monospace;font-size:14px;color:var(--accent);flex-shrink:0;width:16px}
+        details.entry[open] summary::before{content:'-'}
+        .entry-date{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);flex-shrink:0;width:90px}
+        .entry-title{color:var(--text);font-weight:500}
+        .entry-body{padding:0 20px 16px;border-top:1px solid var(--border)}
         .entry-body p{font-size:13px;color:var(--text2);line-height:1.6;margin:12px 0}
-        .entry-body h4{font-size:12px;font-family:'Space Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin:16px 0 8px}
-        .entry-body ul{padding-left:20px;margin:0}
-        .entry-body li{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:4px}
-        .entry-body code{font-family:'Space Mono',monospace;font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--accent)}
-
+        .entry-section{margin:8px 0}
+        .entry-tag{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px}
+        .tag-added{color:#3dd4a0;border:1px solid #1a3d2e}
+        .tag-changed{color:var(--blue);border:1px solid #1a2a3d}
+        .tag-fixed{color:var(--amber);border:1px solid #3d3a1a}
+        .tag-removed{color:var(--red);border:1px solid #3d1a1a}
+        .entry-body ul{padding-left:20px;margin:4px 0}
+        .entry-body li{font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:2px}
+        .entry-body code{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);background:var(--surface2);padding:1px 4px;border-radius:2px}
         .site-footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px}
         .footer-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
         .footer-col h4{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--text3);margin-bottom:12px}
@@ -92,25 +81,8 @@
         .footer-col a:hover{color:var(--accent)}
         .footer-bottom{max-width:1200px;margin:0 auto;padding:20px 32px 0;border-top:1px solid var(--border);margin-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
         .footer-bottom p{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
-
-        @media(max-width:1050px){
-            .footer-inner{grid-template-columns:1fr 1fr}
-            .stats{grid-template-columns:1fr 1fr}
-        }
-        @media(max-width:760px){
-            .nav-inner{padding:0 14px}
-            .nav-links{display:none}
-            .hamburger{display:block}
-            .mobile-menu{padding:12px 14px}
-            .page{padding:24px 14px 48px}
-            h1{font-size:32px}
-            .stats{grid-template-columns:1fr 1fr}
-            .footer-inner{grid-template-columns:1fr;padding:0 14px}
-            .footer-bottom{padding:16px 14px 0}
-        }
-
-        .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
-        .fade-up.visible{opacity:1;transform:translateY(0)}
+        @media(max-width:1050px){.footer-inner{grid-template-columns:1fr 1fr}.highlights{grid-template-columns:1fr}.stats{flex-direction:column}}
+        @media(max-width:760px){.nav-inner{padding:0 14px}.nav-links{display:none}.hamburger{display:block}.mobile-menu{padding:12px 14px}.page{padding:24px 14px 40px}h1{font-size:28px}.footer-inner{grid-template-columns:1fr;padding:0 14px}.footer-bottom{padding:16px 14px 0}}
     </style>
 </head>
 <body>
@@ -153,399 +125,424 @@
     <h1>Changelog<span>.</span></h1>
     <p class="page-sub">Full development history. Every feature, fix, and architectural decision documented.</p>
 
-    <!-- ═══ STATS ═══ -->
-    <div class="stats fade-up">
-        <div class="stat">
-            <div class="stat-num">39</div>
-            <div class="stat-label">Entries</div>
+    <div class="stats">
+        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">52</div></div>
+        <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27 — 2026-03-28</div></div>
+        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">136</div></div>
+        <div class="stat"><div class="stat-label">Bug Fixes</div><div class="stat-value">25+</div></div>
+    </div>
+
+    <h2>Highlight Reel<span>.</span></h2>
+    <div class="highlights">
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>Multi-model provider architecture (7 sessions) — pluggable AI backends with OpenAI-compatible endpoint support, ProviderRegistry, and capability-aware model routing.</p>
         </div>
-        <div class="stat">
-            <div class="stat-num">2</div>
-            <div class="stat-label">Days</div>
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>Manuscript Import (6 sessions) — import .md/.docx manuscripts with chapter detection, preview editing, and optional multi-agent source document generation.</p>
         </div>
-        <div class="stat">
-            <div class="stat-num">130</div>
-            <div class="stat-label">Source Files</div>
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>File Version History (6 sessions) — every file write creates a SQLite snapshot. SHA-256 dedup, visual diff viewer, one-click revert, source tracking.</p>
         </div>
-        <div class="stat">
-            <div class="stat-num">25+</div>
-            <div class="stat-label">Bug Fixes</div>
+        <div class="highlight">
+            <div class="hl-tag">Architecture</div>
+            <p>14-prompt architecture refactor — extracted StreamManager, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService from ChatService. Added IChatService/IUsageService interfaces. Database migration system.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>Motif Ledger — structured tracking for motif systems, foreshadowing, structural devices, minor characters, flagged phrases, and audit logs. Seven-panel tabbed editor with JSON persistence.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Quality &amp; Stability</div>
+            <p>Race condition fixes in stream management, EPIPE diagnostic logging, batched stream event persistence, stream listener lifecycle management, and CLI-based motif ledger normalization.</p>
         </div>
     </div>
 
-    <!-- ═══ HIGHLIGHTS ═══ -->
-    <div class="highlights fade-up">
-        <h2>Highlight Reel<span>.</span></h2>
+    <h2>All Entries<span>.</span></h2>
 
-        <div class="highlight-group">
-            <h3>Major Features</h3>
-            <div class="highlight-item">Multi-model provider architecture — Claude CLI + any OpenAI-compatible endpoint (7 sessions)</div>
-            <div class="highlight-item">File version history — automatic snapshots, visual diffs, one-click revert (6 sessions)</div>
-            <div class="highlight-item">Motif Ledger — 7-panel structured tracker for literary elements, integrated with Verity</div>
-            <div class="highlight-item">Catalog export — ZIP all books for backup or transfer</div>
-            <div class="highlight-item">Revision Queue — structured revision execution with 4 modes and approval gates</div>
-        </div>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">README deep update from source code analysis</span></summary>
+<div class="entry-body">
+<p>Comprehensive rewrite of `README.md` based on a full audit of every source file across all five architecture layers. Every feature, type, service, pipeline phase, agent, and IPC channel was verified against actual code. New features added: Manuscript Import, Source Generation, CLI Activity Monitor, Modal Chat, File Version History, File Watchers, O...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>README.md</code> — Full rewrite. Verified all 7 agents against <code>constants.ts</code>. Verified all 14 pipeline phases against <code>PipelineService.ts</code>. Verified all npm scripts against <code>package.json</code>. Verified tech stack versions. Updated src/ tree to include <code>import/ChapterDetector.ts</code>, <code>ManuscriptImportService.ts</code>, <code>SourceGenerationService.ts</code>, <code>Import/</code> components, <code>importStore.ts</code>. Added 8 new Key Features sections (Manuscript Import, CLI Activity Monitor, Modal Chat, File Version History, File Watchers, OS Notifications, Book Management, Multi-Model Provider Support, Chapter Validation). Corrected store count to 17. Corrected application service listing. Preserved Dedication, Book list, and Testers Needed sections verbatim.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">CLI-based motif ledger schema normalization</span></summary>
+<div class="entry-body">
+<p>Replaced the hardcoded field-mapping normalizers in `MotifLedgerService` with a CLI-based normalization step. When `load()` detects a non-canonical JSON shape (agent-written fields like `associatedCharacters`, object-typed `firstAppearance`, `plant`/`payoff` foreshadow objects, etc.), it sends the raw JSON to a Sonnet CLI call with a structured pro...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/MotifLedgerService.ts</code> — Added <code>IProviderRegistry</code> dependency. Replaced per-type normalizer functions with <code>isCanonicalShape()</code> shape detection + <code>normalizeViaCli()</code> CLI call. Added <code>parseLedgerFromCanonical()</code> as best-effort fallback. Added <code>setNormalizationCallback()</code> for progress events. <code>load()</code> now saves normalized data back to disk.</li><li><code>src/main/index.ts</code> — Passes <code>providerRegistry</code> to <code>MotifLedgerService</code> constructor. Registers normalization callback that broadcasts <code>motifLedger:normalizing</code> events to all renderer windows.</li><li><code>src/preload/index.ts</code> — Added <code>onNormalizing()</code> event listener to <code>motifLedger</code> namespace.</li><li><code>src/renderer/stores/motifLedgerStore.ts</code> — Added <code>isNormalizing</code> state and <code>setNormalizing()</code> action.</li><li><code>src/renderer/components/MotifLedger/MotifLedgerView.tsx</code> — Subscribes to <code>motifLedger:normalizing</code> push events. Shows animated spinner with "Normalizing ledger format via AI..." message during CLI normalization.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Manuscript Import feature (6 sessions)</span></summary>
+<div class="entry-body">
+<p>Added the ability to import an existing manuscript (.md, .markdown, .txt, or .docx) into Novel Engine. The import wizard detects chapter boundaries via pattern matching, lets the user review/rename/merge chapters, then creates the full book directory structure with status set to `first-draft`. After import, the user can optionally trigger multi-age...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/types.ts</code> — Added <code>ImportSourceFormat</code>, <code>DetectedChapter</code>, <code>ImportPreview</code>, <code>ImportCommitConfig</code>, <code>ImportResult</code>, <code>SourceGenerationStep</code>, <code>SourceGenerationEvent</code> types</li><li><code>src/domain/interfaces.ts</code> — Added <code>IManuscriptImportService</code> and <code>ISourceGenerationService</code> interfaces</li><li><code>src/application/import/ChapterDetector.ts</code> — Pure utility: detects chapter boundaries by heading patterns, "Chapter N" patterns, or fallback single-chapter. Includes ambiguity detection for uneven splits and short documents.</li><li><code>src/application/ManuscriptImportService.ts</code> — Implements <code>IManuscriptImportService</code>. Reads files, converts DOCX via Pandoc, runs chapter detection, commits by creating book structure.</li><li><code>src/application/SourceGenerationService.ts</code> — Implements <code>ISourceGenerationService</code>. Runs 4 sequential agent calls (Spark pitch, Verity outline+bible, Verity voice, Verity motif) with per-step progress events.</li><li><code>src/renderer/stores/importStore.ts</code> — Zustand store managing the multi-step import wizard state machine (idle → loading → preview → importing → success → generating → generated).</li><li><code>src/renderer/components/Import/ImportWizard.tsx</code> — Modal wizard with step-based rendering: file analysis, chapter preview with editing, import progress, success, source generation progress.</li><li><code>src/renderer/components/Import/ChapterPreviewList.tsx</code> — Scrollable chapter list with inline rename, merge, and remove controls.</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/index.ts</code> — Instantiates <code>ManuscriptImportService</code> and <code>SourceGenerationService</code>, passes to <code>registerIpcHandlers</code></li><li><code>src/main/ipc/handlers.ts</code> — Added <code>import:selectFile</code>, <code>import:preview</code>, <code>import:commit</code>, <code>import:generateSources</code> handlers</li><li><code>src/preload/index.ts</code> — Added <code>window.novelEngine.import</code> namespace with <code>selectFile</code>, <code>preview</code>, <code>commit</code>, <code>generateSources</code>, <code>onGenerationProgress</code></li><li><code>src/renderer/components/Sidebar/BookSelector.tsx</code> — Replaced single "New Book" button with "New Book" + "Import" side-by-side. Renders <code>ImportWizard</code> modal.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Update GitHub Pages website with all latest features</span></summary>
+<div class="entry-body">
+<p>Rebuilt all 6 GitHub Pages HTML files to reflect the current state of the codebase. Added multi-model provider support, file version history, and catalog export to landing page feature cards. Updated architecture page with `providers/` infrastructure module, `file_versions` and `schema_version` tables (7 total), 130 source files, 16 stores, and com...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>docs/index.html</code> — Added Key Features section (9 cards: Pitch Room, Voice Profile, Auto-Draft, Verity Audit, Motif Ledger, Revision Queue, Version History, Multi-Model, Build &amp; Export). Updated subtitle to mention multi-model. Updated export description for catalog export.</li><li><code>docs/architecture.html</code> — Added <code>providers/</code> to infrastructure modules. Added <code>file_versions</code> and <code>schema_version</code> to schema table. Updated file count to 130, store count to 16. Added ProviderRegistry and VersionService to dependency graph. Added multi-model and version history to design decisions. Updated source tree with all current files.</li><li><code>docs/changelog.html</code> — Full rebuild with all 39 entries (was 21). Updated stats: entries 21→39. Added all 2026-03-28 entries (18 new). Expanded highlight reel with version history and multi-model features.</li><li><code>docs/press.html</code> — Updated stats: 130 files, 16 stores, 7 tables, 80+ IPC channels. Added "Multi-model support" differentiator card. Updated source file count in "Open source" card.</li><li><code>docs/contact.html</code> — Updated architecture rules to include barrel export requirement. Minor copy refinements.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Comprehensive README rewrite</span></summary>
+<div class="entry-body">
+<p>Rewrote `README.md` to accurately reflect the current state of the codebase. Updated file count from 121 to 130. Added documentation for three features missing from the previous README: File Version History (VersionService, VersionHistoryPanel, DiffViewer, versionStore), Multi-Model Provider Support (ProviderRegistry, OpenAiCompatibleProvider, Prov...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>README.md</code> — Full rewrite per <code>prompts/meta/readme-deep-update.md</code> spec. All sections verified against source code.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: renderer UI (SESSION-07)</span></summary>
+<div class="entry-body">
+<p>Added provider management UI to Settings. New `providerStore` (Zustand) manages provider state. New `ProviderSection` component shows provider cards with status indicators, test connectivity, add/remove/toggle. Updated `ModelSelectionSection` to group models by provider with "Text only" badges for non-tool-use models. Selecting a model from a diffe...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/stores/providerStore.ts</code> — Zustand store for provider CRUD, status checking</li><li><code>src/renderer/components/Settings/ProviderSection.tsx</code> — Provider management: cards, status dots, add form, enable/disable/remove</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/renderer/components/Settings/SettingsView.tsx</code> — Added <code>ProviderSection</code> between CLI status and model selection. Rewrote <code>ModelSelectionSection</code> to group models by provider, show "Text only" badge, and update <code>activeProviderId</code> on cross-provider model selection.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: IPC channels &amp; preload bridge (SESSION-06)</span></summary>
+<div class="entry-body">
+<p>Exposed provider management to the renderer through 7 new `providers:*` IPC channels and a `window.novelEngine.providers` preload namespace. Updated `settings:getAvailableModels` to return `ModelInfo[]` from the registry instead of the deprecated static `AVAILABLE_MODELS` array.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/ipc/handlers.ts</code> — Added 7 <code>providers:*</code> handlers (list, getConfig, add, update, remove, checkStatus, setDefault). Updated <code>settings:getAvailableModels</code> to use <code>providerRegistry.listAllModels()</code>. Added <code>providerRegistry</code> to services param.</li><li><code>src/preload/index.ts</code> — Added <code>providers</code> namespace with 7 bridge methods. Updated <code>models.getAvailable</code> return type to <code>ModelInfo[]</code>.</li><li><code>src/main/index.ts</code> — Added <code>providerRegistry</code> to <code>registerIpcHandlers</code> call.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: service migration + composition root (SESSION-05)</span></summary>
+<div class="entry-body">
+<p>Migrated all 6 application services from `IClaudeClient` to `IProviderRegistry`. Rewired the composition root to instantiate `ProviderRegistry`, register the built-in Claude CLI provider, and initialize any user-configured OpenAI-compatible providers from settings. No behavioral changes — all services use the same `sendMessage`/`abortStream` interf...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/ChatService.ts</code> — <code>IClaudeClient</code> → <code>IProviderRegistry</code>, <code>this.claude</code> → <code>this.providers</code>, <code>isAvailable()</code> routes through <code>getDefaultProvider()</code></li><li><code>src/application/HotTakeService.ts</code> — <code>IClaudeClient</code> → <code>IProviderRegistry</code></li><li><code>src/application/PitchRoomService.ts</code> — <code>IClaudeClient</code> → <code>IProviderRegistry</code></li><li><code>src/application/AdhocRevisionService.ts</code> — <code>IClaudeClient</code> → <code>IProviderRegistry</code></li><li><code>src/application/AuditService.ts</code> — <code>IClaudeClient</code> → <code>IProviderRegistry</code></li><li><code>src/application/RevisionQueueService.ts</code> — <code>IClaudeClient</code> → <code>IProviderRegistry</code></li><li><code>src/main/index.ts</code> — Added ProviderRegistry + OpenAiCompatibleProvider setup between infra and service instantiation. Removed redundant <code>settings.load()</code> call.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: OpenAI-compatible provider (SESSION-04)</span></summary>
+<div class="entry-body">
+<p>Created `OpenAiCompatibleProvider` — the universal BYOK/self-hosted provider. Implements `IModelProvider` using built-in `fetch` + SSE streaming. Works with any OpenAI Chat Completions-compatible endpoint. No tool-use — text completion + streaming only. Token counts estimated at 4 chars/token.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/infrastructure/providers/OpenAiCompatibleProvider.ts</code> — SSE streaming, AbortController cancellation, runtime API key/URL update, <code>/v1/models</code> health check</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/providers/index.ts</code> — Added <code>OpenAiCompatibleProvider</code> export</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: ProviderRegistry infrastructure (SESSION-03)</span></summary>
+<div class="entry-body">
+<p>Created `ProviderRegistry` — the central hub that manages all model providers, routes model requests to the correct provider, and persists configurations. Implements `IProviderRegistry` from domain. Uses a reverse model index for O(1) model→provider lookups. Protects built-in providers from deletion and immutable config fields from mutation.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/infrastructure/providers/ProviderRegistry.ts</code> — Implements <code>IProviderRegistry</code>. Model routing, provider CRUD, config persistence to settings.</li><li><code>src/infrastructure/providers/index.ts</code> — Barrel export</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: ClaudeCodeClient implements IModelProvider (SESSION-02)</span></summary>
+<div class="entry-body">
+<p>Made `ClaudeCodeClient` implement `IModelProvider` in addition to `IClaudeClient`. Added `providerId` (`'claude-cli'`) and `capabilities` (`['text-completion', 'tool-use', 'thinking', 'streaming']`) readonly properties. No behavioral changes — purely additive interface conformance.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/claude-cli/ClaudeCodeClient.ts</code> — Now implements both <code>IClaudeClient</code> and <code>IModelProvider</code>. Added <code>providerId</code> and <code>capabilities</code> properties.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Multi-model providers: domain types, interfaces, constants (SESSION-01)</span></summary>
+<div class="entry-body">
+<p>Foundation for pluggable AI provider architecture. Added provider-related types (`ProviderId`, `ProviderType`, `ProviderCapability`, `ProviderConfig`, `ModelInfo`, `ProviderStatus`), new interfaces (`IModelProvider`, `IProviderRegistry`), and built-in provider constants. `AppSettings` extended with `providers` and `activeProviderId`. `IClaudeClient...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added 6 provider types (<code>ProviderId</code>, <code>ProviderType</code>, <code>ProviderCapability</code>, <code>ProviderStatus</code>, <code>ProviderConfig</code>, <code>ModelInfo</code>). Extended <code>AppSettings</code> with <code>providers: ProviderConfig[]</code> and <code>activeProviderId: ProviderId</code>.</li><li><code>src/domain/interfaces.ts</code> — Added <code>IModelProvider</code> interface (same shape as <code>IClaudeClient</code> plus <code>providerId</code> and <code>capabilities</code>). Added <code>IProviderRegistry</code> interface (router + CRUD + convenience delegates). Deprecated <code>IClaudeClient</code> with JSDoc.</li><li><code>src/domain/constants.ts</code> — Added <code>CLAUDE_CLI_PROVIDER_ID</code>, <code>OPENCODE_CLI_PROVIDER_ID</code>, <code>BUILT_IN_PROVIDER_CONFIGS</code>. Deprecated <code>AVAILABLE_MODELS</code> with JSDoc. Updated <code>DEFAULT_SETTINGS</code> with provider fields. Reordered declarations to avoid forward-reference errors.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add catalog export (ZIP all books)</span></summary>
+<div class="entry-body">
+<p>Added the ability to export the entire book catalog as a single ZIP archive from the Settings view. A new `catalog:exportZip` IPC channel zips the full `books/` directory using `archiver` (already a dependency), and a new `CatalogExportSection` component in SettingsView provides the trigger button with success feedback.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/ipc/handlers.ts</code> — Added <code>catalog:exportZip</code> handler between build and usage sections. Zips <code>paths.booksDir</code> into a user-chosen location with default filename <code>novel-engine-catalog-YYYY-MM-DD.zip</code>.</li><li><code>src/preload/index.ts</code> — Added <code>catalog</code> namespace with <code>exportZip()</code> bridge method.</li><li><code>src/renderer/components/Settings/SettingsView.tsx</code> — Added <code>CatalogExportSection</code> component between UsageSection and AuthorProfileSection. Shows export button, disabled state during export, and clickable "Saved to:" path on success.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Integrate version history into all file views</span></summary>
+<div class="entry-body">
+<p>Integrated the `VersionHistoryPanel` into every place files are surfaced in the UI. FileEditor and FilesView reader mode now have a "History" toggle button that opens a split-panel with the version timeline on the right. SourcePanel, ChaptersPanel, and AgentOutputPanel show clock icon buttons on hover that navigate to the file's reader view for his...</p>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add VersionHistoryPanel component</span></summary>
+<div class="entry-body">
+<p>Created the `VersionHistoryPanel` — a slide-over panel that displays a file's version history as a timeline with source badges (user/agent/revert), relative timestamps, and byte sizes. Clicking a version computes and displays the diff. Each version entry has a "Revert to this version" button with inline confirmation. Supports paginated loading for ...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/components/Files/VersionHistoryPanel.tsx</code> — Full version history UI: timeline with <code>VersionEntry</code> sub-component, integrated <code>DiffViewer</code>, revert with confirmation, pagination, error handling, empty states.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add version store and DiffViewer component</span></summary>
+<div class="entry-body">
+<p>Created `versionStore` Zustand store with paginated history loading, version selection with auto-diff computation, revert, and error handling. Created `DiffViewer` component that renders `FileDiff` as color-coded unified diff with dual line numbers, hunk headers, and addition/deletion summary bar.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/stores/versionStore.ts</code> — Zustand store with 6 actions: <code>loadHistory</code>, <code>loadMoreHistory</code>, <code>selectVersion</code>, <code>clearSelection</code>, <code>revertToVersion</code>, <code>reset</code>. Paginated at 30 items per page.</li><li><code>src/renderer/components/Files/DiffViewer.tsx</code> — Renders <code>FileDiff</code> with green (additions), red (deletions), neutral (context) line coloring. Sub-components: <code>HunkHeader</code>, <code>DiffLineRow</code>, <code>DiffSummary</code>.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Wire VersionService into IPC, preload bridge, and composition root</span></summary>
+<div class="entry-body">
+<p>Connected `VersionService` to the Electron app. Instantiated in composition root, exposed through 6 new IPC channels (`versions:*`), and added to the preload bridge as `window.novelEngine.versions`. Auto-snapshot hooks added at 5 capture points: `files:write` (user edits), `chat:send` (pipeline agent writes), `hot-take:start`, `adhoc-revision:start...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/index.ts</code> — Import and instantiate <code>VersionService</code>. Add startup pruning loop. Add fallback snapshot to BookWatcher callback. Pass <code>version</code> to <code>registerIpcHandlers</code>.</li><li><code>src/main/ipc/handlers.ts</code> — Add <code>IVersionService</code> to services param. Add <code>snapshotChangedFiles</code> helper. Add 6 <code>versions:*</code> IPC handlers. Modify <code>files:write</code> to auto-snapshot. Add snapshot hooks to <code>chat:send</code>, <code>hot-take:start</code>, <code>adhoc-revision:start</code>, and revision queue event forwarding.</li><li><code>src/preload/index.ts</code> — Add <code>versions</code> namespace with 6 methods: <code>getHistory</code>, <code>getVersion</code>, <code>getDiff</code>, <code>revert</code>, <code>getCount</code>, <code>snapshot</code>. Add type imports for <code>FileDiff</code>, <code>FileVersion</code>, <code>FileVersionSource</code>, <code>FileVersionSummary</code>.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add VersionService implementation with diff computation</span></summary>
+<div class="entry-body">
+<p>Created `VersionService` in the application layer, implementing all 8 methods of `IVersionService`. Installed `diff` npm package for structured diff computation using `structuredPatch()`. The service handles snapshot dedup via SHA-256 hashing, file extension filtering (`.md`/`.json` only), structured diff output with line numbers, and version pruni...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/VersionService.ts</code> — Implements <code>IVersionService</code>. Depends on <code>IDatabaseService</code> and <code>IFileSystemService</code> via DI. Uses <code>node:crypto</code> for hashing and <code>diff</code> package for structured patches.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add database migration and version repository for content version control</span></summary>
+<div class="entry-body">
+<p>Added SQLite migration v2 creating the `file_versions` table with composite indexes, and extended `IDatabaseService` and `DatabaseService` with 7 new methods for version CRUD: insert, get, list, count, delete-beyond-limit, and get-versioned-paths. All queries use parameterized prepared statements with explicit snake_case→camelCase mapping.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/interfaces.ts</code> — Extended <code>IDatabaseService</code> with 7 new methods in a <code>// File Versions</code> section: <code>insertFileVersion</code>, <code>getFileVersion</code>, <code>getLatestFileVersion</code>, <code>listFileVersions</code>, <code>countFileVersions</code>, <code>deleteFileVersionsBeyondLimit</code>, <code>getVersionedFilePaths</code></li><li><code>src/infrastructure/database/migrations.ts</code> — Added migration v2: creates <code>file_versions</code> table with <code>idx_file_versions_lookup</code> and <code>idx_file_versions_hash</code> indexes</li><li><code>src/infrastructure/database/DatabaseService.ts</code> — Implemented all 7 new <code>IDatabaseService</code> methods. Added 6 prepared statements and 2 private row mappers (<code>mapFileVersion</code>, <code>mapFileVersionSummary</code>). Added <code>FileVersion</code>, <code>FileVersionSource</code>, <code>FileVersionSummary</code> type imports.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add domain types and interface for content version control</span></summary>
+<div class="entry-body">
+<p>Added version control domain types (`FileVersion`, `FileVersionSummary`, `DiffHunk`, `DiffLine`, `FileDiff`, `FileVersionSource`, `DiffLineType`) and the `IVersionService` interface to `src/domain/`. This is the foundation for the content-version-control feature — snapshot-per-write model with SHA-256 dedup, structured diffs, and revert capability.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added 7 version control types after the File System section: <code>FileVersionSource</code>, <code>FileVersion</code>, <code>FileVersionSummary</code>, <code>DiffLineType</code>, <code>DiffLine</code>, <code>DiffHunk</code>, <code>FileDiff</code></li><li><code>src/domain/interfaces.ts</code> — Added <code>IVersionService</code> interface with 8 methods: <code>snapshotFile</code>, <code>snapshotContent</code>, <code>getHistory</code>, <code>getVersion</code>, <code>getDiff</code>, <code>revertToVersion</code>, <code>getVersionCount</code>, <code>pruneVersions</code>. Added 4 new type imports.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add intake meta-prompt for document-to-session decomposition</span></summary>
+<div class="entry-body">
+<p>Created `prompts/meta/intake.md` — a generic meta-prompt that takes any number of attached documents (feature specs, research, design docs, bug reports, RFCs, raw ideas), analyzes them against the current codebase, and decomposes the work into ordered session prompts under `prompts/feature/{feature-name}/`. Generates a complete build-out directory ...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/meta/intake.md</code> — Document intake and feature decomposition prompt. Parses attached documents, researches current codebase, decomposes into layered sessions, generates MASTER/STATE/SESSION files.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-28</span><span class="entry-title">Fix MotifLedgerService data loss: remove auto-writeback, harden JSON repair</span></summary>
+<div class="entry-body">
+<p>The initial JSON repair implementation (2026-03-27) auto-wrote repaired data back to disk on load. The `repairJson()` regex matched `}{` patterns inside string values (not just between array elements), corrupting the parsed structure. The writeback then overwrote the 133KB original with an empty/corrupt version — total data loss. Fixed by: (1) remo...</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/application/MotifLedgerService.ts</code> — Removed auto-writeback of repaired JSON on load. Rewrote <code>repairJson()</code> from global regex to line-by-line structural repair (only matches lines that are purely <code>}</code> or <code>]</code>). Simplified <code>safeParse()</code> return type (removed <code>repaired</code> flag).</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Fix Motif Ledger Audit Log crash from agent-written data shape mismatch</span></summary>
+<div class="entry-body">
+<p>The Audit Log tab in the Motif Ledger crashed with a `TypeError` when clicking it. Root cause: the MOTIF-AUDIT agent writes audit log records with fields `{ chapter, date, findings }`, but the UI expects `{ id, chapterSlug, auditedAt, entriesAdded, entriesUpdated, notes }`. The sort on line 33 of `AuditLogTab.tsx` called `.localeCompare()` on `unde...</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/application/MotifLedgerService.ts</code> — Added <code>normalizeAuditRecord()</code> to map agent field names (<code>chapter</code>→<code>chapterSlug</code>, <code>date</code>→<code>auditedAt</code>, <code>findings</code>→<code>notes</code>) and fill missing fields (<code>id</code>, <code>entriesAdded</code>, <code>entriesUpdated</code>). Also added <code>normalizeSystem()</code> (fills missing <code>components</code> array) and <code>normalizeEntry()</code> (fills missing <code>phrase</code> field). Added <code>safeArray()</code> helper to guard against non-array values.</li><li><code>src/renderer/components/MotifLedger/AuditLogTab.tsx</code> — Sort comparison now uses <code>(b.auditedAt ?? '').localeCompare(a.auditedAt ?? '')</code> as a defensive fallback.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Fix Hot Take button not appearing after chapters are created mid-session</span></summary>
+<div class="entry-body">
+<p>`HotTakeButton` only re-checked for chapters when `activeSlug` changed, not when files were created on disk. After auto-drafting chapters, the button stayed hidden until app restart. Fixed by subscribing to `fileChangeStore.revision` — the same pattern `AdhocRevisionButton` already used.</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/renderer/components/Sidebar/HotTakeButton.tsx</code> — Added <code>fileRevision</code> from <code>useFileChangeStore</code> to the <code>useEffect</code> dependency array so the chapter existence check re-runs when files change on disk.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Update GitHub Pages website with latest changelog entries</span></summary>
+<div class="entry-body">
+<p>Updated `docs/changelog.html` with 3 new entries added since the last website build: r003 race condition/stream architecture fixes, MotifLedgerView crash fix, and BookSelector/SystemsTab crash fix. Updated stats (18 → 21 entries, added bug fix count), expanded the Quality &amp; Stability highlight reel section. All other pages remain current — no new f...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>docs/changelog.html</code> — Added 3 new entries at top (r003 fixes, MotifLedgerView crash, BookSelector/SystemsTab crash). Updated stats: entries 18→21, replaced "Architecture Changes" stat with "Bug Fixes: 20+". Added r003 and MotifLedger crash fixes to Quality &amp; Stability highlights.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Fix nested button DOM warning and SystemsTab crash on undefined components</span></summary>
+<div class="entry-body">
+<p>Fixed three console errors: (1) React `validateDOMNesting` warning from a `&lt;button&gt;` nested inside a `&lt;button&gt;` in BookSelector — the outer dropdown trigger is now a `&lt;div role="button"&gt;` with keyboard support; (2) `TypeError` crash in SystemsTab when `sys.components` is `undefined` from partially-populated ledger JSON on disk — added `?? []` fallb...</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/renderer/components/Sidebar/BookSelector.tsx</code> — Changed outer dropdown trigger from <code>&lt;button&gt;</code> to <code>&lt;div role="button"&gt;</code> with <code>tabIndex</code> and <code>onKeyDown</code>, eliminating the nested-button DOM warning.</li><li><code>src/renderer/components/MotifLedger/SystemsTab.tsx</code> — Guarded <code>sys.components</code> with <code>?? []</code> in <code>startEdit()</code> (line 42), render loop (line 165), and iteration (line 167) to prevent crash when ledger JSON has systems with missing <code>components</code> field.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Fix crash on startup: MotifLedgerView tab count reads undefined array</span></summary>
+<div class="entry-body">
+<p>Fixed a `TypeError: Cannot read properties of undefined (reading 'length')` crash on production app startup. The `MotifLedgerView` tab-count computation assumed all ledger array keys exist when the ledger object is truthy, but partial/empty ledger JSON files leave some keys undefined. Since all views are rendered simultaneously (hidden with CSS), t...</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/renderer/components/MotifLedger/MotifLedgerView.tsx</code> — Tab count computation now guards against undefined ledger arrays with optional chaining (<code>arr?.length ?? 0</code>) instead of casting to <code>unknown[]</code> and accessing <code>.length</code> directly.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Issue fixes r003: Race conditions, error handling, stream architecture</span></summary>
+<div class="entry-body">
+<p>Executed 8 fix prompts from the r003 evaluation. Fixed critical race conditions in concurrent stream management (book switching kills background streams, singleton diagnostics/changedFiles overwritten by concurrent calls), improved error handling in auto-draft audit failures, added proper stream listener lifecycle to pitchRoomStore, enhanced EPIPE ...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/renderer/stores/chatStore.ts</code> — Added <code>_streamOrigin</code> discriminator (<code>'self'|'external'|null</code>). <code>switchBook()</code> only aborts <code>'self'</code> streams, preserving background auto-draft/hot-take/revision streams.</li><li><code>src/renderer/stores/autoDraftStore.ts</code> — Added <code>skippedAudits: string[]</code> to <code>AutoDraftSession</code>. Audit/fix catch block now pauses the loop instead of silently continuing. Logs skipped audits on session completion.</li><li><code>src/application/ChatService.ts</code> — Replaced <code>lastDiagnostics</code> singleton with <code>diagnosticsMap: Map&lt;string, ContextDiagnostics&gt;</code> keyed by conversationId (max 20 entries). <code>getLastDiagnostics()</code> accepts optional conversationId. <code>sendMessage()</code> now returns <code>{ changedFiles: string[] }</code>. Removed <code>resetChangedFiles()</code> call and <code>getLastChangedFiles()</code> method.</li><li><code>src/application/StreamManager.ts</code> — Removed <code>lastChangedFiles</code> singleton, <code>resetChangedFiles()</code>, and <code>getLastChangedFiles()</code>. Each stream tracks its own <code>changedFiles</code> via closure. <code>startStream()</code> returns <code>getChangedFiles()</code> getter.</li><li><code>src/domain/interfaces.ts</code> — Updated <code>IChatService.sendMessage</code> return type to <code>Promise&lt;{ changedFiles: string[] }&gt;</code>. Updated <code>getLastDiagnostics</code> to accept optional <code>conversationId</code>. Removed <code>getLastChangedFiles()</code>. Added <code>persistStreamEventBatch()</code> to <code>IDatabaseService</code>.</li><li><code>src/domain/types.ts</code> — Added <code>StreamEventSource</code> type union for event origin discrimination.</li><li><code>src/main/ipc/handlers.ts</code> — <code>chat:send</code> reads changedFiles from <code>sendMessage()</code> return. <code>adhoc-revision:start</code> captures changedFiles from stream events. All broadcast sites inject <code>source: StreamEventSource</code>. <code>context:getLastDiagnostics</code> passes conversationId. Verity <code>broadcastVerityEvent</code> now accepts source parameter.</li><li><code>src/preload/index.ts</code> — <code>context.getLastDiagnostics</code> accepts optional conversationId.</li><li>...and 7 more</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Build multi-page GitHub Pages website</span></summary>
+<div class="entry-body">
+<p>Built a full 6-page GitHub Pages website in `docs/`. Migrated the existing 10-book evaluation from `docs/index.html` to `docs/evaluation.html` (content preserved verbatim) and replaced `docs/index.html` with a new landing page. Created 4 additional pages: architecture (technical docs for developers), changelog (formatted project history), press kit...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>docs/index.html</code> — Landing page: hero, 7 agent cards, 14-phase pipeline visualization, getting started guide, screenshots, published books grid</li><li><code>docs/evaluation.html</code> — 10-book dual AI evaluation (migrated from old index.html with nav/footer added)</li><li><code>docs/architecture.html</code> — Technical architecture: 5-layer diagram, tech stack, service dependency graph, design decisions, database schema, source tree, contributing guide</li><li><code>docs/changelog.html</code> — Formatted changelog with summary stats, highlight reel, collapsible entries for all 18 changelog entries</li><li><code>docs/press.html</code> — Press kit: quotable pitch, 7 differentiator cards, published works, by-the-numbers stats, quotable lines, asset links</li><li><code>docs/contact.html</code> — Contact info, contribution guide with architecture rules, bug reporting template, testers-wanted callout with platform badges</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>docs/index.html</code> — Replaced single-page evaluation site with full landing page (evaluation content moved to evaluation.html)</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">README deep update: comprehensive rewrite from codebase analysis</span></summary>
+<div class="entry-body">
+<p>Rewrote `README.md` from a full analysis of every source file. Updated file count (102 → 121), corrected agent thinking budgets (Spark 4K not 8K), added Verity Audit Pipeline and Motif Ledger as documented features, updated source tree to reflect `streamHandler.ts` (renamed from `streamRouter.ts`), `migrations.ts`, `statusMessages.ts`, `MotifLedger...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>README.md</code> — Full rewrite. Updated source tree, file count, feature descriptions, agent registry, custom-agents directory listing. Added Verity Audit Pipeline, Motif Ledger, and phase-aware Verity prompt sections. Corrected Spark thinking budget from 8K to 4K. Updated store count to 14. Added all missing component groups and application services.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Issue fixes r002: 9 bug fixes from repo evaluation</span></summary>
+<div class="entry-body">
+<p>Executed all 9 fix prompts from `prompts/arch/r002/` addressing findings from the repo evaluation. Fixed error path cleanup (stale `_activeCallId` + orphan temp messages), revision event forwarding missing `conversationId`, missing `callStart` events for Verity audit/fix calls, duplicate polling intervals in cliActivityStore recovery, silent error ...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/stores/streamHandler.ts</code> — Shared <code>createStreamHandler()</code> factory encapsulating guard logic and event dispatch for chatStore, modalChatStore, pitchRoomStore</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/renderer/stores/chatStore.ts</code> — Error catch clears <code>_activeCallId</code> and filters temp message; <code>_handleStreamEvent</code> delegates to shared handler; <code>switchBook()</code> aborts active stream before clearing state</li><li><code>src/renderer/stores/modalChatStore.ts</code> — Error catch clears <code>_activeCallId</code> and filters temp message; <code>_handleStreamEvent</code> delegates to shared handler; added <code>_closeRequested</code> flag for close-on-stream-end UX</li><li><code>src/renderer/stores/pitchRoomStore.ts</code> — Error catch clears <code>_activeCallId</code> and filters temp message; <code>_handleStreamEvent</code> delegates to shared handler</li><li><code>src/renderer/stores/cliActivityStore.ts</code> — Recovery polling uses module-level timer refs to prevent duplicate intervals</li><li><code>src/domain/types.ts</code> — <code>RevisionQueueEvent</code> <code>session:streamEvent</code> variant now includes optional <code>conversationId</code></li><li><code>src/application/RevisionQueueService.ts</code> — Includes <code>conversationId</code> when emitting <code>session:streamEvent</code></li><li><code>src/main/ipc/handlers.ts</code> — Forwards <code>conversationId</code> in revision event bridge; added <code>emitVerityCallStart()</code> helper + 4 call sites for Verity audit/fix/motif-audit</li><li><code>src/infrastructure/claude-cli/ClaudeCodeClient.ts</code> — EPIPE logged with <code>console.warn</code>; DB persistence errors logged on first failure per session; 500KB system prompt size guard before spawn</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Repo evaluation: comprehensive audit of chat bleed, activity monitor, and code quality</span></summary>
+<div class="entry-body">
+<p>Executed `prompts/standard/repo-eval.md` — a full audit of stream event isolation, CLI activity monitor coverage, and latent bugs. Traced event flows end-to-end across all 10+ surfaces that spawn CLI calls. Found no critical chat bleed issues; the callId-per-send pattern is robust. Identified 12 findings across medium/low severity: missing `_active...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>issues.md</code> — Full repo evaluation report with 12 findings, coverage matrix, and positive observations</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Add update-website standard prompt (multi-page)</span></summary>
+<div class="entry-body">
+<p>Created `prompts/standard/update-website.md` — a meta-prompt that reads the changelog, architecture docs, README, and existing GitHub Pages site assets, then builds a full multi-page GitHub Pages website in `docs/`. Produces 6 HTML pages: landing (index), 10-book evaluation (migrated from old index.html), architecture, changelog, press kit, and con...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/standard/update-website.md</code> — 8-step prompt: collect source material → define site map (6 pages) → spec each page → design system tokens → content tone rules → screenshot strategy → build all pages → verify 16-point checklist</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Add address-issues standard prompt</span></summary>
+<div class="entry-body">
+<p>Created `prompts/standard/address-issues.md` — a meta-prompt that reads `issues.md` (output of `repo-eval.md`), decomposes findings into numbered `FIX-NN.md` prompts in the next available `prompts/arch/r###/` revision, and generates `MASTER.md` + `STATE.md` for loop execution.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/standard/address-issues.md</code> — 7-step prompt: parse issues → group by affinity → order by severity → generate fix prompts → generate STATE.md → generate MASTER.md → summary report</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-12: Audit and fix silent error swallowing</span></summary>
+<div class="entry-body">
+<p>Audited all 115 bare `catch {}` blocks across the codebase. Added explanatory comments to 12 uncommented catches in priority files (SettingsService, FileSystemService, MotifLedgerService, RevisionQueueService, bootstrap, handlers). Found that 82 catches already had comments, and the remaining 33 are clearly ENOENT-expected patterns or already log w...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/settings/SettingsService.ts</code> — Added comments to 2 catches (settings load, CLI detection)</li><li><code>src/infrastructure/filesystem/FileSystemService.ts</code> — Added comments to 2 catches (books dir, active book)</li><li><code>src/application/MotifLedgerService.ts</code> — Added comments to 2 catches (load, getUnauditedChapters)</li><li><code>src/application/RevisionQueueService.ts</code> — Added comments to 2 catches (readCache, readState)</li><li><code>src/main/bootstrap.ts</code> — Added comment to 1 catch (needsBootstrap)</li><li><code>src/main/ipc/handlers.ts</code> — Added comment to 1 catch (author profile load)</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-09: Slim ChatService to router</span></summary>
+<div class="entry-body">
+<p>Final cleanup of ChatService after all extractions. Removed unused `IAuditService` and `IUsageService` dependencies (StreamManager handles usage recording). ChatService is now a clean router at 403 lines (down from 1,218 — 67% reduction).</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/ChatService.ts</code> — Removed <code>audit: IAuditService</code> and <code>usage: IUsageService</code> constructor params (no longer directly needed). Final line count: 403.</li><li><code>src/main/index.ts</code> — Updated ChatService constructor call.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-07 &amp; ARCH-08: Extract HotTakeService and AdhocRevisionService</span></summary>
+<div class="entry-body">
+<p>Extracted `handleHotTake()` into HotTakeService and `handleAdhocRevision()` into AdhocRevisionService. Both implement domain interfaces. ChatService now delegates all three special-purpose conversation flows (pitch-room, hot-take, adhoc-revision) to their own services.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/HotTakeService.ts</code> — <code>HotTakeService</code> implementing <code>IHotTakeService</code> (98 lines)</li><li><code>src/application/AdhocRevisionService.ts</code> — <code>AdhocRevisionService</code> implementing <code>IAdhocRevisionService</code> (105 lines)</li><li><code>src/domain/interfaces.ts</code> — <code>IHotTakeService</code>, <code>IAdhocRevisionService</code> interfaces</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/ChatService.ts</code> — Removed <code>handleHotTake()</code> and <code>handleAdhocRevision()</code>. Added <code>hotTake: IHotTakeService</code> and <code>adhocRevision: IAdhocRevisionService</code> constructor params. ChatService: 559→407 lines.</li><li><code>src/main/index.ts</code> — Instantiate HotTakeService and AdhocRevisionService, inject into ChatService.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-06: Extract PitchRoomService from ChatService</span></summary>
+<div class="entry-body">
+<p>Extracted `handlePitchRoomMessage()` from ChatService into a new `PitchRoomService` behind an `IPitchRoomService` interface. StreamManager is now instantiated externally in main/index.ts and shared between ChatService and PitchRoomService (required for correct active-stream tracking).</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/PitchRoomService.ts</code> — <code>PitchRoomService</code> class implementing <code>IPitchRoomService</code> (109 lines)</li><li><code>src/domain/interfaces.ts</code> — <code>IPitchRoomService</code> interface (handleMessage)</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/ChatService.ts</code> — Removed <code>handlePitchRoomMessage()</code>. Added <code>pitchRoom: IPitchRoomService</code> and <code>streamManager: StreamManager</code> constructor params. StreamManager no longer created internally. ChatService: 637→559 lines.</li><li><code>src/main/index.ts</code> — StreamManager created externally and injected into both ChatService and PitchRoomService. PitchRoomService instantiated and passed to ChatService.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-05: Extract AuditService from ChatService</span></summary>
+<div class="entry-body">
+<p>Extracted `auditChapter()`, `fixChapter()`, and `runMotifAudit()` from ChatService into a new `AuditService` behind an `IAuditService` interface. These three methods form a cohesive audit-and-fix subsystem. ChatService's `handleAdhocRevision` now delegates to `this.audit.runMotifAudit()`. IPC handlers route audit channels directly to the audit serv...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/AuditService.ts</code> — <code>AuditService</code> class implementing <code>IAuditService</code> (350 lines)</li><li><code>src/domain/interfaces.ts</code> — <code>IAuditService</code> interface (auditChapter, fixChapter, runMotifAudit)</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/ChatService.ts</code> — Removed 3 method implementations (~320 lines). Added <code>audit: IAuditService</code> constructor param. ChatService reduced from 1,121→637 lines.</li><li><code>src/domain/interfaces.ts</code> — Moved audit methods from <code>IChatService</code> to new <code>IAuditService</code></li><li><code>src/main/ipc/handlers.ts</code> — Added <code>audit: IAuditService</code> to services param. Routed verity:auditChapter, verity:fixChapter, verity:fixChapterWithAudit, verity:runMotifAudit to <code>services.audit</code></li><li><code>src/main/index.ts</code> — Instantiate <code>AuditService</code>, inject into ChatService and registerIpcHandlers</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-04: Extract StreamManager from ChatService</span></summary>
+<div class="entry-body">
+<p>Extracted `StreamManager` and `resolveThinkingBudget()` from ChatService. StreamManager owns the active-streams map and the repetitive register → accumulate → save → record usage → cleanup lifecycle. All four manual stream patterns in ChatService (`sendMessage`, `handleHotTake`, `handleAdhocRevision`, `handlePitchRoomMessage`) now delegate to `Stre...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/StreamManager.ts</code> — <code>StreamManager</code> class: <code>startStream()</code>, <code>resetChangedFiles()</code>, <code>getActiveStream()</code>, <code>getActiveStreamForBook()</code>, <code>getLastChangedFiles()</code>, <code>cleanupAbortedStream()</code>, <code>cleanupErroredStream()</code></li><li><code>src/application/thinkingBudget.ts</code> — <code>resolveThinkingBudget()</code> pure function (per-message override → global override → per-agent default → undefined)</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/ChatService.ts</code> — Removed <code>private activeStreams</code> and <code>private lastChangedFiles</code> fields. Added <code>private streamManager: StreamManager</code>. All four stream handler methods now use <code>streamManager.startStream()</code> instead of manual buffer/cleanup patterns. Replaced inline <code>resolveThinkingBudget</code> with import from <code>./thinkingBudget</code>.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-03: Add IChatService and IUsageService interfaces</span></summary>
+<div class="entry-body">
+<p>Added `IChatService` (14 methods) and `IUsageService` (3 methods) interfaces to the domain layer. The IPC handlers now depend on these abstractions instead of concrete application classes. ChatService's constructor now takes `IUsageService` instead of `UsageService`. Both concrete classes have `implements` clauses.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/interfaces.ts</code> — <code>IChatService</code> interface (sendMessage, createConversation, getConversations, getMessages, abortStream, getActiveStream, getActiveStreamForBook, getLastDiagnostics, getLastChangedFiles, isCliIdle, recoverOrphanedSessions, getRecoveredOrphans, auditChapter, fixChapter, runMotifAudit)</li><li><code>src/domain/interfaces.ts</code> — <code>IUsageService</code> interface (recordUsage, getSummary, getByConversation)</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/interfaces.ts</code> — Added imports: <code>ActiveStreamInfo</code>, <code>AuditResult</code>, <code>ContextDiagnostics</code>, <code>ConversationPurpose</code></li><li><code>src/application/ChatService.ts</code> — <code>implements IChatService</code>. Constructor param <code>usage: UsageService</code> → <code>usage: IUsageService</code>. Removed concrete <code>UsageService</code> import.</li><li><code>src/application/UsageService.ts</code> — <code>implements IUsageService</code></li><li><code>src/main/ipc/handlers.ts</code> — Replaced <code>import type { ChatService }</code> and <code>import type { UsageService }</code> with <code>IChatService</code> and <code>IUsageService</code> from <code>@domain/interfaces</code>. Updated <code>registerIpcHandlers</code> signature.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-13: Add database migration system</span></summary>
+<div class="entry-body">
+<p>Added a forward-only SQLite migration system. Migrations are defined as sequential versioned entries in `migrations.ts`, each running in its own transaction. The system tracks applied versions in a `schema_version` table. Converted the existing ad hoc ALTER TABLE check (conversations.purpose column) into a proper v1 migration.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/infrastructure/database/migrations.ts</code> — <code>Migration</code> type, <code>MIGRATIONS</code> array (v0 baseline + v1 purpose column), <code>runMigrations()</code> function</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/database/schema.ts</code> — Replaced ad hoc ALTER TABLE check with <code>runMigrations(db)</code> call. Added import of <code>runMigrations</code>.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-14: Standardize agent filenames</span></summary>
+<div class="entry-body">
+<p>Standardized all agent prompt filenames to `UPPER-CASE.md` convention. Renamed `FORGE.MD` → `FORGE.md` (extension casing) and `Quill.md` → `QUILL.md` (name casing). Added a rename migration in `bootstrap.ts` so existing user installations get their files renamed automatically on next startup.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>agents/FORGE.MD</code> → <code>agents/FORGE.md</code> — Extension casing standardized</li><li><code>agents/Quill.md</code> → <code>agents/QUILL.md</code> — Name casing standardized</li><li><code>src/domain/constants.ts</code> — <code>AGENT_REGISTRY.Forge.filename</code>: <code>'FORGE.MD'</code> → <code>'FORGE.md'</code>, <code>.Quill.filename</code>: <code>'Quill.md'</code> → <code>'QUILL.md'</code></li><li><code>src/main/bootstrap.ts</code> — Added agent rename migration step in <code>ensureAgents()</code> (runs before file copy)</li><li><code>docs/architecture/DOMAIN.md</code> — Agent registry table updated with correct filenames</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-11: Clean up Wrangler vestige</span></summary>
+<div class="entry-body">
+<p>Updated the Wrangler agent's role from 'Context Planner' to 'Revision Plan Parser' to accurately reflect its actual usage. The Wrangler is only used by `RevisionQueueService` for parsing Forge's revision plan output — the two-call context planning pattern was never implemented.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/constants.ts</code> — <code>AGENT_REGISTRY.Wrangler.role</code>: <code>'Context Planner'</code> → <code>'Revision Plan Parser'</code></li><li><code>docs/architecture/DOMAIN.md</code> — Updated Wrangler role in Agent Registry table</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-10: Document renderer value imports exception</span></summary>
+<div class="entry-body">
+<p>Documented the formal exception that allows the renderer layer to import pure data constants and pure functions from `@domain/constants` and `@domain/statusMessages`. These are statically defined values with zero Node.js dependencies — routing them through the IPC bridge would add complexity for no safety benefit.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/constants.ts</code> — Added header comment noting the renderer value import exception</li><li><code>docs/architecture/ARCHITECTURE.md</code> — Added "Renderer Value Import Exception" section with criteria, allowed imports list, and exclusions</li><li><code>docs/architecture/RENDERER.md</code> — Added callout noting the exception with link to ARCHITECTURE.md</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-02: Extract status messages from constants.ts</span></summary>
+<div class="entry-body">
+<p>Moved ~190 lines of status message arrays and helper functions from `src/domain/constants.ts` into a new `src/domain/statusMessages.ts` file. The new file has zero imports — pure functions over static data. constants.ts is now 273 lines (from 466 after ARCH-01, originally 755).</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/statusMessages.ts</code> — STATUS_PREPARING, STATUS_WAITING, STATUS_RESPONDING, PITCH_ROOM_FLAVOR arrays and their public accessor functions</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/constants.ts</code> — Removed all status message arrays and functions (~190 lines)</li><li><code>src/domain/index.ts</code> — Added <code>export * from './statusMessages'</code> to barrel export</li><li><code>src/application/ChatService.ts</code> — Import <code>randomPreparingStatus</code>, <code>randomWaitingStatus</code> from <code>@domain/statusMessages</code></li><li><code>src/renderer/hooks/useRotatingStatus.ts</code> — Import <code>randomRespondingStatus</code> from <code>@domain/statusMessages</code></li><li><code>src/renderer/stores/chatStore.ts</code> — Import <code>randomRespondingStatus</code> from <code>@domain/statusMessages</code></li><li><code>src/renderer/stores/modalChatStore.ts</code> — Import <code>randomRespondingStatus</code> from <code>@domain/statusMessages</code></li><li><code>src/renderer/stores/pitchRoomStore.ts</code> — Split import: <code>PITCH_ROOM_SLUG</code> from constants, <code>randomRespondingStatus</code> from statusMessages</li><li><code>src/renderer/components/PitchRoom/PitchRoomView.tsx</code> — Split import: <code>AGENT_REGISTRY</code> from constants, <code>randomPitchRoomFlavor</code> from statusMessages</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">ARCH-01: Extract prompt templates from constants.ts</span></summary>
+<div class="entry-body">
+<p>Moved 9 long-form prompt template strings out of `src/domain/constants.ts` into standalone `.md` files in the `agents/` directory. These are now loaded at runtime via `AgentService.loadRaw()`. Reduces constants.ts from 755 lines to 466 lines. The domain layer no longer contains natural language prompt text — only pure configuration data.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>agents/VOICE-SETUP.md</code> — Voice profile setup instructions (was <code>VOICE_SETUP_INSTRUCTIONS</code>)</li><li><code>agents/AUTHOR-PROFILE.md</code> — Author profile setup instructions (was <code>AUTHOR_PROFILE_INSTRUCTIONS</code>)</li><li><code>agents/PITCH-ROOM.md</code> — Pitch room brainstorming instructions with <code>{{BOOKS_PATH}}</code> placeholder (was <code>buildPitchRoomInstructions()</code>)</li><li><code>agents/HOT-TAKE.md</code> — Hot take assessment instructions (was <code>HOT_TAKE_INSTRUCTIONS</code>)</li><li><code>agents/MOTIF-AUDIT.md</code> — Scoped phrase &amp; motif audit instructions (was <code>MOTIF_AUDIT_INSTRUCTIONS</code>)</li><li><code>agents/ADHOC-REVISION.md</code> — Direct feedback mode instructions (was <code>ADHOC_REVISION_INSTRUCTIONS</code>)</li><li><code>agents/REVISION-VERIFICATION.md</code> — Post-revision verification prompt (was <code>REVISION_VERIFICATION_PROMPT</code>)</li><li><code>agents/VERITY-FIX.md</code> — Audit fix mode instructions (was <code>VERITY_FIX_INSTRUCTIONS</code>)</li><li>...and 1 more</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/constants.ts</code> — Removed 9 exported prompt constants/functions (~289 lines). Updated MOTIF_AUDIT_CADENCE comment to reference agent file instead of deleted constant.</li><li><code>src/application/ChatService.ts</code> — Replaced all 8 prompt constant references with <code>await this.agents.loadRaw()</code> calls. <code>buildPitchRoomInstructions()</code> replaced with template load + <code>{{BOOKS_PATH}}</code> regex replace.</li><li><code>src/application/RevisionQueueService.ts</code> — Replaced <code>WRANGLER_SESSION_PARSE_PROMPT</code> with <code>await this.agents.loadRaw('WRANGLER-PARSE.md')</code>.</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Architecture refactor prompt suite</span></summary>
+<div class="entry-body">
+<p>Created a complete set of 14 encapsulated refactoring prompts to address the architectural issues documented in `issues.md`. Includes a state tracker for cross-context handoffs, a dependency graph, and a master loop prompt that drives execution through all prompts in order. No production code changes — this is the planning and orchestration layer f...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/arch/STATE.md</code> — State tracker with prompt status, dependency graph, and handoff notes</li><li><code>prompts/arch/MASTER.md</code> — Master loop prompt that reads state, picks next prompt, executes, and loops</li><li><code>prompts/arch/ARCH-01.md</code> — Extract prompt templates from constants.ts to agent .md files</li><li><code>prompts/arch/ARCH-02.md</code> — Extract status messages from constants.ts to statusMessages.ts</li><li><code>prompts/arch/ARCH-03.md</code> — Add IChatService and IUsageService interfaces</li><li><code>prompts/arch/ARCH-04.md</code> — Extract StreamManager from ChatService</li><li><code>prompts/arch/ARCH-05.md</code> — Extract AuditService from ChatService</li><li><code>prompts/arch/ARCH-06.md</code> — Extract PitchRoomService from ChatService</li><li>...and 8 more</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Remove phrase ledger, consolidate into motif ledger</span></summary>
+<div class="entry-body">
+<p>Eliminated the standalone phrase ledger (`source/phrase-ledger.md`) as a separate artifact. All phrase/repetition tracking now lives exclusively in the `flaggedPhrases` section of `source/motif-ledger.json`. The motif ledger already had this section — the phrase ledger was a legacy Markdown format that duplicated its function. Lumen's Lens 8 audit ...</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Renamed <code>AuditViolationType</code> variant <code>'phrase-ledger-hit'</code> → <code>'flagged-phrase'</code></li><li><code>src/domain/constants.ts</code> — Removed <code>source/phrase-ledger.md</code> from <code>AGENT_READ_GUIDANCE</code> (Verity, Lumen). Removed <code>phraseLedger</code> from <code>FILE_MANIFEST_KEYS</code>. Renamed <code>PHRASE_AUDIT_INSTRUCTIONS</code> → <code>MOTIF_AUDIT_INSTRUCTIONS</code> (now writes to motif-ledger.json). Renamed <code>PHRASE_AUDIT_CADENCE</code> → <code>MOTIF_AUDIT_CADENCE</code>. Updated <code>VERITY_FIX_INSTRUCTIONS</code> to use <code>flagged-phrase</code> violation type.</li><li><code>src/application/ChatService.ts</code> — Renamed <code>runPhraseAudit()</code> → <code>runMotifAudit()</code>. Audit chapter now loads <code>flaggedPhrases</code> from motif-ledger.json instead of reading phrase-ledger.md. Updated ad hoc revision pre-step.</li><li><code>src/main/ipc/handlers.ts</code> — Renamed IPC channel <code>verity:runPhraseAudit</code> → <code>verity:runMotifAudit</code></li><li><code>src/preload/index.ts</code> — Renamed bridge method <code>runPhraseAudit</code> → <code>runMotifAudit</code></li><li><code>src/renderer/stores/autoDraftStore.ts</code> — Renamed <code>PHRASE_AUDIT_CADENCE</code> → <code>MOTIF_AUDIT_CADENCE</code>, updated periodic audit labels and method calls</li><li><code>agents/LUMEN.md</code> — Lens 8 now writes flaggedPhrases to motif-ledger.json instead of phrase-ledger.md. Updated file ownership table.</li><li><code>agents/VERITY-AUDIT.md</code> — Renamed violation type, updated input description and flagging rules</li><li>...and 5 more</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-removed">Removed</span><ul><li><code>source/phrase-ledger.md</code> concept — no longer produced or consumed by any agent or service</li><li><code>phraseLedger</code> key from <code>FILE_MANIFEST_KEYS</code></li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Create full architecture documentation from scratch</span></summary>
+<div class="entry-body">
+<p>Created all six architecture documentation files by reading every source file in the codebase and documenting the actual state. Covers all 5 layers: domain types/interfaces/constants, infrastructure modules and database schema, application services and orchestration logic, IPC channels and preload bridge shape, and renderer stores/components/views....</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>docs/architecture/ARCHITECTURE.md</code> — Master overview: layer diagram, source tree, service dependency graph, conventions, tech stack</li><li><code>docs/architecture/DOMAIN.md</code> — All types (60+ types cataloged), all interfaces (11 interfaces with full method tables), all constants</li><li><code>docs/architecture/INFRASTRUCTURE.md</code> — 6 infrastructure modules, 5 database tables with column details, CLI integration protocol, file watcher docs</li><li><code>docs/architecture/APPLICATION.md</code> — 8 application services with method tables, context assembly strategy, conversation compaction rules</li><li><code>docs/architecture/IPC.md</code> — 80+ IPC channels across 17 namespaces, 7 push events, full <code>window.novelEngine</code> preload bridge type shape</li><li><code>docs/architecture/RENDERER.md</code> — 13 Zustand stores, 8 views, 12 component groups (50+ components), 5 hooks</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Move architecture docs to docs/architecture/ subfolder</span></summary>
+<div class="entry-body">
+<p>Relocated all architecture documentation references from `docs/` to `docs/architecture/`. The `docs/` root already contained a landing page (`index.html`, `og-image.png`), so architecture docs now live in their own subfolder to avoid mixing concerns. Created the `docs/architecture/` directory and updated every reference in `AGENTS.md`.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>docs/architecture/</code> — New directory for all architecture documentation files</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>AGENTS.md</code> — Updated all 20+ references from <code>docs/*.md</code> to <code>docs/architecture/*.md</code> (Rule section, section headers, Workflow mappings, Edge Cases)</li></ul></div>
+</div>
+</details>
+<details class="entry">
+<summary><span class="entry-date">2026-03-27</span><span class="entry-title">Motif Ledger: full-stack feature from domain to UI</span></summary>
+<div class="entry-body">
+<p>Added the Motif Ledger — a structured JSON-backed system for tracking motif systems, character entries, structural devices, foreshadow threads, minor characters, flagged phrases, and audit logs per book. The domain types and application service were already built in a prior session; this session completed the IPC wiring, preload bridge, Zustand sto...</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/main/ipc/handlers.ts</code> — Added <code>motifLedger:load</code>, <code>motifLedger:save</code>, <code>motifLedger:getUnauditedChapters</code> IPC handlers</li><li><code>src/preload/index.ts</code> — Added <code>motifLedger</code> namespace to the contextBridge API</li><li><code>src/renderer/stores/motifLedgerStore.ts</code> — Zustand store with full CRUD for all 7 ledger sections, dirty tracking, save/load</li><li><code>src/renderer/components/MotifLedger/MotifLedgerView.tsx</code> — Main view with 7-tab navigation, save button, Cmd+S shortcut</li><li><code>src/renderer/components/MotifLedger/SystemsTab.tsx</code> — Motif systems CRUD</li><li><code>src/renderer/components/MotifLedger/EntriesTab.tsx</code> — Character motif entries CRUD with filtering</li><li><code>src/renderer/components/MotifLedger/StructuralTab.tsx</code> — Structural devices CRUD</li><li><code>src/renderer/components/MotifLedger/ForeshadowTab.tsx</code> — Foreshadow registry with status grouping</li><li>...and 3 more</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/ipc/handlers.ts</code> — Added <code>IMotifLedgerService</code> to services type, <code>MotifLedger</code> to type imports</li><li><code>src/preload/index.ts</code> — Added <code>MotifLedger</code> type import</li><li><code>src/renderer/stores/viewStore.ts</code> — Added <code>'motif-ledger'</code> to <code>ViewId</code></li><li><code>src/renderer/components/Layout/AppLayout.tsx</code> — Added <code>MotifLedgerView</code> to <code>ViewContent</code></li><li><code>src/renderer/components/Layout/Sidebar.tsx</code> — Added motif-ledger nav item</li></ul></div>
+</div>
+</details>
 
-        <div class="highlight-group">
-            <h3>Architecture Milestones</h3>
-            <div class="highlight-item">ChatService decomposition: 1,218 lines → 403 lines (67% reduction) across 6 extracted services</div>
-            <div class="highlight-item">Forward-only SQLite migration system replacing ad hoc ALTER TABLE checks</div>
-            <div class="highlight-item">Full architecture documentation: 6 docs covering all 5 layers</div>
-            <div class="highlight-item">14-prompt architecture refactor suite with state tracker and master loop</div>
-        </div>
 
-        <div class="highlight-group">
-            <h3>Quality &amp; Stability</h3>
-            <div class="highlight-item">r003 fixes: race conditions in concurrent stream management, type-safe event routing</div>
-            <div class="highlight-item">r002 fixes: 9 bug fixes including error path cleanup, stream handler dedup, abort-on-switch</div>
-            <div class="highlight-item">MotifLedger data loss fix: removed auto-writeback, hardened JSON repair to line-by-line structural approach</div>
-            <div class="highlight-item">Phrase ledger → motif ledger consolidation: eliminated redundant artifact</div>
-        </div>
-    </div>
-
-    <!-- ═══ ENTRIES: 2026-03-28 ═══ -->
-    <div class="date-group fade-up">
-        <div class="date-header">2026-03-28</div>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Comprehensive README rewrite</summary>
-            <div class="entry-body">
-                <p>Rewrote <code>README.md</code> to accurately reflect the current state of the codebase. Updated file count from 121 to 130. Added documentation for three features missing from the previous README: File Version History, Multi-Model Provider Support, and Catalog Export. Updated source tree, database table count (5→7), store count (14→16).</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Multi-model providers: renderer UI (SESSION-07)</summary>
-            <div class="entry-body">
-                <p>Added provider management UI to Settings. New <code>providerStore</code> (Zustand) manages provider state. New <code>ProviderSection</code> component shows provider cards with status indicators, test connectivity, add/remove/toggle. Updated <code>ModelSelectionSection</code> to group models by provider with "Text only" badges for non-tool-use models.</p>
-                <h4>Added</h4>
-                <ul>
-                    <li><code>src/renderer/stores/providerStore.ts</code> — Zustand store for provider CRUD, status checking</li>
-                    <li><code>src/renderer/components/Settings/ProviderSection.tsx</code> — Provider management UI</li>
-                </ul>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Multi-model providers: IPC channels &amp; preload bridge (SESSION-06)</summary>
-            <div class="entry-body">
-                <p>Exposed provider management to the renderer through 7 new <code>providers:*</code> IPC channels and a <code>window.novelEngine.providers</code> preload namespace. Updated <code>settings:getAvailableModels</code> to return <code>ModelInfo[]</code> from the registry.</p>
-                <h4>Changed</h4>
-                <ul>
-                    <li><code>src/main/ipc/handlers.ts</code> — Added 7 <code>providers:*</code> handlers</li>
-                    <li><code>src/preload/index.ts</code> — Added <code>providers</code> namespace with 7 bridge methods</li>
-                    <li><code>src/main/index.ts</code> — Added <code>providerRegistry</code> to handler registration</li>
-                </ul>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> Multi-model providers: service migration + composition root (SESSION-05)</summary>
-            <div class="entry-body">
-                <p>Migrated all 6 application services from <code>IClaudeClient</code> to <code>IProviderRegistry</code>. Rewired the composition root. No behavioral changes — all services use the same <code>sendMessage</code>/<code>abortStream</code> interface.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Multi-model providers: OpenAI-compatible provider (SESSION-04)</summary>
-            <div class="entry-body">
-                <p>Created <code>OpenAiCompatibleProvider</code> — universal BYOK/self-hosted provider using built-in <code>fetch</code> + SSE streaming. Works with any OpenAI Chat Completions-compatible endpoint. Text completion + streaming only (no tool-use).</p>
-                <h4>Added</h4>
-                <ul>
-                    <li><code>src/infrastructure/providers/OpenAiCompatibleProvider.ts</code></li>
-                </ul>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Multi-model providers: ProviderRegistry infrastructure (SESSION-03)</summary>
-            <div class="entry-body">
-                <p>Created <code>ProviderRegistry</code> — the central hub managing all model providers, routing model requests, and persisting configurations. Uses a reverse model index for O(1) lookups.</p>
-                <h4>Added</h4>
-                <ul>
-                    <li><code>src/infrastructure/providers/ProviderRegistry.ts</code></li>
-                    <li><code>src/infrastructure/providers/index.ts</code></li>
-                </ul>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> Multi-model providers: ClaudeCodeClient implements IModelProvider (SESSION-02)</summary>
-            <div class="entry-body">
-                <p>Made <code>ClaudeCodeClient</code> implement <code>IModelProvider</code> in addition to <code>IClaudeClient</code>. Added <code>providerId</code> and <code>capabilities</code> properties. Purely additive.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-infra">infra</span> Multi-model providers: domain types, interfaces, constants (SESSION-01)</summary>
-            <div class="entry-body">
-                <p>Foundation for pluggable AI provider architecture. Added 6 provider types, <code>IModelProvider</code> and <code>IProviderRegistry</code> interfaces, built-in provider constants. Extended <code>AppSettings</code> with <code>providers</code> and <code>activeProviderId</code>.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Add catalog export (ZIP all books)</summary>
-            <div class="entry-body">
-                <p>Export the entire book catalog as a single ZIP archive from Settings. New <code>catalog:exportZip</code> IPC channel, new <code>CatalogExportSection</code> component with success feedback.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Integrate version history into all file views</summary>
-            <div class="entry-body">
-                <p>Integrated <code>VersionHistoryPanel</code> into FileEditor and FilesView reader mode with History toggle and split-panel. SourcePanel, ChaptersPanel, and AgentOutputPanel show clock icon buttons that navigate to file history. Completes the content-version-control feature.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Add VersionHistoryPanel component</summary>
-            <div class="entry-body">
-                <p>Slide-over panel displaying file version history as a timeline with source badges, relative timestamps, byte sizes. Clicking a version computes and displays the diff. One-click revert with inline confirmation.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Add version store and DiffViewer component</summary>
-            <div class="entry-body">
-                <p>Created <code>versionStore</code> Zustand store with paginated history, version selection, auto-diff, and revert. Created <code>DiffViewer</code> component rendering unified diffs with color-coded lines.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-infra">infra</span> Wire VersionService into IPC, preload bridge, and composition root</summary>
-            <div class="entry-body">
-                <p>Connected <code>VersionService</code> to Electron. 6 new <code>versions:*</code> IPC channels, <code>window.novelEngine.versions</code> preload namespace. Auto-snapshot hooks at 5 capture points. Startup pruning on app launch.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Add VersionService implementation with diff computation</summary>
-            <div class="entry-body">
-                <p>Created <code>VersionService</code> implementing all 8 methods of <code>IVersionService</code>. Uses <code>diff</code> package for structured diffs, SHA-256 hashing for dedup.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-infra">infra</span> Add database migration and version repository</summary>
-            <div class="entry-body">
-                <p>SQLite migration v2 creating <code>file_versions</code> table with composite indexes. Extended <code>IDatabaseService</code> with 7 new methods for version CRUD.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-infra">infra</span> Add domain types and interface for content version control</summary>
-            <div class="entry-body">
-                <p>Added 7 version control types and <code>IVersionService</code> interface with 8 methods. Foundation for the content-version-control feature.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Add intake meta-prompt for document-to-session decomposition</summary>
-            <div class="entry-body">
-                <p>Created <code>prompts/meta/intake.md</code> — generic meta-prompt for decomposing feature specs into ordered session prompts with MASTER/STATE tracking.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Fix MotifLedgerService data loss: remove auto-writeback, harden JSON repair</summary>
-            <div class="entry-body">
-                <p>The initial JSON repair implementation auto-wrote repaired data back to disk on load, corrupting the structure and causing total data loss. Fixed by removing auto-writeback and rewriting repair to line-by-line structural approach.</p>
-            </div>
-        </details>
-    </div>
-
-    <!-- ═══ ENTRIES: 2026-03-27 ═══ -->
-    <div class="date-group fade-up">
-        <div class="date-header">2026-03-27</div>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Fix Motif Ledger Audit Log crash from agent-written data shape mismatch</summary>
-            <div class="entry-body">
-                <p>Audit Log tab crashed with <code>TypeError</code> when clicking it. Agent writes records with different field names than the UI expects. Fixed by normalizing agent data in <code>MotifLedgerService.load()</code> and defensive sort fallback.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Fix Hot Take button not appearing after chapters are created mid-session</summary>
-            <div class="entry-body">
-                <p><code>HotTakeButton</code> only re-checked for chapters when <code>activeSlug</code> changed. Fixed by subscribing to <code>fileChangeStore.revision</code>.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Update GitHub Pages website with latest changelog entries</summary>
-            <div class="entry-body">
-                <p>Updated <code>docs/changelog.html</code> with 3 new entries: r003 race condition fixes, MotifLedgerView crash, BookSelector/SystemsTab crash.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Fix nested button DOM warning and SystemsTab crash</summary>
-            <div class="entry-body">
-                <p>React <code>validateDOMNesting</code> warning in BookSelector and <code>TypeError</code> crash in SystemsTab when <code>sys.components</code> is undefined.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Fix crash on startup: MotifLedgerView tab count reads undefined array</summary>
-            <div class="entry-body">
-                <p>Tab-count computation assumed all ledger array keys exist. Added optional chaining with <code>arr?.length ?? 0</code>.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Issue fixes r003: Race conditions, error handling, stream architecture</summary>
-            <div class="entry-body">
-                <p>8 fix prompts: concurrent stream management races, auto-draft audit failure handling, pitchRoomStore stream listener lifecycle, EPIPE diagnostics, type-safe <code>StreamEventSource</code>, batched stream event DB persistence.</p>
-                <h4>Key Changes</h4>
-                <ul>
-                    <li><code>ChatService.ts</code> — <code>diagnosticsMap</code> replaces singleton, <code>sendMessage()</code> returns <code>{ changedFiles }</code></li>
-                    <li><code>StreamManager.ts</code> — Per-stream <code>changedFiles</code> via closure</li>
-                    <li><code>ClaudeCodeClient.ts</code> — Batched DB persistence (100ms flush, max 20)</li>
-                </ul>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Build multi-page GitHub Pages website</summary>
-            <div class="entry-body">
-                <p>6-page site: landing, evaluation (migrated), architecture, changelog, press kit, contact. Shared dark-theme design system, responsive, no external JS or tracking.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> README deep update: comprehensive rewrite from codebase analysis</summary>
-            <div class="entry-body">
-                <p>Full rewrite from analysis of every source file. Updated file count (102→121), corrected agent thinking budgets, added missing features.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-fix">fix</span> Issue fixes r002: 9 bug fixes from repo evaluation</summary>
-            <div class="entry-body">
-                <p>Error path cleanup, revision event forwarding, duplicate polling, shared stream handler extraction, abort-on-switchBook, modal close-on-stream-end, system prompt size guard.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Repo evaluation: comprehensive audit</summary>
-            <div class="entry-body">
-                <p>Full audit of stream event isolation, CLI activity monitor coverage, and code quality. 12 findings across medium/low severity.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Add update-website and address-issues standard prompts</summary>
-            <div class="entry-body">
-                <p>Meta-prompts for website generation and issue decomposition into fix prompt suites.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-12: Audit silent error swallowing</summary>
-            <div class="entry-body">
-                <p>Audited all 115 bare <code>catch {}</code> blocks. Added explanatory comments to 12 uncommented catches in priority files.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-09: Slim ChatService to router (403 lines, down from 1,218)</summary>
-            <div class="entry-body">
-                <p>Final cleanup. Removed unused dependencies. ChatService: 67% reduction complete.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-07 &amp; ARCH-08: Extract HotTakeService and AdhocRevisionService</summary>
-            <div class="entry-body">
-                <p>Extracted into dedicated services behind domain interfaces. ChatService delegates all special-purpose flows.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-06: Extract PitchRoomService from ChatService</summary>
-            <div class="entry-body">
-                <p>StreamManager now externally owned and shared between ChatService and PitchRoomService.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-05: Extract AuditService from ChatService</summary>
-            <div class="entry-body">
-                <p>Extracted <code>auditChapter()</code>, <code>fixChapter()</code>, and <code>runMotifAudit()</code>. ChatService: 1,121→637 lines.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-04: Extract StreamManager from ChatService</summary>
-            <div class="entry-body">
-                <p>Active-streams map and stream lifecycle extracted. All four stream patterns now use <code>StreamManager.startStream()</code>.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-03: Add IChatService and IUsageService interfaces</summary>
-            <div class="entry-body">
-                <p>Added <code>IChatService</code> (14 methods) and <code>IUsageService</code> (3 methods) to domain. IPC handlers now depend on abstractions.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-infra">infra</span> ARCH-13: Add database migration system</summary>
-            <div class="entry-body">
-                <p>Forward-only SQLite migrations with <code>schema_version</code> table. Converted ad hoc ALTER TABLE into proper v1 migration.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-infra">infra</span> ARCH-14: Standardize agent filenames</summary>
-            <div class="entry-body">
-                <p>Renamed <code>FORGE.MD</code>→<code>FORGE.md</code>, <code>Quill.md</code>→<code>QUILL.md</code>. Auto-rename migration in bootstrap.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> ARCH-11: Clean up Wrangler vestige + ARCH-10: Document renderer value imports</summary>
-            <div class="entry-body">
-                <p>Updated Wrangler role to 'Revision Plan Parser'. Documented the formal exception for renderer importing pure domain constants.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> ARCH-02 &amp; ARCH-01: Extract status messages and prompt templates</summary>
-            <div class="entry-body">
-                <p>Moved ~190 lines of status messages to <code>statusMessages.ts</code>. Moved 9 prompt templates to agent <code>.md</code> files. constants.ts: 755→273 lines.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Architecture refactor prompt suite (14 prompts)</summary>
-            <div class="entry-body">
-                <p>Complete set of encapsulated refactoring prompts with state tracker and master loop. Planning layer for the ARCH refactor.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-refactor">refactor</span> Remove phrase ledger, consolidate into motif ledger</summary>
-            <div class="entry-body">
-                <p>Eliminated <code>source/phrase-ledger.md</code>. All phrase tracking in <code>motif-ledger.json</code>. Renamed <code>phrase-ledger-hit</code>→<code>flagged-phrase</code> across types, agents, and UI.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-docs">docs</span> Create full architecture documentation from scratch</summary>
-            <div class="entry-body">
-                <p>6 architecture docs covering all 5 layers. Every file path, method signature, and IPC channel matches actual code.</p>
-            </div>
-        </details>
-
-        <details class="entry">
-            <summary><span class="entry-tag tag-feature">feature</span> Motif Ledger: full-stack feature from domain to UI</summary>
-            <div class="entry-body">
-                <p>IPC wiring, preload bridge, Zustand store, 7 CRUD tab panels, view routing, sidebar navigation. Complete structured tracker for literary elements.</p>
-            </div>
-        </details>
-    </div>
 </div>
 
 <footer class="site-footer">
@@ -575,10 +572,9 @@
 </footer>
 
 <script>
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
-}, { threshold: 0.1 });
-document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+document.querySelector('.hamburger').addEventListener('click', function() {
+    document.querySelector('.mobile-menu').classList.toggle('open');
+});
 </script>
 </body>
 </html>
