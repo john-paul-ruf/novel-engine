@@ -4,20 +4,20 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
-## [2026-03-27] — Add JSON repair to MotifLedgerService for agent-written malformed JSON
+## [2026-03-28] — Fix MotifLedgerService data loss: remove auto-writeback, harden JSON repair
 
 ### Summary
 
-Agents frequently write `motif-ledger.json` with minor syntax errors (missing commas between objects, trailing commas, etc.). The service's `JSON.parse()` threw on these, the `catch` block silently returned an empty ledger, and the UI showed nothing despite a 133 KB file on disk. Added a `repairJson()` + `safeParse()` pipeline that attempts common fixes before parsing. On successful repair, the clean JSON is written back to disk so future loads are fast. Also wrapped the remaining four array fields (`structuralDevices`, `foreshadows`, `minorCharacters`, `flaggedPhrases`) in `safeArray()` for consistency.
+The initial JSON repair implementation (2026-03-27) auto-wrote repaired data back to disk on load. The `repairJson()` regex matched `}{` patterns inside string values (not just between array elements), corrupting the parsed structure. The writeback then overwrote the 133KB original with an empty/corrupt version — total data loss. Fixed by: (1) removing the auto-writeback entirely (`load()` is now read-only), (2) rewriting `repairJson()` to operate line-by-line, only fixing lines that are purely structural (`}` or `]` alone on a line), never touching string content. Recovered the original `motif-ledger.json` (136KB, 6 systems, 52 entries, 35 flagged phrases, 21 audit records) from Claude CLI conversation logs.
 
-### Changed
-- `src/application/MotifLedgerService.ts` — Added `repairJson()` (fixes trailing commas, missing commas between `}{`, JS comments, BOM). Added `safeParse()` two-pass parser (fast path → repair path). `load()` now writes repaired JSON back to disk. All array fields now use `safeArray()`.
+### Fixed
+- `src/application/MotifLedgerService.ts` — Removed auto-writeback of repaired JSON on load. Rewrote `repairJson()` from global regex to line-by-line structural repair (only matches lines that are purely `}` or `]`). Simplified `safeParse()` return type (removed `repaired` flag).
 
 ### Architecture Impact
 - None — no wiring changes
 
 ### Migration Notes
-- None — existing valid JSON hits the fast path unchanged. Malformed JSON is auto-repaired on first load.
+- None — `load()` no longer writes to disk. The original file is preserved as-is.
 
 ---
 

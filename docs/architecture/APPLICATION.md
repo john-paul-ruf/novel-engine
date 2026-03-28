@@ -282,11 +282,11 @@ Dependencies: `IFileSystemService`
 
 | Method | What It Does |
 |--------|-------------|
-| `load(bookSlug)` | Reads `source/motif-ledger.json`, repairs malformed JSON, normalizes agent-written data to canonical shapes, returns `MotifLedger`. Writes repaired file back to disk on successful repair. |
+| `load(bookSlug)` | Reads `source/motif-ledger.json`, repairs malformed JSON, normalizes agent-written data to canonical shapes, returns `MotifLedger`. Read-only — never writes back to disk. |
 | `save(bookSlug, ledger)` | Writes `source/motif-ledger.json` |
 | `getUnauditedChapters(bookSlug)` | Compares chapter list against audit log |
 
-**JSON repair:** Agents frequently produce JSON with minor syntax errors. `load()` first attempts a standard `JSON.parse()`. On failure, it runs `repairJson()` which fixes: trailing commas, missing commas between adjacent objects/arrays, JS-style comments, and BOM characters. If repair succeeds, the clean JSON is written back to disk so future loads hit the fast path.
+**JSON repair:** Agents frequently produce JSON with minor syntax errors. `load()` first attempts a standard `JSON.parse()`. On failure, it runs `repairJson()` which operates line-by-line, only fixing lines that are purely structural (lone `}` or `]`): inserting missing commas between adjacent objects and removing trailing commas. Never touches string content. Never writes back to disk — `load()` is strictly read-only.
 
 **Data normalization:** Agents write ledger data with different field names than the UI expects. `load()` normalizes all records on read:
 - **Audit records:** `chapter`→`chapterSlug`, `date`→`auditedAt`, `findings`→`notes`; fills missing `id`, `entriesAdded`, `entriesUpdated`

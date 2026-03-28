@@ -83,38 +83,58 @@ function safeArray(val: unknown): unknown[] {
 function repairJson(raw: string): string {
   let text = raw;
 
-  // 1. Strip trailing commas before } or ]  (e.g.  { "a": 1, } )
-  text = text.replace(/,\s*([}\]])/g, '$1');
-
-  // 2. Insert missing commas between adjacent objects/arrays in arrays:
-  //    }\n    {  or  ]\n    [  without a comma between them.
-  text = text.replace(/\}(\s*)\{/g, '},$1{');
-  text = text.replace(/\](\s*)\[/g, '],$1[');
-
-  // 3. Insert missing commas between a closing } or ] and a quoted key:
-  //    }\n    "key"  →  },\n    "key"
-  text = text.replace(/([}\]])(\s*)"(?!:)/g, '$1,$2"');
-
-  // 4. Remove single-line JS-style comments  // ...
-  text = text.replace(/\/\/[^\n]*/g, '');
-
-  // 5. Strip BOM if present
+  // Strip BOM if present
   if (text.charCodeAt(0) === 0xfeff) {
     text = text.slice(1);
   }
 
-  return text;
+  // Only fix structural issues between lines — NOT inside string values.
+  // We split into lines and only apply repairs to lines that are purely
+  // structural (closing/opening braces, brackets).
+  const lines = text.split('\n');
+  const repaired: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trimStart();
+    const prevTrimmed = i > 0 ? repaired[repaired.length - 1].trimStart() : '';
+
+    // Fix: previous line ends with } or ] and this line starts with { or " (missing comma)
+    // Only match lines that are PURELY structural — not string content
+    if (
+      repaired.length > 0 &&
+      /^[}\]]$/.test(prevTrimmed.trimEnd()) &&
+      /^[{"\[]/.test(trimmed)
+    ) {
+      // Add comma to previous line
+      repaired[repaired.length - 1] = repaired[repaired.length - 1].replace(
+        /([}\]])\s*$/,
+        '$1,',
+      );
+    }
+
+    // Fix trailing comma before } or ]
+    if (/^[}\]]/.test(trimmed) && repaired.length > 0) {
+      repaired[repaired.length - 1] = repaired[repaired.length - 1].replace(
+        /,\s*$/,
+        '',
+      );
+    }
+
+    repaired.push(lines[i]);
+  }
+
+  return repaired.join('\n');
 }
 
 /**
  * Attempts to parse JSON, repairing common syntax errors on failure.
- * Returns `{ data, repaired }` — `repaired` is true when the raw input
- * required fixes, signalling the caller to write the clean version back.
+ * Returns the parsed object or null if repair also fails.
+ * Never writes back to disk — read-only operation.
  */
-function safeParse(raw: string): { data: Record<string, unknown>; repaired: boolean } | null {
+function safeParse(raw: string): { data: Record<string, unknown> } | null {
   // Fast path — valid JSON
   try {
-    return { data: JSON.parse(raw), repaired: false };
+    return { data: JSON.parse(raw) };
   } catch {
     // fall through to repair
   }
@@ -124,7 +144,7 @@ function safeParse(raw: string): { data: Record<string, unknown>; repaired: bool
     const repaired = repairJson(raw);
     const data = JSON.parse(repaired);
     console.warn('[MotifLedgerService] Loaded motif-ledger.json after repairing malformed JSON');
-    return { data, repaired: true };
+    return { data };
   } catch (err) {
     console.error('[MotifLedgerService] Failed to parse motif-ledger.json even after repair:', err);
     return null;
@@ -142,8 +162,8 @@ export class MotifLedgerService implements IMotifLedgerService {
       const result = safeParse(raw);
       if (!result) return structuredClone(EMPTY_LEDGER);
 
-      const { data: parsed, repaired } = result;
-      const ledger: MotifLedger = {
+      const { data: parsed } = result;
+      return {
         systems: safeArray(parsed.systems).map(normalizeSystem),
         entries: safeArray(parsed.entries).map(normalizeEntry),
         structuralDevices: safeArray(parsed.structuralDevices) as StructuralDevice[],
@@ -152,19 +172,6 @@ export class MotifLedgerService implements IMotifLedgerService {
         flaggedPhrases: safeArray(parsed.flaggedPhrases) as FlaggedPhrase[],
         auditLog: safeArray(parsed.auditLog).map(normalizeAuditRecord),
       };
-
-      // If we had to repair the JSON, write the clean version back so
-      // the error doesn't persist and future loads hit the fast path.
-      if (repaired) {
-        try {
-          await this.save(bookSlug, ledger);
-          console.warn('[MotifLedgerService] Wrote repaired motif-ledger.json back to disk');
-        } catch {
-          // Non-fatal — we still loaded successfully
-        }
-      }
-
-      return ledger;
     } catch {
       // ENOENT or other filesystem error
       return structuredClone(EMPTY_LEDGER);
