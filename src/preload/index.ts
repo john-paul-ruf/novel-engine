@@ -50,6 +50,7 @@ import type {
   FindReplaceOptions,
   FindReplacePreviewResult,
   ManuscriptAssembly,
+  BookDashboardData,
 } from '@domain/types';
 
 const api = {
@@ -457,6 +458,12 @@ const api = {
       options: FindReplaceOptions;
     }): Promise<FindReplaceApplyResult> =>
       ipcRenderer.invoke('findReplace:apply', params),
+  },
+
+  // Dashboard
+  dashboard: {
+    getData: (bookSlug: string): Promise<BookDashboardData> =>
+      ipcRenderer.invoke('dashboard:getData', bookSlug),
   },
 
   // Helper Agent

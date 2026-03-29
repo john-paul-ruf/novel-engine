@@ -24,6 +24,7 @@ import type {
   ISeriesImportService,
   IHelperService,
   IFindReplaceService,
+  IDashboardService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -48,6 +49,7 @@ import type {
   SeriesImportCommitConfig,
   SeriesMeta,
   SourceGenerationEvent,
+  BookDashboardData,
 } from '@domain/types';
 import type { NotificationManager } from '../notifications';
 
@@ -72,6 +74,7 @@ export function registerIpcHandlers(services: {
   seriesImport: ISeriesImportService;
   helper: IHelperService;
   findReplace: IFindReplaceService;
+  dashboard: IDashboardService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -1099,5 +1102,11 @@ export function registerIpcHandlers(services: {
     options: FindReplaceOptions;
   }): Promise<FindReplaceApplyResult> =>
     services.findReplace.apply(params),
+  );
+
+  // === Dashboard ===
+
+  ipcMain.handle('dashboard:getData', async (_event, bookSlug: string): Promise<BookDashboardData> =>
+    services.dashboard.getDashboardData(bookSlug),
   );
 }
