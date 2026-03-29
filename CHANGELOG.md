@@ -1469,3 +1469,38 @@ Added the Motif Ledger — a structured JSON-backed system for tracking motif sy
 
 ### Migration Notes
 None
+
+---
+
+## [2026-03-29] — Small queue intake: 13-session program for 14 feature requests
+
+### Summary
+
+Processed the full small feature request backlog into a structured 13-session build program at `prompts/feature-requests/intake/small-queue/`. Each session is a discrete, ordered engineering spec. The program covers UI bugs, sidebar/nav restructure, new views (reading mode, chapter deep dive), and smaller feature additions (saved prompts, about.json rich display, query letter mode). No source code was changed this session — only the program structure and prompt files were created.
+
+### Added
+- `FORGE-CONFIG.md` — First-run program configuration for Novel Engine. Captures stack, module registry, conventions, verification commands, and custom architecture rules. Used by all future Forge runs.
+- `prompts/feature-requests/intake/small-queue/MASTER.md` — Master loop prompt. Instructs the executing agent to iterate through sessions until all are done.
+- `prompts/feature-requests/intake/small-queue/STATE.md` — Session state tracker. All 13 sessions start as pending.
+- `prompts/feature-requests/intake/small-queue/SESSION-01.md` — Bug cluster: revision queue select overflow, sidebar compression, CLI panel scrollbars.
+- `prompts/feature-requests/intake/small-queue/SESSION-02.md` — Done confirm box (first-draft = celebration modal) + onboarding guide pipeline selector fix.
+- `prompts/feature-requests/intake/small-queue/SESSION-03.md` — Book dropdown redesign: simplify to books + New Book + Library panel. Hide archived series groups.
+- `prompts/feature-requests/intake/small-queue/SESSION-04.md` — Sidebar chat expandable: hot take and adhoc revision nested under Chat. Help button relocated to nav bottom.
+- `prompts/feature-requests/intake/small-queue/SESSION-05.md` — Motif Ledger moved from standalone nav item to a tab inside FilesView.
+- `prompts/feature-requests/intake/small-queue/SESSION-06.md` — Archive series: single-action UI button in SeriesModal to archive all books in a series.
+- `prompts/feature-requests/intake/small-queue/SESSION-07.md` — Settings reorganization: four tabs (Writing, Providers, Appearance, Profile).
+- `prompts/feature-requests/intake/small-queue/SESSION-08.md` — Saved prompt library: SavedPrompt domain type, AppSettings field, Saved tab in Quick Actions.
+- `prompts/feature-requests/intake/small-queue/SESSION-09.md` — About.json rich display: dynamic key/value card in FilesView when about.json is selected.
+- `prompts/feature-requests/intake/small-queue/SESSION-10.md` — Query letter / traditional publishing Quick Actions for Quill + HELPER.md improvements + user_guide meta prompt.
+- `prompts/feature-requests/intake/small-queue/SESSION-11.md` — Chapter deep dive backend: IChatService.deepDive, ChatService implementation, IPC handler, preload bridge.
+- `prompts/feature-requests/intake/small-queue/SESSION-12.md` — Chapter deep dive UI: Deep Dive button in FilesView chapter toolbar.
+- `prompts/feature-requests/intake/small-queue/SESSION-13.md` — Reading mode: ManuscriptAssembly type, IFileSystemService.assembleManuscript, IPC, ReadingModeView component, Build view entry point.
+
+### Architecture Impact
+- SESSION-08 (when executed): New type `SavedPrompt` in `src/domain/types.ts`; new field `savedPrompts` in `AppSettings`; updated `DEFAULT_SETTINGS` in `src/domain/constants.ts`
+- SESSION-11 (when executed): New method on `IChatService`; new IPC channel `chat:deepDive`; new bridge method `window.novelEngine.chat.deepDive`
+- SESSION-13 (when executed): New type `ManuscriptAssembly` in `src/domain/types.ts`; new method on `IFileSystemService`; new IPC channel `books:assembleManuscript`; new view `'reading'` in `ViewId`; new component `src/renderer/components/Reading/ReadingModeView.tsx`
+- SESSION-05 (when executed): Removes `'motif-ledger'` from `ViewId`; zustand persist migration needed (version bump)
+
+### Migration Notes
+- SESSION-05 removes `'motif-ledger'` from `ViewId`. Requires `version: 2` + `migrate` in viewStore persist config to handle users who have `'motif-ledger'` as their persisted currentView.

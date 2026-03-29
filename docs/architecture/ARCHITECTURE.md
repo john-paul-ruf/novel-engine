@@ -1,6 +1,6 @@
 # Architecture — Novel Engine
 
-> Last updated: 2026-03-28
+> Last updated: 2026-03-29
 
 Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Pandoc
 
