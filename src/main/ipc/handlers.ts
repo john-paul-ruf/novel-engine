@@ -25,6 +25,7 @@ import type {
   IHelperService,
   IFindReplaceService,
   IDashboardService,
+  IStatisticsService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -50,6 +51,7 @@ import type {
   SeriesMeta,
   SourceGenerationEvent,
   BookDashboardData,
+  BookStatistics,
 } from '@domain/types';
 import type { NotificationManager } from '../notifications';
 
@@ -75,6 +77,7 @@ export function registerIpcHandlers(services: {
   helper: IHelperService;
   findReplace: IFindReplaceService;
   dashboard: IDashboardService;
+  statistics: IStatisticsService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -490,6 +493,9 @@ export function registerIpcHandlers(services: {
       }
       // Snapshot agent-written files (uses params.bookSlug — correct for any book, not just active)
       snapshotChangedFiles(params.bookSlug, changedFiles);
+
+      // Record word count snapshot after files changed
+      services.statistics.recordWordCountSnapshot(params.bookSlug).catch(() => {});
     }
   });
 
@@ -1108,5 +1114,15 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('dashboard:getData', async (_event, bookSlug: string): Promise<BookDashboardData> =>
     services.dashboard.getDashboardData(bookSlug),
+  );
+
+  // === Statistics ===
+
+  ipcMain.handle('statistics:get', async (_event, bookSlug?: string): Promise<BookStatistics> =>
+    services.statistics.getStatistics(bookSlug),
+  );
+
+  ipcMain.handle('statistics:recordSnapshot', async (_event, bookSlug: string): Promise<void> =>
+    services.statistics.recordWordCountSnapshot(bookSlug),
   );
 }

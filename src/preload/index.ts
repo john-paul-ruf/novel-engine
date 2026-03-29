@@ -51,6 +51,7 @@ import type {
   FindReplacePreviewResult,
   ManuscriptAssembly,
   BookDashboardData,
+  BookStatistics,
 } from '@domain/types';
 
 const api = {
@@ -464,6 +465,14 @@ const api = {
   dashboard: {
     getData: (bookSlug: string): Promise<BookDashboardData> =>
       ipcRenderer.invoke('dashboard:getData', bookSlug),
+  },
+
+  // Statistics
+  statistics: {
+    get: (bookSlug?: string): Promise<BookStatistics> =>
+      ipcRenderer.invoke('statistics:get', bookSlug),
+    recordSnapshot: (bookSlug: string): Promise<void> =>
+      ipcRenderer.invoke('statistics:recordSnapshot', bookSlug),
   },
 
   // Helper Agent
