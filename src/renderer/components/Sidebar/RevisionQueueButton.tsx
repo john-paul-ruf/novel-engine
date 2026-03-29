@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
-import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 import { Tooltip } from '../common/Tooltip';
 
 export function RevisionQueueButton() {
   const { activeSlug } = useBookStore();
-  const { navigate, currentView } = useViewStore();
+  const openModal = useRevisionQueueStore((s) => s.openModal);
+  const isModalOpen = useRevisionQueueStore((s) => s.isModalOpen);
+  const modalBookSlug = useRevisionQueueStore((s) => s.modalBookSlug);
   const fileRevision = useFileChangeStore((s) => s.revision);
   const [hasRevisionPlan, setHasRevisionPlan] = useState(false);
 
@@ -56,9 +57,9 @@ export function RevisionQueueButton() {
   return (
     <Tooltip content="Open the automated revision queue" placement="right">
     <button
-      onClick={() => navigate('revision-queue')}
+      onClick={() => openModal(activeSlug)}
       className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-        currentView === 'revision-queue'
+        isModalOpen && modalBookSlug === activeSlug
           ? 'text-orange-300 bg-zinc-200/70 dark:bg-zinc-800/70'
           : isWaitingForApproval
           ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20'

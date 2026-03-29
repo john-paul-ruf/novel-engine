@@ -11,7 +11,7 @@ import { ChatView } from '../Chat/ChatView';
 import { FilesView } from '../Files/FilesView';
 import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
-import { RevisionQueueView } from '../RevisionQueue';
+import { RevisionQueueModal } from '../RevisionQueue';
 import { PitchRoomView } from '../PitchRoom/PitchRoomView';
 import { ReadingModeView } from '../Reading/ReadingModeView';
 import { DashboardView } from '../Dashboard/DashboardView';
@@ -83,9 +83,6 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'statistics' ? '' : 'hidden'}`}>
         <StatisticsView />
       </div>
-      <div className={`h-full ${currentView === 'revision-queue' ? '' : 'hidden'}`}>
-        <RevisionQueueView />
-      </div>
       <div className={`h-full ${currentView === 'pitch-room' ? '' : 'hidden'}`}>
         <PitchRoomView />
       </div>
@@ -149,6 +146,7 @@ export function AppLayout(): React.ReactElement {
         {isCliPanelOpen && <CliActivityPanel />}
       </div>
       {isModalOpen && <ChatModal />}
+      <RevisionQueueModal />
       <CliActivityListener />
       <HelperPanel />
       <TourManager />

@@ -31,6 +31,11 @@ type RevisionQueueState = {
   verificationConversationId: string | null;
   isVerifying: boolean;
 
+  // Modal state
+  isModalOpen: boolean;
+  isMinimized: boolean;
+  modalBookSlug: string;
+
   loadPlan: (bookSlug: string) => Promise<void>;
   reloadPlan: (bookSlug: string) => Promise<void>;
   clearCache: (bookSlug: string) => Promise<void>;
@@ -54,6 +59,10 @@ type RevisionQueueState = {
   loadPanelMessages: (conversationId: string) => Promise<void>;
   startVerification: () => Promise<void>;
   reset: () => void;
+
+  openModal: (bookSlug: string) => void;
+  closeModal: () => void;
+  toggleMinimize: () => void;
 };
 
 // ── Per-book state cache ──────────────────────────────────────────────
@@ -129,6 +138,11 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
   panelChatMode: false,
   verificationConversationId: null,
   isVerifying: false,
+
+  // Modal state
+  isModalOpen: false,
+  isMinimized: false,
+  modalBookSlug: '',
 
   switchToBook: async (bookSlug: string) => {
     const current = get();
@@ -534,5 +548,33 @@ export const useRevisionQueueStore = create<RevisionQueueState>((set, get) => ({
       verificationConversationId: null,
       isVerifying: false,
     });
+  },
+
+  openModal: (bookSlug: string) => {
+    const { modalBookSlug, isModalOpen, isRunning } = get();
+    // If already open for a different book while running, don't allow
+    if (isModalOpen && modalBookSlug !== bookSlug && isRunning) {
+      return;
+    }
+    set({ isModalOpen: true, isMinimized: false, modalBookSlug: bookSlug });
+    // Load plan for this book if not already loaded
+    const current = get();
+    if (!current.plan || current.plan.bookSlug !== bookSlug) {
+      get().switchToBook(bookSlug);
+    }
+  },
+
+  closeModal: () => {
+    const { isRunning } = get();
+    // Don't close while running — minimize instead
+    if (isRunning) {
+      set({ isMinimized: true });
+      return;
+    }
+    set({ isModalOpen: false, isMinimized: false });
+  },
+
+  toggleMinimize: () => {
+    set((s) => ({ isMinimized: !s.isMinimized }));
   },
 }));

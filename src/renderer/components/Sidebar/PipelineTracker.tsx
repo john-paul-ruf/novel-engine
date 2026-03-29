@@ -88,7 +88,7 @@ export function PipelineTracker(): React.ReactElement {
   const { activeSlug } = useBookStore();
   const { conversations, createConversation, setActiveConversation } = useChatStore();
   const { navigate, currentView } = useViewStore();
-  const { isLoading: revisionLoadingGlobal, isRunning: revisionRunningGlobal, activeSessionId: revisionActiveSession, plan: revisionPlan } = useRevisionQueueStore();
+  const { isLoading: revisionLoadingGlobal, isRunning: revisionRunningGlobal, activeSessionId: revisionActiveSession, plan: revisionPlan, isModalOpen: revisionModalOpen, modalBookSlug: revisionModalBookSlug } = useRevisionQueueStore();
 
   // Only show revision queue state for the currently displayed book
   const revisionIsForCurrentBook = revisionPlan?.bookSlug === activeSlug;
@@ -169,7 +169,7 @@ export function PipelineTracker(): React.ReactElement {
       if (!isRunning) {
         useRevisionQueueStore.setState({ plan: null, planId: null, error: null });
       }
-      navigate('revision-queue');
+      useRevisionQueueStore.getState().openModal(activeSlug);
       return;
     }
 
@@ -389,9 +389,9 @@ export function PipelineTracker(): React.ReactElement {
               </Tooltip>
               {showRevisionSub && (
                 <RevisionQueueSubButton
-                  isActive={currentView === 'revision-queue'}
+                  isActive={revisionModalOpen && revisionModalBookSlug === activeSlug}
                   isRunning={revisionLoading || (revisionRunning && !!revisionActiveSession)}
-                  onClick={() => navigate('revision-queue')}
+                  onClick={() => useRevisionQueueStore.getState().openModal(activeSlug)}
                 />
               )}
               {showCompleteRevision && (

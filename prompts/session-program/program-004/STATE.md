@@ -40,7 +40,7 @@
 | 4 | SESSION-04 — Dashboard View | M10 | done | 2026-03-29 | Created DashboardView with 6 card components, dashboardStore, updated viewStore (default=dashboard, version 3), AppLayout, Sidebar, bookStore. |
 | 5 | SESSION-05 — Statistics Service + IPC + Preload | M08, M09 | done | 2026-03-29 | Created StatisticsService, wired IPC handlers + preload bridge. Added word count snapshot hook on chat:send file changes. |
 | 6 | SESSION-06 — Statistics View | M10 | done | 2026-03-29 | Installed recharts, created StatisticsView with 6 chart sections + statisticsStore. Updated viewStore, AppLayout, Sidebar. Fixed recharts Tooltip formatter types for strict TS. |
-| 7 | SESSION-07 — Revision Queue Modal Refactor | M10 | pending | | |
+| 7 | SESSION-07 — Revision Queue Modal Refactor | M10 | done | 2026-03-29 | Created RevisionQueueModal (floating, non-blocking, minimize/maximize). Removed 'revision-queue' from ViewId. Updated RevisionQueueButton and PipelineTracker to open modal. |
 
 ---
 
@@ -112,13 +112,12 @@ Both tracks can run in parallel since they touch different files (except shared 
 
 > Agents write here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-06
+### Last completed session: SESSION-07 (FINAL)
+
+### All sessions complete.
 
 ### Observations:
-- DashboardView uses `import type` for domain types and value imports only from `@domain/constants` (AGENT_REGISTRY, PIPELINE_PHASES) — compliant with renderer layer rules.
-- viewStore persisted version bumped to 3. The migration function handles old `motif-ledger` values but doesn't need to handle `chat` → `dashboard` migration since users with `chat` persisted can stay on `chat` until they navigate.
-- Dashboard is now the default landing view and the navigation target when switching books.
-- Used HTML entities for emojis in JSX to avoid encoding issues.
-
-### Next up:
-- SESSION-07 (Revision Queue Modal Refactor) — all dependencies met (SESSION-04 ✓). Last session in the program.
+- viewStore persisted version bumped to 4 (migration handles 'revision-queue' → 'dashboard').
+- RevisionQueueView.tsx retained as deprecated — barrel export kept for safety, but AppLayout no longer mounts it.
+- PipelineTracker also referenced `navigate('revision-queue')` — updated to use `openModal`.
+- RevisionQueueModal uses pointer-events-none backdrop + pointer-events-auto modal body to be non-blocking.

@@ -1,16 +1,18 @@
 import { useEffect } from 'react';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 import { useBookStore } from '../../stores/bookStore';
-import { useViewStore } from '../../stores/viewStore';
 import { useRevisionQueueEvents } from '../../hooks/useRevisionQueueEvents';
 import { QueueControls } from './QueueControls';
 import { SessionCard } from './SessionCard';
 import { TaskProgress } from './TaskProgress';
 import { RevisionSessionPanel } from './RevisionSessionPanel';
 
+/**
+ * @deprecated Use RevisionQueueModal instead. This component is retained for
+ * backward compatibility but is no longer mounted in AppLayout.
+ */
 export function RevisionQueueView() {
   const { activeSlug } = useBookStore();
-  const currentView = useViewStore((s) => s.currentView);
   const {
     plan, isLoading, loadingStep, isRunning, error, viewingSessionId, activeSessionId,
     verificationConversationId,
@@ -20,22 +22,12 @@ export function RevisionQueueView() {
 
   useEffect(() => {
     if (!activeSlug) return;
-    // Only load when the revision queue view is visible (or first mount).
-    if (currentView !== 'revision-queue') return;
-
-    // Use switchToBook which handles:
-    // 1. Saving current book's state to cache
-    // 2. Restoring cached state for the target book (if any)
-    // 3. Verifying running state against the backend
-    // 4. Loading plan from disk if no cache exists
     const current = useRevisionQueueStore.getState();
-    // Skip if a load is already in progress (e.g. wrangler CLI call running) —
-    // navigating away and back shouldn't restart it
     if (current.isLoading) return;
     if (!current.plan || current.plan.bookSlug !== activeSlug) {
       useRevisionQueueStore.getState().switchToBook(activeSlug);
     }
-  }, [activeSlug, currentView]);
+  }, [activeSlug]);
 
   if (error && !plan) {
     return (
