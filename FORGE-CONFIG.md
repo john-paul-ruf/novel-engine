@@ -120,6 +120,25 @@
 
 ---
 
+## Program Output Directory
+
+All programs (MASTER.md, STATE.md, SESSION-NN.md files) are written to:
+
+```
+prompts/session-program/program-NNN/
+```
+
+Where `NNN` is a zero-padded sequential number (`001`, `002`, `003`, ...). To determine the next number, list `prompts/session-program/` and increment from the highest existing `program-NNN` directory.
+
+**Input files** (feature requests, specs, raw notes that were the source material for the program) go in:
+```
+prompts/session-program/program-NNN/input-files/
+```
+
+**Never** write programs to `prompts/feature-requests/`, `prompts/feature/`, or any other location.
+
+---
+
 ## Session Defaults
 
 **Max session effort:** 30 min

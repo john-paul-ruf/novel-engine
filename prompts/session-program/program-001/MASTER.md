@@ -24,11 +24,11 @@ You are building the "small-queue-intake" feature for Novel Engine. This is a se
 
 ### On each iteration:
 
-1. **Read state.** Read `prompts/feature-requests/intake/small-queue/STATE.md` to see what is done, what is pending, and any handoff notes from previous runs.
+1. **Read state.** Read `prompts/session-program/program-001/STATE.md` to see what is done, what is pending, and any handoff notes from previous runs.
 
 2. **Pick the next session.** Select the first `pending` session whose dependencies are satisfied (see STATE.md dependency list).
 
-3. **Read the session prompt.** Read `prompts/feature-requests/intake/small-queue/SESSION-NN.md` in full.
+3. **Read the session prompt.** Read `prompts/session-program/program-001/SESSION-NN.md` in full.
 
 4. **Read affected files.** Before modifying any file, read it completely. Check the current state of every file the session touches. Never modify without reading first.
 
@@ -36,7 +36,7 @@ You are building the "small-queue-intake" feature for Novel Engine. This is a se
 
 6. **Verify.** Run every verification step listed in the session. If verification fails, fix the issue before proceeding.
 
-7. **Update state.** Edit `prompts/feature-requests/intake/small-queue/STATE.md`:
+7. **Update state.** Edit `prompts/session-program/program-001/STATE.md`:
    - Set the session status to `done`
    - Set Completed date to today
    - Add notes about decisions made or complications encountered

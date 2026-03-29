@@ -566,3 +566,43 @@ Good: "`src/application/PipelineService.ts` — Added `revertPhase()`. Rolls bac
 **New store or component:** Add to `docs/architecture/RENDERER.md`. If it introduced new IPC calls, also update `docs/architecture/IPC.md`.
 
 **New service:** Add to `docs/architecture/APPLICATION.md`. Update dependency graph in `docs/architecture/ARCHITECTURE.md`. If new IPC channels, update `docs/architecture/IPC.md`.
+**New service:** Add to `docs/architecture/APPLICATION.md`. Update dependency graph in `docs/architecture/ARCHITECTURE.md`. If new IPC channels, update `docs/architecture/IPC.md`.
+
+---
+
+# Session Program Output — ALWAYS ENFORCED
+
+When writing any session program — any set of files containing MASTER.md, STATE.md, and SESSION-NN.md — you MUST write them to:
+
+```
+prompts/session-program/program-NNN/
+```
+
+Where `NNN` is a zero-padded sequential number. Before writing, run:
+
+```
+ls prompts/session-program/
+```
+
+Find the highest existing `program-NNN` directory and increment by 1. If none exist, start at `001`.
+
+**Input source files** (feature requests, specs, raw notes that the program was built from) go in:
+
+```
+prompts/session-program/program-NNN/input-files/
+```
+
+**Internal path references** in MASTER.md and STATE.md must use the correct path:
+
+```
+prompts/session-program/program-NNN/STATE.md
+prompts/session-program/program-NNN/SESSION-NN.md
+```
+
+**Never** write programs to:
+- `prompts/feature-requests/`
+- `prompts/feature/`
+- `prompts/build-out/`
+- Any other location
+
+This rule applies regardless of what the feature is called, where the input came from, or how the user describes the task.
