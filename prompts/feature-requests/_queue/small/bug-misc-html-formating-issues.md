@@ -1,0 +1,3 @@
+- overflow of dropdown in revision queue
+- wonky book drop down when sidebar compressed
+- like a billion scroll bars in cli view depending on what is going on there

@@ -1,0 +1,1 @@
+there needs to be a way to archive a series
