@@ -1,4 +1,6 @@
-# Intake — Parse Documents into Feature Session Prompts
+# ~~Intake — Parse Documents into Feature Session Prompts~~ [DEPRECATED]
+
+> **⛔ DEPRECATED** — This prompt is no longer maintained. Use **Architecture Engine** (`prompts/meta/architecture-engine.md`) instead, which supersedes this prompt with improved session program generation, codebase analysis, and architecture compliance.
 
 > **Purpose:** Read one or more attached documents (feature specs, research notes, design docs, bug reports, RFCs, or raw ideas), analyze them against the current codebase, decompose the work into ordered session prompts, and generate a complete feature build-out directory with a master loop, state tracker, and per-session prompts.
 >
