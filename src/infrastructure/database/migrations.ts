@@ -48,6 +48,22 @@ export const MIGRATIONS: Migration[] = [
         ON file_versions(book_slug, file_path, content_hash);
     `,
   },
+  {
+    version: 3,
+    description: 'Create word_count_snapshots table for writing statistics',
+    sql: `
+      CREATE TABLE IF NOT EXISTS word_count_snapshots (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_slug     TEXT NOT NULL,
+        word_count    INTEGER NOT NULL,
+        chapter_count INTEGER NOT NULL,
+        recorded_at   TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_word_count_snapshots_book
+        ON word_count_snapshots(book_slug, recorded_at);
+    `,
+  },
 ];
 
 /**

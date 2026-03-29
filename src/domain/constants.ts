@@ -230,6 +230,18 @@ export const MAX_CONTEXT_TOKENS = 200_000;
 // Reserve for response + system prompt overhead
 export const CONTEXT_RESERVE_TOKENS = 14_000;
 
+// === Model Pricing (USD per 1M tokens at API rates — used for cost estimation) ===
+
+export type ModelPricing = {
+  inputPer1M: number;
+  outputPer1M: number;
+};
+
+export const MODEL_PRICING: Record<string, ModelPricing> = {
+  'claude-opus-4-20250514': { inputPer1M: 15, outputPer1M: 75 },
+  'claude-sonnet-4-20250514': { inputPer1M: 3, outputPer1M: 15 },
+};
+
 // === Dynamic Turn Budget ===
 
 /**

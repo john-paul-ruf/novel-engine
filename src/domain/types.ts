@@ -810,3 +810,94 @@ export type ManuscriptAssembly = {
   wordCount: number;
   chapters: { slug: string; title: string; wordCount: number }[];
 };
+
+// === Book Overview Dashboard ===
+
+export type RecentFile = {
+  path: string;
+  modifiedAt: string;
+  wordCount: number;
+};
+
+export type RevisionTaskItem = {
+  text: string;
+  isCompleted: boolean;
+  taskNumber: number;
+};
+
+export type BookDashboardData = {
+  bookSlug: string;
+  pipeline: {
+    currentPhase: PipelinePhase | null;
+    completedCount: number;
+    totalCount: number;
+  };
+  wordCount: {
+    current: number;
+    target: number | null;
+    perChapter: { slug: string; wordCount: number }[];
+  };
+  lastInteraction: {
+    agentName: AgentName;
+    timestamp: string;
+    conversationTitle: string;
+  } | null;
+  revisionTasks: {
+    total: number;
+    completed: number;
+    items: RevisionTaskItem[];
+  };
+  recentFiles: RecentFile[];
+  daysInProgress: number;
+  bookTitle: string;
+  bookStatus: BookStatus;
+};
+
+// === Writing Statistics ===
+
+export type UsageTimePoint = {
+  date: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+};
+
+export type AgentUsageBreakdown = {
+  agentName: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  conversationCount: number;
+  estimatedCost: number;
+};
+
+export type PhaseUsageBreakdown = {
+  phase: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  conversationCount: number;
+  estimatedCost: number;
+};
+
+export type WordCountSnapshot = {
+  bookSlug: string;
+  wordCount: number;
+  chapterCount: number;
+  recordedAt: string;
+};
+
+export type BookStatistics = {
+  usageOverTime: UsageTimePoint[];
+  perAgent: AgentUsageBreakdown[];
+  perPhase: PhaseUsageBreakdown[];
+  wordCountHistory: WordCountSnapshot[];
+  totalCostEstimate: number;
+  wordsPerChapter: { slug: string; wordCount: number }[];
+  totalTokens: {
+    input: number;
+    output: number;
+    thinking: number;
+  };
+  conversationCount: number;
+};

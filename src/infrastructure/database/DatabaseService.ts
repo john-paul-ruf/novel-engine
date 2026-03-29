@@ -17,6 +17,8 @@ import type {
   StreamSessionRecord,
   UsageRecord,
   UsageSummary,
+  UsageTimePoint,
+  WordCountSnapshot,
 } from '@domain/types';
 import { initializeSchema } from './schema';
 
@@ -464,6 +466,138 @@ export class DatabaseService implements IDatabaseService {
     };
   }
 
+  // === Dashboard & Statistics Queries ===
+
+  getLastConversation(bookSlug: string): { agentName: string; title: string; updatedAt: string } | null {
+    const row = this.db.prepare(
+      `SELECT agent_name, title, updated_at FROM conversations
+       WHERE book_slug = ? ORDER BY updated_at DESC LIMIT 1`
+    ).get(bookSlug) as { agent_name: string; title: string; updated_at: string } | undefined;
+    if (!row) return null;
+    return { agentName: row.agent_name, title: row.title, updatedAt: row.updated_at };
+  }
+
+  getUsageOverTime(bookSlug?: string): UsageTimePoint[] {
+    const sql = bookSlug
+      ? `SELECT date(u.timestamp) as date,
+           SUM(u.input_tokens) as input_tokens,
+           SUM(u.output_tokens) as output_tokens,
+           SUM(u.thinking_tokens) as thinking_tokens
+         FROM usage u
+         JOIN conversations c ON u.conversation_id = c.id
+         WHERE c.book_slug = ?
+         GROUP BY date(u.timestamp)
+         ORDER BY date(u.timestamp)`
+      : `SELECT date(u.timestamp) as date,
+           SUM(u.input_tokens) as input_tokens,
+           SUM(u.output_tokens) as output_tokens,
+           SUM(u.thinking_tokens) as thinking_tokens
+         FROM usage u
+         GROUP BY date(u.timestamp)
+         ORDER BY date(u.timestamp)`;
+    const rows = bookSlug
+      ? this.db.prepare(sql).all(bookSlug) as UsageOverTimeRow[]
+      : this.db.prepare(sql).all() as UsageOverTimeRow[];
+    return rows.map(r => ({
+      date: r.date,
+      inputTokens: r.input_tokens,
+      outputTokens: r.output_tokens,
+      thinkingTokens: r.thinking_tokens,
+    }));
+  }
+
+  getUsageByAgent(bookSlug?: string): { agentName: string; inputTokens: number; outputTokens: number; thinkingTokens: number; conversationCount: number }[] {
+    const sql = bookSlug
+      ? `SELECT c.agent_name,
+           SUM(u.input_tokens) as input_tokens,
+           SUM(u.output_tokens) as output_tokens,
+           SUM(u.thinking_tokens) as thinking_tokens,
+           COUNT(DISTINCT c.id) as conversation_count
+         FROM usage u
+         JOIN conversations c ON u.conversation_id = c.id
+         WHERE c.book_slug = ?
+         GROUP BY c.agent_name`
+      : `SELECT c.agent_name,
+           SUM(u.input_tokens) as input_tokens,
+           SUM(u.output_tokens) as output_tokens,
+           SUM(u.thinking_tokens) as thinking_tokens,
+           COUNT(DISTINCT c.id) as conversation_count
+         FROM usage u
+         JOIN conversations c ON u.conversation_id = c.id
+         GROUP BY c.agent_name`;
+    const rows = bookSlug
+      ? this.db.prepare(sql).all(bookSlug) as UsageByAgentRow[]
+      : this.db.prepare(sql).all() as UsageByAgentRow[];
+    return rows.map(r => ({
+      agentName: r.agent_name,
+      inputTokens: r.input_tokens,
+      outputTokens: r.output_tokens,
+      thinkingTokens: r.thinking_tokens,
+      conversationCount: r.conversation_count,
+    }));
+  }
+
+  getUsageByPhase(bookSlug?: string): { phase: string; inputTokens: number; outputTokens: number; thinkingTokens: number; conversationCount: number }[] {
+    const sql = bookSlug
+      ? `SELECT COALESCE(c.pipeline_phase, 'adhoc') as phase,
+           SUM(u.input_tokens) as input_tokens,
+           SUM(u.output_tokens) as output_tokens,
+           SUM(u.thinking_tokens) as thinking_tokens,
+           COUNT(DISTINCT c.id) as conversation_count
+         FROM usage u
+         JOIN conversations c ON u.conversation_id = c.id
+         WHERE c.book_slug = ?
+         GROUP BY phase`
+      : `SELECT COALESCE(c.pipeline_phase, 'adhoc') as phase,
+           SUM(u.input_tokens) as input_tokens,
+           SUM(u.output_tokens) as output_tokens,
+           SUM(u.thinking_tokens) as thinking_tokens,
+           COUNT(DISTINCT c.id) as conversation_count
+         FROM usage u
+         JOIN conversations c ON u.conversation_id = c.id
+         GROUP BY phase`;
+    const rows = bookSlug
+      ? this.db.prepare(sql).all(bookSlug) as UsageByPhaseRow[]
+      : this.db.prepare(sql).all() as UsageByPhaseRow[];
+    return rows.map(r => ({
+      phase: r.phase,
+      inputTokens: r.input_tokens,
+      outputTokens: r.output_tokens,
+      thinkingTokens: r.thinking_tokens,
+      conversationCount: r.conversation_count,
+    }));
+  }
+
+  recordWordCountSnapshot(bookSlug: string, wordCount: number, chapterCount: number): void {
+    this.db.prepare(
+      `INSERT INTO word_count_snapshots (book_slug, word_count, chapter_count, recorded_at)
+       VALUES (?, ?, ?, ?)`
+    ).run(bookSlug, wordCount, chapterCount, new Date().toISOString());
+  }
+
+  getWordCountHistory(bookSlug?: string, limit?: number): WordCountSnapshot[] {
+    const effectiveLimit = limit ?? 100;
+    const sql = bookSlug
+      ? `SELECT book_slug, word_count, chapter_count, recorded_at
+         FROM word_count_snapshots
+         WHERE book_slug = ?
+         ORDER BY recorded_at ASC
+         LIMIT ?`
+      : `SELECT book_slug, word_count, chapter_count, recorded_at
+         FROM word_count_snapshots
+         ORDER BY recorded_at ASC
+         LIMIT ?`;
+    const rows = bookSlug
+      ? this.db.prepare(sql).all(bookSlug, effectiveLimit) as WordCountSnapshotRow[]
+      : this.db.prepare(sql).all(effectiveLimit) as WordCountSnapshotRow[];
+    return rows.map(r => ({
+      bookSlug: r.book_slug,
+      wordCount: r.word_count,
+      chapterCount: r.chapter_count,
+      recordedAt: r.recorded_at,
+    }));
+  }
+
   // === Lifecycle ===
 
   close(): void {
@@ -517,6 +651,36 @@ type StreamEventRow = {
   event_type: string;
   payload: string;
   timestamp: string;
+};
+
+type UsageOverTimeRow = {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  thinking_tokens: number;
+};
+
+type UsageByAgentRow = {
+  agent_name: string;
+  input_tokens: number;
+  output_tokens: number;
+  thinking_tokens: number;
+  conversation_count: number;
+};
+
+type UsageByPhaseRow = {
+  phase: string;
+  input_tokens: number;
+  output_tokens: number;
+  thinking_tokens: number;
+  conversation_count: number;
+};
+
+type WordCountSnapshotRow = {
+  book_slug: string;
+  word_count: number;
+  chapter_count: number;
+  recorded_at: string;
 };
 
 type StreamSessionRow = {

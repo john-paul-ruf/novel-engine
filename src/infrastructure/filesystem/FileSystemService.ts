@@ -10,6 +10,7 @@ import type {
   ManuscriptAssembly,
   PitchDraft,
   ProjectManifest,
+  RecentFile,
   ShelvedPitch,
   ShelvedPitchMeta,
 } from '@domain/types';
@@ -470,6 +471,42 @@ export class FileSystemService implements IFileSystemService {
     }
 
     return results;
+  }
+
+  async getRecentFiles(bookSlug: string, limit = 10): Promise<RecentFile[]> {
+    const bookDir = path.join(this.booksDir, bookSlug);
+    const files: RecentFile[] = [];
+
+    const collectFiles = async (dir: string, rel: string): Promise<void> => {
+      let entries: string[];
+      try {
+        entries = await fs.readdir(dir);
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.startsWith('.')) continue;
+        const fullPath = path.join(dir, entry);
+        const relPath = rel ? `${rel}/${entry}` : entry;
+        const stat = await fs.stat(fullPath).catch(() => null);
+        if (!stat) continue;
+        if (stat.isDirectory()) {
+          if (entry === 'dist' || entry === 'node_modules') continue;
+          await collectFiles(fullPath, relPath);
+        } else if (entry.endsWith('.md') || entry.endsWith('.json')) {
+          const content = await this.safeRead(fullPath);
+          files.push({
+            path: relPath,
+            modifiedAt: stat.mtime.toISOString(),
+            wordCount: this.countWordsInText(content),
+          });
+        }
+      }
+    };
+
+    await collectFiles(bookDir, '');
+    files.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+    return files.slice(0, limit);
   }
 
   async assembleManuscript(bookSlug: string): Promise<ManuscriptAssembly> {

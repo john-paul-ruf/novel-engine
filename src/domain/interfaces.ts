@@ -5,7 +5,9 @@ import type {
   AppSettings,
   ApprovalAction,
   AuditResult,
+  BookDashboardData,
   BookMeta,
+  BookStatistics,
   BookSummary,
   BuildResult,
   ContextDiagnostics,
@@ -40,6 +42,7 @@ import type {
   ProviderStatus,
   QueueMode,
   QueueStatus,
+  RecentFile,
   RevisionPlan,
   RevisionQueueEvent,
   SeriesImportCommitConfig,
@@ -53,7 +56,9 @@ import type {
   StreamEvent,
   StreamSessionRecord,
   UsageRecord,
+  UsageTimePoint,
   UsageSummary,
+  WordCountSnapshot,
 } from './types';
 
 export interface ISettingsService {
@@ -142,6 +147,14 @@ export interface IDatabaseService {
    */
   getVersionedFilePaths(bookSlug: string): string[];
 
+  // Dashboard & Statistics queries
+  getLastConversation(bookSlug: string): { agentName: string; title: string; updatedAt: string } | null;
+  getUsageOverTime(bookSlug?: string): UsageTimePoint[];
+  getUsageByAgent(bookSlug?: string): { agentName: string; inputTokens: number; outputTokens: number; thinkingTokens: number; conversationCount: number }[];
+  getUsageByPhase(bookSlug?: string): { phase: string; inputTokens: number; outputTokens: number; thinkingTokens: number; conversationCount: number }[];
+  recordWordCountSnapshot(bookSlug: string, wordCount: number, chapterCount: number): void;
+  getWordCountHistory(bookSlug?: string, limit?: number): WordCountSnapshot[];
+
   // Lifecycle
   close(): void;
 }
@@ -173,6 +186,8 @@ export interface IFileSystemService {
   // Word count
   countWords(bookSlug: string): Promise<number>;
   countWordsPerChapter(bookSlug: string): Promise<{ slug: string; wordCount: number }[]>;
+
+  getRecentFiles(bookSlug: string, limit?: number): Promise<RecentFile[]>;
 
   /**
    * Assemble the full manuscript by reading all chapter draft.md files in order
@@ -888,4 +903,13 @@ export interface IFindReplaceService {
     filePaths: string[];
     options: FindReplaceOptions;
   }): Promise<FindReplaceApplyResult>;
+}
+
+export interface IDashboardService {
+  getDashboardData(bookSlug: string): Promise<BookDashboardData>;
+}
+
+export interface IStatisticsService {
+  getStatistics(bookSlug?: string): Promise<BookStatistics>;
+  recordWordCountSnapshot(bookSlug: string): Promise<void>;
 }
