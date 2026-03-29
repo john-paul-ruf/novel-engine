@@ -11,9 +11,10 @@ import { CliActivityButton } from '../Sidebar/CliActivityButton';
 import { PitchHistory } from '../Sidebar/PitchHistory';
 import { Tooltip } from '../common/Tooltip';
 
-type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'reading' | 'settings';
+type ViewId = 'dashboard' | 'chat' | 'files' | 'build' | 'pitch-room' | 'reading' | 'settings';
 
 const NAV_TOOLTIPS: Record<ViewId, string> = {
+  dashboard: 'Project overview — pipeline status, word count, recent activity',
   chat: 'Talk to AI agents about your book',
   files: 'Browse and edit your manuscript files (includes Motif Ledger)',
   build: 'Export your manuscript to DOCX, EPUB, or PDF',
@@ -24,6 +25,7 @@ const NAV_TOOLTIPS: Record<ViewId, string> = {
 
 // 'chat' is rendered separately as ChatNavGroup (with Hot Take / Ad Hoc children)
 const NAV_ITEMS: { id: ViewId; label: string; icon: string }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'files', label: 'Files', icon: '📁' },
   { id: 'build', label: 'Build', icon: '📦' },
   { id: 'pitch-room', label: 'Pitch Room', icon: '💡' },

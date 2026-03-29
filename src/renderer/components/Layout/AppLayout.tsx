@@ -14,6 +14,7 @@ import { SettingsView } from '../Settings/SettingsView';
 import { RevisionQueueView } from '../RevisionQueue';
 import { PitchRoomView } from '../PitchRoom/PitchRoomView';
 import { ReadingModeView } from '../Reading/ReadingModeView';
+import { DashboardView } from '../Dashboard/DashboardView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
 import { PipelinePanel } from '../RightPanel';
@@ -63,6 +64,9 @@ function ViewContent(): React.ReactElement {
 
   return (
     <>
+      <div className={`h-full ${currentView === 'dashboard' ? '' : 'hidden'}`}>
+        <DashboardView />
+      </div>
       <div className={`h-full ${currentView === 'chat' ? '' : 'hidden'}`}>
         <ChatView />
       </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type ViewId = 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue' | 'pitch-room' | 'reading';
+type ViewId = 'dashboard' | 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue' | 'pitch-room' | 'reading';
 
 export type FileViewMode = 'browser' | 'reader' | 'editor';
 
@@ -21,7 +21,7 @@ type ViewState = {
 export const useViewStore = create<ViewState>()(
   persist(
     (set) => ({
-      currentView: 'chat',
+      currentView: 'dashboard',
       payload: {},
 
       navigate: (view: ViewId, payload: ViewPayload = {}) => {
@@ -37,7 +37,7 @@ export const useViewStore = create<ViewState>()(
     }),
     {
       name: 'novel-engine-view',
-      version: 2,
+      version: 3,
       migrate: (persistedState: unknown) => {
         const state = persistedState as Partial<ViewState>;
         if ((state.currentView as string) === 'motif-ledger') {

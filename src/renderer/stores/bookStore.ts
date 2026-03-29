@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BookSummary } from '@domain/types';
 import { useChatStore } from './chatStore';
+import { useViewStore } from './viewStore';
 
 type BookState = {
   books: BookSummary[];
@@ -75,6 +76,10 @@ export const useBookStore = create<BookState>((set, get) => ({
       await switchBook(slug);
 
       await get().refreshWordCount();
+
+      // Navigate to dashboard when switching books
+      const { navigate } = useViewStore.getState();
+      navigate('dashboard');
     } catch (error) {
       console.error('Failed to set active book:', error);
     }
