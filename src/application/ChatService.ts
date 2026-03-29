@@ -413,4 +413,143 @@ export class ChatService implements IChatService {
     return last;
   }
 
+  /**
+   * Run a chapter deep dive — a scoped Lumen craft analysis of a single chapter.
+   *
+   * Assembles context inline (chapter draft + optional notes + scene outline) and
+   * streams Lumen's surgical assessment back via onEvent. Output is chat-only;
+   * no files are written.
+   */
+  async deepDive(params: {
+    bookSlug: string;
+    chapterSlug: string;
+    conversationId?: string;
+    callId?: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<{ conversationId: string }> {
+    const { bookSlug, chapterSlug, callId, onEvent } = params;
+
+    // Check CLI availability first
+    const available = await this.providers.getDefaultProvider().isAvailable();
+    if (!available) {
+      onEvent({
+        type: 'error',
+        message: 'Claude Code CLI not found or not authenticated. Run `claude login` to set up.',
+      });
+      return { conversationId: params.conversationId ?? '' };
+    }
+
+    const appSettings = await this.settings.load();
+    const agent = await this.agents.load('Lumen');
+
+    // Use the pre-created conversationId if provided, otherwise create a new conversation
+    let conversationId = params.conversationId;
+    if (!conversationId) {
+      const conversation = await this.createConversation({
+        bookSlug,
+        agentName: 'Lumen',
+        pipelinePhase: null,
+        purpose: 'pipeline',
+      });
+      conversationId = conversation.id;
+    }
+
+    // Assemble context inline — no Wrangler
+    let chapterContent = '';
+    try {
+      chapterContent = await this.fs.readFile(bookSlug, `chapters/${chapterSlug}/draft.md`);
+    } catch { /* chapter not found — proceed without */ }
+
+    let notesContent = '';
+    try {
+      notesContent = await this.fs.readFile(bookSlug, `chapters/${chapterSlug}/notes.md`);
+    } catch { /* no notes — that is fine */ }
+
+    let sceneOutline = '';
+    try {
+      sceneOutline = await this.fs.readFile(bookSlug, 'source/scene-outline.md');
+    } catch { /* no outline — proceed */ }
+
+    const chapterNumber = chapterSlug.match(/^(\d+)/)?.[1] ?? '?';
+    const userMessage = [
+      `## Chapter Deep Dive Request`,
+      ``,
+      `**Chapter:** ${chapterSlug} (Chapter ${chapterNumber})`,
+      ``,
+      `### Chapter Draft`,
+      ``,
+      chapterContent || '*(draft not found)*',
+      ``,
+      notesContent ? `### Author Notes\n\n${notesContent}` : '',
+      sceneOutline ? `### Scene Outline (full — find the relevant entry)\n\n${sceneOutline}` : '',
+      ``,
+      `---`,
+      ``,
+      `Conduct a surgical craft assessment of this single chapter only. Evaluate:`,
+      `- Opening line — does it earn attention?`,
+      `- Tension arc — where does tension spike, where does it go flat?`,
+      `- Scene change — does the chapter open and close on different emotional territory?`,
+      `- Proportion — action vs interiority vs dialogue balance for this scene's purpose`,
+      `- Specific actionable notes — quote the text when identifying issues`,
+      ``,
+      `Do not read or reference any other chapters. Do not write any files.`,
+    ].filter(Boolean).join('\n');
+
+    this.db.saveMessage({
+      conversationId,
+      role: 'user',
+      content: userMessage,
+      thinking: '',
+    });
+
+    const sessionId = nanoid();
+    this.db.createStreamSession({
+      id: sessionId,
+      conversationId,
+      agentName: 'Lumen',
+      model: appSettings.model,
+      bookSlug,
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      finalStage: 'idle',
+      filesTouched: {},
+      interrupted: false,
+    });
+
+    try {
+      const thinkingBudget = resolveThinkingBudget(appSettings, agent.thinkingBudget, undefined);
+
+      const stream = this.streamManager.startStream({
+        conversationId,
+        agentName: 'Lumen',
+        model: appSettings.model,
+        bookSlug,
+        sessionId,
+        callId: callId ?? '',
+        onEvent,
+      });
+
+      onEvent({ type: 'status', message: randomWaitingStatus() });
+
+      await this.providers.sendMessage({
+        model: appSettings.model,
+        systemPrompt: agent.systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+        maxTokens: appSettings.maxTokens,
+        thinkingBudget,
+        maxTurns: 3,
+        bookSlug,
+        sessionId,
+        conversationId,
+        onEvent: stream.onEvent,
+      });
+    } catch (err) {
+      this.streamManager.cleanupErroredStream(conversationId, sessionId);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      onEvent({ type: 'error', message: errorMessage });
+    }
+
+    return { conversationId };
+  }
+
 }

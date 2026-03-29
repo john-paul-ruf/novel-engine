@@ -7,6 +7,7 @@ import type {
   BookSummary,
   FileEntry,
   FileManifestItem,
+  ManuscriptAssembly,
   PitchDraft,
   ProjectManifest,
   ShelvedPitch,
@@ -469,6 +470,45 @@ export class FileSystemService implements IFileSystemService {
     }
 
     return results;
+  }
+
+  async assembleManuscript(bookSlug: string): Promise<ManuscriptAssembly> {
+    const chaptersDir = path.join(this.booksDir, bookSlug, 'chapters');
+    let entries: string[];
+    try {
+      entries = await fs.readdir(chaptersDir);
+    } catch {
+      return { content: '', chapterCount: 0, wordCount: 0, chapters: [] };
+    }
+
+    // Sort numerically by chapter prefix (e.g., "01-opening", "02-conflict")
+    const chapterDirs = entries
+      .filter((e) => /^\d+-.+/.test(e))
+      .sort((a, b) => this.chapterSortKey(a) - this.chapterSortKey(b));
+
+    const chapters: ManuscriptAssembly['chapters'] = [];
+    const parts: string[] = [];
+
+    for (const dir of chapterDirs) {
+      const stat = await fs.stat(path.join(chaptersDir, dir)).catch(() => null);
+      if (!stat?.isDirectory()) continue;
+
+      const draftPath = path.join(chaptersDir, dir, 'draft.md');
+      const draft = await this.safeRead(draftPath);
+      if (!draft.trim()) continue; // skip chapters without content
+
+      const titleFromSlug = dir.replace(/^\d+-/, '').replace(/-/g, ' ');
+      const title = titleFromSlug.charAt(0).toUpperCase() + titleFromSlug.slice(1);
+      const wc = this.countWordsInText(draft);
+
+      chapters.push({ slug: dir, title, wordCount: wc });
+      parts.push(`# ${title}\n\n${draft.trim()}`);
+    }
+
+    const content = parts.join('\n\n---\n\n');
+    const wordCount = chapters.reduce((sum, c) => sum + c.wordCount, 0);
+
+    return { content, chapterCount: chapters.length, wordCount, chapters };
   }
 
   // ── Cover Image ───────────────────────────────────────────────────

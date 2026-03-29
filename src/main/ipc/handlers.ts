@@ -225,6 +225,10 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('books:listArchived', () => services.fs.listArchivedBooks());
 
+  ipcMain.handle('books:assembleManuscript', (_e, bookSlug: string) =>
+    services.fs.assembleManuscript(bookSlug)
+  );
+
   // === Manuscript Import ===
 
   ipcMain.handle('import:selectFile', async (event) => {
@@ -617,6 +621,24 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('chat:getOrphanedSessions', () =>
     services.chat.getRecoveredOrphans()
   );
+
+  ipcMain.handle('chat:deepDive', async (event, params: { bookSlug: string; chapterSlug: string; conversationId?: string; callId?: string }) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('No window found');
+    const callId = params.callId ?? randomUUID();
+    const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId?: string; source?: string }) => {
+      for (const w of BrowserWindow.getAllWindows()) {
+        try { w.webContents.send('chat:streamEvent', streamEvent); } catch { /* skip */ }
+      }
+    };
+    return services.chat.deepDive({
+      ...params,
+      callId,
+      onEvent: (streamEvent) => {
+        broadcastStreamEvent({ ...streamEvent, callId, source: 'chat' } as StreamEvent & { callId: string; conversationId?: string; source?: string });
+      },
+    });
+  });
 
   // === Author Profile ===
 

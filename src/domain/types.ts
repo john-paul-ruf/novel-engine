@@ -299,6 +299,16 @@ export type ModelInfo = {
   supportsToolUse?: boolean;             // whether agent-loop tool use works
 };
 
+// === Saved Prompts ===
+
+export type SavedPrompt = {
+  id: string;                      // nanoid-generated
+  name: string;                    // display label shown in the dropdown
+  prompt: string;                  // full text inserted into chat input
+  agentName: AgentName | null;     // null = works with any agent
+  createdAt: string;               // ISO date
+};
+
 // === Settings ===
 
 export type AppSettings = {
@@ -318,6 +328,8 @@ export type AppSettings = {
   activeProviderId: ProviderId;          // which provider is currently selected
   // Guided tour completion tracking
   completedTours: TourId[];             // which tours the user has finished
+  // Saved prompt library
+  savedPrompts: SavedPrompt[];          // user-saved prompt entries
 };
 
 // === Token Usage ===
@@ -787,4 +799,14 @@ export type FindReplaceApplyResult = {
   filesChanged: number;
   totalReplacements: number;
   details: { filePath: string; replacements: number }[];
+};
+
+// === Manuscript Assembly ===
+
+export type ManuscriptAssembly = {
+  /** Full markdown — all chapters concatenated in order with chapter headings. */
+  content: string;
+  chapterCount: number;
+  wordCount: number;
+  chapters: { slug: string; title: string; wordCount: number }[];
 };

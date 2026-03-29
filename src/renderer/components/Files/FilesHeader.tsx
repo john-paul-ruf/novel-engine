@@ -14,6 +14,10 @@ type FilesHeaderProps = {
   readOnly?: boolean;
   /** Opens the Find & Replace modal across all chapter drafts. */
   onFindReplace?: () => void;
+  /** Chapter deep dive — shown only for chapter draft files. */
+  onDeepDive?: () => void;
+  isDeepDiving?: boolean;
+  isChapterDraftFile?: boolean;
 };
 
 function BreadcrumbSegments({
@@ -92,6 +96,9 @@ export function FilesHeader({
   onDelete,
   readOnly,
   onFindReplace,
+  onDeepDive,
+  isDeepDiving,
+  isChapterDraftFile,
 }: FilesHeaderProps): React.ReactElement {
   const breadcrumbs =
     viewMode === 'browser'
@@ -158,6 +165,26 @@ export function FilesHeader({
               {viewMode === 'editor' ? '👁 Preview' : '✏️ Edit'}
             </button>
           )
+        )}
+
+        {/* Deep Dive — only for chapter draft files */}
+        {isChapterDraftFile && onDeepDive && (viewMode === 'reader' || viewMode === 'editor') && (
+          <Tooltip content="Surgical craft analysis of this chapter by Lumen" placement="bottom">
+            <button
+              onClick={onDeepDive}
+              disabled={isDeepDiving}
+              className="no-drag flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 border border-green-200 dark:border-green-800 transition-colors disabled:opacity-50"
+            >
+              {isDeepDiving ? (
+                <>
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                  <span>Diving...</span>
+                </>
+              ) : (
+                <>🔬 <span>Deep Dive</span></>
+              )}
+            </button>
+          </Tooltip>
         )}
 
         {onFindReplace && (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useBookStore } from '../../stores/bookStore';
+import { useViewStore } from '../../stores/viewStore';
 import type { BuildFormat, BuildResult } from '@domain/types';
 
 const FORMAT_LABELS: Record<BuildFormat, string> = {
@@ -153,6 +154,7 @@ function OutputFiles({
 
 export function BuildView(): React.ReactElement {
   const { activeSlug, totalWordCount, books } = useBookStore();
+  const { navigate } = useViewStore();
   const activeBook = books.find((b) => b.slug === activeSlug);
 
   const [logs, setLogs] = useState<string[]>([]);
@@ -262,13 +264,22 @@ export function BuildView(): React.ReactElement {
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-3xl px-8 py-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Build Manuscript</h1>
-          {activeBook && (
-            <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {activeBook.title} — {totalWordCount.toLocaleString()} words
-            </div>
-          )}
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Build Manuscript</h1>
+            {activeBook && (
+              <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                {activeBook.title} — {totalWordCount.toLocaleString()} words
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => navigate('reading')}
+            disabled={!activeSlug}
+            className="flex items-center gap-2 rounded-md px-4 py-2 text-sm text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            📖 Read Full Manuscript
+          </button>
         </div>
 
         {/* Pandoc Warning */}

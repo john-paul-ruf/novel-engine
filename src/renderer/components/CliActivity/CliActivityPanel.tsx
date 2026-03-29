@@ -740,7 +740,7 @@ export function CliActivityPanel(): React.ReactElement {
 
   return (
     <div
-      className="relative flex h-full shrink-0 flex-col border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900"
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900"
       style={{ width }}
     >
       {/* Header */}
@@ -782,7 +782,7 @@ export function CliActivityPanel(): React.ReactElement {
 
       {/* Selected call detail — scrollable container for resizable sections */}
       {selectedCall ? (
-        <div key={selectedCallId} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div key={selectedCallId} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <CallHeader call={selectedCall} />
           <PhaseTimeline call={selectedCall} />
           <ToolBreakdown call={selectedCall} />

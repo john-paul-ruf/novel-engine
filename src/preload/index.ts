@@ -49,6 +49,7 @@ import type {
   FindReplaceApplyResult,
   FindReplaceOptions,
   FindReplacePreviewResult,
+  ManuscriptAssembly,
 } from '@domain/types';
 
 const api = {
@@ -93,6 +94,8 @@ const api = {
       ipcRenderer.invoke('books:unarchive', slug),
     listArchived: (): Promise<BookSummary[]> =>
       ipcRenderer.invoke('books:listArchived'),
+    assembleManuscript: (bookSlug: string): Promise<ManuscriptAssembly> =>
+      ipcRenderer.invoke('books:assembleManuscript', bookSlug),
 
     /**
      * Subscribe to `books:changed` — fired by the main process when a new
@@ -190,6 +193,8 @@ const api = {
       ipcRenderer.invoke('chat:getActiveStreamForBook', bookSlug),
     getOrphanedSessions: (): Promise<StreamSessionRecord[]> =>
       ipcRenderer.invoke('chat:getOrphanedSessions'),
+    deepDive: (params: { bookSlug: string; chapterSlug: string; conversationId?: string; callId?: string }): Promise<{ conversationId: string }> =>
+      ipcRenderer.invoke('chat:deepDive', params),
     onStreamEvent: (callback: (event: StreamEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: StreamEvent) => callback(event);
       ipcRenderer.on('chat:streamEvent', handler);

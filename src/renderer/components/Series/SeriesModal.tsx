@@ -27,10 +27,12 @@ export function SeriesModal(): React.ReactElement {
     closeModal,
   } = useSeriesStore();
 
-  const books = useBookStore((s) => s.books);
+  const { books, archiveBook, loadBooks, loadArchivedBooks } = useBookStore();
   const [editTab, setEditTab] = useState<'volumes' | 'bible'>('volumes');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [showRename, setShowRename] = useState(false);
+  const [confirmingArchiveSeries, setConfirmingArchiveSeries] = useState(false);
+  const [archivingSeriesError, setArchivingSeriesError] = useState<string | null>(null);
 
   const setMode = (mode: 'list' | 'create' | 'edit' | 'bible') => {
     useSeriesStore.setState({ modalMode: mode });
@@ -62,6 +64,23 @@ export function SeriesModal(): React.ReactElement {
   const handleDelete = async (slug: string) => {
     await deleteSeries(slug);
     setConfirmDelete(null);
+  };
+
+  const handleArchiveSeries = async () => {
+    if (!activeSeries) return;
+    setArchivingSeriesError(null);
+    try {
+      for (const vol of activeSeries.volumes) {
+        await archiveBook(vol.bookSlug);
+      }
+      await loadArchivedBooks();
+      await loadBooks();
+      closeModal();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to archive series';
+      setArchivingSeriesError(msg);
+      setConfirmingArchiveSeries(false);
+    }
   };
 
   const title = modalMode === 'list' ? 'Manage Series'
@@ -261,6 +280,42 @@ export function SeriesModal(): React.ReactElement {
                   onChange={setBibleContent}
                   onSave={saveBible}
                 />
+              )}
+
+              {/* Archive Series — visible only when there are volumes to archive */}
+              {activeSeries.volumes.length > 0 && (
+                <div className="mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+                  {archivingSeriesError && (
+                    <p className="mb-2 text-xs text-red-600 dark:text-red-400">{archivingSeriesError}</p>
+                  )}
+                  {confirmingArchiveSeries ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Archive all {activeSeries.volumes.length} book{activeSeries.volumes.length !== 1 ? 's' : ''} in this series? Books can be restored from the archive.
+                      </span>
+                      <button
+                        onClick={handleArchiveSeries}
+                        className="shrink-0 rounded-md bg-zinc-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-500 transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setConfirmingArchiveSeries(false)}
+                        className="shrink-0 rounded-md px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingArchiveSeries(true)}
+                      className="flex items-center gap-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      <span>📦</span>
+                      <span>Archive Series</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

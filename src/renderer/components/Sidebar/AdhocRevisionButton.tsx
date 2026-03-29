@@ -4,7 +4,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { Tooltip } from '../common/Tooltip';
 
-export function AdhocRevisionButton(): React.ReactElement | null {
+export function AdhocRevisionButton({ compact = false }: { compact?: boolean } = {}): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const fileRevision = useFileChangeStore((s) => s.revision);
@@ -48,6 +48,22 @@ export function AdhocRevisionButton(): React.ReactElement | null {
   if (!activeSlug) return null;
 
   const disabled = !hasPlanFiles || isStreaming;
+
+  if (compact) {
+    return (
+      <>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          disabled={disabled}
+          className="no-drag flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs text-orange-600 dark:text-orange-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-orange-700 dark:hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500" />
+          <span>Ad Hoc Revisions</span>
+        </button>
+        {isModalOpen && <AdhocRevisionModal onClose={handleClose} />}
+      </>
+    );
+  }
 
   return (
     <>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type ViewId = 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue' | 'pitch-room' | 'motif-ledger';
+type ViewId = 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue' | 'pitch-room' | 'reading';
 
 export type FileViewMode = 'browser' | 'reader' | 'editor';
 
@@ -37,6 +37,14 @@ export const useViewStore = create<ViewState>()(
     }),
     {
       name: 'novel-engine-view',
+      version: 2,
+      migrate: (persistedState: unknown) => {
+        const state = persistedState as Partial<ViewState>;
+        if ((state.currentView as string) === 'motif-ledger') {
+          return { ...state, currentView: 'files' as ViewId };
+        }
+        return state;
+      },
       partialize: (state) => ({
         currentView: state.currentView,
         payload: state.payload,

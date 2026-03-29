@@ -13,23 +13,21 @@ import { PitchHistory } from '../Sidebar/PitchHistory';
 import { Tooltip } from '../common/Tooltip';
 import type { TourId } from '@domain/types';
 
-type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'motif-ledger' | 'settings';
+type ViewId = 'chat' | 'files' | 'build' | 'pitch-room' | 'settings';
 
 const NAV_TOOLTIPS: Record<ViewId, string> = {
   chat: 'Talk to AI agents about your book',
-  files: 'Browse and edit your manuscript files',
+  files: 'Browse and edit your manuscript files (includes Motif Ledger)',
   build: 'Export your manuscript to DOCX, EPUB, or PDF',
   'pitch-room': 'Free brainstorming space — pitch ideas without committing to a book',
-  'motif-ledger': 'Track motifs, foreshadowing, and flagged phrases across your manuscript',
   settings: 'App preferences, model selection, and guided tours',
 };
 
+// 'chat' is rendered separately as ChatNavGroup (with Hot Take / Ad Hoc children)
 const NAV_ITEMS: { id: ViewId; label: string; icon: string }[] = [
-  { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'files', label: 'Files', icon: '📁' },
   { id: 'build', label: 'Build', icon: '📦' },
   { id: 'pitch-room', label: 'Pitch Room', icon: '💡' },
-  { id: 'motif-ledger', label: 'Motif Ledger', icon: '🧬' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -83,16 +81,19 @@ function HelpButton(): React.ReactElement {
 
   return (
     <div ref={containerRef} className="relative">
-      <Tooltip content="Interactive guides and tours" placement="right">
-        <button
-          onClick={() => setIsOpen((v) => !v)}
-          className="no-drag flex h-6 w-6 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs transition-colors"
-          aria-label="Help menu"
-          aria-expanded={isOpen}
-        >
-          ?
-        </button>
-      </Tooltip>
+      <button
+        onClick={() => setIsOpen((v) => !v)}
+        className={`no-drag mb-0.5 flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
+          isOpen
+            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+            : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:hover:text-zinc-200'
+        }`}
+        aria-label="Help menu"
+        aria-expanded={isOpen}
+      >
+        <span className="text-base leading-none">?</span>
+        <span>Help</span>
+      </button>
 
       {isOpen && (
         <div className="absolute left-full top-0 ml-2 z-50 w-44 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg py-1">
@@ -114,6 +115,55 @@ function HelpButton(): React.ReactElement {
   );
 }
 
+function ChatNavGroup({
+  isActive,
+  expanded,
+  onToggle,
+  onNavigateChat,
+}: {
+  isActive: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onNavigateChat: () => void;
+}): React.ReactElement {
+  return (
+    <div>
+      <div className="flex items-center">
+        <button
+          onClick={onNavigateChat}
+          className={`no-drag mb-0.5 flex flex-1 items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
+            isActive
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+              : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:hover:text-zinc-200'
+          }`}
+        >
+          <span className="text-base">💬</span>
+          <span>Chat</span>
+        </button>
+        <button
+          onClick={onToggle}
+          className="no-drag p-1 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+          aria-label={expanded ? 'Collapse chat section' : 'Expand chat section'}
+        >
+          <span style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 150ms' }}>▶</span>
+        </button>
+      </div>
+      {expanded && (
+        <div className="ml-5 mb-0.5 space-y-0.5">
+          <button
+            onClick={onNavigateChat}
+            className="no-drag flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-800 dark:hover:text-zinc-200"
+          >
+            💬 <span>Current Chat</span>
+          </button>
+          <HotTakeButton compact />
+          <AdhocRevisionButton compact />
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SIDEBAR_DEFAULT = 260;
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 440;
@@ -121,6 +171,7 @@ const SIDEBAR_MAX = 440;
 export function Sidebar(): React.ReactElement {
   const { currentView, navigate } = useViewStore();
   const [activeSection, setActiveSection] = useState<'pipeline' | 'files'>('pipeline');
+  const [chatExpanded, setChatExpanded] = useState(true);
 
   const toggleSection = (section: 'pipeline' | 'files') => {
     setActiveSection((prev) => (prev === section ? section : section));
@@ -142,12 +193,9 @@ export function Sidebar(): React.ReactElement {
       className="relative flex h-full shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
       style={{ width }}
     >
-      {/* Book selector + help button */}
-      <div className="flex items-center gap-1.5 pr-2">
-        <div className="flex-1 min-w-0">
-          <BookSelector />
-        </div>
-        <HelpButton />
+      {/* Book selector */}
+      <div className="flex-1 min-w-0">
+        <BookSelector />
       </div>
 
       {/* Accordion sections — share remaining vertical space */}
@@ -206,16 +254,15 @@ export function Sidebar(): React.ReactElement {
         </div>
       </div>
 
-      {/* Quick actions — above nav, below scrollable area */}
-      {currentView !== 'pitch-room' && (
-        <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 px-2 py-1">
-          <HotTakeButton />
-          <AdhocRevisionButton />
-        </div>
-      )}
-
       {/* Bottom nav */}
       <div data-tour="sidebar-nav" className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-2">
+        {/* Chat nav group with expandable Hot Take / Ad Hoc children */}
+        <ChatNavGroup
+          isActive={currentView === 'chat'}
+          expanded={chatExpanded}
+          onToggle={() => setChatExpanded((v) => !v)}
+          onNavigateChat={() => navigate('chat')}
+        />
         {NAV_ITEMS.map((item) => (
           <Tooltip key={item.id} content={NAV_TOOLTIPS[item.id]} placement="right">
             <NavButton
@@ -227,6 +274,8 @@ export function Sidebar(): React.ReactElement {
             />
           </Tooltip>
         ))}
+        {/* Help — tours and guides */}
+        <HelpButton />
         {/* CLI Activity toggle — docks/undocks the right-side activity panel from any view */}
         <div className="mt-0.5 border-t border-zinc-200 dark:border-zinc-800 pt-1">
           <CliActivityButton />

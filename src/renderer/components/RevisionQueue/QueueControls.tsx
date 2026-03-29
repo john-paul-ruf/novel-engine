@@ -31,7 +31,7 @@ export function QueueControls() {
         value={plan.mode}
         onChange={(e) => setMode(e.target.value as QueueMode)}
         disabled={isRunning}
-        className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
+        className="min-w-0 max-w-[200px] bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
       >
         {MODE_OPTIONS.map(opt => (
           <option key={opt.value} value={opt.value}>

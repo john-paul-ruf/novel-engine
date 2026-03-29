@@ -5,7 +5,7 @@ import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { Tooltip } from '../common/Tooltip';
 
-export function HotTakeButton(): React.ReactElement | null {
+export function HotTakeButton({ compact = false }: { compact?: boolean } = {}): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const loadConversations = useChatStore((s) => s.loadConversations);
@@ -44,6 +44,19 @@ export function HotTakeButton(): React.ReactElement | null {
   }, [activeSlug, isStreaming, loadConversations, setActiveConversation, attachToExternalStream, navigate]);
 
   if (!activeSlug || !hasChapters) return null;
+
+  if (compact) {
+    return (
+      <button
+        onClick={handleClick}
+        disabled={isStreaming}
+        className="no-drag flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs text-cyan-600 dark:text-cyan-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-cyan-700 dark:hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
+        <span>Hot Take</span>
+      </button>
+    );
+  }
 
   return (
     <Tooltip content="Get Ghostlight's unfiltered first impression of your manuscript" placement="right">

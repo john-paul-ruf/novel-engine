@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
+import { useChatStore } from '../../stores/chatStore';
 import { FilesHeader } from './FilesHeader';
 import { FileBrowser } from './FileBrowser';
 import { FileEditor } from './FileEditor';
 import { StructuredBrowser } from './StructuredBrowser';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { FindReplaceModal } from './FindReplaceModal';
+import { MotifLedgerView } from '../MotifLedger/MotifLedgerView';
+import { AboutJsonViewer, useOpenSpark } from './AboutJsonViewer';
 import type { FileViewMode } from '../../stores/viewStore';
-import type { BookMeta, BookStatus } from '@domain/types';
 
 // Configure marked for safe rendering
 marked.setOptions({ async: false });
@@ -23,321 +25,15 @@ function isVerityDraft(path: string): boolean {
   return match !== null && parseInt(match[1], 10) >= 2;
 }
 
-const STATUS_COLORS: Record<BookStatus, string> = {
-  scaffolded: 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200',
-  outlining: 'bg-amber-700 text-amber-100',
-  'first-draft': 'bg-blue-700 text-blue-100',
-  'revision-1': 'bg-purple-700 text-purple-100',
-  'revision-2': 'bg-purple-600 text-purple-100',
-  'copy-edit': 'bg-cyan-700 text-cyan-100',
-  final: 'bg-green-700 text-green-100',
-  published: 'bg-green-600 text-green-100',
-};
-
-function InlineEditField({
-  value,
-  onSave,
-  className,
-  placeholder,
-}: {
-  value: string;
-  onSave: (newValue: string) => void;
-  className: string;
-  placeholder: string;
-}): React.ReactElement {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setEditValue(value);
-  }, [value]);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  const handleSave = () => {
-    setEditing(false);
-    const trimmed = editValue.trim();
-    if (trimmed && trimmed !== value) {
-      onSave(trimmed);
-    } else {
-      setEditValue(value);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setEditing(false);
-      setEditValue(value);
-    }
-  };
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-        className={`${className} w-full rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 outline-none focus:border-blue-500`}
-        placeholder={placeholder}
-      />
-    );
-  }
-
-  return (
-    <span
-      onClick={() => setEditing(true)}
-      className={`${className} cursor-pointer rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800`}
-      title="Click to edit"
-    >
-      {value || placeholder}
-    </span>
-  );
+/** Returns true if the path is any chapter draft (chapter 01 included). */
+function isChapterDraft(path: string): boolean {
+  return /^chapters\/\d+-.+\/draft\.md$/.test(path);
 }
 
-const ALL_STATUSES: BookStatus[] = [
-  'scaffolded', 'outlining', 'first-draft', 'revision-1', 'revision-2', 'copy-edit', 'final', 'published',
-];
-
-function StatusDropdown({
-  value,
-  onSave,
-}: {
-  value: BookStatus;
-  onSave: (newValue: string) => void;
-}): React.ReactElement {
-  const [editing, setEditing] = useState(false);
-  const selectRef = useRef<HTMLSelectElement>(null);
-  const statusClass = STATUS_COLORS[value] ?? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200';
-
-  useEffect(() => {
-    if (editing && selectRef.current) {
-      selectRef.current.focus();
-    }
-  }, [editing]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newStatus = e.target.value;
-    setEditing(false);
-    if (newStatus !== value) {
-      onSave(newStatus);
-    }
-  };
-
-  if (editing) {
-    return (
-      <select
-        ref={selectRef}
-        value={value}
-        onChange={handleChange}
-        onBlur={() => setEditing(false)}
-        className="rounded border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-800 dark:text-zinc-200 outline-none focus:border-blue-500"
-      >
-        {ALL_STATUSES.map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
-    );
-  }
-
-  return (
-    <span
-      onClick={() => setEditing(true)}
-      className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium ${statusClass} hover:ring-2 hover:ring-blue-500/50`}
-      title="Click to change status"
-    >
-      {value}
-    </span>
-  );
-}
-
-function AboutJsonCard({
-  content,
-  activeSlug,
-  onContentChange,
-}: {
-  content: string;
-  activeSlug: string;
-  onContentChange: (updated: string) => void;
-}): React.ReactElement {
-  const { loadBooks } = useBookStore();
-  const [isSaving, setIsSaving] = useState(false);
-  const [coverTimestamp, setCoverTimestamp] = useState(Date.now());
-
-  let meta: BookMeta;
-  try {
-    meta = JSON.parse(content) as BookMeta;
-  } catch {
-    return (
-      <div className="rounded-lg border border-red-800 bg-red-950 p-4 text-red-300">
-        Failed to parse about.json
-      </div>
-    );
-  }
-
-  const handleSaveField = async (field: 'title' | 'author' | 'status', value: string) => {
-    setIsSaving(true);
-    try {
-      const updated = await window.novelEngine.books.updateMeta(activeSlug, { [field]: value });
-      if (updated.slug !== activeSlug) {
-        const { setActiveBook } = useBookStore.getState();
-        await setActiveBook(updated.slug);
-      }
-      await loadBooks();
-      // Re-read the file so the card reflects the saved changes immediately
-      const refreshed = await window.novelEngine.files.read(
-        updated.slug !== activeSlug ? updated.slug : activeSlug,
-        'about.json',
-      );
-      onContentChange(refreshed);
-    } catch (error) {
-      console.error(`Failed to save ${field}:`, error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleUploadCover = async () => {
-    try {
-      const result = await window.novelEngine.books.uploadCover(activeSlug);
-      if (result) {
-        setCoverTimestamp(Date.now());
-        await loadBooks();
-      }
-    } catch (error) {
-      console.error('Failed to upload cover:', error);
-    }
-  };
-
-  const statusClass = STATUS_COLORS[meta.status] ?? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-800 dark:text-zinc-200';
-  const parsedDate = meta.created ? new Date(meta.created) : null;
-  const createdDate = parsedDate && !isNaN(parsedDate.getTime())
-    ? parsedDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    : null;
-
-  const coverSrc = `novel-asset://cover/${activeSlug}?t=${coverTimestamp}`;
-
-  return (
-    <div className="mx-auto max-w-lg rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-6">
-      {isSaving && (
-        <div className="mb-3 text-xs text-zinc-500">Saving...</div>
-      )}
-
-      {/* Cover Image */}
-      <div className="mb-6 flex flex-col items-center">
-        <CoverImageSection
-          coverSrc={coverSrc}
-          hasCover={!!meta.coverImage}
-          onUpload={handleUploadCover}
-        />
-      </div>
-
-      {/* Title */}
-      <div className="mb-2">
-        <InlineEditField
-          value={meta.title}
-          onSave={(v) => handleSaveField('title', v)}
-          className="text-2xl font-bold text-zinc-900 dark:text-zinc-100"
-          placeholder="Book Title"
-        />
-      </div>
-
-      {/* Author */}
-      <div className="mb-4">
-        <InlineEditField
-          value={meta.author}
-          onSave={(v) => handleSaveField('author', v)}
-          className="text-lg text-zinc-700 dark:text-zinc-300"
-          placeholder="Author Name"
-        />
-      </div>
-
-      {/* Status */}
-      <div className="mb-4 flex items-center gap-3">
-        <StatusDropdown
-          value={meta.status}
-          onSave={(v) => handleSaveField('status', v)}
-        />
-        {createdDate && <span className="text-sm text-zinc-500">Created {createdDate}</span>}
-      </div>
-
-      {/* Slug (read-only info) */}
-      <div className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">
-        {activeSlug}
-      </div>
-    </div>
-  );
-}
-
-function CoverImageSection({
-  coverSrc,
-  hasCover,
-  onUpload,
-}: {
-  coverSrc: string;
-  hasCover: boolean;
-  onUpload: () => void;
-}): React.ReactElement {
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    setImgError(false);
-  }, [coverSrc]);
-
-  if (!hasCover || imgError) {
-    return (
-      <button
-        onClick={onUpload}
-        className="flex h-[220px] w-[160px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-8 w-8"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
-          />
-        </svg>
-        <span className="text-sm">Upload Cover</span>
-      </button>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <img
-        src={coverSrc}
-        alt="Book cover"
-        className="max-w-[200px] rounded-lg object-contain shadow-lg"
-        onError={() => setImgError(true)}
-      />
-      <button
-        onClick={onUpload}
-        className="absolute bottom-2 right-2 rounded bg-zinc-100 dark:bg-zinc-800/80 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 backdrop-blur hover:bg-zinc-200 dark:hover:bg-zinc-700/80"
-      >
-        Change
-      </button>
-    </div>
-  );
+/** Extracts the chapter slug (e.g. "01-intro") from a chapter draft path. */
+function extractChapterSlug(path: string): string | null {
+  const match = path.match(/^chapters\/(\d+-.+)\/draft\.md$/);
+  return match?.[1] ?? null;
 }
 
 function MarkdownViewer({ content }: { content: string }): React.ReactElement {
@@ -369,6 +65,50 @@ export function FilesView(): React.ReactElement {
   const viewMode: FileViewMode = payload.fileViewMode ?? (payload.filePath ? 'reader' : 'browser');
   const filePath = payload.filePath ?? null;
   const browserPath = payload.fileBrowserPath ?? '';
+
+  // "Chat with Spark" for about.json — creates a Spark conversation and navigates
+  const handleOpenSpark = useOpenSpark(activeSlug);
+
+  // Chapter Deep Dive — triggers a scoped Lumen analysis of the selected chapter draft
+  const [isDeepDiving, setIsDeepDiving] = useState(false);
+
+  const handleDeepDive = useCallback(async () => {
+    if (!activeSlug || !filePath) return;
+    const chapterSlug = extractChapterSlug(filePath);
+    if (!chapterSlug) return;
+
+    setIsDeepDiving(true);
+    try {
+      const callId = crypto.randomUUID();
+
+      // Create the Lumen conversation in the chatStore (sets activeConversation)
+      await useChatStore.getState().createConversation('Lumen', activeSlug, null, 'pipeline');
+      const { activeConversation } = useChatStore.getState();
+      if (!activeConversation) return;
+      const conversationId = activeConversation.id;
+
+      // Attach stream listener before firing so we don't miss early events
+      useChatStore.getState().attachToExternalStream(callId, conversationId);
+
+      // Navigate to chat — ChatView will mount with the active Lumen conversation
+      navigate('chat');
+
+      // Fire and forget — stream events arrive via chat:streamEvent broadcast
+      void window.novelEngine.chat.deepDive({
+        bookSlug: activeSlug,
+        chapterSlug,
+        conversationId,
+        callId,
+      });
+    } catch (err) {
+      console.error('[DeepDive] Failed:', err);
+    } finally {
+      setIsDeepDiving(false);
+    }
+  }, [activeSlug, filePath, navigate]);
+
+  // Tab state — 'files' shows the normal file browser/reader; 'ledger' shows Motif Ledger
+  const [activeTab, setActiveTab] = useState<'files' | 'ledger'>('files');
 
   // File content state (for reader mode)
   const [content, setContent] = useState('');
@@ -512,6 +252,36 @@ export function FilesView(): React.ReactElement {
 
   return (
     <div className="flex h-full flex-col">
+      {/* Tab bar — Files | Motif Ledger */}
+      <div className="flex shrink-0 border-b border-zinc-200 dark:border-zinc-800">
+        <button
+          onClick={() => setActiveTab('files')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'files'
+              ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          Files
+        </button>
+        <button
+          onClick={() => setActiveTab('ledger')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'ledger'
+              ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          🧬 Motif Ledger
+        </button>
+      </div>
+
+      {activeTab === 'ledger' ? (
+        <div className="flex-1 min-h-0">
+          <MotifLedgerView />
+        </div>
+      ) : (
+        <>
       {/* Header with view mode switcher */}
       <FilesHeader
         viewMode={viewMode}
@@ -524,6 +294,9 @@ export function FilesView(): React.ReactElement {
         onDelete={filePath ? handleDeleteFile : undefined}
         readOnly={readOnly}
         onFindReplace={() => setShowFindReplace(true)}
+        onDeepDive={handleDeepDive}
+        isDeepDiving={isDeepDiving}
+        isChapterDraftFile={!!filePath && isChapterDraft(filePath)}
       />
 
       {/* Content area */}
@@ -542,7 +315,16 @@ export function FilesView(): React.ReactElement {
         )
       )}
 
-      {viewMode === 'reader' && (
+      {/* about.json rich viewer — intercepts reader mode before standard ReaderContent */}
+      {viewMode === 'reader' && filePath === 'about.json' && activeSlug && (
+        <AboutJsonViewer
+          bookSlug={activeSlug}
+          onEdit={handleEdit}
+          onOpenSpark={handleOpenSpark}
+        />
+      )}
+
+      {viewMode === 'reader' && filePath !== 'about.json' && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <div className={`flex flex-col overflow-hidden ${showHistory ? 'w-1/2' : 'flex-1'}`}>
             {/* History toggle bar — only when a file is selected and loaded */}
@@ -623,24 +405,26 @@ export function FilesView(): React.ReactElement {
       {showFindReplace && activeSlug && (
         <FindReplaceModal onClose={() => setShowFindReplace(false)} />
       )}
+        </>
+      )}
     </div>
   );
 }
 
 /**
- * The reader content — extracted from the original FilesView for clarity.
- * Handles loading states, about.json card, markdown rendering, and raw content display.
+ * The reader content — handles loading states, markdown rendering, and raw content display.
+ * Note: about.json is intercepted upstream and rendered by AboutJsonViewer instead.
  */
 function ReaderContent({
   filePath,
   content,
   loading,
   error,
-  activeSlug,
+  activeSlug: _activeSlug,
   readOnly,
-  onFileSelect,
+  onFileSelect: _onFileSelect,
   onClearFile,
-  onContentChange,
+  onContentChange: _onContentChange,
 }: {
   filePath: string | null;
   content: string;
@@ -685,7 +469,6 @@ function ReaderContent({
 
   const isMarkdown = filePath.endsWith('.md');
   const isJson = filePath.endsWith('.json');
-  const isAboutJson = filePath === 'about.json';
 
   return (
     <>
@@ -702,9 +485,7 @@ function ReaderContent({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        {isAboutJson ? (
-          <AboutJsonCard content={content} activeSlug={activeSlug} onContentChange={onContentChange} />
-        ) : isMarkdown ? (
+        {isMarkdown ? (
           <MarkdownViewer content={content} />
         ) : isJson ? (
           <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-700 dark:text-zinc-300">{formatJson(content)}</pre>

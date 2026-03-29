@@ -665,33 +665,80 @@ function GuidedToursSection(): React.ReactElement {
   );
 }
 
-export function SettingsView(): React.ReactElement {
-  return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-[700px] space-y-8 px-6 py-8">
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h2>
+type SettingsTab = 'writing' | 'providers' | 'appearance' | 'profile';
 
-        <ClaudeCliSection />
-        <SectionDivider />
-        <ProviderSection />
-        <SectionDivider />
-        <ModelSelectionSection />
-        <SectionDivider />
-        <ThinkingSection />
-        <SectionDivider />
-        <NotificationsSection />
-        <SectionDivider />
-        <AppearanceSection />
-        <SectionDivider />
-        <UsageSection />
-        <SectionDivider />
-        <CatalogExportSection />
-        <SectionDivider />
-        <AuthorProfileSection />
-        <SectionDivider />
-        <GuidedToursSection />
-        <SectionDivider />
-        <AboutSection />
+const TAB_LABELS: Record<SettingsTab, string> = {
+  writing: '✍️ Writing',
+  providers: '🔌 Providers',
+  appearance: '🎨 Appearance',
+  profile: '👤 Profile',
+};
+
+export function SettingsView(): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('writing');
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Tab bar */}
+      <div className="flex shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6 pt-4">
+        {(['writing', 'providers', 'appearance', 'profile'] as SettingsTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`mr-1 px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            {TAB_LABELS[tab]}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[700px] space-y-8 px-6 py-8">
+
+          {activeTab === 'writing' && (
+            <>
+              <ModelSelectionSection />
+              <SectionDivider />
+              <ThinkingSection />
+            </>
+          )}
+
+          {activeTab === 'providers' && (
+            <>
+              <ClaudeCliSection />
+              <SectionDivider />
+              <ProviderSection />
+            </>
+          )}
+
+          {activeTab === 'appearance' && (
+            <>
+              <AppearanceSection />
+              <SectionDivider />
+              <NotificationsSection />
+              <SectionDivider />
+              <AboutSection />
+            </>
+          )}
+
+          {activeTab === 'profile' && (
+            <>
+              <AuthorProfileSection />
+              <SectionDivider />
+              <GuidedToursSection />
+              <SectionDivider />
+              <UsageSection />
+              <SectionDivider />
+              <CatalogExportSection />
+            </>
+          )}
+
+        </div>
       </div>
     </div>
   );

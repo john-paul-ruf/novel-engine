@@ -23,6 +23,7 @@ import type {
   ImportCommitConfig,
   ImportPreview,
   ImportResult,
+  ManuscriptAssembly,
   Message,
   MessageRole,
   ModelInfo,
@@ -172,6 +173,13 @@ export interface IFileSystemService {
   // Word count
   countWords(bookSlug: string): Promise<number>;
   countWordsPerChapter(bookSlug: string): Promise<{ slug: string; wordCount: number }[]>;
+
+  /**
+   * Assemble the full manuscript by reading all chapter draft.md files in order
+   * and concatenating them with chapter headings.
+   * Returns the combined markdown and metadata suitable for the reading mode view.
+   */
+  assembleManuscript(bookSlug: string): Promise<ManuscriptAssembly>;
 
   // Cover image
   saveCoverImage(bookSlug: string, sourcePath: string): Promise<string>;
@@ -543,6 +551,27 @@ export interface IChatService {
 
   recoverOrphanedSessions(): Promise<StreamSessionRecord[]>;
   getRecoveredOrphans(): StreamSessionRecord[];
+
+  /**
+   * Run a chapter deep dive — a scoped Lumen craft analysis of a single chapter.
+   *
+   * Loads the target chapter draft, its notes.md (if present), and the scene
+   * outline. Creates a new Lumen conversation, sends the assembled prompt, and
+   * streams Lumen's analysis back via onEvent.
+   *
+   * Does NOT use Wrangler context assembly — context is built inline.
+   * Does NOT write files — output is chat-only.
+   *
+   * Returns the conversationId so the UI can navigate to it.
+   */
+  deepDive(params: {
+    bookSlug: string;
+    chapterSlug: string;
+    /** Pre-created conversationId. If omitted the service creates one. */
+    conversationId?: string;
+    callId?: string;
+    onEvent: (event: StreamEvent) => void;
+  }): Promise<{ conversationId: string }>;
 
 }
 

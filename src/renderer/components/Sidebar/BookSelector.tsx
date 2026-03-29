@@ -259,6 +259,7 @@ export function BookSelector(): React.ReactElement {
 
   const [isOpen, setIsOpen] = useState(false);
   const [showNewBookModal, setShowNewBookModal] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [showPitchShelf, setShowPitchShelf] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<BookSummary | null>(null);
@@ -365,7 +366,10 @@ export function BookSelector(): React.ReactElement {
       group.volumes.sort((a, b) => a.volumeNumber - b.volumeNumber);
     }
 
-    return { seriesGroups: Array.from(groups.values()), standaloneBooks: standalone };
+    return {
+      seriesGroups: Array.from(groups.values()).filter((g) => g.volumes.length > 0),
+      standaloneBooks: standalone,
+    };
   }, [books, bookToSeries]);
 
   const activeBook = books.find((b) => b.slug === activeSlug);
@@ -432,6 +436,7 @@ export function BookSelector(): React.ReactElement {
           const opening = !isOpen;
           setIsOpen(opening);
           if (opening) {
+            setShowLibrary(false);
             setShowPitchShelf(false);
             setShowArchived(false);
             usePitchShelfStore.getState().loadPitches();
@@ -444,6 +449,7 @@ export function BookSelector(): React.ReactElement {
             const opening = !isOpen;
             setIsOpen(opening);
             if (opening) {
+              setShowLibrary(false);
               setShowPitchShelf(false);
               setShowArchived(false);
               usePitchShelfStore.getState().loadPitches();
@@ -465,7 +471,7 @@ export function BookSelector(): React.ReactElement {
                 <span className="text-xs text-white">📷</span>
               </div>
             </button>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 {activeBook.title}
               </div>
@@ -485,7 +491,24 @@ export function BookSelector(): React.ReactElement {
       {/* Dropdown panel */}
       {isOpen && (
         <div className="absolute left-0 right-0 top-full z-40 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-xl">
-          {showPitchShelf ? (
+          {showLibrary ? (
+            <LibraryPanel
+              onBack={() => setShowLibrary(false)}
+              onBookRestored={async (slug) => {
+                setIsOpen(false);
+                setShowLibrary(false);
+                await setActiveBook(slug);
+              }}
+              onShowPitchShelf={() => setShowPitchShelf(true)}
+              onShowArchived={() => setShowArchived(true)}
+              onManageSeries={() => { setIsOpen(false); openModal('list'); }}
+              onImport={() => { setIsOpen(false); startImport(); }}
+              onImportSeries={() => { setIsOpen(false); startSeriesImport(); }}
+              pitchCount={pitchCount}
+              archivedCount={archivedCount}
+              seriesCount={seriesList.length}
+            />
+          ) : showPitchShelf ? (
             <ShelvedPitchesPanel
               onBack={() => setShowPitchShelf(false)}
               onBookRestored={async (slug) => {
@@ -540,59 +563,8 @@ export function BookSelector(): React.ReactElement {
                 ))}
               </div>
 
-              {/* Shelved Pitches link */}
-              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
-                <button
-                  onClick={() => setShowPitchShelf(true)}
-                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <span>📋</span>
-                  <span>Shelved Pitches</span>
-                  {pitchCount > 0 && (
-                    <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
-                      {pitchCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Archived Books link */}
-              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
-                <button
-                  onClick={() => setShowArchived(true)}
-                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <span>📦</span>
-                  <span>Archived Books</span>
-                  {archivedCount > 0 && (
-                    <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
-                      {archivedCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Manage Series */}
-              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2">
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    openModal('list');
-                  }}
-                  className="no-drag flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <span>📚</span>
-                  <span>Manage Series</span>
-                  {seriesList.length > 0 && (
-                    <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
-                      {seriesList.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* New Book + Import buttons */}
-              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2 flex gap-1">
+              {/* Simplified footer: New Book + Library (···) */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 p-2 flex items-center gap-1">
                 <button
                   onClick={() => {
                     setIsOpen(false);
@@ -604,26 +576,11 @@ export function BookSelector(): React.ReactElement {
                   <span>New Book</span>
                 </button>
                 <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    startImport();
-                  }}
-                  className="no-drag flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  onClick={() => setShowLibrary(true)}
+                  title="Library: archived books, shelved pitches, series, import"
+                  className="no-drag rounded-md px-2.5 py-2 text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                    <path d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z" />
-                    <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
-                  </svg>
-                  <span>Import</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    startSeriesImport();
-                  }}
-                  className="no-drag flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  <span>Import Series</span>
+                  ···
                 </button>
               </div>
             </>
@@ -659,6 +616,111 @@ export function BookSelector(): React.ReactElement {
 
       {/* Series management modal */}
       {isModalOpen && <SeriesModal />}
+    </div>
+  );
+}
+
+function LibraryPanel({
+  onBack,
+  onShowPitchShelf,
+  onShowArchived,
+  onManageSeries,
+  onImport,
+  onImportSeries,
+  pitchCount,
+  archivedCount,
+  seriesCount,
+}: {
+  onBack: () => void;
+  onBookRestored: (slug: string) => Promise<void>;
+  onShowPitchShelf: () => void;
+  onShowArchived: () => void;
+  onManageSeries: () => void;
+  onImport: () => void;
+  onImportSeries: () => void;
+  pitchCount: number;
+  archivedCount: number;
+  seriesCount: number;
+}): React.ReactElement {
+  return (
+    <div>
+      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2">
+        <button
+          onClick={onBack}
+          className="no-drag text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          ← Back
+        </button>
+        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Library</span>
+      </div>
+
+      {/* Shelved Pitches */}
+      <button
+        onClick={onShowPitchShelf}
+        className="no-drag flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      >
+        <span>📋</span>
+        <span>Shelved Pitches</span>
+        {pitchCount > 0 && (
+          <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+            {pitchCount}
+          </span>
+        )}
+      </button>
+
+      {/* Archived Books */}
+      <button
+        onClick={onShowArchived}
+        className="no-drag flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      >
+        <span>📦</span>
+        <span>Archived Books</span>
+        {archivedCount > 0 && (
+          <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+            {archivedCount}
+          </span>
+        )}
+      </button>
+
+      {/* Manage Series */}
+      <button
+        onClick={onManageSeries}
+        className="no-drag flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      >
+        <span>📚</span>
+        <span>Manage Series</span>
+        {seriesCount > 0 && (
+          <span className="ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+            {seriesCount}
+          </span>
+        )}
+      </button>
+
+      <div className="border-t border-zinc-200 dark:border-zinc-800" />
+
+      {/* Import */}
+      <button
+        onClick={onImport}
+        className="no-drag flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0">
+          <path d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z" />
+          <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+        </svg>
+        <span>Import Book</span>
+      </button>
+
+      {/* Import Series */}
+      <button
+        onClick={onImportSeries}
+        className="no-drag flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0">
+          <path d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z" />
+          <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+        </svg>
+        <span>Import Series</span>
+      </button>
     </div>
   );
 }

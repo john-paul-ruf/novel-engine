@@ -156,6 +156,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   providers: BUILT_IN_PROVIDER_CONFIGS,
   activeProviderId: CLAUDE_CLI_PROVIDER_ID,
   completedTours: [],
+  savedPrompts: [],
 };
 
 // === Agent Quick Actions ===
@@ -199,6 +200,26 @@ export const AGENT_QUICK_ACTIONS: Record<CreativeAgentName, QuickAction[]> = {
   Quill: [
     { label: 'Prepare for publication', prompt: 'Audit the build outputs in dist/. Generate publication metadata — title, subtitle, description, keywords, categories, and back-cover copy. Flag any remaining issues. Write metadata to source/metadata.md.' },
     { label: 'Generate metadata', prompt: 'Read the manuscript and pitch. Generate publication metadata — title, subtitle, description, keywords, BISAC categories, comp titles, and back-cover copy. Write it to source/metadata.md.' },
+    { label: 'Query Letter (Traditional)', prompt: `Write a professional query letter for traditional publishing submission.
+
+A query letter is approximately 250-300 words and has three parts:
+1. Hook + premise (one compelling paragraph that introduces protagonist, inciting incident, and stakes)
+2. Plot summary (one paragraph: setup, conflict, midpoint, climax hint — no spoilers on resolution)
+3. Brief bio + comp titles (your relevant credentials and 2-3 recent comparable titles)
+
+Read the pitch, story bible, and voice profile for context. Write the letter in first person as the author. Output to source/query-letter.md.` },
+    { label: 'Synopsis (Traditional)', prompt: `Write a full-plot synopsis for traditional publishing.
+
+A synopsis is 1-2 pages (400-800 words). Unlike a query letter, it does NOT withhold the ending — agents need to know the full arc.
+
+Include:
+- Protagonist introduction and core want/need
+- Inciting incident
+- Key turning points and midpoint
+- Climax and resolution
+- Protagonist's arc and change
+
+Read the full manuscript and scene outline. Write in present tense, third person. Output to source/synopsis.md.` },
   ],
 };
 

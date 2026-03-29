@@ -423,14 +423,19 @@ export function PipelineTracker(): React.ReactElement {
         })}
       </div>
 
-      {/* Manual Override Warning Modal */}
-      {manualOverridePhase && (
+      {/* Phase completion modals */}
+      {manualOverridePhase === 'first-draft' ? (
+        <FirstDraftCompleteModal
+          onConfirm={confirmManualOverride}
+          onCancel={() => setManualOverridePhase(null)}
+        />
+      ) : manualOverridePhase ? (
         <ManualOverrideModal
           phaseName={phases.find((p) => p.id === manualOverridePhase)?.label ?? manualOverridePhase}
           onConfirm={confirmManualOverride}
           onCancel={() => setManualOverridePhase(null)}
         />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -507,6 +512,81 @@ function ManualOverrideModal({
             className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500 transition-colors"
           >
             Complete Anyway
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FirstDraftCompleteModal({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  // Close on backdrop click
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+        onCancel();
+      }
+    },
+    [onCancel],
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={handleBackdropClick}
+    >
+      <div
+        ref={modalRef}
+        className="w-full max-w-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-xl"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 px-5 py-3">
+          <span className="text-green-500 text-base">✓</span>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            First Draft Complete!
+          </h2>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
+          <p>
+            Congratulations — you have a complete first draft. This is a major milestone.
+          </p>
+          <p className="text-xs text-green-600 dark:text-green-400">
+            Marking it complete will unlock the reader phases so Ghostlight and Lumen can give you their first impressions.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 border-t border-zinc-200 dark:border-zinc-800 px-5 py-3">
+          <button
+            onClick={onCancel}
+            className="rounded-md px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-500 transition-colors"
+          >
+            Mark Complete
           </button>
         </div>
       </div>
