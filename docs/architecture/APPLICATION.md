@@ -405,6 +405,24 @@ Key behaviors:
 - Uses `StreamManager` for accumulation/saving/usage recording (same pattern as PitchRoomService)
 - No context wrangling, no pipeline awareness, no file watching
 
+### FindReplaceService
+
+File: `src/application/FindReplaceService.ts`
+
+Dependencies: `IFileSystemService`, `IVersionService`
+
+| Method | What It Does |
+|--------|-------------|
+| `preview(bookSlug, searchTerm, options)` | Lists `chapters/` subdirs → reads each `draft.md` → collects match locations (cap 20/file) → returns sorted preview |
+| `apply(params)` | For each selected file: reads content → snapshots (source='user') → replaces all matches → writes updated content |
+
+Key behaviors:
+- `buildRegex()` module-level helper: escapes metacharacters in literal mode; validates pattern in regex mode; always uses `g` flag
+- `regex.lastIndex` is reset to `0` before every reuse of the same RegExp object
+- Zero-length match guard increments `lastIndex` to prevent infinite loops
+- Files missing between preview and apply are silently skipped (not counted in result)
+- No AI calls, no database writes, no Electron APIs
+
 ---
 
 ## Context Assembly

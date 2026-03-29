@@ -252,6 +252,13 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `helper:abort` | invoke | `helperService.abortStream(conversationId)` | `void` |
 | `helper:reset` | invoke | `helperService.resetConversation()` | `void` |
 
+### findReplace:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `findReplace:preview` | invoke | `findReplaceService.preview(bookSlug, searchTerm, options)` | `FindReplacePreviewResult` |
+| `findReplace:apply` | invoke | `findReplaceService.apply(params)` | `FindReplaceApplyResult` |
+
 ---
 
 ## Push Events
@@ -471,6 +478,11 @@ window.novelEngine: {
     send(params: { message, conversationId, callId? }): Promise<void>
     abort(conversationId: string): Promise<void>
     reset(): Promise<void>
+  }
+
+  findReplace: {
+    preview(bookSlug: string, searchTerm: string, options: FindReplaceOptions): Promise<FindReplacePreviewResult>
+    apply(params: { bookSlug, searchTerm, replacement, filePaths, options }): Promise<FindReplaceApplyResult>
   }
 }
 ```

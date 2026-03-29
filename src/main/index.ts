@@ -77,6 +77,7 @@ import { VersionService } from '@app/VersionService';
 import { ManuscriptImportService } from '@app/ManuscriptImportService';
 import { SourceGenerationService } from '@app/SourceGenerationService';
 import { SeriesImportService } from '@app/SeriesImportService';
+import { FindReplaceService } from '@app/FindReplaceService';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -288,6 +289,7 @@ async function initializeApp(): Promise<void> {
     }
   });
   const version = new VersionService(db, fs);
+  const findReplace = new FindReplaceService(fs, version);
   const manuscriptImport = new ManuscriptImportService(fs, pandocPath);
   const seriesImport = new SeriesImportService(manuscriptImport, series);
   const sourceGeneration = new SourceGenerationService(settings, agents, db, fs, providerRegistry);
@@ -388,7 +390,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper, findReplace },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

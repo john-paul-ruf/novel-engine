@@ -12,6 +12,8 @@ type FilesHeaderProps = {
   onDelete?: () => void;
   /** When true the file belongs to Verity — hide the Edit button and show a lock badge instead. */
   readOnly?: boolean;
+  /** Opens the Find & Replace modal across all chapter drafts. */
+  onFindReplace?: () => void;
 };
 
 function BreadcrumbSegments({
@@ -89,6 +91,7 @@ export function FilesHeader({
   onEdit,
   onDelete,
   readOnly,
+  onFindReplace,
 }: FilesHeaderProps): React.ReactElement {
   const breadcrumbs =
     viewMode === 'browser'
@@ -155,6 +158,16 @@ export function FilesHeader({
               {viewMode === 'editor' ? '👁 Preview' : '✏️ Edit'}
             </button>
           )
+        )}
+
+        {onFindReplace && (
+          <button
+            onClick={onFindReplace}
+            className="rounded px-2.5 py-1 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+            title="Find & replace across all chapters"
+          >
+            ⇄ Find &amp; Replace
+          </button>
         )}
 
         <div className="flex items-center gap-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5">

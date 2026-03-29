@@ -29,10 +29,10 @@
 
 | # | Session | Layer(s) | Status | Completed | Notes |
 |---|---------|----------|--------|-----------|-------|
-| 1 | SESSION-01 — Domain types and service interface | Domain | pending | | |
-| 2 | SESSION-02 — FindReplaceService implementation | Application | pending | | |
-| 3 | SESSION-03 — IPC handlers, preload bridge, composition root | IPC / Main | pending | | |
-| 4 | SESSION-04 — FindReplaceModal component and FilesView integration | Renderer | pending | | |
+| 1 | SESSION-01 — Domain types and service interface | Domain | done | 2026-03-28 | Types appended after `// === Guided Tour ===`; 3 types added to interfaces.ts import block alphabetically after FileVersionSummary |
+| 2 | SESSION-02 — FindReplaceService implementation | Application | done | 2026-03-28 | Created; `buildRegex` as module-level function; regex.lastIndex reset before each use as called out in notes |
+| 3 | SESSION-03 — IPC handlers, preload bridge, composition root | IPC / Main | done | 2026-03-28 | `findReplace` injected after `version` in composition root; handlers appended at end of file before closing brace; `findReplace` namespace added before `helper` in preload |
+| 4 | SESSION-04 — FindReplaceModal component and FilesView integration | Renderer | done | 2026-03-28 | Modal created; `onFindReplace` prop added to FilesHeader; modal mounted conditionally before root closing div |
 
 ---
 
@@ -96,12 +96,15 @@ All sessions are strictly sequential. Each session depends on the previous one. 
 
 > Agents write freeform notes here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-04
 
 ### Observations:
-- `IVersionService.snapshotContent()` already exists and does exactly what is needed for the safety snapshot — no new interface methods required.
-- `IFileSystemService.listDirectory(bookSlug, 'chapters')` returns `FileEntry[]`; the service needs to filter for `isDirectory: true` and construct `chapters/{name}/draft.md` paths.
-- The `regex` object must have `lastIndex` reset before each use because the `g` flag is stateful. The SESSION-02 prompt calls this out explicitly.
+- All four sessions completed in a single run on 2026-03-28.
+- `IVersionService.snapshotContent()` worked exactly as described — no interface additions required.
+- `regex.lastIndex` is reset before every use of the shared RegExp object in both `preview()` and `apply()`.
+- `FindReplaceModal` was written entirely with local state — no Zustand store needed (as planned).
+- `FilesHeader` button uses `⇄ Find &amp; Replace` (JSX HTML entity) to avoid unescaped ampersand lint warnings.
+- `npx tsc --noEmit` passes with zero errors after all four sessions.
 
 ### Warnings:
 - `src/main/index.ts` is the composition root — read it fully before SESSION-03 to get the exact variable names for `fileSystemService` and `versionService`. Do not guess.

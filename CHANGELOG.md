@@ -4,6 +4,39 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-28] — batch-find-replace feature (Sessions 01–04)
+
+### Summary
+
+Adds a bulk Find & Replace feature scoped to all chapter draft files in a book. Authors can search with literal or regex patterns, preview per-chapter match locations with inline highlighting, selectively apply replacements, and rely on automatic version snapshots (source='user') for safe revert. The feature is surfaced via a three-phase modal accessible from the FilesView header. No new Zustand store — all modal state is local.
+
+### Added
+
+- `src/domain/types.ts` — Added `FindReplaceOptions`, `FindReplaceMatchLocation`, `FindReplacePreviewItem`, `FindReplacePreviewResult`, `FindReplaceApplyResult` under new `// === Find & Replace ===` section
+- `src/domain/interfaces.ts` — Added `IFindReplaceService` with `preview()` and `apply()` methods; added 3 type imports (`FindReplaceApplyResult`, `FindReplaceOptions`, `FindReplacePreviewResult`) to the import block
+- `src/application/FindReplaceService.ts` — New: implements `IFindReplaceService`. Module-level `buildRegex()` helper. `preview()` scans `chapters/*/draft.md`, caps match locations at 20/file, sorts by match count descending. `apply()` snapshots before write (source='user'), skips files with no matches
+- `src/renderer/components/Files/FindReplaceModal.tsx` — New: fixed overlay modal with three phases (input/preview/result). Sub-components: `InputSection`, `ToggleButton`, `PreviewSection`, `ChapterMatchRow`, `MatchLine`, `ResultSection`
+
+### Changed
+
+- `src/main/index.ts` — Imported `FindReplaceService`; instantiated `findReplace = new FindReplaceService(fs, version)` after `version`; added `findReplace` to `registerIpcHandlers(...)` call
+- `src/main/ipc/handlers.ts` — Added `IFindReplaceService` to interface imports; added `FindReplaceApplyResult`, `FindReplaceOptions`, `FindReplacePreviewResult` to type imports; extended `services` parameter type; registered `findReplace:preview` and `findReplace:apply` handlers at end of function body
+- `src/preload/index.ts` — Added `FindReplaceApplyResult`, `FindReplaceOptions`, `FindReplacePreviewResult` to type imports; added `findReplace: { preview, apply }` namespace before `helper`
+- `src/renderer/components/Files/FilesHeader.tsx` — Added `onFindReplace?: () => void` to `FilesHeaderProps`; added "⇄ Find & Replace" button before the view mode switcher group
+- `src/renderer/components/Files/FilesView.tsx` — Imported `FindReplaceModal`; added `showFindReplace` state; passed `onFindReplace` to `FilesHeader`; mounted `FindReplaceModal` conditionally before root closing div
+
+### Architecture Impact
+
+- New service: `FindReplaceService` → `IFileSystemService` + `IVersionService`
+- New IPC channels: `findReplace:preview`, `findReplace:apply`
+- New preload namespace: `window.novelEngine.findReplace.{ preview, apply }`
+
+### Migration Notes
+
+None — no schema changes, no renamed channels, no breaking changes.
+
+---
+
 ## [2026-03-28] — Deployment Prep: release notes, README update, website rebuild
 
 ### Summary

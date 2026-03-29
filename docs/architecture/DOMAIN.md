@@ -535,6 +535,15 @@ Implemented by: `HelperService` (`src/application/HelperService.ts`)
 | `abortStream` | `(conversationId: string) => void` | Kill active CLI process |
 | `resetConversation` | `() => Promise<void>` | Delete helper conversation |
 
+### IFindReplaceService
+
+Implemented by: `FindReplaceService` (`src/application/FindReplaceService.ts`)
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `preview` | `(bookSlug, searchTerm, options) => Promise<FindReplacePreviewResult>` | Match scan across all `chapters/*/draft.md`; up to 20 locations per file; sorted by match count desc |
+| `apply` | `(params: { bookSlug, searchTerm, replacement, filePaths, options }) => Promise<FindReplaceApplyResult>` | Snapshots each file (source='user'), replaces all matches, writes updated content |
+
 ---
 
 ## Constants
@@ -621,6 +630,16 @@ Extracted to a separate file. Zero imports — pure functions over static arrays
 - `randomWaitingStatus()` — 45+ messages for waiting phase
 - `randomRespondingStatus()` — 45+ messages for response streaming phase
 - `randomPitchRoomFlavor()` — 16 messages for Pitch Room empty state
+
+### Find & Replace
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `FindReplaceOptions` | `{ caseSensitive: boolean, useRegex: boolean }` | `IFindReplaceService`, preload, modal |
+| `FindReplaceMatchLocation` | `{ lineNumber, lineText, matchStart, matchEnd }` | `FindReplacePreviewItem.matches[]` |
+| `FindReplacePreviewItem` | `{ filePath, matchCount, matches: FindReplaceMatchLocation[] }` | `FindReplacePreviewResult.items[]` |
+| `FindReplacePreviewResult` | `{ items, totalMatchCount, searchTerm, options }` | `IFindReplaceService.preview()` return |
+| `FindReplaceApplyResult` | `{ filesChanged, totalReplacements, details: { filePath, replacements }[] }` | `IFindReplaceService.apply()` return |
 
 ---
 

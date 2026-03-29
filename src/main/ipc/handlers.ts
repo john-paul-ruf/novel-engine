@@ -23,6 +23,7 @@ import type {
   ISourceGenerationService,
   ISeriesImportService,
   IHelperService,
+  IFindReplaceService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -36,6 +37,9 @@ import type {
   QueueMode,
   SendMessageParams,
   FileVersionSource,
+  FindReplaceApplyResult,
+  FindReplaceOptions,
+  FindReplacePreviewResult,
   StreamEvent,
   StreamEventSource,
   ProviderConfig,
@@ -67,6 +71,7 @@ export function registerIpcHandlers(services: {
   series: ISeriesService;
   seriesImport: ISeriesImportService;
   helper: IHelperService;
+  findReplace: IFindReplaceService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -1057,4 +1062,20 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('helper:reset', async () => {
     await services.helper.resetConversation();
   });
+
+  // === Find & Replace ===
+
+  ipcMain.handle('findReplace:preview', async (_, bookSlug: string, searchTerm: string, options: FindReplaceOptions): Promise<FindReplacePreviewResult> =>
+    services.findReplace.preview(bookSlug, searchTerm, options),
+  );
+
+  ipcMain.handle('findReplace:apply', async (_, params: {
+    bookSlug: string;
+    searchTerm: string;
+    replacement: string;
+    filePaths: string[];
+    options: FindReplaceOptions;
+  }): Promise<FindReplaceApplyResult> =>
+    services.findReplace.apply(params),
+  );
 }

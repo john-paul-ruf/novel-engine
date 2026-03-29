@@ -444,12 +444,13 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `FileBrowser.tsx` | Traditional file tree browser |
 | `StructuredBrowser.tsx` | Structured view with source/chapters/dist panels |
 | `FileEditor.tsx` | Markdown editor with save/cancel, History toggle with split-panel `VersionHistoryPanel` |
-| `FilesHeader.tsx` | Header with view mode toggles |
+| `FilesHeader.tsx` | Header with view mode toggles and "⇄ Find & Replace" button (`onFindReplace?` prop) |
 | `SourcePanel.tsx` | Source files section in structured browser, with version history icon on hover |
 | `ChaptersPanel.tsx` | Chapters section in structured browser, with version history icons on hover for draft/notes |
 | `AgentOutputPanel.tsx` | Agent output files section, with version history icon on hover |
 | `CollapsibleSection.tsx` | Reusable collapsible section wrapper |
 | `DeleteConfirmModal.tsx` | Confirmation dialog for file/folder deletion |
+| `FindReplaceModal.tsx` | Three-phase modal (input → preview → result) for bulk find & replace across chapter drafts. All state local — no Zustand store. Calls `window.novelEngine.findReplace.*`. |
 | `DiffViewer.tsx` | Renders `FileDiff` as color-coded unified diff (green/red/neutral) |
 | `VersionHistoryPanel.tsx` | Slide-over panel: version timeline, diff viewer, revert with confirmation |
 

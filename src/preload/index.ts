@@ -46,6 +46,9 @@ import type {
   SeriesMeta,
   SeriesSummary,
   SourceGenerationEvent,
+  FindReplaceApplyResult,
+  FindReplaceOptions,
+  FindReplacePreviewResult,
 } from '@domain/types';
 
 const api = {
@@ -430,6 +433,25 @@ const api = {
       ipcRenderer.invoke('series:readBible', seriesSlug),
     writeBible: (seriesSlug: string, content: string): Promise<void> =>
       ipcRenderer.invoke('series:writeBible', seriesSlug, content),
+  },
+
+  // Find & Replace
+  findReplace: {
+    preview: (
+      bookSlug: string,
+      searchTerm: string,
+      options: FindReplaceOptions,
+    ): Promise<FindReplacePreviewResult> =>
+      ipcRenderer.invoke('findReplace:preview', bookSlug, searchTerm, options),
+
+    apply: (params: {
+      bookSlug: string;
+      searchTerm: string;
+      replacement: string;
+      filePaths: string[];
+      options: FindReplaceOptions;
+    }): Promise<FindReplaceApplyResult> =>
+      ipcRenderer.invoke('findReplace:apply', params),
   },
 
   // Helper Agent

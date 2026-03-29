@@ -17,6 +17,9 @@ import type {
   FileVersion,
   FileVersionSource,
   FileVersionSummary,
+  FindReplaceApplyResult,
+  FindReplaceOptions,
+  FindReplacePreviewResult,
   ImportCommitConfig,
   ImportPreview,
   ImportResult,
@@ -815,4 +818,45 @@ export interface IHelperService {
    * Delete the helper conversation and start fresh.
    */
   resetConversation(): Promise<void>;
+}
+
+export interface IFindReplaceService {
+  /**
+   * Scan all chapter draft.md files in a book for occurrences of `searchTerm`.
+   *
+   * Scopes exclusively to `chapters/<slug>/draft.md` files. Returns a per-file
+   * summary with exact match counts and up to 20 sample match locations per
+   * file (for UI display).
+   *
+   * Throws if `searchTerm` is empty, or if `useRegex` is true and the
+   * pattern is syntactically invalid.
+   */
+  preview(
+    bookSlug: string,
+    searchTerm: string,
+    options: FindReplaceOptions,
+  ): Promise<FindReplacePreviewResult>;
+
+  /**
+   * Apply find-replace to the specified files.
+   *
+   * For each file in `filePaths`:
+   * 1. Read current content from disk.
+   * 2. Snapshot the pre-replace content via IVersionService (source='user').
+   * 3. Apply all replacements using the same regex built from `searchTerm` + `options`.
+   * 4. Write the updated content.
+   *
+   * Files where no matches are found are silently skipped (not counted in
+   * `filesChanged`, not included in `details`).
+   *
+   * Throws if `searchTerm` is empty or if `useRegex` is true and the pattern
+   * is syntactically invalid.
+   */
+  apply(params: {
+    bookSlug: string;
+    searchTerm: string;
+    replacement: string;
+    filePaths: string[];
+    options: FindReplaceOptions;
+  }): Promise<FindReplaceApplyResult>;
 }

@@ -737,3 +737,54 @@ export type TourState = {
   /** Which tours the user has completed. Persisted to settings. */
   completedTours: TourId[];
 };
+
+// === Find & Replace ===
+
+/**
+ * Options controlling matching behaviour for a find-replace operation.
+ */
+export type FindReplaceOptions = {
+  caseSensitive: boolean;
+  useRegex: boolean;
+};
+
+/**
+ * One occurrence of the search term within a file.
+ * Line numbers are 1-based. Column offsets are 0-based within lineText.
+ */
+export type FindReplaceMatchLocation = {
+  lineNumber: number;
+  lineText: string;   // the full line containing the match
+  matchStart: number; // 0-based column of match start within lineText
+  matchEnd: number;   // 0-based column of match end (exclusive) within lineText
+};
+
+/**
+ * Per-file summary returned by the preview call.
+ * `matches` is capped at 20 entries for UI display; `matchCount` is the
+ * exact total (may be higher than matches.length).
+ */
+export type FindReplacePreviewItem = {
+  filePath: string;                    // relative to book root, e.g. "chapters/01-foo/draft.md"
+  matchCount: number;
+  matches: FindReplaceMatchLocation[]; // up to 20 sample locations
+};
+
+/**
+ * Full result of a preview scan across all chapter drafts.
+ */
+export type FindReplacePreviewResult = {
+  items: FindReplacePreviewItem[];
+  totalMatchCount: number;
+  searchTerm: string;
+  options: FindReplaceOptions;
+};
+
+/**
+ * Summary returned after applying replacements.
+ */
+export type FindReplaceApplyResult = {
+  filesChanged: number;
+  totalReplacements: number;
+  details: { filePath: string; replacements: number }[];
+};

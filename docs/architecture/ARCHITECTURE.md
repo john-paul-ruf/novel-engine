@@ -77,6 +77,7 @@ src/
 │   ├── SeriesImportService.ts              # Batch import + series creation orchestration
 │   ├── SourceGenerationService.ts           # Multi-agent source document generation
 │   ├── HelperService.ts                     # In-app help assistant (user guide as context)
+│   ├── FindReplaceService.ts               # Bulk find & replace across chapter drafts; safe revert via snapshots
 │   ├── import/
 │   │   └── ChapterDetector.ts               # Pure chapter break detection utility
 │   ├── context/
@@ -215,6 +216,10 @@ HelperService
 ├── IProviderRegistry (ProviderRegistry)
 ├── StreamManager
 └── userDataPath: string
+
+FindReplaceService
+├── IFileSystemService (FileSystemService)
+└── IVersionService (VersionService)
 
 NotificationManager
 └── ISettingsService (SettingsService)

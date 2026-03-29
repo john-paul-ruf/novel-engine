@@ -7,6 +7,7 @@ import { FileBrowser } from './FileBrowser';
 import { FileEditor } from './FileEditor';
 import { StructuredBrowser } from './StructuredBrowser';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
+import { FindReplaceModal } from './FindReplaceModal';
 import type { FileViewMode } from '../../stores/viewStore';
 import type { BookMeta, BookStatus } from '@domain/types';
 
@@ -484,6 +485,7 @@ export function FilesView(): React.ReactElement {
 
   const [showHistory, setShowHistory] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFindReplace, setShowFindReplace] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const handleDeleteFile = useCallback(() => {
@@ -521,6 +523,7 @@ export function FilesView(): React.ReactElement {
         onEdit={handleEdit}
         onDelete={filePath ? handleDeleteFile : undefined}
         readOnly={readOnly}
+        onFindReplace={() => setShowFindReplace(true)}
       />
 
       {/* Content area */}
@@ -615,6 +618,10 @@ export function FilesView(): React.ReactElement {
           onClearFile={handleBackToBrowser}
           onContentChange={setContent}
         />
+      )}
+
+      {showFindReplace && activeSlug && (
+        <FindReplaceModal onClose={() => setShowFindReplace(false)} />
       )}
     </div>
   );
