@@ -122,9 +122,9 @@ src/
     │   ├── Layout/                          # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                      # OnboardingWizard
     │   ├── Settings/                        # SettingsView
-    │   ├── Sidebar/                         # BookSelector, PipelineTracker, FileTree, action buttons
+    │   ├── Sidebar/                         # BookPanel, PipelineTracker, ImportChoiceModal, action buttons
     │   ├── Chat/                            # ChatView, MessageBubble, ThinkingBlock, ChatInput, etc.
-    │   ├── Files/                           # FilesView, FileBrowser, FileEditor, StructuredBrowser
+    │   ├── Files/                           # FilesView (5-tab), FileBrowser, FileEditor
     │   ├── Build/                           # BuildView
     │   ├── PitchRoom/                       # PitchRoomView
     │   ├── RevisionQueue/                   # RevisionQueueView, SessionCard, TaskProgress, etc.

@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-03-28
+> Last updated: 2026-03-29
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
@@ -368,7 +368,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | File | Purpose |
 |------|---------|
 | `AppLayout.tsx` | Main shell: sidebar + content area, view routing. `StreamManager` component initializes pitchRoomStore and helperStore stream listener lifecycles. Also renders `HelperButton` and `HelperPanel`. |
-| `Sidebar.tsx` | Left panel: book selector + pipeline + file tree + action buttons + help "?" button with tour replay popover |
+| `Sidebar.tsx` | Left panel: BookPanel + PitchHistory (pitch-room only) + bottom nav. No file tree — Explorer tab in FilesView replaces it. |
 | `TitleBar.tsx` | Custom window title bar (traffic lights on macOS, buttons on Windows/Linux) |
 | `ResizeHandle.tsx` | Sidebar resize drag handle |
 
@@ -397,10 +397,10 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `BookSelector.tsx` | Book list dropdown with create/archive/unarchive. Groups books by series with collapsible `SeriesGroup` headers. "Manage Series" button opens `SeriesModal`. |
+| `BookPanel.tsx` | Persistent bookshelf replacing BookSelector dropdown. Icon toolbar (New Book, Shelved Pitches, Archived Books, Manage Series, Import), scrollable book cards with cover/title/status/wordcount/archive, series grouping via SeriesGroup. |
+| `ImportChoiceModal.tsx` | Modal: choose between single book import or series wizard import |
 | `SeriesGroup.tsx` | Collapsible series group header with volume list, gear icon for management |
 | `PipelineTracker.tsx` | Visual 14-phase pipeline with status icons, advance/revert controls |
-| `FileTree.tsx` | Collapsible book directory tree |
 | `VoiceSetupButton.tsx` | Quick action to start voice profile setup with Verity |
 | `HotTakeButton.tsx` | Quick action to launch Ghostlight hot take |
 | `AdhocRevisionButton.tsx` | Quick action to start ad-hoc revision with Forge |
@@ -440,15 +440,13 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `FilesView.tsx` | Container: switches between browser, reader, and editor modes. Reader mode has History toggle with split-panel `VersionHistoryPanel` |
-| `FileBrowser.tsx` | Traditional file tree browser |
-| `StructuredBrowser.tsx` | Structured view with source/chapters/dist panels |
+| `FilesView.tsx` | Container: 5 tabs (Source, Chapters, Agents, Explorer, Motif Ledger). Browser mode renders tab-specific panels. Reader/editor mode overlays file content with tab bar still visible. |
+| `FileBrowser.tsx` | Directory browser with grid/list layout, used by Explorer tab |
 | `FileEditor.tsx` | Markdown editor with save/cancel, History toggle with split-panel `VersionHistoryPanel` |
 | `FilesHeader.tsx` | Header with view mode toggles and "⇄ Find & Replace" button (`onFindReplace?` prop) |
-| `SourcePanel.tsx` | Source files section in structured browser, with version history icon on hover |
-| `ChaptersPanel.tsx` | Chapters section in structured browser, with version history icons on hover for draft/notes |
-| `AgentOutputPanel.tsx` | Agent output files section, with version history icon on hover |
-| `CollapsibleSection.tsx` | Reusable collapsible section wrapper |
+| `SourcePanel.tsx` | Source files list, rendered directly in Source tab |
+| `ChaptersPanel.tsx` | Chapter list with word counts, add/reorder/delete, rendered in Chapters tab |
+| `AgentOutputPanel.tsx` | Agent output files grouped by agent, rendered in Agents tab |
 | `DeleteConfirmModal.tsx` | Confirmation dialog for file/folder deletion |
 | `FindReplaceModal.tsx` | Three-phase modal (input → preview → result) for bulk find & replace across chapter drafts. All state local — no Zustand store. Calls `window.novelEngine.findReplace.*`. |
 | `DiffViewer.tsx` | Renders `FileDiff` as color-coded unified diff (green/red/neutral) |

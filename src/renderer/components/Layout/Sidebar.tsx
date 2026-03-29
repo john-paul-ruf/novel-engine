@@ -4,10 +4,9 @@ import { useResizeHandle } from '../../hooks/useResizeHandle';
 import { useRightPanelStore } from '../../stores/rightPanelStore';
 import { useHelperStore } from '../../stores/helperStore';
 import { ResizeHandle } from './ResizeHandle';
-import { BookSelector } from '../Sidebar/BookSelector';
+import { BookPanel } from '../Sidebar/BookPanel';
 import { HotTakeButton } from '../Sidebar/HotTakeButton';
 import { AdhocRevisionButton } from '../Sidebar/AdhocRevisionButton';
-import { FileTree } from '../Sidebar/FileTree';
 import { CliActivityButton } from '../Sidebar/CliActivityButton';
 import { PitchHistory } from '../Sidebar/PitchHistory';
 import { Tooltip } from '../common/Tooltip';
@@ -175,35 +174,22 @@ export function Sidebar(): React.ReactElement {
       className="relative flex h-full shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
       style={{ width }}
     >
-      {/* Book selector */}
-      <div className="flex-1 min-w-0">
-        <BookSelector />
-      </div>
-
-      {/* Middle sections — Pitch history (pitch-room only) + Files (always) */}
       <div className="flex min-h-0 flex-1 flex-col">
-        {/* Pitch session history — shown only when in the Pitch Room view */}
         {currentView === 'pitch-room' ? (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 items-center border-t border-zinc-200 dark:border-zinc-800 px-3 py-2">
+          <div className="flex min-h-0 flex-col">
+            <div className="flex shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800 px-3 py-2">
               <span className="text-xs font-medium uppercase tracking-wider text-amber-500 dark:text-amber-400">
                 Pitch Sessions
               </span>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 max-h-48 overflow-y-auto">
               <PitchHistory />
             </div>
           </div>
         ) : null}
 
-        {/* Files — always visible, fills remaining sidebar height */}
-        <div className="flex min-h-0 flex-1 flex-col border-t border-zinc-200 dark:border-zinc-800">
-          <div className="flex shrink-0 items-center px-3 py-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Files</span>
-          </div>
-          <div data-tour="file-tree" className="min-h-0 flex-1 overflow-y-auto">
-            <FileTree />
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <BookPanel />
         </div>
       </div>
 

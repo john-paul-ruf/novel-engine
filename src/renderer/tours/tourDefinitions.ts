@@ -17,9 +17,9 @@ const WELCOME_TOUR: TourStep[] = [
   },
   {
     id: 'welcome-file-tree',
-    targetSelector: '[data-tour="file-tree"]',
+    targetSelector: '[data-tour="sidebar-nav"]',
     title: 'Project Files',
-    body: 'All your manuscript files, outlines, reports, and source documents. Click any file to read or edit it.',
+    body: 'Open the Files view to browse your manuscript. Use the Source, Chapters, Agents, and Explorer tabs to find and edit your files.',
     placement: 'right',
   },
   {

@@ -34,8 +34,8 @@
 
 | # | Session | Status | Completed | Notes |
 |---|---------|--------|-----------|-------|
-| 1 | SESSION-01 — FilesView tab restructure | pending | | |
-| 2 | SESSION-02 — Sidebar Book Panel | pending | | |
+| 1 | SESSION-01 — FilesView tab restructure | done | 2026-03-29 | FileBrowser already handles empty currentPath; no changes needed there. |
+| 2 | SESSION-02 — Sidebar Book Panel | done | 2026-03-29 | Tour definitions updated to target sidebar-nav instead of deleted file-tree element. |
 
 ---
 
@@ -83,8 +83,11 @@ This feature touches only the Renderer layer (M06). No domain, infrastructure, a
 
 > Agents write here after each session to communicate context to the next run.
 
-### Last completed session: (none yet)
+### Last completed session: SESSION-02
 
 ### Observations:
+- SESSION-01: FilesView now has 5 tabs: Source, Chapters, Agents, Explorer, Motif Ledger. StructuredBrowser.tsx and CollapsibleSection.tsx deleted.
+- SESSION-02: BookPanel.tsx created with icon toolbar + scrollable bookshelf. ImportChoiceModal.tsx created. BookSelector.tsx and FileTree.tsx deleted. Sidebar.tsx updated. Tour definitions updated to target sidebar-nav for the file-tree step.
+- Both sessions verified with `npx tsc --noEmit` — zero errors, zero dangling imports.
 
 ### Warnings:

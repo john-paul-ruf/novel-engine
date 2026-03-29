@@ -4,6 +4,60 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-03-29] — Architecture Engine readme
+
+### Summary
+
+Wrote `prompts/meta/architecture-engine/readme.md` explaining what the architecture engine (Forge) does in plain language. Covers purpose, workflow, output structure, and when to use it. Notes the Opus requirement.
+
+### Changed
+- `prompts/meta/architecture-engine/readme.md` — Replaced empty heading with full explainer
+
+### Architecture Impact
+None — documentation only, no source code changes.
+
+### Migration Notes
+None
+
+---
+
+## [2026-03-29] — Sidebar bookshelf + FilesView tabs
+
+### Summary
+
+Restructured the UI in two ways: (1) FilesView's 2-tab layout (Files | Motif Ledger) replaced with 5 category tabs (Source, Chapters, Agents, Explorer, Motif Ledger), each rendering its panel directly without the StructuredBrowser/CollapsibleSection wrappers; (2) Sidebar's BookSelector dropdown + FileTree replaced with a permanently visible BookPanel component featuring an icon toolbar and scrollable book cards.
+
+### Added
+
+- `src/renderer/components/Sidebar/BookPanel.tsx` — Persistent bookshelf: icon toolbar (New Book, Shelved Pitches, Archived Books, Manage Series, Import), scrollable book cards with cover/title/status/wordcount/archive, series grouping via SeriesGroup. Migrates all data loading and management logic from BookSelector.
+- `src/renderer/components/Sidebar/ImportChoiceModal.tsx` — Modal with two card choices: Single Book import or Series import.
+
+### Changed
+
+- `src/renderer/components/Files/FilesView.tsx` — 2-tab (Files | Motif Ledger) → 5-tab (Source, Chapters, Agents, Explorer, Motif Ledger). Browser mode renders tab-specific panels directly. Reader/editor mode unchanged. Removed StructuredBrowser import, added direct SourcePanel/ChaptersPanel/AgentOutputPanel imports.
+- `src/renderer/components/Layout/Sidebar.tsx` — Removed BookSelector + FileTree. Replaced with BookPanel. PitchHistory capped at max-h-48.
+- `src/renderer/tours/tourDefinitions.ts` — `welcome-file-tree` step retargeted from `[data-tour="file-tree"]` to `[data-tour="sidebar-nav"]` with updated body text.
+
+### Removed
+
+- `src/renderer/components/Files/StructuredBrowser.tsx` — Decomposed into individual tabs in FilesView.
+- `src/renderer/components/Files/CollapsibleSection.tsx` — No longer used by any component.
+- `src/renderer/components/Sidebar/FileTree.tsx` — Replaced by Explorer tab in FilesView.
+- `src/renderer/components/Sidebar/BookSelector.tsx` — Replaced by BookPanel.
+
+### Architecture Impact
+
+- No new IPC channels, stores, or services.
+- No domain/infrastructure/application changes.
+- Tour target changed: `data-tour="file-tree"` removed from DOM, `welcome-file-tree` step retargeted.
+- `data-tour="book-selector"` preserved on BookPanel root element.
+
+### Migration Notes
+
+None — renderer-only restructuring, no breaking API changes.
+
+---
+
 ## [2026-03-28] — batch-find-replace feature (Sessions 01–04)
 
 ### Summary
