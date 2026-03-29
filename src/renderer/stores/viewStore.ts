@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type ViewId = 'dashboard' | 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'revision-queue' | 'pitch-room' | 'reading';
+type ViewId = 'dashboard' | 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'statistics' | 'revision-queue' | 'pitch-room' | 'reading';
 
 export type FileViewMode = 'browser' | 'reader' | 'editor';
 

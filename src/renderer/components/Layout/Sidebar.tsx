@@ -11,7 +11,7 @@ import { CliActivityButton } from '../Sidebar/CliActivityButton';
 import { PitchHistory } from '../Sidebar/PitchHistory';
 import { Tooltip } from '../common/Tooltip';
 
-type ViewId = 'dashboard' | 'chat' | 'files' | 'build' | 'pitch-room' | 'reading' | 'settings';
+type ViewId = 'dashboard' | 'chat' | 'files' | 'build' | 'pitch-room' | 'reading' | 'statistics' | 'settings';
 
 const NAV_TOOLTIPS: Record<ViewId, string> = {
   dashboard: 'Project overview — pipeline status, word count, recent activity',
@@ -20,6 +20,7 @@ const NAV_TOOLTIPS: Record<ViewId, string> = {
   build: 'Export your manuscript to DOCX, EPUB, or PDF',
   'pitch-room': 'Free brainstorming space — pitch ideas without committing to a book',
   reading: 'Read the full manuscript from start to finish',
+  statistics: 'Token usage, cost estimates, and word count charts',
   settings: 'App preferences, model selection, and guided tours',
 };
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: { id: ViewId; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'files', label: 'Files', icon: '📁' },
   { id: 'build', label: 'Build', icon: '📦' },
+  { id: 'statistics', label: 'Statistics', icon: '📈' },
   { id: 'pitch-room', label: 'Pitch Room', icon: '💡' },
   { id: 'reading', label: 'Reading Mode', icon: '📖' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },

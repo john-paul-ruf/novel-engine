@@ -15,6 +15,7 @@ import { RevisionQueueView } from '../RevisionQueue';
 import { PitchRoomView } from '../PitchRoom/PitchRoomView';
 import { ReadingModeView } from '../Reading/ReadingModeView';
 import { DashboardView } from '../Dashboard/DashboardView';
+import { StatisticsView } from '../Statistics/StatisticsView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
 import { PipelinePanel } from '../RightPanel';
@@ -78,6 +79,9 @@ function ViewContent(): React.ReactElement {
       </div>
       <div className={`h-full ${currentView === 'settings' ? '' : 'hidden'}`}>
         <SettingsView />
+      </div>
+      <div className={`h-full ${currentView === 'statistics' ? '' : 'hidden'}`}>
+        <StatisticsView />
       </div>
       <div className={`h-full ${currentView === 'revision-queue' ? '' : 'hidden'}`}>
         <RevisionQueueView />

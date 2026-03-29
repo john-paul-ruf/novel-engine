@@ -39,7 +39,7 @@
 | 3 | SESSION-03 — Dashboard Service + FileSystem + IPC + Preload | M05, M08, M09 | done | 2026-03-29 | Created DashboardService, wired IPC handler + preload bridge. FileSystemService.getRecentFiles was already implemented in SESSION-01. |
 | 4 | SESSION-04 — Dashboard View | M10 | done | 2026-03-29 | Created DashboardView with 6 card components, dashboardStore, updated viewStore (default=dashboard, version 3), AppLayout, Sidebar, bookStore. |
 | 5 | SESSION-05 — Statistics Service + IPC + Preload | M08, M09 | done | 2026-03-29 | Created StatisticsService, wired IPC handlers + preload bridge. Added word count snapshot hook on chat:send file changes. |
-| 6 | SESSION-06 — Statistics View | M10 | pending | | |
+| 6 | SESSION-06 — Statistics View | M10 | done | 2026-03-29 | Installed recharts, created StatisticsView with 6 chart sections + statisticsStore. Updated viewStore, AppLayout, Sidebar. Fixed recharts Tooltip formatter types for strict TS. |
 | 7 | SESSION-07 — Revision Queue Modal Refactor | M10 | pending | | |
 
 ---
@@ -112,7 +112,7 @@ Both tracks can run in parallel since they touch different files (except shared 
 
 > Agents write here after each session to communicate context to the next run.
 
-### Last completed session: SESSION-05
+### Last completed session: SESSION-06
 
 ### Observations:
 - DashboardView uses `import type` for domain types and value imports only from `@domain/constants` (AGENT_REGISTRY, PIPELINE_PHASES) — compliant with renderer layer rules.
@@ -121,5 +121,4 @@ Both tracks can run in parallel since they touch different files (except shared 
 - Used HTML entities for emojis in JSX to avoid encoding issues.
 
 ### Next up:
-- SESSION-06 (Statistics View) — all dependencies met (SESSION-04 ✓, SESSION-05 ✓). Will modify viewStore, AppLayout, Sidebar — must merge with SESSION-04's dashboard changes.
-- SESSION-07 (Revision Queue Modal) — all dependencies met (SESSION-04 ✓). Can run after SESSION-06.
+- SESSION-07 (Revision Queue Modal Refactor) — all dependencies met (SESSION-04 ✓). Last session in the program.
