@@ -6,6 +6,8 @@
 
 The architecture engine (called "Forge") turns ideas into build plans. You give it a feature request, a spec, a bug report, or even just a sentence describing what you want — and it produces a set of numbered session prompts that an AI agent can execute one by one to build the thing.
 
+*In plain English: it compiles your prompt into an 'executable program' so you don't have to.*
+
 ## How It Works
 
 1. **You describe what you want.** Attach docs, paste a feature spec, or just type a sentence.
