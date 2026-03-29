@@ -1,0 +1,5 @@
+A visual corkboard where each chapter appears as a card — title, word count, status badge (unwritten/drafted/revised), and a one-line excerpt from notes.md. The whole manuscript structure on one screen. Drag cards to reorder chapters (this would hook into the chapter-reorder feature naturally). Click a card to jump to that chapter in the Files view.
+
+This is Scrivener's single most-loved feature and the one thing writers who try Novel Engine and then go back to Scrivener always cite. The scene outline gives you the plan, but the corkboard gives you the shape. When a book has 28 chapters, the list in the sidebar tells you nothing about structural rhythm — the corkboard does.
+
+Should live as a new view accessible from the sidebar (between Files and Build, maybe). Can coexist with the linear file browser — they're complementary. Cards should be filterable by status so you can see "show me all chapters with no notes yet" or "show me all drafted chapters." Keep it simple — no sticky note colors, no document groups, just chapters as cards in a clean grid or canvas.

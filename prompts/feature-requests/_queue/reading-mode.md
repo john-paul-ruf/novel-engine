@@ -1,0 +1,5 @@
+A full-manuscript reader that assembles all chapters in order and displays them as a continuous scroll — like reading a book, not a file browser. Right now the only way to read your assembled manuscript in-app is chapter by chapter in the Files view. The Build step creates a Markdown file you can open externally, but there should be a way to do a read-through without leaving the app or triggering a full Pandoc build.
+
+Reading mode is not for editing — it's for read-throughs, proofing, and checking narrative flow across chapter breaks. Render the markdown cleanly with good typography: comfortable line length, readable font size, clear chapter headings. The sidebar collapses automatically. No distractions. A floating progress indicator ("Chapter 4 of 22 — 14,200 words") so you know where you are.
+
+This is distinct from the file browser's reader toggle, which shows one file at a time. This is the whole book, in sequence, in one place. Accessible from the Build view or as a button in the sidebar. Would make proofing significantly less friction-heavy — right now doing a proper read-through means rebuilding to MD or opening 22 separate files.

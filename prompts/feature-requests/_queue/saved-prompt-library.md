@@ -1,0 +1,5 @@
+A personal bank of saved prompts, accessible alongside the built-in Quick Actions. After you figure out that a particular phrasing reliably gets great results from Verity ("Write Chapter 9 continuing from the exact emotional note Chapter 8 ended on — don't summarize the previous chapter, just pick up mid-moment"), you want to save that and use it again. Right now you either retype it every time or keep a notes document somewhere outside the app.
+
+The saved prompt library is a user-managed complement to Quick Actions. Same dropdown, but with a "Saved" tab showing your personal prompts. Each entry has a name, the prompt text, and the agent it's for (or "any"). Prompts are scoped globally — they persist across books. You can create, edit, delete, and duplicate them. One-click fills the chat input, just like Quick Actions.
+
+This is cheap to build (just a JSON file in userData) and pays off fast. Power users who've been through multiple revision cycles have a repertoire of prompts that work. Right now that knowledge lives outside the app and gets lost. Bring it inside.
