@@ -59,6 +59,18 @@ export class DatabaseService implements IDatabaseService {
   private stmtCountFileVersions: Database.Statement;
   private stmtGetVersionedFilePaths: Database.Statement;
 
+  // Dashboard & Statistics
+  private stmtGetLastConversation: Database.Statement;
+  private stmtGetUsageOverTimeAll: Database.Statement;
+  private stmtGetUsageOverTimeByBook: Database.Statement;
+  private stmtGetUsageByAgentAll: Database.Statement;
+  private stmtGetUsageByAgentByBook: Database.Statement;
+  private stmtGetUsageByPhaseAll: Database.Statement;
+  private stmtGetUsageByPhaseByBook: Database.Statement;
+  private stmtRecordWordCountSnapshot: Database.Statement;
+  private stmtGetWordCountHistoryAll: Database.Statement;
+  private stmtGetWordCountHistoryByBook: Database.Statement;
+
   constructor(dbPath: string) {
     this.db = new Database(dbPath);
     initializeSchema(this.db);
@@ -203,6 +215,113 @@ export class DatabaseService implements IDatabaseService {
       SELECT DISTINCT file_path FROM file_versions
       WHERE book_slug = ?
       ORDER BY file_path
+    `);
+
+    // Dashboard & Statistics
+    this.stmtGetLastConversation = this.db.prepare(`
+      SELECT c.agent_name, c.title, c.updated_at
+      FROM conversations c
+      WHERE c.book_slug = ?
+      ORDER BY c.updated_at DESC
+      LIMIT 1
+    `);
+
+    this.stmtGetUsageOverTimeAll = this.db.prepare(`
+      SELECT
+        date(tu.timestamp) AS date,
+        COALESCE(SUM(tu.input_tokens), 0)    AS input_tokens,
+        COALESCE(SUM(tu.output_tokens), 0)   AS output_tokens,
+        COALESCE(SUM(tu.thinking_tokens), 0) AS thinking_tokens
+      FROM token_usage tu
+      GROUP BY date(tu.timestamp)
+      ORDER BY date ASC
+    `);
+
+    this.stmtGetUsageOverTimeByBook = this.db.prepare(`
+      SELECT
+        date(tu.timestamp) AS date,
+        COALESCE(SUM(tu.input_tokens), 0)    AS input_tokens,
+        COALESCE(SUM(tu.output_tokens), 0)   AS output_tokens,
+        COALESCE(SUM(tu.thinking_tokens), 0) AS thinking_tokens
+      FROM token_usage tu
+      JOIN conversations c ON c.id = tu.conversation_id
+      WHERE c.book_slug = ?
+      GROUP BY date(tu.timestamp)
+      ORDER BY date ASC
+    `);
+
+    this.stmtGetUsageByAgentAll = this.db.prepare(`
+      SELECT
+        c.agent_name,
+        COALESCE(SUM(tu.input_tokens), 0)    AS input_tokens,
+        COALESCE(SUM(tu.output_tokens), 0)   AS output_tokens,
+        COALESCE(SUM(tu.thinking_tokens), 0) AS thinking_tokens,
+        COUNT(DISTINCT c.id)                  AS conversation_count
+      FROM token_usage tu
+      JOIN conversations c ON c.id = tu.conversation_id
+      GROUP BY c.agent_name
+      ORDER BY SUM(tu.input_tokens + tu.output_tokens + tu.thinking_tokens) DESC
+    `);
+
+    this.stmtGetUsageByAgentByBook = this.db.prepare(`
+      SELECT
+        c.agent_name,
+        COALESCE(SUM(tu.input_tokens), 0)    AS input_tokens,
+        COALESCE(SUM(tu.output_tokens), 0)   AS output_tokens,
+        COALESCE(SUM(tu.thinking_tokens), 0) AS thinking_tokens,
+        COUNT(DISTINCT c.id)                  AS conversation_count
+      FROM token_usage tu
+      JOIN conversations c ON c.id = tu.conversation_id
+      WHERE c.book_slug = ?
+      GROUP BY c.agent_name
+      ORDER BY SUM(tu.input_tokens + tu.output_tokens + tu.thinking_tokens) DESC
+    `);
+
+    this.stmtGetUsageByPhaseAll = this.db.prepare(`
+      SELECT
+        COALESCE(c.pipeline_phase, 'adhoc') AS phase,
+        COALESCE(SUM(tu.input_tokens), 0)    AS input_tokens,
+        COALESCE(SUM(tu.output_tokens), 0)   AS output_tokens,
+        COALESCE(SUM(tu.thinking_tokens), 0) AS thinking_tokens,
+        COUNT(DISTINCT c.id)                  AS conversation_count
+      FROM token_usage tu
+      JOIN conversations c ON c.id = tu.conversation_id
+      GROUP BY COALESCE(c.pipeline_phase, 'adhoc')
+      ORDER BY SUM(tu.input_tokens + tu.output_tokens + tu.thinking_tokens) DESC
+    `);
+
+    this.stmtGetUsageByPhaseByBook = this.db.prepare(`
+      SELECT
+        COALESCE(c.pipeline_phase, 'adhoc') AS phase,
+        COALESCE(SUM(tu.input_tokens), 0)    AS input_tokens,
+        COALESCE(SUM(tu.output_tokens), 0)   AS output_tokens,
+        COALESCE(SUM(tu.thinking_tokens), 0) AS thinking_tokens,
+        COUNT(DISTINCT c.id)                  AS conversation_count
+      FROM token_usage tu
+      JOIN conversations c ON c.id = tu.conversation_id
+      WHERE c.book_slug = ?
+      GROUP BY COALESCE(c.pipeline_phase, 'adhoc')
+      ORDER BY SUM(tu.input_tokens + tu.output_tokens + tu.thinking_tokens) DESC
+    `);
+
+    this.stmtRecordWordCountSnapshot = this.db.prepare(`
+      INSERT INTO word_count_snapshots (book_slug, word_count, chapter_count, recorded_at)
+      VALUES (?, ?, ?, datetime('now'))
+    `);
+
+    this.stmtGetWordCountHistoryAll = this.db.prepare(`
+      SELECT book_slug, word_count, chapter_count, recorded_at
+      FROM word_count_snapshots
+      ORDER BY recorded_at ASC
+      LIMIT ?
+    `);
+
+    this.stmtGetWordCountHistoryByBook = this.db.prepare(`
+      SELECT book_slug, word_count, chapter_count, recorded_at
+      FROM word_count_snapshots
+      WHERE book_slug = ?
+      ORDER BY recorded_at ASC
+      LIMIT ?
     `);
   }
 
@@ -469,36 +588,22 @@ export class DatabaseService implements IDatabaseService {
   // === Dashboard & Statistics Queries ===
 
   getLastConversation(bookSlug: string): { agentName: string; title: string; updatedAt: string } | null {
-    const row = this.db.prepare(
-      `SELECT agent_name, title, updated_at FROM conversations
-       WHERE book_slug = ? ORDER BY updated_at DESC LIMIT 1`
-    ).get(bookSlug) as { agent_name: string; title: string; updated_at: string } | undefined;
+    const row = this.stmtGetLastConversation.get(bookSlug) as
+      | { agent_name: string; title: string; updated_at: string }
+      | undefined;
     if (!row) return null;
-    return { agentName: row.agent_name, title: row.title, updatedAt: row.updated_at };
+    return {
+      agentName: row.agent_name,
+      title: row.title,
+      updatedAt: row.updated_at,
+    };
   }
 
   getUsageOverTime(bookSlug?: string): UsageTimePoint[] {
-    const sql = bookSlug
-      ? `SELECT date(u.timestamp) as date,
-           SUM(u.input_tokens) as input_tokens,
-           SUM(u.output_tokens) as output_tokens,
-           SUM(u.thinking_tokens) as thinking_tokens
-         FROM usage u
-         JOIN conversations c ON u.conversation_id = c.id
-         WHERE c.book_slug = ?
-         GROUP BY date(u.timestamp)
-         ORDER BY date(u.timestamp)`
-      : `SELECT date(u.timestamp) as date,
-           SUM(u.input_tokens) as input_tokens,
-           SUM(u.output_tokens) as output_tokens,
-           SUM(u.thinking_tokens) as thinking_tokens
-         FROM usage u
-         GROUP BY date(u.timestamp)
-         ORDER BY date(u.timestamp)`;
     const rows = bookSlug
-      ? this.db.prepare(sql).all(bookSlug) as UsageOverTimeRow[]
-      : this.db.prepare(sql).all() as UsageOverTimeRow[];
-    return rows.map(r => ({
+      ? (this.stmtGetUsageOverTimeByBook.all(bookSlug) as UsageOverTimeRow[])
+      : (this.stmtGetUsageOverTimeAll.all() as UsageOverTimeRow[]);
+    return rows.map((r) => ({
       date: r.date,
       inputTokens: r.input_tokens,
       outputTokens: r.output_tokens,
@@ -507,28 +612,10 @@ export class DatabaseService implements IDatabaseService {
   }
 
   getUsageByAgent(bookSlug?: string): { agentName: string; inputTokens: number; outputTokens: number; thinkingTokens: number; conversationCount: number }[] {
-    const sql = bookSlug
-      ? `SELECT c.agent_name,
-           SUM(u.input_tokens) as input_tokens,
-           SUM(u.output_tokens) as output_tokens,
-           SUM(u.thinking_tokens) as thinking_tokens,
-           COUNT(DISTINCT c.id) as conversation_count
-         FROM usage u
-         JOIN conversations c ON u.conversation_id = c.id
-         WHERE c.book_slug = ?
-         GROUP BY c.agent_name`
-      : `SELECT c.agent_name,
-           SUM(u.input_tokens) as input_tokens,
-           SUM(u.output_tokens) as output_tokens,
-           SUM(u.thinking_tokens) as thinking_tokens,
-           COUNT(DISTINCT c.id) as conversation_count
-         FROM usage u
-         JOIN conversations c ON u.conversation_id = c.id
-         GROUP BY c.agent_name`;
     const rows = bookSlug
-      ? this.db.prepare(sql).all(bookSlug) as UsageByAgentRow[]
-      : this.db.prepare(sql).all() as UsageByAgentRow[];
-    return rows.map(r => ({
+      ? (this.stmtGetUsageByAgentByBook.all(bookSlug) as UsageByAgentRow[])
+      : (this.stmtGetUsageByAgentAll.all() as UsageByAgentRow[]);
+    return rows.map((r) => ({
       agentName: r.agent_name,
       inputTokens: r.input_tokens,
       outputTokens: r.output_tokens,
@@ -538,28 +625,10 @@ export class DatabaseService implements IDatabaseService {
   }
 
   getUsageByPhase(bookSlug?: string): { phase: string; inputTokens: number; outputTokens: number; thinkingTokens: number; conversationCount: number }[] {
-    const sql = bookSlug
-      ? `SELECT COALESCE(c.pipeline_phase, 'adhoc') as phase,
-           SUM(u.input_tokens) as input_tokens,
-           SUM(u.output_tokens) as output_tokens,
-           SUM(u.thinking_tokens) as thinking_tokens,
-           COUNT(DISTINCT c.id) as conversation_count
-         FROM usage u
-         JOIN conversations c ON u.conversation_id = c.id
-         WHERE c.book_slug = ?
-         GROUP BY phase`
-      : `SELECT COALESCE(c.pipeline_phase, 'adhoc') as phase,
-           SUM(u.input_tokens) as input_tokens,
-           SUM(u.output_tokens) as output_tokens,
-           SUM(u.thinking_tokens) as thinking_tokens,
-           COUNT(DISTINCT c.id) as conversation_count
-         FROM usage u
-         JOIN conversations c ON u.conversation_id = c.id
-         GROUP BY phase`;
     const rows = bookSlug
-      ? this.db.prepare(sql).all(bookSlug) as UsageByPhaseRow[]
-      : this.db.prepare(sql).all() as UsageByPhaseRow[];
-    return rows.map(r => ({
+      ? (this.stmtGetUsageByPhaseByBook.all(bookSlug) as UsageByPhaseRow[])
+      : (this.stmtGetUsageByPhaseAll.all() as UsageByPhaseRow[]);
+    return rows.map((r) => ({
       phase: r.phase,
       inputTokens: r.input_tokens,
       outputTokens: r.output_tokens,
@@ -569,28 +638,15 @@ export class DatabaseService implements IDatabaseService {
   }
 
   recordWordCountSnapshot(bookSlug: string, wordCount: number, chapterCount: number): void {
-    this.db.prepare(
-      `INSERT INTO word_count_snapshots (book_slug, word_count, chapter_count, recorded_at)
-       VALUES (?, ?, ?, ?)`
-    ).run(bookSlug, wordCount, chapterCount, new Date().toISOString());
+    this.stmtRecordWordCountSnapshot.run(bookSlug, wordCount, chapterCount);
   }
 
   getWordCountHistory(bookSlug?: string, limit?: number): WordCountSnapshot[] {
-    const effectiveLimit = limit ?? 100;
-    const sql = bookSlug
-      ? `SELECT book_slug, word_count, chapter_count, recorded_at
-         FROM word_count_snapshots
-         WHERE book_slug = ?
-         ORDER BY recorded_at ASC
-         LIMIT ?`
-      : `SELECT book_slug, word_count, chapter_count, recorded_at
-         FROM word_count_snapshots
-         ORDER BY recorded_at ASC
-         LIMIT ?`;
+    const maxRows = limit ?? 1000;
     const rows = bookSlug
-      ? this.db.prepare(sql).all(bookSlug, effectiveLimit) as WordCountSnapshotRow[]
-      : this.db.prepare(sql).all(effectiveLimit) as WordCountSnapshotRow[];
-    return rows.map(r => ({
+      ? (this.stmtGetWordCountHistoryByBook.all(bookSlug, maxRows) as WordCountSnapshotRow[])
+      : (this.stmtGetWordCountHistoryAll.all(maxRows) as WordCountSnapshotRow[]);
+    return rows.map((r) => ({
       bookSlug: r.book_slug,
       wordCount: r.word_count,
       chapterCount: r.chapter_count,
