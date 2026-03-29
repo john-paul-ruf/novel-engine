@@ -16,10 +16,11 @@ import { PitchRoomView } from '../PitchRoom/PitchRoomView';
 import { ReadingModeView } from '../Reading/ReadingModeView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
+import { PipelinePanel } from '../RightPanel';
 import { GuidedTourOverlay } from '../common/GuidedTourOverlay';
-import { HelperButton } from '../Helper/HelperButton';
 import { HelperPanel } from '../Helper/HelperPanel';
 import { useHelperStore } from '../../stores/helperStore';
+import { useRightPanelStore } from '../../stores/rightPanelStore';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 
@@ -125,6 +126,7 @@ function TourOverlayRenderer(): React.ReactElement | null {
 export function AppLayout(): React.ReactElement {
   const isModalOpen = useModalChatStore((s) => s.isOpen);
   const isCliPanelOpen = useCliActivityStore((s) => s.isOpen);
+  const pipelineOpen = useRightPanelStore((s) => s.pipelineOpen);
 
   return (
     <div className="flex h-screen w-screen flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -135,12 +137,12 @@ export function AppLayout(): React.ReactElement {
         <main data-tour="main-content" className="flex-1 overflow-hidden">
           <ViewContent />
         </main>
+        {pipelineOpen && <PipelinePanel />}
         {isCliPanelOpen && <CliActivityPanel />}
       </div>
       {isModalOpen && <ChatModal />}
       <CliActivityListener />
       <HelperPanel />
-      <HelperButton />
       <TourManager />
       <TourOverlayRenderer />
     </div>

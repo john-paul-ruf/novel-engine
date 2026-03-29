@@ -6,7 +6,7 @@
 
 ## Program Status
 
-**Overall:** Not Started
+**Overall:** ✅ Complete
 **Sessions:** 4 total
 
 ---
@@ -15,10 +15,10 @@
 
 | Session | Title | Status | Key Outputs |
 |---------|-------|--------|-------------|
-| SESSION-01 | Pipeline Column + Sidebar Cleanup | Pending | `rightPanelStore.ts`, `RightPanel/PipelinePanel.tsx`, `RightPanel/index.ts`, AppLayout + Sidebar modified |
-| SESSION-02 | Nav Cleanup: Help → Chat, Reading Mode, Remove Floats | Pending | Sidebar HelpButton removed, HelperButton removed, ChatHelpEntry added, Reading Mode nav item |
-| SESSION-03 | Tour: Auto-Start Spark + Update Pipeline Steps | Pending | tourStore auto-creates Spark conversation, tourDefinitions pipeline-panel selectors |
-| SESSION-04 | CLI Panel Content Fill | Pending | CollapsiblePanel gets fill prop; EntryList fills available space by default |
+| SESSION-01 | Pipeline Column + Sidebar Cleanup | ✅ Complete | `rightPanelStore.ts`, `RightPanel/PipelinePanel.tsx`, `RightPanel/index.ts`, AppLayout + Sidebar modified |
+| SESSION-02 | Nav Cleanup: Help → Chat, Reading Mode, Remove Floats | ✅ Complete | Sidebar HelpButton removed, HelperButton removed, ChatHelpEntry added, Reading Mode nav item |
+| SESSION-03 | Tour: Auto-Start Spark + Update Pipeline Steps | ✅ Complete | tourStore auto-creates Spark conversation, tourDefinitions pipeline-panel selectors |
+| SESSION-04 | CLI Panel Content Fill | ✅ Complete | CollapsiblePanel gets fill prop; EntryList fills available space by default |
 
 ---
 
@@ -73,7 +73,24 @@ All tour steps that previously targeted `[data-tour="pipeline-tracker"]` now tar
 
 ## Files Modified
 
-Populated as sessions complete.
+### SESSION-01
+- `src/renderer/stores/rightPanelStore.ts` — new Zustand store with `persist`; tracks `pipelineOpen` (default `true`)
+- `src/renderer/components/RightPanel/PipelinePanel.tsx` — new independent right column; own `useResizeHandle` (direction `'right'`, 300px default); `NewBookButton` with self-contained modal; `CloseButton`; `data-tour="pipeline-panel"` on outermost div; left-edge `ResizeHandle`
+- `src/renderer/components/RightPanel/index.ts` — barrel export
+- `src/renderer/components/Layout/AppLayout.tsx` — imports `PipelinePanel` + `useRightPanelStore`; renders `{pipelineOpen && <PipelinePanel />}` before `{isCliPanelOpen && <CliActivityPanel />}`
+- `src/renderer/components/Layout/Sidebar.tsx` — removed `PipelineTracker` import; removed accordion state (`activeSection`, `pipelineOpen`, `filesOpen`, `toggleSection`); replaced pipeline accordion with `null` in non-pitch-room view; Files section always visible, no toggle; added `PipelineToggleButton` function + nav item before CLI separator; added `useRightPanelStore` import
+
+### SESSION-02
+- `src/renderer/components/Layout/AppLayout.tsx` — removed `HelperButton` import and `<HelperButton />` render; `<HelperPanel />` retained
+- `src/renderer/components/Layout/Sidebar.tsx` — removed `HELP_TOURS` constant, `HelpButton` function, and `<HelpButton />` render; removed now-dead `useTourStore`, `useRef`, `useEffect`, `TourId` imports; added `useHelperStore` import; added `ChatHelpEntry` function (toggles `helperStore`); added `<ChatHelpEntry />` at bottom of `ChatNavGroup` expanded section; added `'reading'` to `ViewId`, `NAV_TOOLTIPS`, and `NAV_ITEMS` (📖 Reading Mode)
+- `src/renderer/components/Settings/SettingsView.tsx` — **no change needed**: `GuidedToursSection` already fully implemented in the Profile tab (Welcome Tour, First Book Guide, Pipeline Deep Dive)
+
+### SESSION-03
+- `src/renderer/stores/tourStore.ts` — added imports for `viewStore`, `rightPanelStore`, `chatStore`, `bookStore`; `startTour` now calls `navigate('chat')` + `openPipeline()` for all tours; welcome tour fires `createConversation('Spark', activeSlug, 'pitch', 'pipeline')` fire-and-forget with `activeSlug` guard
+- `src/renderer/tours/tourDefinitions.ts` — `welcome-pipeline`: selector → `pipeline-panel`, placement → `left`, body updated; `welcome-chat`: title → "Meet Spark", body updated; `welcome-nav`: body updated (Reading Mode in, Motif Ledger out, Pipeline/CLI toggles mentioned); `first-book-advance`: selector → `pipeline-panel`, placement → `left`, body updated; all 7 `PIPELINE_INTRO_TOUR` steps: selector → `pipeline-panel`, placement → `left`; zero `pipeline-tracker` references remain
+
+### SESSION-04
+- `src/renderer/components/CliActivity/CliActivityPanel.tsx` — `CollapsiblePanel` gains `fill?: boolean` prop; `CallHeader` changed to `defaultExpanded={false}`; `EntryList` switched from `resizable` to `fill` with `defaultExpanded={true}`
 
 ---
 

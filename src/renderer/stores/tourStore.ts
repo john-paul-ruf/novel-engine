@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import type { TourId } from '@domain/types';
+import { useViewStore } from './viewStore';
+import { useRightPanelStore } from './rightPanelStore';
+import { useChatStore } from './chatStore';
+import { useBookStore } from './bookStore';
 
 type TourStoreState = {
   activeTourId: TourId | null;
@@ -35,6 +39,28 @@ export const useTourStore = create<TourStoreState>()((set, get) => ({
   startTour: (tourId: TourId) => {
     const { activeTourId } = get();
     if (activeTourId !== null) return;
+
+    // Always navigate to chat and open the pipeline panel so tour steps
+    // can spotlight both chat and pipeline elements regardless of the
+    // view the user was on when they triggered the tour.
+    useViewStore.getState().navigate('chat');
+    useRightPanelStore.getState().openPipeline();
+
+    // For the welcome tour, auto-start a Spark conversation so the user
+    // arrives in a live chat session rather than a blank screen.
+    // Fire-and-forget — the tour advances synchronously; conversation
+    // creation is async and non-blocking.
+    if (tourId === 'welcome') {
+      const activeSlug = useBookStore.getState().activeSlug;
+      if (activeSlug) {
+        useChatStore.getState()
+          .createConversation('Spark', activeSlug, 'pitch', 'pipeline')
+          .catch((err: unknown) => {
+            console.error('[tourStore] Failed to auto-start Spark conversation:', err);
+          });
+      }
+    }
+
     set({ activeTourId: tourId });
   },
 

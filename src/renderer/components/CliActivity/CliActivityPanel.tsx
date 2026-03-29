@@ -83,19 +83,21 @@ function VerticalDragHandle({ isDragging, onMouseDown, onDoubleClick }: {
   );
 }
 
-/** Compact collapsible wrapper for CLI panel sections with optional vertical resize */
-function CollapsiblePanel({ title, defaultExpanded = true, isActive, badge, resizable, children }: {
+/** Compact collapsible wrapper for CLI panel sections with optional vertical resize or flex-fill */
+function CollapsiblePanel({ title, defaultExpanded = true, isActive, badge, resizable, fill, children }: {
   title: string;
   defaultExpanded?: boolean;
   isActive?: boolean;
   badge?: React.ReactNode;
-  /** When provided, the section becomes vertically resizable */
+  /** When provided, the section becomes vertically resizable. Mutually exclusive with `fill`. */
   resizable?: {
     storageKey: string;
     initialHeight: number;
     minHeight: number;
     maxHeight: number;
   };
+  /** When true, the section expands to fill remaining flex space instead of using a fixed height. Mutually exclusive with `resizable`. */
+  fill?: boolean;
   children: React.ReactNode;
 }): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -112,7 +114,7 @@ function CollapsiblePanel({ title, defaultExpanded = true, isActive, badge, resi
   }, [isActive]);
 
   return (
-    <div className="shrink-0 border-b border-zinc-300 dark:border-zinc-700/50">
+    <div className={`${fill && expanded ? 'flex min-h-0 flex-1 flex-col' : 'shrink-0'} border-b border-zinc-300 dark:border-zinc-700/50`}>
       <button
         onClick={() => setExpanded((prev) => !prev)}
         className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
@@ -132,14 +134,18 @@ function CollapsiblePanel({ title, defaultExpanded = true, isActive, badge, resi
       </button>
       {expanded && (
         <>
-          {resizable ? (
+          {fill ? (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {children}
+            </div>
+          ) : resizable ? (
             <div className="overflow-y-auto" style={{ height }}>
               {children}
             </div>
           ) : (
             children
           )}
-          {resizable && (
+          {resizable && !fill && (
             <VerticalDragHandle
               isDragging={isDragging}
               onMouseDown={onMouseDown}
@@ -423,7 +429,7 @@ function CallHeader({ call }: { call: CliCall }): React.ReactElement {
   return (
     <CollapsiblePanel
       title={`${meta.agentName} — ${meta.agentRole}`}
-      defaultExpanded={true}
+      defaultExpanded={false}
       isActive={isActive}
       badge={durationBadge}
       resizable={{ storageKey: 'novel-engine:cli-header-height', initialHeight: 100, minHeight: 50, maxHeight: 300 }}
@@ -661,12 +667,12 @@ function EntryList({ call }: { call: CliCall }): React.ReactElement {
   return (
     <CollapsiblePanel
       title="Activity Log"
-      defaultExpanded={false}
+      defaultExpanded={true}
       isActive={call.isActive}
       badge={entryBadge}
-      resizable={{ storageKey: 'novel-engine:cli-activity-height', initialHeight: 200, minHeight: 60, maxHeight: 600 }}
+      fill
     >
-      <div ref={scrollRef} className="h-full overflow-y-auto px-1 py-1">
+      <div ref={scrollRef} className="overflow-y-auto px-1 py-1">
         {call.entries.map((entry) => (
           <div
             key={entry.id}
