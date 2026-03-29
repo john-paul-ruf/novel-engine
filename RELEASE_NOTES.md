@@ -1,0 +1,120 @@
+# Release Notes — v0.7.0
+
+**Previous release:** v0.6.0 (2026-03-28)
+**This release:** v0.7.0 (2026-03-29)
+**Commits:** 34 | **Files changed:** 190 | **Contributors:** the.phoenix
+
+---
+
+## Highlights
+
+> Novel Engine v0.7.0 is a major feature release. Authors can now view writing statistics and book overview dashboards directly in the app, manage revisions through a redesigned modal-based revision queue, and perform bulk find-and-replace across all chapter drafts. The sidebar has been restructured into a persistent bookshelf, and the Files view now offers five focused category tabs instead of two. A new Architecture Engine meta-prompt enables structured, multi-session codebase modifications.
+
+---
+
+## Features
+
+- **Dashboard View** — New book overview dashboard showing project health, pipeline progress, word counts, chapter status, and recent activity at a glance. Full service + database layer with aggregation queries. (#0c2b569, #6a2babc)
+- **Statistics View** — Writing statistics dashboard with session tracking, daily/weekly word count trends, per-chapter metrics, and productivity patterns. Backed by a new `StatisticsService` and dedicated database queries. (#24ddd7d, #ce12489)
+- **Revision Queue Modal** — Refactored revision queue from a full-page view to a slide-over modal, making it accessible from any view without losing context. (#7fe7de4)
+- **Batch Find & Replace** — Bulk search-and-replace across all chapter draft files with literal or regex patterns, per-chapter match preview with inline highlighting, selective application, and automatic version snapshots for safe revert. (#e8f16de, #fb3ce7c)
+- **Sidebar Bookshelf** — Replaced the dropdown book selector and file tree with a permanently visible BookPanel featuring an icon toolbar, scrollable book cards with cover/title/status/word count, and series grouping. (#6f05d6a)
+- **Five-Tab Files View** — FilesView restructured from 2 tabs (Files | Motif Ledger) to 5 category tabs (Source, Chapters, Agents, Explorer, Motif Ledger), each rendering its panel directly. (#6f05d6a)
+- **About.json Viewer** — New `AboutJsonViewer` component for viewing and editing book metadata directly in the Files view. (#4252e19)
+- **Reading Mode View** — New dedicated reading mode for distraction-free manuscript reading. (#4252e19)
+- **Right Panel: Pipeline Panel** — Detachable pipeline visualization panel for the right side of the layout. (#4252e19)
+- **Import Choice Modal** — New modal with card-based choices for Single Book import vs. Series import. (#6f05d6a)
+
+## Improvements
+
+- **Quick Actions expansion** — Significantly expanded quick actions with new entries and better organization. (#6f05d6a, #4252e19)
+- **Settings View enhancements** — Improved settings organization and layout. (#4252e19)
+- **Chat store streaming improvements** — Enhanced chat store with better streaming state management and error handling. (#4252e19)
+- **Build View polish** — Minor improvements to the build view layout. (#4252e19)
+- **CLI Activity Panel refinements** — Improved CLI activity panel display and behavior. (#4252e19)
+- **Series Modal improvements** — Enhanced series modal with better UX and edge case handling. (#4252e19)
+- **Pipeline Tracker updates** — Improved pipeline tracker styling and interaction in the sidebar. (#4252e19)
+- **Auto-Draft store** — New store for managing auto-draft toggle state. (#4252e19)
+- **Tour definitions update** — Retargeted `welcome-file-tree` tour step to `sidebar-nav` after BookPanel refactor. (#6f05d6a)
+
+## Infrastructure
+
+- **Architecture Engine** — New meta-prompt (`prompts/meta/architecture-engine/`) for structured, multi-session codebase modifications with Opus. Includes full readme and workflow documentation. (#f49fc33, #093bf70, #b03d7f9, #31ff63a, #203cb69)
+- **FORGE-CONFIG.md** — Added project-level Forge configuration with module registry, conventions, verification commands, and architecture rules. (#5a2f968)
+- **CLAUDE.md updates** — Added session program output directory rules and Forge configuration loading instructions. (#5a2f968)
+- **New screenshots** — 13 new screenshots of current app state replacing 3 old ones. (#7e65d6a)
+
+## Documentation
+
+- **Architecture docs updates** — Updated APPLICATION.md, ARCHITECTURE.md, DOMAIN.md, IPC.md, and RENDERER.md to reflect dashboard, statistics, find-replace, and bookshelf changes. (#e654fc8)
+- **AGENTS.MD update** — Updated agent documentation with current agent registry. (#e654fc8)
+- **Architecture Engine readme** — Wrote full explainer for the architecture engine meta-prompt. (#e654fc8)
+- **User guide maintenance prompt** — New meta-prompt for maintaining the in-app user guide. (#4252e19)
+- **Session programs 001–006** — Six complete session programs with MASTER/STATE/SESSION files documenting all feature work. (#various)
+- **Feature request organization** — Reorganized feature requests into `_queue/large/`, `intake/`, and `processed/` directories. (#ced2df6, #0d8aa38, #31ce964)
+- **Deprecated prompt notice** — Marked old deployment prep prompt as deprecated in favor of Architecture Engine. (#8ce02ef)
+
+## Refactoring
+
+- **BookSelector → BookPanel** — Complete rewrite of the book selector component from dropdown to persistent bookshelf panel with icon toolbar and card layout. (#6f05d6a)
+- **FilesView decomposition** — Removed `StructuredBrowser` and `CollapsibleSection` wrappers, replaced with direct tab-specific panel rendering. (#6f05d6a)
+- **FileTree removal** — Sidebar file tree replaced by Explorer tab in FilesView. (#6f05d6a)
+- **Feature prompts reorganization** — Moved completed feature prompts (helper-agent, batch-find-replace) into `completed/` directories. (#abbb99d)
+
+---
+
+## Upgrade Notes
+
+No special upgrade steps required. Pull and rebuild:
+
+```bash
+git pull origin main
+npm install
+npm start
+```
+
+The new dashboard and statistics features add database queries but no schema migrations beyond what was already in v0.6.0. The sidebar restructuring is purely renderer-layer — no data migration needed.
+
+---
+
+## Full Commit Log
+
+<details>
+<summary>All 34 commits since v0.6.0</summary>
+
+- 5a2f968 deployment prep (the.phoenix, 2026-03-29)
+- 7e65d6a screenshots of the current app (the.phoenix, 2026-03-29)
+- 6f05d6a p0 enhancement (the.phoenix, 2026-03-29)
+- 7fe7de4 feat(dashboards-and-revision-modal): SESSION-07 — Revision Queue Modal Refactor (the.phoenix, 2026-03-29)
+- dd36402 p0 enhancement (the.phoenix, 2026-03-29)
+- e654fc8 architecture engine read me update (the.phoenix, 2026-03-29)
+- 24ddd7d feat(dashboards-and-revision-modal): SESSION-06 — Statistics View (the.phoenix, 2026-03-29)
+- ce12489 feat(dashboards-and-revision-modal): SESSION-05 — Statistics Service + IPC + Preload (the.phoenix, 2026-03-29)
+- 0c2b569 feat(dashboards-and-revision-modal): SESSION-04 — Dashboard View (the.phoenix, 2026-03-29)
+- 6a2babc feat(dashboards-and-revision-modal): SESSION-03 — Dashboard Service + FileSystem + IPC + Preload (the.phoenix, 2026-03-29)
+- 635837f feat(dashboards-and-revision-modal): SESSION-02 — Database Queries & Schema Migration (the.phoenix, 2026-03-29)
+- e712483 feat(dashboards-and-revision-modal): SESSION-01 — Domain Types & Interfaces (the.phoenix, 2026-03-29)
+- 8ce02ef DEPRECATED — This prompt is no longer maintained. Use Architecture Engine instead (the.phoenix, 2026-03-29)
+- f49fc33 opus 4.6 - architecture engine - three medium scope tasks test (the.phoenix, 2026-03-29)
+- 6156cd3 more p0 (the.phoenix, 2026-03-29)
+- 093bf70 opus 4.6 - architecture engine - three medium scope tasks test (the.phoenix, 2026-03-29)
+- f9f9527 a real p0 (the.phoenix, 2026-03-29)
+- b03d7f9 opus 4.6 - architecture engine - semi-structured related topic requests, with img test (the.phoenix, 2026-03-29)
+- 31ff63a opus 4.6 - architecture engine - semi-structured related topic requests, with img test (the.phoenix, 2026-03-29)
+- 203cb69 sonnet 4.6 - architecture engine - semi-structured related topic requests, with img test (the.phoenix, 2026-03-29)
+- 686720a sonnet 4.6 - architecture-engine - not good and unstructured requests test (the.phoenix, 2026-03-29)
+- 835fc1f sonnet 4.6 - architecture-engine - not good and unstructured requests test (the.phoenix, 2026-03-29)
+- 0793c74 sonnet 4.6 - architecture-engine - not good and unstructured requests test (the.phoenix, 2026-03-29)
+- 7829d17 sonnet 4.6 - architecture-engine - small queue - execution (the.phoenix, 2026-03-29)
+- 5d0c2fd architecture-engine configuration changes (the.phoenix, 2026-03-29)
+- 61dec21 architecture-engine test run - all small requests (the.phoenix, 2026-03-29)
+- 4252e19 personal feature requests, bug fixes, change requests, and enhancements. (the.phoenix, 2026-03-29)
+- 9986175 sonnet - small task test - user saved prompt library (the.phoenix, 2026-03-28)
+- e8f16de sonnet - small task test - batch find and replace (the.phoenix, 2026-03-28)
+- fb3ce7c sonnet - small task test - batch find and replace (the.phoenix, 2026-03-28)
+- ced2df6 feature idea sorting (the.phoenix, 2026-03-28)
+- 0d8aa38 feature idea sorting (the.phoenix, 2026-03-28)
+- 31ce964 feature idea sorting (the.phoenix, 2026-03-28)
+- abbb99d clean up (the.phoenix, 2026-03-28)
+
+</details>

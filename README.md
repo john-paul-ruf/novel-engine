@@ -1,5 +1,4 @@
 # Dedication
-# Dedication
 *To everyone who has an idea for a good book but doesn't know how to craft it, this is for you...*
 
 *For everyone else who may be impacted by this work, or whose sensibilities I have offended.*
@@ -37,12 +36,6 @@ Requires tech skill to use — or grab a pre-built installer from [Releases](htt
 > - Does the onboarding wizard detect your Claude Code CLI?
 > - Can you create a book and chat with an agent?
 > - Any UI glitches, missing fonts, or broken layouts?
-
-<p align="center">
-  <img src="screenshots/first-draft.png" alt="Verity ghostwriting a first draft with Auto Draft, pipeline tracker, and CLI Activity monitor" width="800" />
-  <br />
-  <em>Verity ghostwriting Chapter 21 during the First Draft phase — pipeline tracker on the left, real-time CLI activity on the right</em>
-</p>
 
 ---
 
@@ -120,12 +113,6 @@ A free brainstorming space where you explore story ideas with Spark before commi
 
 Shelved pitches can be browsed, previewed, restored to a new book, or deleted from the sidebar.
 
-<p align="center">
-  <img src="screenshots/pitch-room.png" alt="Pitch Room with Spark agent brainstorming story concepts" width="800" />
-  <br />
-  <em>Spark pitching story concepts in the Pitch Room — extended thinking, file browser, and CLI Activity monitor visible</em>
-</p>
-
 ### Voice Profile System
 
 Before Verity writes a single word, you establish a **Voice Profile** — a detailed document capturing your sentence rhythm, vocabulary register, dialogue style, emotional temperature, interiority depth, punctuation habits, structural instincts, tonal anchors, and an avoid list. Verity conducts a guided interview (four prompts, one at a time) to extract your authentic voice, or analyzes writing samples you provide. The voice profile is stored per-book at `source/voice-profile.md` and loaded into every Verity session.
@@ -200,7 +187,7 @@ Skip the pipeline and give Forge direct revision instructions. Describe what you
 
 ### Revision Queue
 
-After Forge produces a revision plan (`project-tasks.md` + `revision-prompts.md`), the **Revision Queue** parses it into structured sessions and executes them. The queue uses a Wrangler call (Claude Sonnet) to parse Forge's output into JSON, then runs each session as a Verity conversation.
+After Forge produces a revision plan (`project-tasks.md` + `revision-prompts.md`), the **Revision Queue** parses it into structured sessions and executes them. The queue uses a Wrangler call (Claude Sonnet) to parse Forge's output into JSON, then runs each session as a Verity conversation. The queue is accessible as a slide-over modal from any view — no need to leave your current context.
 
 Four execution modes:
 - **Manual** — you approve each task at approval gates before Verity continues
@@ -217,12 +204,6 @@ Features:
 - **Plan caching** — avoids re-calling the Wrangler when source files haven't changed
 - **Revision verification** — after all sessions complete, opens a Verity conversation for a final gut-check
 - **Two revision cycles** — supports both structural revision (cycle 1) and mechanical fixes (cycle 2), with automatic cycle detection and state transitions
-
-<p align="center">
-  <img src="screenshots/revision-queue.png" alt="Revision Queue with 13 sessions and 30 tasks across the editorial pipeline" width="800" />
-  <br />
-  <em>Revision Queue — 13 sessions, 30 tasks, with manual/auto execution modes and per-session chapter targeting</em>
-</p>
 
 ### Extended Thinking
 
@@ -281,7 +262,7 @@ Features:
 - **CRUD** — create, rename, delete series from the Series Management modal
 - **Volume ordering** — add/remove books, reorder with up/down arrows
 - **Series Bible editor** — write and edit shared continuity documents in a dedicated markdown editor
-- **Sidebar grouping** — books in series are visually grouped with collapsible headers in the BookSelector
+- **Sidebar grouping** — books in series are visually grouped with collapsible headers in the BookPanel
 - **Reverse-lookup cache** — O(1) book→series resolution on every chat message
 
 ### Series Import
@@ -321,6 +302,65 @@ An interactive onboarding system that helps new users discover features:
 ### Chapter Validation
 
 The **ChapterValidator** runs automatically after agent interactions to detect and correct misplaced chapter files — files written to the wrong path, wrong extensions, or incorrect directory structures are moved to the correct `chapters/NN-slug/draft.md` layout.
+
+### Book Overview Dashboard
+
+A project health snapshot for the active book. The **Dashboard View** aggregates data from the database, filesystem, and pipeline service to show:
+
+- **Pipeline progress** — current phase, completed count, and total phases
+- **Word count** — total and per-chapter breakdown with bar chart visualization
+- **Last interaction** — which agent you spoke to last and when
+- **Revision tasks** — task completion count with individual task checkboxes
+- **Recent files** — most recently modified files with timestamps and word counts
+- **Days in progress** — how long the book has been in development
+
+### Writing Statistics
+
+A dedicated **Statistics View** with charts and breakdowns powered by [Recharts](https://recharts.org/):
+
+- **Token usage over time** — daily input/output/thinking token trends
+- **Per-agent breakdown** — which agents are consuming the most tokens and cost
+- **Per-phase breakdown** — token usage mapped to pipeline phases
+- **Word count history** — snapshots recorded over time showing manuscript growth
+- **Cost estimates** — estimated API cost per agent and total, based on model pricing
+- **Words per chapter** — bar chart of chapter-level word distribution
+
+### Batch Find & Replace
+
+Bulk search-and-replace across all chapter draft files in the active book. Accessible from the Files view header:
+
+- **Literal or regex** — toggle between plain-text and regular expression matching
+- **Case sensitivity** — optional case-sensitive matching
+- **Per-chapter preview** — see every match location with inline line highlighting before applying
+- **Selective application** — choose which files to apply replacements to
+- **Automatic snapshots** — version history snapshots are created before every file modification for safe revert
+
+### Reading Mode
+
+A distraction-free **Reading Mode** for reviewing the full manuscript. Assembles all chapter drafts in order into a continuous, formatted view — focused reading without the editing UI.
+
+### Sidebar Bookshelf
+
+The sidebar features a permanently visible **BookPanel** — a persistent bookshelf replacing the old dropdown selector:
+
+- **Icon toolbar** — New Book, Shelved Pitches, Archived Books, Manage Series, Import
+- **Scrollable book cards** — each card shows cover image, title, status badge, and word count
+- **Series grouping** — books in series are visually grouped with collapsible headers
+- **Import choice modal** — card-based selection between Single Book import and Series import
+
+### Five-Tab Files View
+
+The Files view organizes book content into **five category tabs** instead of the original two:
+
+- **Source** — pitch, outline, story bible, voice profile, reports, and other source documents
+- **Chapters** — chapter drafts and notes with inline editing
+- **Agents** — agent output files (reports, plans, metadata)
+- **Explorer** — full directory browser for the book folder
+- **Motif Ledger** — the structured motif tracking interface
+
+### About.json Editor
+
+View and edit book metadata (`about.json`) directly in the Files view — title, author, status, creation date, and cover image path — without manually editing JSON files.
 
 ---
 
@@ -380,7 +420,7 @@ Electron Forge handles packaging via [`forge.config.ts`](./forge.config.ts). Bun
 
 ### Source Code Architecture
 
-158 TypeScript/TSX files across five clean-architecture layers:
+170 TypeScript/TSX files across five clean-architecture layers:
 
 ```
 src/
@@ -441,6 +481,9 @@ src/
 │   ├── SourceGenerationService.ts       # Post-import AI source document generation
 │   ├── SeriesImportService.ts           # Batch series import: preview + commit via IManuscriptImportService
 │   ├── HelperService.ts                 # In-app help assistant with persistent conversation
+│   ├── DashboardService.ts             # Book overview dashboard data aggregation
+│   ├── StatisticsService.ts            # Writing statistics: usage trends, cost estimates, word count history
+│   ├── FindReplaceService.ts           # Bulk find & replace across chapter drafts with version snapshots
 │   ├── thinkingBudget.ts                # Thinking budget resolution logic
 │   ├── index.ts                         # Barrel export
 │   ├── context/
@@ -482,29 +525,38 @@ src/
     │   ├── seriesImportStore.ts         # Series import wizard state
     │   ├── helperStore.ts               # Helper panel visibility, conversation, streaming
     │   ├── tourStore.ts                 # Guided tour lifecycle, completion state
+    │   ├── dashboardStore.ts            # Book overview dashboard state
+    │   ├── statisticsStore.ts           # Writing statistics state
+    │   ├── rightPanelStore.ts           # Right panel (pipeline) visibility state
     │   └── streamHandler.ts             # Routes stream events to correct stores
     ├── components/
     │   ├── Layout/                      # AppLayout, Sidebar, TitleBar, ResizeHandle
     │   ├── Onboarding/                  # OnboardingWizard
     │   ├── Settings/                    # SettingsView, ProviderSection
-    │   ├── Sidebar/                     # BookSelector, PipelineTracker, FileTree,
+    │   ├── Sidebar/                     # BookPanel, PipelineTracker,
     │   │                                #   VoiceSetupButton, ShelvedPitchesPanel,
     │   │                                #   PitchPreviewModal, PitchHistory,
     │   │                                #   CliActivityButton, RevisionQueueButton,
     │   │                                #   HotTakeButton, AdhocRevisionButton,
-    │   │                                #   SeriesGroup
+    │   │                                #   SeriesGroup, ImportChoiceModal
     │   ├── Chat/                        # ChatView, ChatInput, ChatModal, ChatTitleBar,
     │   │                                #   MessageBubble, MessageList, StreamingMessage,
     │   │                                #   ThinkingBlock, ThinkingBudgetSlider, QuickActions,
     │   │                                #   AgentHeader, ConversationList
     │   ├── PitchRoom/                   # PitchRoomView
-    │   ├── Files/                       # FilesView, StructuredBrowser, FileBrowser,
+    │   ├── Files/                       # FilesView, FileBrowser,
     │   │                                #   FileEditor, SourcePanel, ChaptersPanel,
     │   │                                #   AgentOutputPanel, FilesHeader,
-    │   │                                #   CollapsibleSection, DeleteConfirmModal,
+    │   │                                #   DeleteConfirmModal, AboutJsonViewer,
+    │   │                                #   FindReplaceModal,
     │   │                                #   VersionHistoryPanel, DiffViewer
     │   ├── Build/                       # BuildView
-    │   ├── RevisionQueue/               # RevisionQueueView, SessionCard, QueueControls,
+    │   ├── Dashboard/                   # DashboardView
+    │   ├── Statistics/                  # StatisticsView
+    │   ├── Reading/                     # ReadingModeView
+    │   ├── RightPanel/                  # PipelinePanel
+    │   ├── RevisionQueue/               # RevisionQueueView, RevisionQueueModal,
+    │   │                                #   SessionCard, QueueControls,
     │   │                                #   TaskProgress, RevisionSessionPanel
     │   ├── MotifLedger/                 # MotifLedgerView, SystemsTab, EntriesTab,
     │   │                                #   StructuralTab, ForeshadowTab,
@@ -624,6 +676,7 @@ Agent system prompts live in `custom-agents/` and are fully editable — customi
 | Database | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | 11.x |
 | AI Backend | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) + OpenAI-compatible endpoints | (spawned / fetched) |
 | Manuscript Export | [Pandoc](https://pandoc.org/) (bundled binary) | — |
+| Charts | [Recharts](https://recharts.org/) | 3.x |
 | Diffing | [diff](https://github.com/kpdecker/jsdiff) | 8.x |
 | IDs | [nanoid](https://github.com/ai/nanoid) | 3.x |
 | Markdown Rendering | [marked](https://marked.js.org/) | 15.x |
@@ -642,9 +695,9 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 
 - **Domain** ([`src/domain/`](./src/domain/)) — Pure TypeScript types, interfaces, and constants. Zero imports. Every other layer depends on this.
 - **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support, series file-based storage.
-- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, ManuscriptImportService, SourceGenerationService, SeriesImportService, HelperService, UsageService, ChapterValidator.
+- **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, ManuscriptImportService, SourceGenerationService, SeriesImportService, HelperService, DashboardService, StatisticsService, FindReplaceService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
-- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (20 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
+- **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (23 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
 
 All services are constructor-injected. The only place concrete classes are instantiated is [`src/main/index.ts`](./src/main/index.ts).
 

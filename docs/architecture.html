@@ -85,7 +85,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.6.0</span>
+            <span class="nav-version">v0.7.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -117,7 +117,7 @@
     <div class="breadcrumb"><a href="index.html">Home</a> / Architecture</div>
 
     <h1>Architecture<span>.</span></h1>
-    <p class="page-sub">158 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration.</p>
+    <p class="page-sub">170 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration.</p>
 
     <h2>Five-Layer Clean Architecture<span>.</span></h2>
     <p>Every file belongs to exactly one layer. Import rules are strictly enforced — inner layers never depend on outer layers.</p>
@@ -285,6 +285,9 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── SourceGenerationService.ts       # Multi-agent source doc generation
 │   ├── SeriesImportService.ts           # Batch series import orchestration
 │   ├── HelperService.ts                 # In-app help assistant
+│   ├── DashboardService.ts             # Book overview dashboard aggregation
+│   ├── StatisticsService.ts            # Writing statistics + cost estimates
+│   ├── FindReplaceService.ts           # Bulk find &amp; replace across chapters
 │   ├── thinkingBudget.ts                # Thinking budget resolution
 │   └── context/TokenEstimator.ts        # ~4 chars/token estimation
 │
@@ -299,10 +302,11 @@ BooksDirWatcher(booksDir, callback)</pre>
 └── renderer/                            # React UI
     ├── App.tsx                          # Root component, onboarding gate
     ├── main.tsx                         # React 18 createRoot entry
-    ├── stores/ (20 stores)              # Zustand state management
-    ├── components/ (16 groups)          # Layout, Chat, Files, Build, PitchRoom,
+    ├── stores/ (23 stores)              # Zustand state management
+    ├── components/ (20 groups)          # Layout, Chat, Files, Build, PitchRoom,
     │                                    # RevisionQueue, MotifLedger, Import,
-    │                                    # Helper, Series, common, etc.
+    │                                    # Helper, Series, Dashboard, Statistics,
+    │                                    # Reading, RightPanel, common, etc.
     ├── hooks/ (6 hooks)                 # Resize, theme, events, status, tooltip
     ├── tours/                           # Guided tour step definitions
     └── styles/globals.css               # Tailwind CSS v4 base</pre>
@@ -332,7 +336,7 @@ npm start</pre>
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.6.0 · AGPL-3.0</p>
+            <p>v0.7.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">

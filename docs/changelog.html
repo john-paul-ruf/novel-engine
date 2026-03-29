@@ -91,7 +91,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.6.0</span>
+            <span class="nav-version">v0.7.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -126,9 +126,9 @@
     <p class="page-sub">Full development history. Every feature, fix, and architectural decision documented.</p>
 
     <div class="stats">
-        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">63</div></div>
-        <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27 — 2026-03-28</div></div>
-        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">158</div></div>
+        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">70+</div></div>
+        <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27 — 2026-03-29</div></div>
+        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">170</div></div>
         <div class="stat"><div class="stat-label">Bug Fixes</div><div class="stat-value">25+</div></div>
     </div>
 
@@ -170,9 +170,65 @@
             <div class="hl-tag">Quality &amp; Stability</div>
             <p>Race condition fixes in stream management, EPIPE diagnostic logging, batched stream event persistence, stream listener lifecycle management, and CLI-based motif ledger normalization.</p>
         </div>
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>Dashboards &amp; Statistics (7 sessions) — book overview dashboard with pipeline health, word counts, revision tasks, and activity feed. Writing statistics with Recharts-powered charts for token usage, cost tracking, and word count trends.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Feature</div>
+            <p>Batch Find &amp; Replace — bulk search across all chapter drafts with literal/regex matching, per-chapter preview with inline highlighting, selective application, and automatic version snapshots.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">UI Refactor</div>
+            <p>Sidebar Bookshelf &amp; 5-Tab Files View — BookSelector dropdown replaced with persistent BookPanel. FilesView restructured from 2 tabs to 5 focused category tabs (Source, Chapters, Agents, Explorer, Motif Ledger).</p>
+        </div>
     </div>
 
     <h2>All Entries<span>.</span></h2>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-29</span><span class="entry-title">Dashboards, Statistics, &amp; Revision Queue Modal (7 sessions)</span></summary>
+<div class="entry-body">
+<p>Full dashboard and statistics feature suite. Book overview dashboard shows pipeline progress, word counts per chapter, revision task completion, recent file activity, and project health. Writing statistics view powered by Recharts with token usage trends, per-agent/per-phase breakdowns, word count history, and cost estimates. Revision queue refactored from full-page view to a slide-over modal accessible from any view. New domain types, services, IPC channels, preload bridge endpoints, and Zustand stores.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/types.ts</code> — BookDashboardData, BookStatistics, RecentFile, RevisionTaskItem, UsageTimePoint, AgentUsageBreakdown, PhaseUsageBreakdown, WordCountSnapshot types</li><li><code>src/domain/interfaces.ts</code> — IDashboardService, IStatisticsService interfaces</li><li><code>src/application/DashboardService.ts</code> — Book overview data aggregation</li><li><code>src/application/StatisticsService.ts</code> — Usage trends, cost estimates</li><li><code>src/infrastructure/database/DatabaseService.ts</code> — Dashboard &amp; statistics queries</li><li><code>src/renderer/components/Dashboard/DashboardView.tsx</code> — Book overview dashboard</li><li><code>src/renderer/components/Statistics/StatisticsView.tsx</code> — Writing statistics with charts</li><li><code>src/renderer/components/RevisionQueue/RevisionQueueModal.tsx</code> — Slide-over revision queue</li><li><code>src/renderer/stores/dashboardStore.ts</code>, <code>statisticsStore.ts</code>, <code>rightPanelStore.ts</code> — New Zustand stores</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/index.ts</code> — Instantiates DashboardService, StatisticsService</li><li><code>src/main/ipc/handlers.ts</code> — Added dashboard:getData, statistics:get, statistics:recordSnapshot handlers</li><li><code>src/preload/index.ts</code> — Added dashboard, statistics namespaces</li><li><code>src/renderer/components/Layout/AppLayout.tsx</code> — Dashboard and statistics views in routing</li><li><code>src/renderer/stores/viewStore.ts</code> — Added 'dashboard' and 'statistics' view types</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-29</span><span class="entry-title">Sidebar Bookshelf &amp; 5-Tab FilesView</span></summary>
+<div class="entry-body">
+<p>Restructured the UI: (1) FilesView from 2 tabs (Files | Motif Ledger) to 5 category tabs (Source, Chapters, Agents, Explorer, Motif Ledger), each rendering its panel directly. (2) Sidebar's BookSelector dropdown replaced with a permanently visible BookPanel with icon toolbar and scrollable book cards. New ImportChoiceModal for single-book vs. series import selection.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/components/Sidebar/BookPanel.tsx</code> — Persistent bookshelf with icon toolbar</li><li><code>src/renderer/components/Sidebar/ImportChoiceModal.tsx</code> — Import type selection modal</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/renderer/components/Files/FilesView.tsx</code> — 2-tab → 5-tab layout</li><li><code>src/renderer/components/Layout/Sidebar.tsx</code> — BookSelector → BookPanel</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-removed">Removed</span><ul><li><code>src/renderer/components/Files/StructuredBrowser.tsx</code></li><li><code>src/renderer/components/Files/CollapsibleSection.tsx</code></li><li><code>src/renderer/components/Sidebar/FileTree.tsx</code></li><li><code>src/renderer/components/Sidebar/BookSelector.tsx</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-29</span><span class="entry-title">Batch Find &amp; Replace</span></summary>
+<div class="entry-body">
+<p>Bulk search-and-replace across all chapter draft files. Literal or regex patterns, per-chapter match preview with inline highlighting, selective file application, and automatic version snapshots for safe revert. Three-phase modal: input → preview → result.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/types.ts</code> — FindReplaceOptions, FindReplaceMatchLocation, FindReplacePreviewItem, FindReplacePreviewResult, FindReplaceApplyResult types</li><li><code>src/domain/interfaces.ts</code> — IFindReplaceService interface</li><li><code>src/application/FindReplaceService.ts</code> — Preview + apply with version snapshots</li><li><code>src/renderer/components/Files/FindReplaceModal.tsx</code> — Three-phase modal UI</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/ipc/handlers.ts</code> — Added findReplace:preview, findReplace:apply handlers</li><li><code>src/preload/index.ts</code> — Added findReplace namespace</li><li><code>src/renderer/components/Files/FilesHeader.tsx</code> — Added Find &amp; Replace button</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-29</span><span class="entry-title">Reading Mode, About.json Editor, Pipeline Panel, and misc improvements</span></summary>
+<div class="entry-body">
+<p>Added ReadingModeView for distraction-free manuscript reading, AboutJsonViewer for editing book metadata in-app, PipelinePanel as a detachable right-side pipeline visualization, expanded QuickActions, improved Settings layout, enhanced Chat store streaming, and various UI polish across Build, CLI Activity, and Series components.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/components/Reading/ReadingModeView.tsx</code></li><li><code>src/renderer/components/Files/AboutJsonViewer.tsx</code></li><li><code>src/renderer/components/RightPanel/PipelinePanel.tsx</code></li><li><code>src/renderer/stores/autoDraftStore.ts</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-03-29</span><span class="entry-title">Architecture Engine meta-prompt</span></summary>
+<div class="entry-body">
+<p>New meta-prompt system for structured, multi-session codebase modifications. Includes full workflow documentation, configuration file (FORGE-CONFIG.md), and test runs across Opus 4.6 and Sonnet 4.6 with varying complexity levels.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/meta/architecture-engine/architecture-engine.md</code> — Full architecture engine prompt</li><li><code>prompts/meta/architecture-engine/readme.md</code> — Explainer document</li><li><code>FORGE-CONFIG.md</code> — Project-level Forge configuration</li></ul></div>
+</div>
+</details>
 
 <details class="entry">
 <summary><span class="entry-date">2026-03-28</span><span class="entry-title">Add in-app Helper agent (floating help chat)</span></summary>
@@ -604,7 +660,7 @@
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.6.0 · AGPL-3.0</p>
+            <p>v0.7.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">
