@@ -5,7 +5,23 @@ import { createStreamHandler } from './streamHandler';
 import { useBookStore } from './bookStore';
 import { useFileChangeStore } from './fileChangeStore';
 import { usePipelineStore } from './pipelineStore';
-import { useViewStore } from './viewStore';
+import { useAutoDraftStore } from './autoDraftStore';
+
+// ── Per-book conversation persistence ────────────────────────────────────────
+// Each book remembers which conversation was last active, so switching back
+// restores the exact conversation — not just "most recent."
+
+function saveBookConversation(bookSlug: string, conversationId: string): void {
+  localStorage.setItem(`novel-engine-convo:${bookSlug}`, conversationId);
+}
+
+function loadBookConversation(bookSlug: string): string | null {
+  return localStorage.getItem(`novel-engine-convo:${bookSlug}`);
+}
+
+function clearBookConversation(bookSlug: string): void {
+  localStorage.removeItem(`novel-engine-convo:${bookSlug}`);
+}
 
 /**
  * Module-level timer for the recovery poll.
@@ -99,8 +115,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const conversations = await window.novelEngine.chat.getConversations(bookSlug);
       set({ conversations });
 
-      // Restore previously active conversation from localStorage
-      const savedId = localStorage.getItem('novel-engine-active-conversation');
+      // Restore previously active conversation from per-book localStorage
+      const savedId = loadBookConversation(bookSlug);
       if (savedId && conversations.some((c) => c.id === savedId)) {
         get().setActiveConversation(savedId);
       }
@@ -123,8 +139,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: [],
       }));
 
-      // Persist active conversation so it survives refresh
-      localStorage.setItem('novel-engine-active-conversation', conversation.id);
+      // Persist active conversation so it survives refresh (per-book key)
+      const currentSlug = useBookStore.getState().activeSlug;
+      if (currentSlug) {
+        saveBookConversation(currentSlug, conversation.id);
+      }
     } catch (error) {
       console.error('Failed to create conversation:', error);
     }
@@ -140,8 +159,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const conversation = conversations.find((c) => c.id === conversationId) ?? null;
       set({ activeConversation: conversation, messages, conversationUsage: usage });
 
-      // Persist active conversation so it survives refresh
-      localStorage.setItem('novel-engine-active-conversation', conversationId);
+      // Persist active conversation so it survives refresh (per-book key)
+      const currentSlug = useBookStore.getState().activeSlug;
+      if (currentSlug) {
+        saveBookConversation(currentSlug, conversationId);
+      }
     } catch (error) {
       console.error('Failed to set active conversation:', error);
     }
@@ -224,7 +246,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Clear persisted conversation if we just deleted the active one
       if (wasActive) {
-        localStorage.removeItem('novel-engine-active-conversation');
+        const currentSlug = useBookStore.getState().activeSlug;
+        if (currentSlug) {
+          clearBookConversation(currentSlug);
+        }
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
@@ -265,26 +290,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   switchBook: async (newBookSlug: string) => {
-    // Clear persisted conversation — it belongs to the old book
-    localStorage.removeItem('novel-engine-active-conversation');
+    const { activeConversation } = get();
 
-    // Step 1: Navigate to the chat view so the user lands on the conversation
-    // regardless of which view they were on (wrangler loading, files, build, etc.)
-    useViewStore.getState().navigate('chat');
-
-    // Step 1.5: Abort user-initiated streams only. Background streams
-    // (auto-draft, hot take, ad hoc revision) must continue running —
-    // they manage their own lifecycle and shouldn't be killed by a book switch.
-    const { activeConversation, isStreaming, _streamOrigin } = get();
-    if (isStreaming && activeConversation && _streamOrigin === 'self') {
-      try {
-        await window.novelEngine.chat.abort(activeConversation.id);
-      } catch {
-        // Best-effort — the stream may have already completed
-      }
+    // Step 1: Save the departing book's active conversation (per-book key)
+    const departingSlug = useBookStore.getState().activeSlug;
+    if (departingSlug && activeConversation) {
+      saveBookConversation(departingSlug, activeConversation.id);
     }
 
-    // Step 2: Clear all chat state immediately
+    // Do NOT abort any streams. The CLI calls continue on the main process.
+    // When the user switches back, we recover them visually.
+
+    // Step 2: Clear renderer chat state (but don't kill the main process stream)
     set({
       activeConversation: null,
       conversations: [],
@@ -305,26 +322,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
       _streamOrigin: null,
     });
 
-    // Step 3: Load conversations for the new book and activate the latest one
+    // Step 3: Load conversations for the new book
     try {
       const conversations = await window.novelEngine.chat.getConversations(newBookSlug);
       set({ conversations });
 
-      // Auto-select the most recent conversation (list is sorted newest-first)
-      if (conversations.length > 0) {
+      // Restore previously active conversation for this book
+      const savedId = loadBookConversation(newBookSlug);
+      if (savedId && conversations.some((c) => c.id === savedId)) {
+        await get().setActiveConversation(savedId);
+      } else if (conversations.length > 0) {
+        // Fallback: select most recent
         await get().setActiveConversation(conversations[0].id);
       }
     } catch (error) {
       console.error('Failed to load conversations for new book:', error);
     }
 
-    // Step 4: Check if this book has an active CLI stream (e.g. the user
-    // started a chat, switched away, and is now switching back). If so,
-    // recover the streaming UI so thinking/text deltas resume rendering.
+    // Step 4: Recover any in-flight CLI stream for the new book
     try {
       const active = await window.novelEngine.chat.getActiveStreamForBook(newBookSlug);
       if (active) {
-        const conversation = get().conversations.find((c) => c.id === active.conversationId) ?? null;
+        const conversation = get().conversations.find(
+          (c) => c.id === active.conversationId
+        ) ?? null;
         if (conversation) {
           const messages = await window.novelEngine.chat.getMessages(active.conversationId);
           set({
@@ -338,8 +359,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
             progressStage: active.progressStage ?? 'idle',
             _activeCallId: active.callId || null,
           });
-          // Persist so refresh also recovers to this conversation
-          localStorage.setItem('novel-engine-active-conversation', active.conversationId);
+          saveBookConversation(newBookSlug, active.conversationId);
+
+          // If this book has a running auto-draft, mark the stream as external
+          // so it isn't misidentified as user-initiated.
+          const autoDraftSession = useAutoDraftStore.getState().sessions[newBookSlug];
+          if (autoDraftSession?.isRunning) {
+            set({ _streamOrigin: 'external' });
+          }
         }
       }
     } catch (error) {

@@ -38,7 +38,7 @@ export function SeriesGroup({
   const [isExpanded, setIsExpanded] = useState(hasActiveBook);
 
   return (
-    <div className={`${hasActiveBook ? 'border-l-2 border-blue-500' : 'border-l-2 border-transparent'}`}>
+    <div className={`${hasActiveBook ? 'border-l-2 border-orange-500' : 'border-l-2 border-transparent'}`}>
       {/* Series header */}
       <div
         role="button"
@@ -96,7 +96,7 @@ export function SeriesGroup({
                 key={vol.book.slug}
                 onClick={() => onSelectBook(vol.book.slug)}
                 className={`no-drag flex w-full items-center gap-2 pl-8 pr-3 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                  isActive ? 'bg-zinc-200/70 dark:bg-zinc-800/70' : ''
+                  isActive ? 'bg-orange-50 dark:bg-orange-950/20' : ''
                 }`}
               >
                 <span className="shrink-0 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">

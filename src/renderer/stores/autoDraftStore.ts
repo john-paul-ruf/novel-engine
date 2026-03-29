@@ -132,6 +132,13 @@ type AutoDraftState = {
 
   /** Reset a specific book's session to idle state — clears all state. */
   reset: (bookSlug: string) => void;
+
+  /**
+   * Reconnect the auto-draft's visual state when the user navigates back to
+   * a book with a running loop. If the chatStore isn't already showing the
+   * auto-draft conversation, switch to it so the user sees live output.
+   */
+  reconnect: (bookSlug: string) => void;
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -535,5 +542,34 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       const { [bookSlug]: _, ...rest } = state.sessions;
       return { sessions: rest };
     });
+  },
+
+  reconnect: (bookSlug: string) => {
+    const session = get().sessions[bookSlug];
+    if (!session?.isRunning || !session.conversationId) return;
+
+    const chatState = useChatStore.getState();
+
+    // Only reconnect if chatStore is showing this conversation but NOT already streaming
+    // (if already streaming, switchBook's recovery handled it via getActiveStreamForBook)
+    if (
+      chatState.activeConversation?.id === session.conversationId &&
+      !chatState.isStreaming
+    ) {
+      // The auto-draft loop will attach on its next iteration.
+      // No forced attachToExternalStream here — the loop handles that.
+      return;
+    }
+
+    // If chatStore hasn't selected the auto-draft conversation yet,
+    // and the user is now viewing this book, switch to it
+    if (chatState.activeConversation?.id !== session.conversationId) {
+      const conversation = chatState.conversations.find(
+        (c) => c.id === session.conversationId
+      );
+      if (conversation) {
+        useChatStore.getState().setActiveConversation(session.conversationId);
+      }
+    }
   },
 }));

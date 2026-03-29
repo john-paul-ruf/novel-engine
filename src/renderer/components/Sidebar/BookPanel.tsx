@@ -497,7 +497,7 @@ export function BookPanel(): React.ReactElement {
               <div
                 key={book.slug}
                 className={`group/book flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                  isActive ? 'bg-blue-50 dark:bg-blue-950/20 border-l-2 border-blue-500' : ''
+                  isActive ? 'bg-orange-50 dark:bg-orange-950/20 border-l-2 border-orange-500' : ''
                 }`}
               >
                 <button

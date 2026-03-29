@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { BookSummary } from '@domain/types';
 import { useChatStore } from './chatStore';
 import { useViewStore } from './viewStore';
+import { useAutoDraftStore } from './autoDraftStore';
 
 type BookState = {
   books: BookSummary[];
@@ -80,6 +81,10 @@ export const useBookStore = create<BookState>((set, get) => ({
       // Navigate to dashboard when switching books
       const { navigate } = useViewStore.getState();
       navigate('dashboard');
+
+      // Reconnect auto-draft visual state if the new book has a running loop
+      const { reconnect } = useAutoDraftStore.getState();
+      reconnect(slug);
     } catch (error) {
       console.error('Failed to set active book:', error);
     }
