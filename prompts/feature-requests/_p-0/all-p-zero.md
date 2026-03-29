@@ -1,9 +1,0 @@
-- move pipeline to doc on the right side, let it breathe
-- the lower right help ? needs to move under the chat dropdown. bottom. labeled help
-- cli panels should 'dock'. it should take up the the full space available. if everything else is closed, should consume all space available
-- remove top level '? help', remove lower right '?'
-  - Replace with 'reading mode'
-    - which is read full manuscript mode
-- tour should start a chat
-  - update to where the pipeline is moving
-    - to the right
