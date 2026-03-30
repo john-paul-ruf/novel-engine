@@ -4,15 +4,19 @@
 *For everyone else who may be impacted by this work, or whose sensibilities I have offended.*
 *I am so sorry.  I just wanted to write my memoir and found out it is easier to write fiction than fact. This is the result.*
 
-# Book created in this engine
-- [Cleartext](https://www.amazon.com/dp/B0GTN8DRM8)
-- [Junk Souls](https://www.amazon.com/dp/B0GTMGN843)
-- [Day One](https://www.amazon.com/dp/B0GTQKZQSY)
+# Books created in this engine
 - [The Last Compiler](https://www.amazon.com/dp/B0GTPJWFQ7)
+- [The Lien](https://www.amazon.com/dp/B0GT13J22M)
+- [Cleartext](https://www.amazon.com/dp/B0GTN8DRM8)
+- [Project Sephirot](https://www.amazon.com/dp/B0GJ6S4N9G)
 - [The Recursive Archivist](https://www.amazon.com/dp/B0GTP2KB7Q)
+- [Day One](https://www.amazon.com/dp/B0GTQKZQSY)
+- [Reset](https://www.amazon.com/dp/B0GT6Z8T7Y)
+- [The Empty Orbit](https://www.amazon.com/dp/B0GT2JP9D5)
+- [The Keeper's Frequency](https://www.amazon.com/dp/B0GTF4H6F8)
+- [Junk Souls](https://www.amazon.com/dp/B0GTMGN843)
 
-
-I asked Claude and ChatGPT to audit ten books made in the MVP and this product with extended thinking on, [here are the results](https://john-paul-ruf.github.io/novel-engine/)
+I asked Claude and ChatGPT to audit ten books made in the MVP and this product with extended thinking on, [here are the results](https://john-paul-ruf.github.io/novel-engine/evaluation.html)
 
 # Novel Engine
 
@@ -23,6 +27,9 @@ You bring the story. The agents pitch, scaffold, draft in your voice, read, anal
 Built with Electron, React, TypeScript, and powered by the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — with extensible multi-model provider support for OpenAI-compatible endpoints. No cloud backend. Everything runs on your machine.
 
 Requires tech skill to use — or grab a pre-built installer from [Releases](https://github.com/john-paul-ruf/novel-engine/releases) if one exists for your platform.
+
+![Verity ghostwriting a first draft](screenshots/Screenshot%202026-03-29%20at%206.22.34%E2%80%AFPM.png)
+*Verity ghostwriting during the First Draft phase — persistent bookshelf on the left, real-time CLI activity on the right*
 
 > ### 🧪 Testers Needed!
 >
@@ -98,6 +105,17 @@ Phases support three user actions:
 - **Advance →** — confirms a completed phase and unlocks the next
 - **Done** — manually marks a phase complete (creates stub files if needed)
 - **Revert** — moves a phase back to active, undoing side effects for status/archive-dependent phases
+
+| | |
+|---|---|
+| ![Dashboard](screenshots/Screenshot%202026-03-29%20at%206.22.52%E2%80%AFPM.png) | ![Pitch Room](screenshots/Screenshot%202026-03-29%20at%206.24.20%E2%80%AFPM.png) |
+| *Dashboard — pipeline progress, word counts, recent files* | *Pitch Room — brainstorming with Spark and extended thinking* |
+| ![Source Documents](screenshots/Screenshot%202026-03-29%20at%206.23.05%E2%80%AFPM.png) | ![Chapters](screenshots/Screenshot%202026-03-29%20at%206.23.16%E2%80%AFPM.png) |
+| *Files — Source documents with word counts* | *Chapters — per-chapter word counts and draft access* |
+| ![Ghostlight First Read](screenshots/Screenshot%202026-03-29%20at%206.25.10%E2%80%AFPM.png) | ![Forge Task Master](screenshots/Screenshot%202026-03-29%20at%206.25.52%E2%80%AFPM.png) |
+| *Ghostlight — cold first read with CLI Activity* | *Forge — revision planning with live tool use events* |
+| ![Revision Queue](screenshots/Screenshot%202026-03-29%20at%206.29.03%E2%80%AFPM.png) | ![Settings](screenshots/Screenshot%202026-03-29%20at%206.24.38%E2%80%AFPM.png) |
+| *Revision Queue — auto-running sessions with live CLI activity* | *Settings — model selection and thinking budget* |
 
 ---
 
