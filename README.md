@@ -4,7 +4,7 @@
 *For everyone else who may be impacted by this work, or whose sensibilities I have offended.*
 *I am so sorry.  I just wanted to write my memoir and found out it is easier to write fiction than fact. This is the result.*
 
-# Forword
+# Foreword
 Books created in this engine
 - [The Last Compiler](https://www.amazon.com/dp/B0GTPJWFQ7)
 - [The Lien](https://www.amazon.com/dp/B0GT13J22M)
