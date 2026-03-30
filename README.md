@@ -4,7 +4,8 @@
 *For everyone else who may be impacted by this work, or whose sensibilities I have offended.*
 *I am so sorry.  I just wanted to write my memoir and found out it is easier to write fiction than fact. This is the result.*
 
-# Books created in this engine
+# Forword
+Books created in this engine
 - [The Last Compiler](https://www.amazon.com/dp/B0GTPJWFQ7)
 - [The Lien](https://www.amazon.com/dp/B0GT13J22M)
 - [Cleartext](https://www.amazon.com/dp/B0GTN8DRM8)
@@ -16,7 +17,7 @@
 - [The Keeper's Frequency](https://www.amazon.com/dp/B0GTF4H6F8)
 - [Junk Souls](https://www.amazon.com/dp/B0GTMGN843)
 
-I asked Claude and ChatGPT to audit ten books made in the MVP and this product with extended thinking on, [here are the results](https://john-paul-ruf.github.io/novel-engine/evaluation.html)
+I asked Claude and ChatGPT to audit ten books made in the MVP and this product with extended thinking on - [here are the results](https://john-paul-ruf.github.io/novel-engine/evaluation.html)
 
 # Novel Engine
 
