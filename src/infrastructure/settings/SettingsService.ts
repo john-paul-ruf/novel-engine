@@ -44,7 +44,7 @@ export class SettingsService implements ISettingsService {
     try {
       // Only use --version — `claude doctor` is interactive (prompts "Press Enter")
       // and will hang indefinitely when called from a child process with no stdin.
-      const { stdout } = await execFile('claude', ['--version'], { timeout: 10_000 });
+      const { stdout } = await execFile('claude', ['--version'], { timeout: 10_000, shell: process.platform === 'win32' });
       const found = stdout.trim().length > 0;
       await this.update({ hasClaudeCli: found });
       return found;
