@@ -3,6 +3,9 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'node:path';
 import { nanoid } from 'nanoid';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { writeFileSync, unlinkSync } from 'fs';
 
 import type { IClaudeClient, IModelProvider, IDatabaseService } from '@domain/interfaces';
 import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@domain/types';
@@ -44,7 +47,7 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
   async isAvailable(): Promise<boolean> {
     if (this._available !== null) return this._available;
     try {
-      await execFileAsync('claude', ['--version']);
+      await execFileAsync('claude', ['--version'], { shell: process.platform === 'win32' });
       this._available = true;
       return true;
     } catch {
@@ -191,13 +194,17 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
 
+    // Save system prompt to a temporary file and pass the path to the CLI, since it may exceed command-line length limits.
+    const tmpSystemPromptFile = join(tmpdir(), `claude-system-${Date.now()}.txt`);
+    writeFileSync(tmpSystemPromptFile, systemPrompt, 'utf8');
+
     const args = [
       '--print',
       '--output-format', 'stream-json',
       '--verbose',
       '--model', model,
       '--max-turns', String(params.maxTurns ?? 30),
-      '--system-prompt', systemPrompt,
+      '--system-prompt-file', tmpSystemPromptFile,   // <-- file instead of inline
       '--allowedTools', 'Read,Write,Edit,LS,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(wc:*),Bash(rm:*),Bash(rmdir:*)',
       '--add-dir', this.booksDir,
     ];
@@ -216,17 +223,6 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
         ? path.join(this.booksDir, bookSlug)
         : undefined;
 
-    // Guard against system prompts that would exceed the OS argument size limit.
-    // Most systems support 128KB-2MB for total argv. We cap the system prompt at
-    // 500KB to leave room for other arguments.
-    const MAX_SYSTEM_PROMPT_BYTES = 500_000;
-    const promptBytes = Buffer.byteLength(systemPrompt, 'utf-8');
-    if (promptBytes > MAX_SYSTEM_PROMPT_BYTES) {
-      const message = `System prompt exceeds ${MAX_SYSTEM_PROMPT_BYTES / 1000}KB limit (actual: ${Math.round(promptBytes / 1000)}KB). Check the agent .md file for excessive content.`;
-      params.onEvent({ type: 'error', message });
-      return;
-    }
-
     console.log(`[ClaudeCodeClient] Spawning CLI: model=${model}, cwd=${cwd ?? '(none)'}, conversationId=${conversationId}, args=${args.length} items`);
 
     return new Promise<void>((resolve, reject) => {
@@ -234,6 +230,7 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env },
         cwd,
+        shell: process.platform === 'win32', // Use shell on Windows to resolve .cmd/.exe from PATH
       });
 
       console.log(`[ClaudeCodeClient] CLI spawned: pid=${child.pid ?? 'unknown'}, conversationId=${conversationId}`);
@@ -304,6 +301,9 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       });
 
       child.on('close', (code) => {
+        // Remove temporary system prompt file
+        try { unlinkSync(tmpSystemPromptFile); } catch {}
+
         // Flush any buffered events before processing the close
         flushBatch();
 
