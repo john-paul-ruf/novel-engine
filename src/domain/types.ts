@@ -173,6 +173,13 @@ export type MultiCallStep = {
   /** When true, the orchestrator dynamically inserts chapter paths into the prompt
    *  based on the word-count split. Used by Ghostlight's chunked reads. */
   dynamic?: boolean;
+  /** Override the agent's default thinking budget for this step.
+   *  0 = no extended thinking (fast). undefined = use agent default. */
+  thinkingBudgetOverride?: number;
+  /** When true, skip the full agent system prompt and use a minimal one.
+   *  Used for mechanical read-and-track steps that don't need the full
+   *  developmental editing framework — just tool access and basic instructions. */
+  lightweightPrompt?: boolean;
 };
 
 // === Streaming ===

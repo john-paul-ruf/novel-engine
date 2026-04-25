@@ -1,6 +1,8 @@
 import { nanoid } from 'nanoid';
 import type {
+  Agent,
   AgentName,
+  AppSettings,
   CreativeAgentName,
   MultiCallStep,
   StreamEvent,
@@ -117,6 +119,7 @@ export class MultiCallOrchestrator {
 
     const allChangedFiles: string[] = [];
 
+    // ── Run all steps sequentially ──────────────────────────────────
     for (let stepIdx = 0; stepIdx < expandedSteps.length; stepIdx++) {
       const step = expandedSteps[stepIdx];
       const stepNum = stepIdx + 1;
@@ -135,133 +138,32 @@ export class MultiCallOrchestrator {
         message: `Step ${stepNum}/${expandedSteps.length}: ${step.label}`,
       });
 
-      // Resolve the prompt (inject chapter lists for dynamic steps)
-      const prompt = step.dynamic && chapterBatches.has(step.id)
-        ? step.promptTemplate.replace('{{CHAPTER_LIST}}', chapterBatches.get(step.id)!)
-        : step.promptTemplate;
-
-      // Save the sub-prompt as a user message in the conversation
-      this.db.saveMessage({
-        conversationId,
-        role: 'user',
-        content: prompt,
-        thinking: '',
-      });
-
-      // Build context: system prompt + manifest, but NO conversation history
-      // (each sub-call is independent — relies on scratch files, not context)
-      const thinkingBudget = resolveThinkingBudget(
-        appSettings,
-        agent.thinkingBudget,
-        params.thinkingBudgetOverride,
-      );
-
-      const assembled = this.contextBuilder.build({
-        agentName,
-        agentSystemPrompt: agent.systemPrompt,
-        manifest,
-        messages: [], // No conversation history — scratch files carry state
-        authorProfilePath: authorProfileAbsPath,
-        seriesBiblePath: seriesBiblePath ?? undefined,
-        thinkingBudget,
-        maxContextTokens: modelContextWindow,
-      });
-
-      // Create a session record for this sub-call
-      const sessionId = nanoid();
-      this.db.createStreamSession({
-        id: sessionId,
-        conversationId,
-        agentName,
-        model: appSettings.model,
-        bookSlug,
-        startedAt: new Date().toISOString(),
-        endedAt: null,
-        finalStage: 'idle',
-        filesTouched: {},
-        interrupted: false,
-      });
-
-      // ── Event interceptor ──────────────────────────────────────
-      // Intermediate steps (non-final) must NOT emit `done` or `error`
-      // to the caller. If they do, the chatStore resets streaming state
-      // (isStreaming=false, _activeCallId=null) and the stream handler
-      // rejects all events from subsequent steps — killing the UI.
-      //
-      // Instead, intermediate `done` events are swallowed (the orchestrator
-      // loop handles step transitions). Intermediate `error` events are
-      // converted to status messages so the user sees the failure without
-      // the chatStore tearing down the stream.
-      const wrappedOnEvent = isFinalStep
-        ? onEvent
-        : (event: StreamEvent) => {
-            if (event.type === 'done') {
-              // Swallow — the orchestrator manages step transitions
-              console.log(
-                `[MultiCallOrchestrator] Intercepted intermediate done event (step ${stepNum}/${expandedSteps.length})`,
-              );
-              return;
-            }
-            if (event.type === 'error') {
-              // Convert to status so the user sees it but the stream stays alive
-              console.warn(
-                `[MultiCallOrchestrator] Intermediate error (step ${stepNum}): ${event.message}`,
-              );
-              onEvent({
-                type: 'status',
-                message: `Step ${stepNum} warning: ${event.message}`,
-              });
-              return;
-            }
-            onEvent(event);
-          };
-
-      // Start the managed stream
-      const stream = this.streamManager.startStream({
-        conversationId,
-        agentName,
-        model: appSettings.model,
-        bookSlug,
-        sessionId,
-        callId: params.callId ?? '',
-        onEvent: wrappedOnEvent,
-      }, {
-        // No special onDone/onError hooks — the orchestrator manages the flow
-      });
-
       try {
-        await this.providers.sendMessage({
-          model: appSettings.model,
-          systemPrompt: assembled.systemPrompt,
-          messages: [{ role: 'user', content: prompt }],
-          maxTokens: appSettings.maxTokens,
-          thinkingBudget,
-          maxTurns: step.maxTurns,
-          bookSlug,
-          sessionId,
+        const stepChangedFiles = await this.runSingleStep({
+          step,
+          stepNum,
+          totalSteps: expandedSteps.length,
+          isFinalStep,
+          agentName,
           conversationId,
-          onEvent: stream.onEvent,
+          bookSlug,
+          appSettings,
+          agent,
+          manifest,
+          chapterBatches,
+          modelContextWindow,
+          authorProfileAbsPath,
+          seriesBiblePath,
+          onEvent,
+          callId: params.callId,
+          thinkingBudgetOverride: params.thinkingBudgetOverride,
         });
-
-        await stream.awaitPendingHook();
-
-        // Collect changed files from this step
-        const stepChangedFiles = stream.getChangedFiles();
         allChangedFiles.push(...stepChangedFiles);
-
-        console.log(
-          `[MultiCallOrchestrator] Step ${stepNum}/${expandedSteps.length} complete: ` +
-          `${step.label}, files=${stepChangedFiles.join(', ') || 'none'}`,
-        );
       } catch (err) {
         console.error(
           `[MultiCallOrchestrator] Step ${stepNum}/${expandedSteps.length} failed: ${step.label}`,
           err,
         );
-
-        // Emit error to the caller — this IS a terminal failure.
-        // For intermediate steps, this ends the multi-call run.
-        // For the final step, it's a normal error.
         onEvent({
           type: 'error',
           message: `Step ${stepNum}/${expandedSteps.length} (${step.label}) failed: ` +
@@ -276,6 +178,198 @@ export class MultiCallOrchestrator {
     await this.cleanupScratchFiles(bookSlug, expandedSteps);
 
     return { changedFiles: allChangedFiles };
+  }
+
+  /**
+   * Build a minimal system prompt for lightweight read-and-track steps.
+   *
+   * Skips the full agent markdown (developmental editing framework, lens
+   * definitions, etc.) and provides only essential instructions: the book
+   * metadata, file manifest, and file-writing instructions.
+   */
+  private buildLightweightSystemPrompt(manifest: ProjectManifest): string {
+    const lines: string[] = [];
+    lines.push('You are a careful manuscript reader. Your job is to read chapters and produce structured tracking notes.');
+    lines.push('');
+    lines.push(`## Active Book`);
+    lines.push(`- **Title**: ${manifest.meta.title}`);
+    lines.push(`- **Author**: ${manifest.meta.author}`);
+    lines.push(`- **Chapters**: ${manifest.chapterCount}`);
+    lines.push(`- **Total words**: ${manifest.totalWordCount.toLocaleString()}`);
+    lines.push('');
+    lines.push('## Available Files');
+    for (const f of manifest.files) {
+      lines.push(`- \`${f.path}\` (${f.wordCount.toLocaleString()} words)`);
+    }
+    lines.push('');
+    lines.push('## Instructions');
+    lines.push('- Use the Read tool to read chapter files.');
+    lines.push('- Use the Write tool to create your tracker/notes files.');
+    lines.push('- Write files relative to the working directory (e.g. `source/.scratch/...`).');
+    lines.push('- Do NOT skip chapters. Read every file listed in your prompt.');
+    lines.push('- Be concise in your notes — bullet points, not paragraphs.');
+    return lines.join('\n');
+  }
+
+  /**
+   * Run a single step sequentially.
+   * Returns the list of changed files from this step.
+   */
+  private async runSingleStep(params: {
+    step: MultiCallStep;
+    stepNum: number;
+    totalSteps: number;
+    isFinalStep: boolean;
+    agentName: AgentName;
+    conversationId: string;
+    bookSlug: string;
+    appSettings: AppSettings;
+    agent: Agent;
+    manifest: ProjectManifest;
+    chapterBatches: Map<string, string>;
+    modelContextWindow: number | undefined;
+    authorProfileAbsPath: string;
+    seriesBiblePath: string | null;
+    onEvent: (event: StreamEvent) => void;
+    callId?: string;
+    thinkingBudgetOverride?: number;
+  }): Promise<string[]> {
+    const {
+      step, stepNum, totalSteps, isFinalStep,
+      agentName, conversationId, bookSlug,
+      appSettings, agent, manifest, chapterBatches,
+      modelContextWindow, authorProfileAbsPath, seriesBiblePath,
+      onEvent,
+    } = params;
+
+    // Resolve the prompt (inject chapter lists for dynamic steps)
+    const prompt = step.dynamic && chapterBatches.has(step.id)
+      ? step.promptTemplate.replace('{{CHAPTER_LIST}}', chapterBatches.get(step.id)!)
+      : step.promptTemplate;
+
+    // Save the sub-prompt as a user message in the conversation
+    this.db.saveMessage({
+      conversationId,
+      role: 'user',
+      content: prompt,
+      thinking: '',
+    });
+
+    // Resolve thinking budget: per-step override takes priority
+    const thinkingBudget = step.thinkingBudgetOverride !== undefined
+      ? (step.thinkingBudgetOverride > 0 ? step.thinkingBudgetOverride : undefined)
+      : resolveThinkingBudget(
+          appSettings,
+          agent.thinkingBudget,
+          params.thinkingBudgetOverride,
+        );
+
+    // Build system prompt: lightweight for read steps, full for analysis/synthesis
+    let systemPrompt: string;
+    if (step.lightweightPrompt) {
+      systemPrompt = this.buildLightweightSystemPrompt(manifest);
+    } else {
+      const assembled = this.contextBuilder.build({
+        agentName,
+        agentSystemPrompt: agent.systemPrompt,
+        manifest,
+        messages: [],
+        authorProfilePath: authorProfileAbsPath,
+        seriesBiblePath: seriesBiblePath ?? undefined,
+        thinkingBudget,
+        maxContextTokens: modelContextWindow,
+      });
+      systemPrompt = assembled.systemPrompt;
+    }
+
+    // Create a session record for this sub-call
+    const sessionId = nanoid();
+    this.db.createStreamSession({
+      id: sessionId,
+      conversationId,
+      agentName,
+      model: appSettings.model,
+      bookSlug,
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      finalStage: 'idle',
+      filesTouched: {},
+      interrupted: false,
+    });
+
+    const streamKey = conversationId;
+
+    // ── Event interceptor ──────────────────────────────────────
+    // Track whether the provider emitted an error event. Since
+    // LlamaServerClient.sendMessage() catches errors internally and
+    // emits them via callback (never throws), we must detect errors
+    // here and re-throw after sendMessage resolves.
+    let stepError: string | null = null;
+
+    const wrappedOnEvent = isFinalStep
+      ? onEvent
+      : (event: StreamEvent) => {
+          if (event.type === 'done') {
+            console.log(
+              `[MultiCallOrchestrator] Intercepted intermediate done event (step ${stepNum}/${totalSteps})`,
+            );
+            return;
+          }
+          if (event.type === 'error') {
+            console.warn(
+              `[MultiCallOrchestrator] Intermediate error (step ${stepNum}): ${event.message}`,
+            );
+            // Record the error so we can throw after sendMessage resolves
+            stepError = event.message;
+            onEvent({
+              type: 'status',
+              message: `Step ${stepNum}/${totalSteps} failed: ${event.message}`,
+            });
+            return;
+          }
+          onEvent(event);
+        };
+
+    // Start the managed stream
+    const stream = this.streamManager.startStream({
+      conversationId: streamKey,
+      agentName,
+      model: appSettings.model,
+      bookSlug,
+      sessionId,
+      callId: params.callId ?? '',
+      onEvent: wrappedOnEvent,
+    }, {});
+
+    await this.providers.sendMessage({
+      model: appSettings.model,
+      systemPrompt,
+      messages: [{ role: 'user', content: prompt }],
+      maxTokens: appSettings.maxTokens,
+      thinkingBudget,
+      maxTurns: step.maxTurns,
+      bookSlug,
+      sessionId,
+      conversationId: streamKey,
+      onEvent: stream.onEvent,
+    });
+
+    await stream.awaitPendingHook();
+
+    // Check if the provider emitted an error event during execution.
+    // Since sendMessage doesn't throw on errors (it emits them via
+    // callback), this is the only way to detect failures.
+    if (stepError) {
+      throw new Error(stepError);
+    }
+
+    const stepChangedFiles = stream.getChangedFiles();
+    console.log(
+      `[MultiCallOrchestrator] Step ${stepNum}/${totalSteps} complete: ` +
+      `${step.label}, files=${stepChangedFiles.join(', ') || 'none'}`,
+    );
+
+    return stepChangedFiles;
   }
 
   /**

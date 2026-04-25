@@ -457,8 +457,12 @@ export const MULTI_CALL_SCRATCH_DIR = 'source/.scratch';
  *
  * Lower values = more batches = smaller context per call = slower but safer.
  * Higher values = fewer batches = larger context = faster but may stall.
+ *
+ * At 30K words/batch, a 102K-word manuscript produces ~4 batches instead of ~7.
+ * Each batch is still well within the 128K token context of most models
+ * (~30K words ≈ ~40K tokens of manuscript content).
  */
-export const MULTI_CALL_TARGET_WORDS_PER_BATCH = 15_000;
+export const MULTI_CALL_TARGET_WORDS_PER_BATCH = 30_000;
 
 /**
  * Sable (Copy Edit) — 6 steps: 5 audit passes + synthesis.
@@ -614,6 +618,8 @@ Do NOT write any analysis or dev report yet — this is a reading pass only.`,
     maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
+    thinkingBudgetOverride: 0,
+    lightweightPrompt: true,
   },
   {
     id: 'lumen-read-2',
@@ -645,8 +651,12 @@ Do NOT write any analysis or dev report yet — this is a reading pass only.`,
     maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
+    thinkingBudgetOverride: 0,
+    lightweightPrompt: true,
   },
   // ── Lens analysis steps (work from tracking notes, NOT raw chapters) ──
+  // These three lens groups are INDEPENDENT — they all read from tracking notes
+  // and don't depend on each other. They run sequentially.
   {
     id: 'lumen-lenses-1-3',
     label: 'Lenses 1–3: Premise, Protagonist & Cast',
@@ -676,13 +686,14 @@ Do NOT produce the final dev report yet — this is lens group 1 of 3.`,
     label: 'Lenses 4–5: Pacing & Scenes',
     promptTemplate: `Run Lenses 4–5 of the developmental assessment.
 
-**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files.
+**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your structural tracking notes already contain everything you need.
 
-Read these files (use the Read tool on each one):
+Read ONLY these tracking note files (use the Read tool on each one):
 {{READ_TRACKER_FILES}}
-- \`source/.scratch/lumen-lenses-1-3.md\` (Lenses 1–3 analysis — build on this context)
 
-After reading, analyze:
+Focus on the **Pacing** and **Scene purpose** fields in each chapter's tracking notes.
+
+After reading all tracking files, analyze:
 - **Lens 4: Pacing & Momentum** — Using your tracked pacing data (tempo, tension levels, momentum), produce a **pacing map** (table: chapter | tempo | tension | momentum | notes). Flag sags, rushes, and structural dead zones.
 - **Lens 5: Scene Necessity** — Using your tracked scene purposes, produce a **scene audit table** (chapter | scene | jobs performed | verdict). Flag underperformers (scenes doing < 2 jobs) and dead weight.
 
@@ -698,14 +709,14 @@ Do NOT produce the final dev report yet — this is lens group 2 of 3.`,
     label: 'Lenses 6–7: Craft & Theme',
     promptTemplate: `Run Lenses 6–7 of the developmental assessment.
 
-**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files.
+**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your structural tracking notes already contain everything you need.
 
-Read these files (use the Read tool on each one):
+Read ONLY these tracking note files (use the Read tool on each one):
 {{READ_TRACKER_FILES}}
-- \`source/.scratch/lumen-lenses-1-3.md\` (Lenses 1–3 analysis)
-- \`source/.scratch/lumen-lenses-4-5.md\` (Lenses 4–5 analysis)
 
-After reading, analyze:
+Focus on the **Prose & craft notes** and **Thematic markers** fields in each chapter's tracking notes.
+
+After reading all tracking files, analyze:
 - **Lens 6: Prose & Craft** — Using your tracked prose/craft notes, assess voice consistency, POV discipline, dialogue authenticity, sensory detail quality. Quote specific examples from your tracking notes.
 - **Lens 7: Thematic Integration** — Using your tracked thematic markers, does the theme emerge organically? Over-signaled or under-developed? How do motifs and symbols evolve across the narrative?
 
@@ -781,6 +792,8 @@ Do NOT write the reader report yet — this is batch 1 of 2.`,
     maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
+    thinkingBudgetOverride: 0,
+    lightweightPrompt: true,
   },
   {
     id: 'ghostlight-read-2',
@@ -809,6 +822,8 @@ Do NOT write the reader report yet — this is batch 2 of 2.`,
     maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
+    thinkingBudgetOverride: 0,
+    lightweightPrompt: true,
   },
   {
     id: 'ghostlight-synthesis',

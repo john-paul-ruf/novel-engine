@@ -134,6 +134,9 @@ export class AuditService implements IAuditService {
       let thinkingText = '';
       const sessionId = nanoid();
       const auditConversationId = `audit-${sessionId}`;
+      if (!targetConversationId) {
+        this.ensureEphemeralConversation(auditConversationId, bookSlug, 'Verity');
+      }
       const { model: auditModel, maxTokens: auditMaxTokens } = await this.resolveAuditModel();
       console.log(`[AuditService] Spawning audit CLI for ${chapterSlug} (model: ${auditModel}, session: ${sessionId})`);
 
@@ -376,6 +379,8 @@ export class AuditService implements IAuditService {
     const thinkingBudget = resolveThinkingBudget(appSettings, lumenAgent.thinkingBudget);
 
     // Emit callStart so CLI Activity panel tracks this call
+    const motifConvId = `motif-audit-${sessionId}`;
+    this.ensureEphemeralConversation(motifConvId, bookSlug, 'Lumen');
     onEvent({ type: 'callStart', agentName: 'Lumen', model: appSettings.model, bookSlug });
     onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript…' });
 
@@ -388,11 +393,11 @@ export class AuditService implements IAuditService {
       maxTurns: AGENT_REGISTRY.Lumen.maxTurns,
       bookSlug,
       sessionId,
-      conversationId: `motif-audit-${sessionId}`,
+      conversationId: motifConvId,
       onEvent: (event: StreamEvent) => {
         if (event.type === 'done') {
           this.usage.recordUsage({
-            conversationId: `motif-audit-${sessionId}`,
+            conversationId: motifConvId,
             inputTokens: event.inputTokens,
             outputTokens: event.outputTokens,
             thinkingTokens: event.thinkingTokens,
@@ -507,6 +512,7 @@ ${batches.length > 1 ? `Do NOT update source/motif-ledger.json yet — this is b
 
       const batchSessionId = nanoid();
       const batchConversationId = `motif-audit-batch-${batchSessionId}`;
+      this.ensureEphemeralConversation(batchConversationId, bookSlug, 'Lumen');
 
       // Intermediate steps: intercept done/error to prevent caller teardown
       const wrappedOnEvent = (event: StreamEvent) => {
@@ -607,6 +613,7 @@ After updating the ledger, respond with a brief summary: how many phrases found,
 
     const synthSessionId = nanoid();
     const synthConversationId = `motif-audit-synth-${synthSessionId}`;
+    this.ensureEphemeralConversation(synthConversationId, bookSlug, 'Lumen');
     const synthSystemPrompt = lumenAgent.systemPrompt + '\n\n---\n\n' + motifAuditInstructions;
 
     onEvent({ type: 'callStart', agentName: 'Lumen', model, bookSlug });
@@ -650,6 +657,25 @@ After updating the ledger, respond with a brief summary: how many phrases found,
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /**
+   * Create an ephemeral conversation row so that token_usage FK constraint
+   * is satisfied when recording usage for audit sub-calls.
+   */
+  private ensureEphemeralConversation(id: string, bookSlug: string, agentName: 'Verity' | 'Lumen'): void {
+    try {
+      this.db.createConversation({
+        id,
+        bookSlug,
+        agentName,
+        pipelinePhase: null,
+        purpose: 'pipeline',
+        title: `[audit] ${id}`,
+      });
+    } catch {
+      // Row may already exist (e.g. retry) — ignore
+    }
+  }
 
   /**
    * Split chapters into word-count-balanced batches.
