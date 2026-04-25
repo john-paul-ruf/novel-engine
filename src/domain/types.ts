@@ -286,7 +286,7 @@ export type ActiveStreamInfo = {
 export type ProviderId = string;
 
 /** The implementation strategy for a provider. Determines which infrastructure class is instantiated. */
-export type ProviderType = 'claude-cli' | 'ollama-cli' | 'opencode-cli' | 'openai-compatible';
+export type ProviderType = 'claude-cli' | 'ollama-cli' | 'llama-server' | 'opencode-cli' | 'openai-compatible';
 
 /** Capabilities a provider may support. Used to gate features in the UI and services. */
 export type ProviderCapability =

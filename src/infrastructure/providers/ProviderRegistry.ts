@@ -138,6 +138,13 @@ export class ProviderRegistry implements IProviderRegistry {
           console.error('[ProviderRegistry] Failed to refresh Ollama models:', err),
         );
       }
+
+      // For llama-server: auto-fetch models from the new endpoint
+      if (existing.type === 'llama-server' && partial.baseUrl) {
+        this.refreshLlamaServerModels(providerId, partial.baseUrl).catch((err) =>
+          console.error('[ProviderRegistry] Failed to refresh llama-server models:', err),
+        );
+      }
     }
   }
 
@@ -180,6 +187,48 @@ export class ProviderRegistry implements IProviderRegistry {
       }
     } catch (err) {
       console.warn(`[ProviderRegistry] Could not fetch Ollama models from ${normalizedUrl}:`, err);
+    }
+  }
+
+  /**
+   * Fetch models from a llama-server endpoint via /v1/models and update
+   * the provider config's model list. Called when the base URL changes.
+   */
+  private async refreshLlamaServerModels(providerId: ProviderId, baseUrl: string): Promise<void> {
+    const normalizedUrl = baseUrl.startsWith('http') ? baseUrl : `http://${baseUrl}`;
+    try {
+      const resp = await fetch(`${normalizedUrl}/v1/models`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!resp.ok) return;
+      const data = await resp.json() as { data?: Array<{ id: string }> };
+      const models: ModelInfo[] = (data.data ?? []).map((m) => ({
+        id: m.id,
+        label: m.id.split('/').pop() ?? m.id,
+        description: `llama-server model — ${m.id}`,
+        providerId,
+        supportsThinking: true,
+        supportsToolUse: true,
+      }));
+
+      if (models.length > 0) {
+        const existing = this.configs.get(providerId);
+        if (existing) {
+          const updated: ProviderConfig = {
+            ...existing,
+            enabled: true,
+            models,
+            defaultModel: existing.defaultModel ?? models[0]?.id,
+          };
+          this.configs.set(providerId, updated);
+          this.rebuildModelIndex();
+          this.persistConfigs();
+          console.log(`[ProviderRegistry] Refreshed llama-server models from ${normalizedUrl} — ${models.length} model(s)`);
+        }
+      }
+    } catch (err) {
+      console.warn(`[ProviderRegistry] Could not fetch llama-server models from ${normalizedUrl}:`, err);
     }
   }
 

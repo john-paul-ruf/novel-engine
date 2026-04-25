@@ -55,10 +55,11 @@ import { AgentService } from '@infra/agents';
 import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
 import { OllamaCodeClient } from '@infra/ollama-cli';
+import { LlamaServerClient } from '@infra/llama-server';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
 import { SeriesService } from '@infra/series';
-import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID } from '@domain/constants';
+import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID, LLAMA_SERVER_PROVIDER_ID } from '@domain/constants';
 import type { ModelInfo } from '@domain/types';
 
 // Application
@@ -184,6 +185,36 @@ async function fetchOllamaModels(ollamaBaseUrl: string): Promise<ModelInfo[]> {
     return models;
   } catch {
     console.warn('[startup] Failed to fetch Ollama models');
+    return [];
+  }
+}
+
+// ── llama-server Model Discovery ─────────────────────────────────
+
+/**
+ * Fetch models from a llama-server instance via `/v1/models`.
+ * llama-server typically serves a single model, but the endpoint
+ * returns it in OpenAI format.
+ */
+async function fetchLlamaServerModels(baseUrl: string): Promise<ModelInfo[]> {
+  try {
+    const resp = await fetch(`${baseUrl}/v1/models`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json() as { data?: Array<{ id: string; owned_by?: string }> };
+    const models: ModelInfo[] = (data.data ?? []).map((m) => ({
+      id: m.id,
+      label: m.id.split('/').pop() ?? m.id,
+      description: `llama-server model — ${m.id}`,
+      providerId: LLAMA_SERVER_PROVIDER_ID,
+      supportsThinking: true,  // assume reasoning model per user
+      supportsToolUse: true,
+    }));
+    return models;
+  } catch {
+    console.warn('[startup] Failed to fetch llama-server models');
     return [];
   }
 }
@@ -341,10 +372,34 @@ async function initializeApp(): Promise<void> {
     defaultModel: ollamaModels[0]?.id,
   });
 
+  // Register the built-in llama-server provider (always registered so the user
+  // can configure the endpoint in Settings even if llama-server isn't running yet)
+  const savedLlamaConfig = appSettings.providers.find(p => p.id === LLAMA_SERVER_PROVIDER_ID);
+  const llamaClient = new LlamaServerClient(booksDir, db, savedLlamaConfig?.baseUrl);
+  const llamaBaseConfig = savedLlamaConfig
+    ?? BUILT_IN_PROVIDER_CONFIGS.find(p => p.id === LLAMA_SERVER_PROVIDER_ID)!;
+
+  const llamaAvailable = await llamaClient.isAvailable();
+  let llamaModels: ModelInfo[] = [];
+  if (llamaAvailable) {
+    llamaModels = await fetchLlamaServerModels(llamaClient.getBaseUrl());
+    console.log(`[startup] llama-server detected at ${llamaClient.getBaseUrl()} — ${llamaModels.length} model(s) available`);
+  } else {
+    console.log(`[startup] llama-server not reachable at ${llamaClient.getBaseUrl()} — provider registered for configuration`);
+  }
+
+  providerRegistry.registerProvider(llamaClient, {
+    ...llamaBaseConfig,
+    enabled: llamaAvailable,
+    models: llamaModels,
+    defaultModel: llamaModels[0]?.id,
+  });
+
   // Initialize user-configured providers from settings
   for (const config of appSettings.providers) {
     if (config.id === 'claude-cli') continue;
     if (config.id === OLLAMA_CLI_PROVIDER_ID) continue; // already registered above
+    if (config.id === LLAMA_SERVER_PROVIDER_ID) continue; // already registered above
     if (!config.enabled) continue;
 
     if (config.type === 'openai-compatible') {

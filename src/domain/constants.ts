@@ -136,6 +136,9 @@ export const OPENCODE_CLI_PROVIDER_ID: ProviderId = 'opencode-cli';
 /** Built-in Ollama CLI provider ID. Always present if CLI is detected. */
 export const OLLAMA_CLI_PROVIDER_ID: ProviderId = 'ollama-cli';
 
+/** Built-in llama-server provider ID. Always present, enabled when server is reachable. */
+export const LLAMA_SERVER_PROVIDER_ID: ProviderId = 'llama-server';
+
 /** Default provider configurations shipped with the app. */
 export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
   {
@@ -174,6 +177,16 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
     enabled: false, // enabled dynamically when CLI is detected
     isBuiltIn: true,
     models: [], // populated at runtime via `ollama list`
+    capabilities: ['text-completion', 'streaming', 'tool-use'],
+  },
+  {
+    id: LLAMA_SERVER_PROVIDER_ID,
+    type: 'llama-server',
+    name: 'llama-server',
+    enabled: false, // enabled dynamically when server is reachable
+    isBuiltIn: true,
+    baseUrl: 'http://127.0.0.1:8080',
+    models: [], // populated at runtime via /v1/models
     capabilities: ['text-completion', 'streaming', 'tool-use'],
   },
 ];

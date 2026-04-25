@@ -13,6 +13,7 @@ function StatusDot({ status }: { status: ProviderStatus | undefined }): React.Re
 
 function TypeBadge({ type }: { type: string }): React.ReactElement {
   const label = type === 'claude-cli' ? 'Claude CLI' :
+    type === 'llama-server' ? 'llama-server' :
     type === 'openai-compatible' ? 'OpenAI Compatible' :
     type;
   return (
@@ -275,7 +276,7 @@ function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElemen
           <span className="ml-auto text-xs text-zinc-400">Built-in</span>
         )}
       </div>
-      {config.type === 'ollama-cli' && (
+      {(config.type === 'ollama-cli' || config.type === 'llama-server') && (
         <OllamaEndpointField config={config} />
       )}
       {status && (
