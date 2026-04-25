@@ -1,1 +1,0 @@
-the onboard guide is great, it just doesn't always point at the right thing. Mostly in pipeline.

@@ -48,6 +48,8 @@ type ChatState = {
   streamBuffer: string;
   thinkingBuffer: string;
   statusMessage: string;
+  warningMessage: string;
+  multiCallProgress: { step: number; totalSteps: number; label: string } | null;
   conversationUsage: UsageRecord[] | null;
 
   // Tool activity tracking
@@ -97,6 +99,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamBuffer: '',
   thinkingBuffer: '',
   statusMessage: '',
+  warningMessage: '',
+  multiCallProgress: null,
   conversationUsage: null,
   toolActivity: [],
   lastChangedFiles: [],
@@ -196,6 +200,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamBuffer: '',
       thinkingBuffer: '',
       statusMessage: randomRespondingStatus(),
+      warningMessage: '',
+      multiCallProgress: null,
       toolActivity: [],
       _activeCallId: callId,
       _streamOrigin: 'self',
@@ -388,6 +394,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     alwaysCheckConversationId: false,
 
     onStatus: (message) => useChatStore.setState({ statusMessage: message }),
+    onWarning: (message) => useChatStore.setState({ warningMessage: message }),
     onBlockStart: (blockType) => {
       if (blockType === 'thinking') {
         useChatStore.setState({ isThinking: true, isStreaming: true, statusMessage: '' });
@@ -407,6 +414,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     onThinkingSummary: (summary) => useChatStore.setState({ thinkingSummary: summary.text }),
     onToolDuration: (tool) => useChatStore.setState((s) => ({ toolTimings: [...s.toolTimings, tool] })),
     onFilesChanged: (paths) => useChatStore.setState({ lastChangedFiles: paths }),
+    onMultiCallProgress: (step, totalSteps, label) =>
+      useChatStore.setState({ multiCallProgress: { step, totalSteps, label } }),
 
     onDone: () => {
       clearRecoveryPoll();
@@ -437,6 +446,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             streamBuffer: '',
             thinkingBuffer: '',
             statusMessage: '',
+            multiCallProgress: null,
             messageToolActivity: { ...state.messageToolActivity, ...updatedToolActivity },
             toolActivity: [],
             lastChangedFiles: [],

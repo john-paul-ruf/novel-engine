@@ -153,6 +153,28 @@ export type Conversation = {
   updatedAt: string;
 };
 
+// === Multi-Call Orchestration ===
+
+/**
+ * A single step in a multi-call pipeline orchestration.
+ *
+ * Each step becomes one `sendMessage` call with a focused prompt.
+ * Intermediate results go to `scratchFile`; the final synthesis
+ * step reads all scratch files and writes to the real output.
+ */
+export type MultiCallStep = {
+  id: string;              // e.g. 'sable-pass-1'
+  label: string;           // shown in UI progress, e.g. 'Style Sheet Pass'
+  promptTemplate: string;  // the sub-prompt text sent as the user message
+  scratchFile: string | null; // relative path for intermediate output (null for synthesis)
+  outputFile?: string;     // real output file (only on synthesis step)
+  maxTurns: number;        // per-step maxTurns (lower than the agent's full-run value)
+  isSynthesis: boolean;    // true for the final step that writes the real output
+  /** When true, the orchestrator dynamically inserts chapter paths into the prompt
+   *  based on the word-count split. Used by Ghostlight's chunked reads. */
+  dynamic?: boolean;
+};
+
 // === Streaming ===
 
 export type StreamBlockType = 'thinking' | 'text' | 'tool_use' | 'tool_result';
@@ -236,7 +258,9 @@ export type StreamEvent =
   | { type: 'progressStage'; stage: ProgressStage }
   | { type: 'thinkingSummary'; summary: ThinkingSummary }
   | { type: 'toolDuration'; tool: TimestampedToolUse }
-  | { type: 'error'; message: string };
+  | { type: 'warning'; message: string }
+  | { type: 'error'; message: string }
+  | { type: 'multiCallProgress'; step: number; totalSteps: number; label: string };
 
 /**
  * Snapshot of an in-progress CLI stream, exposed via IPC so the renderer
@@ -262,7 +286,7 @@ export type ActiveStreamInfo = {
 export type ProviderId = string;
 
 /** The implementation strategy for a provider. Determines which infrastructure class is instantiated. */
-export type ProviderType = 'claude-cli' | 'opencode-cli' | 'openai-compatible';
+export type ProviderType = 'claude-cli' | 'ollama-cli' | 'opencode-cli' | 'openai-compatible';
 
 /** Capabilities a provider may support. Used to gate features in the UI and services. */
 export type ProviderCapability =
@@ -313,6 +337,7 @@ export type SavedPrompt = {
 
 export type AppSettings = {
   hasClaudeCli: boolean;   // true if `claude` CLI is detected and authenticated
+  hasOllamaCli: boolean;   // true if `ollama` CLI is detected
   model: string;
   maxTokens: number;
   enableThinking: boolean;

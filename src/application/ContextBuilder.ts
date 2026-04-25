@@ -46,8 +46,9 @@ export class ContextBuilder {
     thinkingBudget?: number;
     authorProfilePath?: string;
     seriesBiblePath?: string;
+    maxContextTokens?: number;
   }): AssembledContext {
-    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget, authorProfilePath, seriesBiblePath } = params;
+    const { agentName, agentSystemPrompt, manifest, messages, purposeInstructions, thinkingBudget, authorProfilePath, seriesBiblePath, maxContextTokens } = params;
 
     // 1. Build file manifest section
     const manifestSection = this.buildManifestSection(manifest);
@@ -83,8 +84,9 @@ export class ContextBuilder {
     const thinkingTokens = thinkingBudget ?? 0;
     const responseReserve = AGENT_RESPONSE_BUFFER[agentName] ?? CONTEXT_RESERVE_TOKENS;
 
+    const effectiveMaxTokens = maxContextTokens ?? MAX_CONTEXT_TOKENS;
     const fixedOverhead = systemPromptTokens + thinkingTokens + responseReserve + CONTEXT_RESERVE_TOKENS;
-    const turnBudgetTokens = Math.max(0, MAX_CONTEXT_TOKENS - fixedOverhead);
+    const turnBudgetTokens = Math.max(0, effectiveMaxTokens - fixedOverhead);
 
     // 6. Compact conversation history using dynamic budget
     const conversationMessages = this.compactConversation(messages, turnBudgetTokens);

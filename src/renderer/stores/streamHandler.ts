@@ -29,6 +29,7 @@ export interface StreamHandlerConfig {
 
   // --- Common event callbacks ---
   onStatus: (message: string) => void;
+  onWarning?: (message: string) => void;
   onBlockStart: (blockType: StreamBlockType) => void;
   onThinkingDelta: (text: string) => void;
   onTextDelta: (text: string) => void;
@@ -43,6 +44,7 @@ export interface StreamHandlerConfig {
   onThinkingSummary?: (summary: { text: string }) => void;
   onToolDuration?: (tool: TimestampedToolUse) => void;
   onFilesChanged?: (paths: string[]) => void;
+  onMultiCallProgress?: (step: number, totalSteps: number, label: string) => void;
 }
 
 /**
@@ -97,6 +99,10 @@ export function createStreamHandler(config: StreamHandlerConfig): (event: Stream
         config.onStatus(event.message);
         break;
 
+      case 'warning':
+        config.onWarning?.(event.message);
+        break;
+
       case 'blockStart':
         config.onBlockStart(event.blockType);
         break;
@@ -131,6 +137,10 @@ export function createStreamHandler(config: StreamHandlerConfig): (event: Stream
 
       case 'filesChanged':
         config.onFilesChanged?.(event.paths);
+        break;
+
+      case 'multiCallProgress':
+        config.onMultiCallProgress?.(event.step, event.totalSteps, event.label);
         break;
 
       case 'done':

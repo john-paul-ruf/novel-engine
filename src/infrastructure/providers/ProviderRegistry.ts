@@ -122,6 +122,65 @@ export class ProviderRegistry implements IProviderRegistry {
     this.configs.set(providerId, updated);
     this.rebuildModelIndex();
     this.persistConfigs();
+
+    // If the baseUrl changed, notify the provider instance so it can
+    // reconnect to the new endpoint without requiring an app restart.
+    if (partial.baseUrl !== undefined && partial.baseUrl !== existing.baseUrl) {
+      const provider = this.providers.get(providerId);
+      if (provider && 'setBaseUrl' in provider && typeof (provider as { setBaseUrl: unknown }).setBaseUrl === 'function') {
+        (provider as { setBaseUrl: (url: string) => void }).setBaseUrl(partial.baseUrl);
+      }
+
+      // For Ollama: auto-fetch models from the new endpoint so the user
+      // doesn't need to restart the app after changing the host.
+      if (existing.type === 'ollama-cli' && partial.baseUrl) {
+        this.refreshOllamaModels(providerId, partial.baseUrl).catch((err) =>
+          console.error('[ProviderRegistry] Failed to refresh Ollama models:', err),
+        );
+      }
+    }
+  }
+
+  /**
+   * Fetch models from an Ollama endpoint via /api/tags and update the
+   * provider config's model list. Called when the Ollama base URL changes.
+   */
+  private async refreshOllamaModels(providerId: ProviderId, baseUrl: string): Promise<void> {
+    const normalizedUrl = baseUrl.startsWith('http') ? baseUrl : `http://${baseUrl}`;
+    try {
+      const resp = await fetch(`${normalizedUrl}/api/tags`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!resp.ok) return;
+      const data = await resp.json() as { models?: { name: string }[] };
+      const models: ModelInfo[] = (data.models ?? []).map((m) => ({
+        id: m.name,
+        label: m.name.replace(/:latest$/, ''),
+        description: `Ollama model — ${m.name}`,
+        providerId,
+        supportsThinking: false,
+        supportsToolUse: false,
+      }));
+
+      if (models.length > 0) {
+        const existing = this.configs.get(providerId);
+        if (existing) {
+          const updated: ProviderConfig = {
+            ...existing,
+            enabled: true,
+            models,
+            defaultModel: existing.defaultModel ?? models[0]?.id,
+          };
+          this.configs.set(providerId, updated);
+          this.rebuildModelIndex();
+          this.persistConfigs();
+          console.log(`[ProviderRegistry] Refreshed Ollama models from ${normalizedUrl} — ${models.length} models`);
+        }
+      }
+    } catch (err) {
+      console.warn(`[ProviderRegistry] Could not fetch Ollama models from ${normalizedUrl}:`, err);
+    }
   }
 
   setDefaultProvider(providerId: ProviderId): void {
@@ -176,7 +235,17 @@ export class ProviderRegistry implements IProviderRegistry {
 
   private rebuildModelIndex(): void {
     this.modelIndex.clear();
-    for (const config of this.configs.values()) {
+
+    // Register user-added providers first, then built-in providers.
+    // This way, built-in providers (which have richer capabilities like
+    // tool-use) always win when a model ID exists in multiple providers.
+    const sorted = Array.from(this.configs.values()).sort((a, b) => {
+      if (a.isBuiltIn && !b.isBuiltIn) return 1;  // built-in comes last (overwrites)
+      if (!a.isBuiltIn && b.isBuiltIn) return -1;
+      return 0;
+    });
+
+    for (const config of sorted) {
       if (!config.enabled) continue;
       for (const model of config.models) {
         this.modelIndex.set(model.id, config.id);

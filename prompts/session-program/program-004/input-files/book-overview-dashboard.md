@@ -1,5 +1,0 @@
-A home screen for each book — a single page that answers "where am I in this project?" without clicking around. Current pipeline phase (with the next step highlighted), total word count vs target, last agent interaction and when, outstanding revision tasks from project-tasks.md, recently modified files, and a one-line summary of how long this book has been in progress.
-
-This is different from the statistics dashboard feature request, which is about charts and trends. The dashboard is current state: a project status card. What phase are you in, what needs doing, what happened last time you were here. Like opening a project management tool and seeing the Kanban — immediate orientation.
-
-Most useful when you come back to a book after a week away. Right now you open the app and land in the Chat view with no context about where you left off. The dashboard would be the landing screen when you switch books or open the app fresh. It reads from existing data — pipeline state, SQLite conversations, file system — no new data collection needed.

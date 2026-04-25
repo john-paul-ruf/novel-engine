@@ -54,10 +54,12 @@ import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
 import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
+import { OllamaCodeClient } from '@infra/ollama-cli';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
 import { SeriesService } from '@infra/series';
-import { BUILT_IN_PROVIDER_CONFIGS } from '@domain/constants';
+import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID } from '@domain/constants';
+import type { ModelInfo } from '@domain/types';
 
 // Application
 import { AuditService } from '@app/AuditService';
@@ -108,6 +110,83 @@ let booksDir: string;
 protocol.registerSchemesAsPrivileged([
   { scheme: 'novel-asset', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
+
+// ── Ollama Model Discovery ────────────────────────────────────────
+
+/**
+ * Run `ollama list` and parse the output into ModelInfo entries.
+ * Returns an empty array if the command fails or produces no models.
+ */
+async function fetchOllamaModels(ollamaBaseUrl: string): Promise<ModelInfo[]> {
+  try {
+    // First try the HTTP API (works for remote Ollama instances)
+    let models: ModelInfo[] = [];
+    try {
+      const resp = await fetch(`${ollamaBaseUrl}/api/tags`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (resp.ok) {
+        const data = await resp.json() as { models?: { name: string }[] };
+        models = (data.models ?? []).map((m) => ({
+          id: m.name,
+          label: m.name.replace(/:latest$/, ''),
+          description: `Ollama model — ${m.name}`,
+          providerId: OLLAMA_CLI_PROVIDER_ID,
+          supportsThinking: false,
+          supportsToolUse: false,
+        }));
+      }
+    } catch { /* API not reachable — fall back to CLI */ }
+
+    // Fallback: try local `ollama list` CLI
+    if (models.length === 0) {
+      const { stdout } = await execFileAsync('ollama', ['list'], { timeout: 10_000 });
+      const lines = stdout.trim().split('\n');
+      // First line is the header: "NAME    ID    SIZE    MODIFIED"
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].trim().split(/\s+/);
+        if (!cols[0]) continue;
+        const name = cols[0]; // e.g. "llama3.1:latest"
+        const label = name.replace(/:latest$/, '');
+        models.push({
+          id: name,
+          label,
+          description: `Ollama model — ${name}`,
+          providerId: OLLAMA_CLI_PROVIDER_ID,
+          supportsThinking: false,
+          supportsToolUse: false,
+        });
+      }
+    }
+
+    // Enrich with context window sizes via /api/show (best-effort)
+    await Promise.allSettled(models.map(async (m) => {
+      try {
+        const r = await fetch(`${ollamaBaseUrl}/api/show`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: m.id }),
+          signal: AbortSignal.timeout(5_000),
+        });
+        if (!r.ok) return;
+        const d = await r.json() as Record<string, unknown>;
+        const mi = d.model_info as Record<string, unknown> | undefined;
+        if (!mi) return;
+        for (const [k, v] of Object.entries(mi)) {
+          if (k.endsWith('.context_length') && typeof v === 'number') {
+            m.contextWindow = v;
+            break;
+          }
+        }
+      } catch { /* contextWindow stays undefined */ }
+    }));
+    return models;
+  } catch {
+    console.warn('[startup] Failed to fetch Ollama models');
+    return [];
+  }
+}
 
 // ── Window ─────────────────────────────────────────────────────────
 
@@ -238,9 +317,34 @@ async function initializeApp(): Promise<void> {
     claudeConfig ?? BUILT_IN_PROVIDER_CONFIGS[0],
   );
 
+  // Register the built-in Ollama CLI provider (always registered so the user
+  // can configure the endpoint in Settings even if Ollama isn't reachable yet)
+  const savedOllamaConfig = appSettings.providers.find(p => p.id === OLLAMA_CLI_PROVIDER_ID);
+  const ollamaClient = new OllamaCodeClient(booksDir, db, savedOllamaConfig?.baseUrl);
+  const ollamaBaseConfig = savedOllamaConfig
+    ?? BUILT_IN_PROVIDER_CONFIGS.find(p => p.id === OLLAMA_CLI_PROVIDER_ID)!;
+
+  const ollamaAvailable = await ollamaClient.isAvailable();
+  let ollamaModels: ModelInfo[] = [];
+  if (ollamaAvailable) {
+    ollamaModels = await fetchOllamaModels(ollamaClient.getBaseUrl());
+    await settings.update({ hasOllamaCli: true });
+    console.log(`[startup] Ollama detected at ${ollamaClient.getBaseUrl()} — ${ollamaModels.length} models available`);
+  } else {
+    console.log(`[startup] Ollama not reachable at ${ollamaClient.getBaseUrl()} — provider registered for configuration`);
+  }
+
+  providerRegistry.registerProvider(ollamaClient, {
+    ...ollamaBaseConfig,
+    enabled: ollamaAvailable,
+    models: ollamaModels,
+    defaultModel: ollamaModels[0]?.id,
+  });
+
   // Initialize user-configured providers from settings
   for (const config of appSettings.providers) {
     if (config.id === 'claude-cli') continue;
+    if (config.id === OLLAMA_CLI_PROVIDER_ID) continue; // already registered above
     if (!config.enabled) continue;
 
     if (config.type === 'openai-compatible') {

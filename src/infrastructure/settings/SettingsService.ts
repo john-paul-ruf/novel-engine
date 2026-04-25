@@ -54,4 +54,17 @@ export class SettingsService implements ISettingsService {
       return false;
     }
   }
+
+  async detectOllamaCli(): Promise<boolean> {
+    try {
+      const { stdout } = await execFile('ollama', ['--version'], { timeout: 10_000 });
+      const found = stdout.trim().length > 0;
+      await this.update({ hasOllamaCli: found });
+      return found;
+    } catch {
+      // CLI not found or timed out
+      await this.update({ hasOllamaCli: false });
+      return false;
+    }
+  }
 }
