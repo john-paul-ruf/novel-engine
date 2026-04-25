@@ -445,7 +445,7 @@ export const MULTI_CALL_SCRATCH_DIR = 'source/.scratch';
  * Lower values = more batches = smaller context per call = slower but safer.
  * Higher values = fewer batches = larger context = faster but may stall.
  */
-export const MULTI_CALL_TARGET_WORDS_PER_BATCH = 25_000;
+export const MULTI_CALL_TARGET_WORDS_PER_BATCH = 15_000;
 
 /**
  * Sable (Copy Edit) — 6 steps: 5 audit passes + synthesis.
@@ -581,24 +581,24 @@ export const LUMEN_MULTI_CALL_STEPS: MultiCallStep[] = [
 
 **Instructions:**
 1. Use the **Read** tool on each chapter file listed above, one at a time, in order.
-2. Also read any available reference docs: source/pitch.md, source/story-bible.md, source/scene-outline.md, source/reader-report.md, source/voice-profile.md (if they exist).
-3. After reading ALL chapters in this batch, use the **Write** tool to create the tracker file.
+2. After reading ALL chapters in this batch, use the **Write** tool to create the tracker file.
 
-For each chapter, track these structural elements:
+For each chapter, track these structural elements in concise bullet form:
 - **Premise signals**: What is promised/delivered? Genre contract beats.
 - **Protagonist arc beats**: Want/need, internal state, turning points, growth/regression moments.
-- **Supporting cast function**: Each named character's role (foil, catalyst, mirror, etc.), arc beats, page-time justification.
+- **Supporting cast function**: Each named character's role (foil, catalyst, mirror, etc.), arc beats.
 - **Pacing**: Scene tempo (fast/medium/slow), tension level (1–5), momentum direction.
-- **Scene purpose**: What each scene accomplishes (advances plot, reveals character, builds world, etc.). Flag scenes doing < 2 jobs.
-- **Prose & craft notes**: Voice consistency, POV discipline, dialogue authenticity, sensory detail quality, standout passages.
+- **Scene purpose**: What each scene accomplishes. Flag scenes doing < 2 jobs.
+- **Prose & craft notes**: Voice consistency, POV discipline, dialogue authenticity, standout passages.
 - **Thematic markers**: Motifs, symbols, thematic statements — organic or forced?
-- **Key quotes**: Pull quotes that exemplify strengths or weaknesses.
+- **Key quotes**: 1–2 pull quotes per chapter that exemplify strengths or weaknesses.
 
 **IMPORTANT: You MUST use the Write tool to create \`source/.scratch/lumen-read-1.md\` before finishing.** Do not end without writing the file.
 
+Do NOT read any reference docs (pitch, story-bible, etc.) — focus only on the chapters listed above.
 Do NOT write any analysis or dev report yet — this is a reading pass only.`,
     scratchFile: 'source/.scratch/lumen-read-1.md',
-    maxTurns: 50,
+    maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
   },
@@ -610,25 +610,26 @@ Do NOT write any analysis or dev report yet — this is a reading pass only.`,
 {{CHAPTER_LIST}}
 
 **Instructions:**
-1. Use the **Read** tool on \`source/.scratch/lumen-read-1.md\` to recall your structural notes from the previous batch — carry forward protagonist arc trajectory, running cast assessments, and pacing patterns.
+1. Use the **Read** tool on \`source/.scratch/lumen-read-1.md\` to recall your structural notes from the previous batch.
 2. Use the **Read** tool on each chapter file listed above, one at a time, in order.
 3. After reading ALL chapters in this batch, use the **Write** tool to create the tracker file.
 
-For each chapter, track these structural elements:
+For each chapter, track in concise bullet form:
 - **Premise signals**: What is promised/delivered? Genre contract beats.
 - **Protagonist arc beats**: Want/need, internal state, turning points, growth/regression moments.
-- **Supporting cast function**: Each named character's role, arc beats, page-time justification.
-- **Pacing**: Scene tempo, tension level (1–5), momentum direction.
+- **Supporting cast function**: Each named character's role, arc beats.
+- **Pacing**: Scene tempo (fast/medium/slow), tension level (1–5), momentum direction.
 - **Scene purpose**: What each scene accomplishes. Flag scenes doing < 2 jobs.
-- **Prose & craft notes**: Voice consistency, POV discipline, dialogue authenticity, sensory detail.
+- **Prose & craft notes**: Voice consistency, POV discipline, dialogue authenticity, standout passages.
 - **Thematic markers**: Motifs, symbols, thematic statements — organic or forced?
-- **Key quotes**: Pull quotes that exemplify strengths or weaknesses.
+- **Key quotes**: 1–2 pull quotes per chapter that exemplify strengths or weaknesses.
 
 **IMPORTANT: You MUST use the Write tool to create \`source/.scratch/lumen-read-2.md\` before finishing.** Do not end without writing the file.
 
+Do NOT read any reference docs or other files — focus only on the chapters listed above and the prior batch tracker.
 Do NOT write any analysis or dev report yet — this is a reading pass only.`,
     scratchFile: 'source/.scratch/lumen-read-2.md',
-    maxTurns: 50,
+    maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
   },
@@ -764,7 +765,7 @@ Track your real-time experience for each chapter:
 
 Do NOT write the reader report yet — this is batch 1 of 2.`,
     scratchFile: 'source/.scratch/ghostlight-read-1.md',
-    maxTurns: 50,
+    maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
   },
@@ -792,7 +793,7 @@ Continue tracking for each chapter:
 
 Do NOT write the reader report yet — this is batch 2 of 2.`,
     scratchFile: 'source/.scratch/ghostlight-read-2.md',
-    maxTurns: 50,
+    maxTurns: 15,
     isSynthesis: false,
     dynamic: true,
   },
@@ -820,7 +821,7 @@ Produce the complete reader report following the format in your system instructi
 Write the final report to source/reader-report.md.`,
     scratchFile: null,
     outputFile: 'source/reader-report.md',
-    maxTurns: 50,
+    maxTurns: 15,
     isSynthesis: true,
   },
 ];
