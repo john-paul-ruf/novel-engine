@@ -114,6 +114,22 @@ export class MultiCallOrchestrator {
     // batches at 25K words each to avoid overwhelming the model's context.
     const expandedSteps = this.expandDynamicSteps(steps, manifest);
 
+    // For non-dynamic agents (e.g. Sable), ensure the synthesis step's
+    // maxTurns scales with the number of scratch files it must read.
+    // Dynamic agents handle this inside expandDynamicSteps.
+    const hasDynamic = steps.some(s => s.dynamic);
+    if (!hasDynamic) {
+      const synthIdx = expandedSteps.findIndex(s => s.isSynthesis);
+      if (synthIdx !== -1) {
+        const scratchCount = expandedSteps.filter(s => s.scratchFile).length;
+        const floor = expandedSteps[synthIdx].maxTurns;
+        expandedSteps[synthIdx] = {
+          ...expandedSteps[synthIdx],
+          maxTurns: Math.max(floor, scratchCount + 5),
+        };
+      }
+    }
+
     // Compute chapter batches for the (possibly expanded) dynamic steps
     const chapterBatches = this.computeChapterBatches(manifest, expandedSteps);
 
@@ -159,6 +175,23 @@ export class MultiCallOrchestrator {
           thinkingBudgetOverride: params.thinkingBudgetOverride,
         });
         allChangedFiles.push(...stepChangedFiles);
+
+        // Verify the step wrote its expected file (scratch or output).
+        // Models can exhaust maxTurns or silently skip the Write call,
+        // leaving downstream steps with missing input. Fail fast so the
+        // user can retry this step instead of discovering a broken report
+        // several steps later.
+        const expectedFile = step.scratchFile ?? step.outputFile;
+        if (expectedFile) {
+          const written = await this.fs.fileExists(bookSlug, expectedFile);
+          if (!written) {
+            throw new Error(
+              `Step "${step.label}" completed but never wrote its expected file ` +
+              `${expectedFile}. The model may have exhausted its ${step.maxTurns}-turn limit ` +
+              `before calling the Write tool.`,
+            );
+          }
+        }
       } catch (err) {
         console.error(
           `[MultiCallOrchestrator] Step ${stepNum}/${expandedSteps.length} failed: ${step.label}`,
@@ -174,7 +207,7 @@ export class MultiCallOrchestrator {
       }
     }
 
-    // All steps completed — clean up scratch files
+    // All steps completed and every expected file verified — clean up scratch files
     await this.cleanupScratchFiles(bookSlug, expandedSteps);
 
     return { changedFiles: allChangedFiles };
@@ -501,12 +534,19 @@ export class MultiCallOrchestrator {
       // vs. lens analysis files (Lumen pattern — no change needed)
       const refsReadBatches = synthesisStep.promptTemplate.includes(`${baseId}-`);
 
+      // Dynamically scale maxTurns based on the number of scratch files
+      // the synthesis step will need to read plus headroom for writing.
+      const scratchFileCount = refsReadBatches
+        ? readSteps.length
+        : readSteps.length + staticSteps.filter(s => s.scratchFile).length;
+      const dynamicMaxTurns = Math.max(synthesisStep.maxTurns, scratchFileCount + 5);
+
       if (refsReadBatches) {
         // Ghostlight pattern: rebuild synthesis to reference all batch tracker files
         const batchFileList = readSteps.map(s => `- ${s.scratchFile}`).join('\n');
         updatedSynthesis = {
           ...synthesisStep,
-          maxTurns: batchCount + 5,
+          maxTurns: dynamicMaxTurns,
           promptTemplate: `Synthesize the final Reader Report from your reading experience.
 
 **IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your batch notes already contain everything you need.
@@ -529,7 +569,10 @@ Write the final report to source/reader-report.md.`,
       } else {
         // Lumen pattern (or any agent where synthesis reads analysis files, not read batches):
         // No prompt changes needed — synthesis already references the right files.
-        updatedSynthesis = synthesisStep;
+        updatedSynthesis = {
+          ...synthesisStep,
+          maxTurns: dynamicMaxTurns,
+        };
       }
     }
 

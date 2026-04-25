@@ -569,7 +569,7 @@ Write the final report to source/audit-report.md.
 Also update source/style-sheet.md if Pass 1 built or modified it.`,
     scratchFile: null,
     outputFile: 'source/audit-report.md',
-    maxTurns: 12,
+    maxTurns: 30,
     isSynthesis: true,
   },
 ];
@@ -752,7 +752,7 @@ Produce the complete developmental report following the format in your system in
 Write the final report to source/dev-report.md.`,
     scratchFile: null,
     outputFile: 'source/dev-report.md',
-    maxTurns: 10,
+    maxTurns: 30,
     isSynthesis: true,
   },
 ];
