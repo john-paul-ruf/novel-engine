@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 
 import type { IModelProvider, IDatabaseService } from '@domain/interfaces';
 import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@domain/types';
-import { CHARS_PER_TOKEN, LLAMA_SERVER_PROVIDER_ID } from '@domain/constants';
+import { CHARS_PER_TOKEN, MAX_CALL_CONTEXT_TOKENS, LLAMA_SERVER_PROVIDER_ID } from '@domain/constants';
 import { StreamSessionTracker } from '../claude-cli/StreamSessionTracker';
 import { ToolExecutor } from '../ollama-cli/ToolExecutor';
 import { OLLAMA_TOOLS, WRITE_TOOLS } from '../ollama-cli/tools';
@@ -248,9 +248,27 @@ export class LlamaServerClient implements IModelProvider {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
+    // Context ceiling: stop before hitting the hard limit so the model
+    // has room to produce its response. 90% of the global cap.
+    const contextCeiling = Math.floor(MAX_CALL_CONTEXT_TOKENS * 0.90);
+
     try {
       for (let turn = 0; turn < maxTurns; turn++) {
-        console.log(`[LlamaServerClient] Turn ${turn + 1}/${maxTurns} starting...`);
+        // ── Context size guard ──────────────────────────────────────
+        const estimatedTokens = this.estimateMessageTokens(apiMessages);
+        if (turn > 0 && estimatedTokens > contextCeiling) {
+          console.warn(
+            `[LlamaServerClient] Context ceiling reached: ~${estimatedTokens.toLocaleString()} tokens ` +
+            `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
+          );
+          wrappedOnEvent({
+            type: 'status',
+            message: `Context limit approaching (~${Math.round(estimatedTokens / 1000)}K tokens). Finishing current work.`,
+          });
+          break;
+        }
+
+        console.log(`[LlamaServerClient] Turn ${turn + 1}/${maxTurns} starting (est. ~${estimatedTokens.toLocaleString()} tokens)...`);
 
         const turnResult = await this.streamOneTurn({
           model,
@@ -782,6 +800,23 @@ export class LlamaServerClient implements IModelProvider {
       }
     }
     return 0;
+  }
+
+  /**
+   * Estimate total token count for an array of OpenAI-format messages.
+   * Uses the simple chars/token heuristic — good enough for a guard rail.
+   */
+  private estimateMessageTokens(messages: OpenAIMessage[]): number {
+    let totalChars = 0;
+    for (const msg of messages) {
+      totalChars += (msg.content ?? '').length;
+      if (msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          totalChars += tc.function.arguments.length;
+        }
+      }
+    }
+    return Math.ceil(totalChars / CHARS_PER_TOKEN);
   }
 
   /**

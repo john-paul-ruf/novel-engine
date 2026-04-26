@@ -18,6 +18,9 @@ import type {
 } from '@domain/interfaces';
 import {
   AGENT_MULTI_CALL_STEPS,
+  MAX_CALL_CONTEXT_TOKENS,
+  MULTI_CALL_MAX_RETRIES,
+  MULTI_CALL_RETRY_EXTRA_TURNS,
   MULTI_CALL_SCRATCH_DIR,
   MULTI_CALL_TARGET_WORDS_PER_BATCH,
 } from '@domain/constants';
@@ -77,7 +80,7 @@ export class MultiCallOrchestrator {
    *   1. Emits multiCallProgress events so the UI shows step progress
    *   2. Builds a fresh context for each step (no conversation carryover)
    *   3. Injects the step's prompt as the user message
-   *   4. For dynamic steps (Ghostlight), resolves chapter lists at runtime
+   *   4. For dynamic steps, resolves chapter lists at runtime
    *   5. After synthesis succeeds, cleans up scratch files
    *
    * Returns the list of changed files (from the synthesis step).
@@ -104,17 +107,20 @@ export class MultiCallOrchestrator {
     const seriesBiblePath = await this.series.getSeriesBiblePath(bookSlug);
     const authorProfileAbsPath = this.fs.getAuthorProfilePath();
 
-    // Resolve model context window for budget-aware building
+    // Resolve model context window for budget-aware building, capped at global ceiling
     const modelInfo = this.providers.listAllModels().find(m => m.id === appSettings.model);
-    const modelContextWindow = modelInfo?.contextWindow;
+    const modelContextWindow = Math.min(
+      modelInfo?.contextWindow ?? MAX_CALL_CONTEXT_TOKENS,
+      MAX_CALL_CONTEXT_TOKENS,
+    );
 
-    // For agents with dynamic steps (Ghostlight), expand the step list
-    // based on actual manuscript word count. The static schema defines a
-    // template with 2 read steps, but a 102K-word manuscript needs ~4
-    // batches at 25K words each to avoid overwhelming the model's context.
+    // For agents with dynamic steps, expand the step list based on actual
+    // manuscript word count. The static schema defines template read steps,
+    // but a large manuscript needs multiple batches to avoid overwhelming
+    // the model's context.
     const expandedSteps = this.expandDynamicSteps(steps, manifest);
 
-    // For non-dynamic agents (e.g. Sable), ensure the synthesis step's
+    // For non-dynamic agents, ensure the synthesis step's
     // maxTurns scales with the number of scratch files it must read.
     // Dynamic agents handle this inside expandDynamicSteps.
     const hasDynamic = steps.some(s => s.dynamic);
@@ -135,11 +141,58 @@ export class MultiCallOrchestrator {
 
     const allChangedFiles: string[] = [];
 
+    // ── Resumption: detect which steps already have output on disk ──
+    // If a prior run was interrupted, scratch files from completed steps
+    // survive. We skip any step whose expected output file already exists,
+    // except the synthesis step — always re-run synthesis since the user
+    // explicitly triggered a new run (and cleanup only happens after
+    // successful synthesis, so existing scratch files prove synthesis
+    // hasn't completed yet).
+    const skippedSteps = new Set<number>();
+    for (let i = 0; i < expandedSteps.length; i++) {
+      const step = expandedSteps[i];
+      if (step.isSynthesis) continue; // never skip synthesis
+      const expectedFile = step.scratchFile ?? step.outputFile;
+      if (expectedFile) {
+        const exists = await this.fs.fileExists(bookSlug, expectedFile);
+        if (exists) {
+          skippedSteps.add(i);
+          console.log(
+            `[MultiCallOrchestrator] Resuming: skipping step ${i + 1} (${step.label}) — ` +
+            `${expectedFile} already exists`,
+          );
+        }
+      }
+    }
+
+    if (skippedSteps.size > 0) {
+      onEvent({
+        type: 'status',
+        message: `Resuming: ${skippedSteps.size} of ${expandedSteps.length} steps already complete, ` +
+          `skipping to step ${[...Array(expandedSteps.length).keys()].find(i => !skippedSteps.has(i))! + 1}`,
+      });
+    }
+
     // ── Run all steps sequentially ──────────────────────────────────
     for (let stepIdx = 0; stepIdx < expandedSteps.length; stepIdx++) {
       const step = expandedSteps[stepIdx];
       const stepNum = stepIdx + 1;
       const isFinalStep = stepIdx === expandedSteps.length - 1;
+
+      // Skip steps whose output already exists on disk (resumption)
+      if (skippedSteps.has(stepIdx)) {
+        onEvent({
+          type: 'multiCallProgress',
+          step: stepNum,
+          totalSteps: expandedSteps.length,
+          label: `✓ ${step.label} (cached)`,
+        });
+        onEvent({
+          type: 'status',
+          message: `Step ${stepNum}/${expandedSteps.length}: ${step.label} — skipped (output exists)`,
+        });
+        continue;
+      }
 
       // Emit progress event
       onEvent({
@@ -154,55 +207,113 @@ export class MultiCallOrchestrator {
         message: `Step ${stepNum}/${expandedSteps.length}: ${step.label}`,
       });
 
-      try {
-        const stepChangedFiles = await this.runSingleStep({
-          step,
-          stepNum,
-          totalSteps: expandedSteps.length,
-          isFinalStep,
-          agentName,
-          conversationId,
-          bookSlug,
-          appSettings,
-          agent,
-          manifest,
-          chapterBatches,
-          modelContextWindow,
-          authorProfileAbsPath,
-          seriesBiblePath,
-          onEvent,
-          callId: params.callId,
-          thinkingBudgetOverride: params.thinkingBudgetOverride,
-        });
-        allChangedFiles.push(...stepChangedFiles);
+      // ── Retry loop: attempt each step up to MULTI_CALL_MAX_RETRIES + 1 times ──
+      // On retry, bump maxTurns to give the model more room. The most common
+      // failure is the model exhausting its turn limit before calling Write.
+      let stepSucceeded = false;
 
-        // Verify the step wrote its expected file (scratch or output).
-        // Models can exhaust maxTurns or silently skip the Write call,
-        // leaving downstream steps with missing input. Fail fast so the
-        // user can retry this step instead of discovering a broken report
-        // several steps later.
-        const expectedFile = step.scratchFile ?? step.outputFile;
-        if (expectedFile) {
-          const written = await this.fs.fileExists(bookSlug, expectedFile);
-          if (!written) {
-            throw new Error(
-              `Step "${step.label}" completed but never wrote its expected file ` +
-              `${expectedFile}. The model may have exhausted its ${step.maxTurns}-turn limit ` +
-              `before calling the Write tool.`,
-            );
+      for (let attempt = 0; attempt <= MULTI_CALL_MAX_RETRIES; attempt++) {
+        const isRetry = attempt > 0;
+        const extraTurns = attempt * MULTI_CALL_RETRY_EXTRA_TURNS;
+
+        // On retry, create a modified step with bumped maxTurns
+        const effectiveStep = isRetry
+          ? { ...step, maxTurns: step.maxTurns + extraTurns }
+          : step;
+
+        if (isRetry) {
+          console.log(
+            `[MultiCallOrchestrator] Retrying step ${stepNum}/${expandedSteps.length} ` +
+            `(attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}, ` +
+            `maxTurns: ${effectiveStep.maxTurns})`,
+          );
+          onEvent({
+            type: 'multiCallProgress',
+            step: stepNum,
+            totalSteps: expandedSteps.length,
+            label: `↻ ${step.label} (retry ${attempt}/${MULTI_CALL_MAX_RETRIES})`,
+          });
+          onEvent({
+            type: 'status',
+            message: `Retrying step ${stepNum}/${expandedSteps.length}: ${step.label} ` +
+              `(attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}, ` +
+              `maxTurns bumped to ${effectiveStep.maxTurns})`,
+          });
+        }
+
+        try {
+          const stepChangedFiles = await this.runSingleStep({
+            step: effectiveStep,
+            stepNum,
+            totalSteps: expandedSteps.length,
+            isFinalStep,
+            agentName,
+            conversationId,
+            bookSlug,
+            appSettings,
+            agent,
+            manifest,
+            chapterBatches,
+            modelContextWindow,
+            authorProfileAbsPath,
+            seriesBiblePath,
+            onEvent,
+            callId: params.callId,
+            thinkingBudgetOverride: params.thinkingBudgetOverride,
+          });
+          allChangedFiles.push(...stepChangedFiles);
+
+          // Verify the step wrote its expected file (scratch or output).
+          // Models can exhaust maxTurns or silently skip the Write call,
+          // leaving downstream steps with missing input. Fail fast so the
+          // user can retry this step instead of discovering a broken report
+          // several steps later.
+          const expectedFile = step.scratchFile ?? step.outputFile;
+          if (expectedFile) {
+            const written = await this.fs.fileExists(bookSlug, expectedFile);
+            if (!written) {
+              throw new Error(
+                `Step "${step.label}" completed but never wrote its expected file ` +
+                `${expectedFile}. The model may have exhausted its ` +
+                `${effectiveStep.maxTurns}-turn limit before calling the Write tool.`,
+              );
+            }
+          }
+
+          // Step succeeded — break out of the retry loop
+          stepSucceeded = true;
+          break;
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          console.error(
+            `[MultiCallOrchestrator] Step ${stepNum}/${expandedSteps.length} failed ` +
+            `(attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}): ${step.label}`,
+            err,
+          );
+
+          if (attempt < MULTI_CALL_MAX_RETRIES) {
+            // More retries available — log and continue the retry loop
+            onEvent({
+              type: 'status',
+              message: `Step ${stepNum}/${expandedSteps.length} (${step.label}) failed: ${errMsg}. ` +
+                `Retrying (${MULTI_CALL_MAX_RETRIES - attempt} attempt(s) remaining)...`,
+            });
+          } else {
+            // All retries exhausted — give up on this step
+            onEvent({
+              type: 'error',
+              message: `Step ${stepNum}/${expandedSteps.length} (${step.label}) failed after ` +
+                `${MULTI_CALL_MAX_RETRIES + 1} attempts: ${errMsg}. ` +
+                `Prior results saved in ${MULTI_CALL_SCRATCH_DIR}/. ` +
+                `You can retry or run individual passes manually.`,
+            });
+            return { changedFiles: allChangedFiles };
           }
         }
-      } catch (err) {
-        console.error(
-          `[MultiCallOrchestrator] Step ${stepNum}/${expandedSteps.length} failed: ${step.label}`,
-          err,
-        );
-        onEvent({
-          type: 'error',
-          message: `Step ${stepNum}/${expandedSteps.length} (${step.label}) failed: ` +
-            `${err instanceof Error ? err.message : String(err)}. ` +
-            `Prior results saved in ${MULTI_CALL_SCRATCH_DIR}/. You can retry or run individual passes manually.`,
-        });
+      }
+
+      if (!stepSucceeded) {
+        // Safety net — should never reach here because the last catch returns
         return { changedFiles: allChangedFiles };
       }
     }
@@ -339,10 +450,8 @@ export class MultiCallOrchestrator {
     // here and re-throw after sendMessage resolves.
     let stepError: string | null = null;
 
-    const wrappedOnEvent = isFinalStep
-      ? onEvent
-      : (event: StreamEvent) => {
-          if (event.type === 'done') {
+    const wrappedOnEvent = (event: StreamEvent) => {
+          if (event.type === 'done' && !isFinalStep) {
             console.log(
               `[MultiCallOrchestrator] Intercepted intermediate done event (step ${stepNum}/${totalSteps})`,
             );
@@ -350,14 +459,20 @@ export class MultiCallOrchestrator {
           }
           if (event.type === 'error') {
             console.warn(
-              `[MultiCallOrchestrator] Intermediate error (step ${stepNum}): ${event.message}`,
+              `[MultiCallOrchestrator] Step ${stepNum}/${totalSteps} error: ${event.message}`,
             );
-            // Record the error so we can throw after sendMessage resolves
+            // Record the error so we can throw after sendMessage resolves.
+            // This is critical for ALL steps including the final one —
+            // LlamaServerClient emits errors via callback (never throws),
+            // so without this the catch block is never entered and
+            // scratch files would be cleaned up despite failure.
             stepError = event.message;
-            onEvent({
-              type: 'status',
-              message: `Step ${stepNum}/${totalSteps} failed: ${event.message}`,
-            });
+            if (!isFinalStep) {
+              onEvent({
+                type: 'status',
+                message: `Step ${stepNum}/${totalSteps} failed: ${event.message}`,
+              });
+            }
             return;
           }
           onEvent(event);
@@ -410,14 +525,19 @@ export class MultiCallOrchestrator {
    *
    * The static step schema defines template read steps with `dynamic: true`.
    * This method expands them into the right number of batches based on
-   * total word count, using the agent's own prompt templates (not hardcoded
-   * Ghostlight/Lumen-specific text).
+   * total word count, using the agent's own prompt templates.
    *
    * Template convention:
-   *   - First dynamic step = template for batch 1 (reads reference docs, no prior context)
-   *   - Last dynamic step  = template for batches 2..N (reads prior batch file for context)
+   *   - First dynamic step = template for batch 1 (no prior context)
+   *   - Last dynamic step  = template for batches 2..N (reads prior batch file)
    *   - Scratch file refs in templates use the template step's own numbering
-   *     (e.g. `lumen-read-1.md`, `lumen-read-2.md`) — replaced with actual batch numbers
+   *     (e.g. `<agent>-read-1.md`, `<agent>-read-2.md`) — replaced with actual batch numbers
+   *
+   * Supported placeholders in step templates (replaced generically):
+   *   - `{{CHAPTER_LIST}}`        — chapter file listing for this batch
+   *   - `{{READ_TRACKER_FILES}}`  — list of all read-batch scratch files (for analysis steps)
+   *   - `{{BATCH_TRACKER_FILES}}` — list of all read-batch scratch files (for synthesis steps)
+   *   - `{{BATCH_COUNT}}`         — number of read batches
    *
    * For a 102K-word manuscript at 25K/batch: 4 read steps + analysis steps + synthesis.
    * For a 20K-word manuscript: 1 read step + analysis steps + synthesis.
@@ -452,7 +572,7 @@ export class MultiCallOrchestrator {
       ? dynamicTemplates[dynamicTemplates.length - 1]
       : dynamicTemplates[0];
 
-    // Base ID: strip trailing -N (e.g. "lumen-read-1" → "lumen-read")
+    // Base ID: strip trailing -N (e.g. "agent-read-1" → "agent-read")
     const baseId = firstTemplate.id.replace(/-\d+$/, '');
 
     // Template numbering (for find-and-replace)
@@ -486,8 +606,8 @@ export class MultiCallOrchestrator {
       } else {
         // Subsequent batches: clone subsequent template, update file references.
         // IMPORTANT: replace higher-numbered refs first to avoid collision.
-        // e.g. template has "lumen-read-2.md" (own) and "lumen-read-1.md" (prior).
-        // For batch 3: own → "lumen-read-3.md", prior → "lumen-read-2.md".
+        // e.g. template has "<agent>-read-2.md" (own) and "<agent>-read-1.md" (prior).
+        // For batch 3: own → "<agent>-read-3.md", prior → "<agent>-read-2.md".
         let prompt = subsequentTemplate.promptTemplate;
 
         // Replace own scratch file ref first (higher template number)
@@ -527,53 +647,29 @@ export class MultiCallOrchestrator {
       };
     });
 
-    // Handle synthesis step
+    // Handle synthesis step: replace placeholders and scale maxTurns.
+    // All agent-specific content lives in the step definitions (constants.ts).
+    // The orchestrator only performs generic placeholder substitution.
     let updatedSynthesis: MultiCallStep | undefined;
     if (synthesisStep) {
-      // Check if synthesis references read batch files directly (Ghostlight pattern)
-      // vs. lens analysis files (Lumen pattern — no change needed)
-      const refsReadBatches = synthesisStep.promptTemplate.includes(`${baseId}-`);
-
-      // Dynamically scale maxTurns based on the number of scratch files
-      // the synthesis step will need to read plus headroom for writing.
-      const scratchFileCount = refsReadBatches
-        ? readSteps.length
-        : readSteps.length + staticSteps.filter(s => s.scratchFile).length;
+      const scratchFileCount = readSteps.length + staticSteps.filter(s => s.scratchFile).length;
       const dynamicMaxTurns = Math.max(synthesisStep.maxTurns, scratchFileCount + 5);
 
-      if (refsReadBatches) {
-        // Ghostlight pattern: rebuild synthesis to reference all batch tracker files
-        const batchFileList = readSteps.map(s => `- ${s.scratchFile}`).join('\n');
-        updatedSynthesis = {
-          ...synthesisStep,
-          maxTurns: dynamicMaxTurns,
-          promptTemplate: `Synthesize the final Reader Report from your reading experience.
+      // Build the batch tracker file list from expanded read steps
+      const batchTrackerFileList = readSteps
+        .map(s => `- ${s.scratchFile}`)
+        .join('\n');
 
-**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your batch notes already contain everything you need.
+      // Replace generic placeholders in the synthesis prompt template
+      const prompt = synthesisStep.promptTemplate
+        .replaceAll('{{BATCH_TRACKER_FILES}}', batchTrackerFileList)
+        .replaceAll('{{BATCH_COUNT}}', String(readSteps.length));
 
-Read ONLY these batch tracker files (use the Read tool on each one):
-${batchFileList}
-
-After reading all batch trackers, IMMEDIATELY write the final report using the Write tool. Do not read any other files.
-
-The report must include:
-- Chapter-by-chapter engagement map (merge all batches)
-- Emotional arc of the read
-- Running questions resolved and unresolved
-- Prediction log
-- Strongest and weakest moments
-- Overall reader verdict
-
-Write the final report to source/reader-report.md.`,
-        };
-      } else {
-        // Lumen pattern (or any agent where synthesis reads analysis files, not read batches):
-        // No prompt changes needed — synthesis already references the right files.
-        updatedSynthesis = {
-          ...synthesisStep,
-          maxTurns: dynamicMaxTurns,
-        };
-      }
+      updatedSynthesis = {
+        ...synthesisStep,
+        maxTurns: dynamicMaxTurns,
+        promptTemplate: prompt,
+      };
     }
 
     // Assemble in execution order: read batches → static analysis steps → synthesis
@@ -593,7 +689,7 @@ Write the final report to source/reader-report.md.`,
   }
 
   /**
-   * Compute chapter batches for dynamic (Ghostlight) steps.
+   * Compute chapter batches for dynamic steps.
    *
    * Splits chapters by cumulative word count, targeting roughly equal
    * word counts per batch. Returns a map from step ID to a formatted

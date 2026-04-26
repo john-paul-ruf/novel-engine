@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 
 import type { IModelProvider, IDatabaseService } from '@domain/interfaces';
 import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@domain/types';
-import { CHARS_PER_TOKEN, OLLAMA_CLI_PROVIDER_ID } from '@domain/constants';
+import { CHARS_PER_TOKEN, MAX_CALL_CONTEXT_TOKENS, OLLAMA_CLI_PROVIDER_ID } from '@domain/constants';
 import { StreamSessionTracker } from '../claude-cli/StreamSessionTracker';
 import { ToolExecutor } from './ToolExecutor';
 import { OLLAMA_TOOLS, WRITE_TOOLS } from './tools';
@@ -279,8 +279,15 @@ export class OllamaCodeClient implements IModelProvider {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
-    // Look up model context window for num_ctx
-    const contextWindow = await this.getModelContextWindow(model);
+    // Look up model context window for num_ctx, capped at the global ceiling
+    const rawContextWindow = await this.getModelContextWindow(model);
+    const contextWindow = rawContextWindow
+      ? Math.min(rawContextWindow, MAX_CALL_CONTEXT_TOKENS)
+      : MAX_CALL_CONTEXT_TOKENS;
+
+    // Warn threshold: stop adding turns when context reaches 90% of the cap.
+    // This leaves headroom for the model's response tokens.
+    const contextCeiling = Math.floor(contextWindow * 0.90);
 
     try {
       // ── Multi-turn agent loop ──────────────────────────────────────
@@ -290,7 +297,24 @@ export class OllamaCodeClient implements IModelProvider {
       // calls), we break out — the agent is done.
 
       for (let turn = 0; turn < maxTurns; turn++) {
-        console.log(`[OllamaCodeClient] Turn ${turn + 1}/${maxTurns} starting...`);
+        // ── Context size guard ──────────────────────────────────────
+        // Estimate total token count of all messages queued for the next
+        // turn. If we've exceeded the ceiling, break early so the model
+        // doesn't silently truncate or stall.
+        const estimatedTokens = this.estimateMessageTokens(apiMessages);
+        if (turn > 0 && estimatedTokens > contextCeiling) {
+          console.warn(
+            `[OllamaCodeClient] Context ceiling reached: ~${estimatedTokens.toLocaleString()} tokens ` +
+            `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
+          );
+          wrappedOnEvent({
+            type: 'status',
+            message: `Context limit approaching (~${Math.round(estimatedTokens / 1000)}K tokens). Finishing current work.`,
+          });
+          break;
+        }
+
+        console.log(`[OllamaCodeClient] Turn ${turn + 1}/${maxTurns} starting (est. ~${estimatedTokens.toLocaleString()} tokens)...`);
 
         const turnResult = await this.streamOneTurn({
           model,
@@ -742,6 +766,24 @@ export class OllamaCodeClient implements IModelProvider {
       }
     } catch { /* non-critical */ }
     return undefined;
+  }
+
+  /**
+   * Estimate total token count for an array of Ollama messages.
+   * Uses the simple chars/token heuristic — good enough for a guard rail.
+   */
+  private estimateMessageTokens(messages: OllamaMessage[]): number {
+    let totalChars = 0;
+    for (const msg of messages) {
+      totalChars += (msg.content ?? '').length;
+      // Tool call arguments add context too
+      if (msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          totalChars += JSON.stringify(tc.function.arguments).length;
+        }
+      }
+    }
+    return Math.ceil(totalChars / CHARS_PER_TOKEN);
   }
 
   /**

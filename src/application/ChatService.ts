@@ -23,7 +23,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VERITY_PHASE_FILES, VERITY_LEDGER_FILE, AGENT_REGISTRY, PHASE_OUTPUT_FILES, CLAUDE_CLI_PROVIDER_ID } from '@domain/constants';
+import { VERITY_PHASE_FILES, VERITY_LEDGER_FILE, AGENT_REGISTRY, PHASE_OUTPUT_FILES, CLAUDE_CLI_PROVIDER_ID, MAX_CALL_CONTEXT_TOKENS } from '@domain/constants';
 import { randomPreparingStatus, randomWaitingStatus } from '@domain/statusMessages';
 import { ContextBuilder } from './ContextBuilder';
 import { MultiCallOrchestrator } from './MultiCallOrchestrator';
@@ -150,9 +150,12 @@ export class ChatService implements IChatService {
     // pre-load manuscript content into the context as a safety net.
     const isClaudeCli = activeProvider.providerId === CLAUDE_CLI_PROVIDER_ID;
 
-    // Look up model's context window for budget-aware context building
+    // Look up model's context window for budget-aware context building, capped at global ceiling
     const modelInfo = this.providers.listAllModels().find(m => m.id === appSettings.model);
-    const modelContextWindow = modelInfo?.contextWindow;
+    const modelContextWindow = Math.min(
+      modelInfo?.contextWindow ?? MAX_CALL_CONTEXT_TOKENS,
+      MAX_CALL_CONTEXT_TOKENS,
+    );
 
     // Step 3: Load the agent metadata and system prompt
     const agent = await this.agents.load(agentName);

@@ -297,8 +297,15 @@ Read the full manuscript and scene outline. Write in present tense, third person
 
 // Token estimation: ~4 chars per token for English
 export const CHARS_PER_TOKEN = 4;
-// Opus context window
+// Opus context window (used for budget fraction calculations)
 export const MAX_CONTEXT_TOKENS = 200_000;
+/**
+ * Hard ceiling for any single CLI call's context window.
+ * Applies across all providers (Claude CLI, Ollama, llama-server).
+ * Keeps each call well within the 128K context limit of most models
+ * and prevents runaway context accumulation in multi-turn agent loops.
+ */
+export const MAX_CALL_CONTEXT_TOKENS = 125_000;
 // Reserve for response + system prompt overhead
 export const CONTEXT_RESERVE_TOKENS = 14_000;
 
@@ -448,21 +455,36 @@ import type { MultiCallStep } from '@domain/types';
 export const MULTI_CALL_SCRATCH_DIR = 'source/.scratch';
 
 /**
- * Target word count per read batch for dynamic (Ghostlight) steps.
+ * Target word count per read batch for dynamic steps.
  *
  * The orchestrator computes how many read batches are needed by dividing
  * the total manuscript word count by this target. For a 102K-word manuscript,
- * this yields ~4 batches of ~25K words each — manageable for Ollama models
- * with 128K–262K token context windows.
+ * this yields ~6 batches of ~17K words each.
  *
  * Lower values = more batches = smaller context per call = slower but safer.
  * Higher values = fewer batches = larger context = faster but may stall.
  *
- * At 30K words/batch, a 102K-word manuscript produces ~4 batches instead of ~7.
- * Each batch is still well within the 128K token context of most models
- * (~30K words ≈ ~40K tokens of manuscript content).
+ * At 20K words/batch (~27K tokens of manuscript), each batch stays well
+ * under the MAX_CALL_CONTEXT_TOKENS ceiling (125K) even after adding
+ * system prompt, tool definitions, tool results, and assistant responses.
  */
-export const MULTI_CALL_TARGET_WORDS_PER_BATCH = 30_000;
+export const MULTI_CALL_TARGET_WORDS_PER_BATCH = 20_000;
+
+/**
+ * Maximum number of retry attempts when a multi-call step fails.
+ *
+ * The most common failure mode is the model exhausting its maxTurns
+ * limit before writing the expected scratch file. On retry, maxTurns
+ * is bumped by MULTI_CALL_RETRY_EXTRA_TURNS to give the model more room.
+ */
+export const MULTI_CALL_MAX_RETRIES = 2;
+
+/**
+ * Extra turns granted to each retry attempt.
+ *
+ * Added cumulatively: attempt 1 gets +5, attempt 2 gets +10, etc.
+ */
+export const MULTI_CALL_RETRY_EXTRA_TURNS = 5;
 
 /**
  * Sable (Copy Edit) — 6 steps: 5 audit passes + synthesis.
@@ -546,26 +568,27 @@ Do NOT produce the final audit report yet — this is pass 5 of 5.`,
   {
     id: 'sable-synthesis',
     label: 'Synthesize Audit Report',
+    lightweightPrompt: true,
     promptTemplate: `Synthesize the final Copy Edit Audit Report.
 
-**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. The pass results already contain all findings.
+**CRITICAL RULES — read carefully before doing anything:**
+1. You have EXACTLY 5 files to read. Do NOT read anything else — no chapters, no manuscript files.
+2. After reading all 5 files, write the report IMMEDIATELY. Do not re-read files.
+3. If you are tempted to read a file not listed below, STOP and write the report instead.
 
-Read ONLY these five pass result files (use the Read tool on each one):
+Read these 5 files (use the Read tool on each):
 - source/.scratch/sable-pass-1.md (Style Sheet & Consistency)
 - source/.scratch/sable-pass-2.md (Continuity & Facts)
 - source/.scratch/sable-pass-3.md (Grammar & Mechanics)
 - source/.scratch/sable-pass-4.md (Repetition & Word-Level)
 - source/.scratch/sable-pass-5.md (Formatting & Production)
 
-After reading all five files, IMMEDIATELY write the final report using the Write tool. Do not read any other files.
-
-Combine all findings into one structured audit report following the format in your system instructions. Include:
+Then IMMEDIATELY write the final report to source/audit-report.md with:
 - Summary with total counts by severity
 - Findings by chapter (merged from all passes)
 - Global findings
 - Queries for author
 
-Write the final report to source/audit-report.md.
 Also update source/style-sheet.md if Pass 1 built or modified it.`,
     scratchFile: null,
     outputFile: 'source/audit-report.md',
@@ -731,25 +754,25 @@ Do NOT produce the final dev report yet — this is lens group 3 of 3.`,
   {
     id: 'lumen-synthesis',
     label: 'Synthesize Dev Report',
+    lightweightPrompt: true,
     promptTemplate: `Synthesize the final Developmental Assessment Report.
 
-**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. The lens analyses already contain everything you need.
+**CRITICAL RULES — read carefully before doing anything:**
+1. You have EXACTLY 3 files to read. Do NOT read anything else — no chapters, no batch trackers, no other files.
+2. After reading all 3 files, write the report IMMEDIATELY. Do not re-read files.
+3. If you are tempted to read a file not listed below, STOP and write the report instead.
 
-Read ONLY these analysis files (use the Read tool on each one):
+Read these 3 files (use the Read tool on each):
 - source/.scratch/lumen-lenses-1-3.md (Premise, Protagonist Arc, Supporting Cast)
 - source/.scratch/lumen-lenses-4-5.md (Pacing & Scene Necessity — includes pacing map and scene audit table)
 - source/.scratch/lumen-lenses-6-7.md (Prose Craft & Thematic Integration)
 
-After reading all three files, IMMEDIATELY write the final report using the Write tool. Do not read any other files.
-
-Produce the complete developmental report following the format in your system instructions:
+Then IMMEDIATELY write the final report to source/dev-report.md with these sections:
 - Executive summary (what's working, what's not, why)
 - All 7 lens sections (consolidated from the three analyses)
 - Pacing map
 - Scene necessity audit table
-- Prioritized revision roadmap
-
-Write the final report to source/dev-report.md.`,
+- Prioritized revision roadmap`,
     scratchFile: null,
     outputFile: 'source/dev-report.md',
     maxTurns: 30,
@@ -828,25 +851,24 @@ Do NOT write the reader report yet — this is batch 2 of 2.`,
   {
     id: 'ghostlight-synthesis',
     label: 'Synthesize Reader Report',
+    lightweightPrompt: true,
     promptTemplate: `Synthesize the final Reader Report from your reading experience.
 
-**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your batch notes already contain everything you need.
+**CRITICAL RULES — read carefully before doing anything:**
+1. You have EXACTLY {{BATCH_COUNT}} files to read. Do NOT read anything else — no chapters, no manuscript files.
+2. After reading all files, write the report IMMEDIATELY. Do not re-read files.
+3. If you are tempted to read a file not listed below, STOP and write the report instead.
 
-Read ONLY these batch tracker files (use the Read tool on each one):
-- source/.scratch/ghostlight-read-1.md (first half)
-- source/.scratch/ghostlight-read-2.md (second half)
+Read these {{BATCH_COUNT}} files (use the Read tool on each):
+{{BATCH_TRACKER_FILES}}
 
-After reading both files, IMMEDIATELY write the final report using the Write tool. Do not read any other files.
-
-Produce the complete reader report following the format in your system instructions:
-- Chapter-by-chapter engagement map
+Then IMMEDIATELY write the final report to source/reader-report.md with:
+- Chapter-by-chapter engagement map (merge all batches)
 - Emotional arc of the read
 - Running questions resolved and unresolved
 - Prediction log
 - Strongest and weakest moments
-- Overall reader verdict
-
-Write the final report to source/reader-report.md.`,
+- Overall reader verdict`,
     scratchFile: null,
     outputFile: 'source/reader-report.md',
     maxTurns: 15,
