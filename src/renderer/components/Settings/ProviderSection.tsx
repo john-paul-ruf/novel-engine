@@ -13,6 +13,7 @@ function StatusDot({ status }: { status: ProviderStatus | undefined }): React.Re
 
 function TypeBadge({ type }: { type: string }): React.ReactElement {
   const label = type === 'claude-cli' ? 'Claude CLI' :
+    type === 'codex-cli' ? 'Codex CLI' :
     type === 'openai-compatible' ? 'OpenAI Compatible' :
     type;
   return (
@@ -233,7 +234,7 @@ export function ProviderSection(): React.ReactElement {
     <section className="space-y-3">
       <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Model Providers</h3>
       <p className="text-sm text-zinc-500">
-        Configure AI model providers. Claude CLI is the primary provider with full tool-use support. Add OpenAI-compatible providers for BYOK or self-hosted models (text only).
+        Configure AI model providers. Claude CLI and Codex CLI support local tool-use workflows. Add OpenAI-compatible providers for BYOK or self-hosted models (text only).
       </p>
       <div className="space-y-3">
         {providers.map((config) => (
