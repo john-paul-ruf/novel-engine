@@ -54,10 +54,11 @@ import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
 import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
+import { CodexCliClient } from '@infra/codex-cli';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
 import { SeriesService } from '@infra/series';
-import { BUILT_IN_PROVIDER_CONFIGS } from '@domain/constants';
+import { BUILT_IN_PROVIDER_CONFIGS, CLAUDE_CLI_PROVIDER_ID, CODEX_CLI_PROVIDER_ID } from '@domain/constants';
 
 // Application
 import { AuditService } from '@app/AuditService';
@@ -226,21 +227,32 @@ async function initializeApp(): Promise<void> {
   const agents = new AgentService(agentsDir);
   const fs = new FileSystemService(booksDir, userDataPath);
   const claudeClient = new ClaudeCodeClient(booksDir, db);
+  const codexClient = new CodexCliClient(booksDir, db);
 
   // 3b. Initialize provider registry
   const providerRegistry = new ProviderRegistry(settings);
 
   // Register the built-in Claude CLI provider
   const appSettings = await settings.load();
-  const claudeConfig = appSettings.providers.find(p => p.id === 'claude-cli');
+  const claudeConfig = appSettings.providers.find(p => p.id === CLAUDE_CLI_PROVIDER_ID);
   providerRegistry.registerProvider(
     claudeClient,
     claudeConfig ?? BUILT_IN_PROVIDER_CONFIGS[0],
   );
 
+  // Register the built-in Codex CLI provider
+  const codexConfig = appSettings.providers.find(p => p.id === CODEX_CLI_PROVIDER_ID);
+  const builtInCodexConfig = BUILT_IN_PROVIDER_CONFIGS.find(p => p.id === CODEX_CLI_PROVIDER_ID);
+  if (builtInCodexConfig) {
+    providerRegistry.registerProvider(
+      codexClient,
+      codexConfig ?? builtInCodexConfig,
+    );
+  }
+
   // Initialize user-configured providers from settings
   for (const config of appSettings.providers) {
-    if (config.id === 'claude-cli') continue;
+    if (config.isBuiltIn) continue;
     if (!config.enabled) continue;
 
     if (config.type === 'openai-compatible') {

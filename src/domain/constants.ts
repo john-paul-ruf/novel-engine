@@ -154,7 +154,7 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
         description: 'OpenAI Codex model for long-running agentic writing tasks',
         providerId: CODEX_CLI_PROVIDER_ID,
         contextWindow: 400_000,
-        supportsThinking: true,
+        supportsThinking: false,
         supportsToolUse: true,
       },
       {
@@ -163,12 +163,12 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
         description: 'OpenAI Codex model optimized for coding-agent style tool use',
         providerId: CODEX_CLI_PROVIDER_ID,
         contextWindow: 400_000,
-        supportsThinking: true,
+        supportsThinking: false,
         supportsToolUse: true,
       },
     ],
     defaultModel: 'gpt-5.2-codex',
-    capabilities: ['text-completion', 'tool-use', 'thinking', 'streaming'],
+    capabilities: ['text-completion', 'tool-use', 'streaming'],
   },
 ];
 
