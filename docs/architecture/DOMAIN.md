@@ -1,6 +1,6 @@
 # Domain — Types, Interfaces, Constants
 
-> Last updated: 2026-03-28
+> Last updated: 2026-04-26
 
 Everything in `src/domain/`. Pure TypeScript declarations — zero imports from other layers.
 
@@ -87,7 +87,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | Type | Shape | Used By |
 |------|-------|---------|
 | `ProviderId` | `string` | ProviderConfig, IModelProvider, IProviderRegistry |
-| `ProviderType` | `'claude-cli' \| 'opencode-cli' \| 'openai-compatible'` | ProviderConfig, infrastructure |
+| `ProviderType` | `'claude-cli' \| 'codex-cli' \| 'opencode-cli' \| 'openai-compatible'` | ProviderConfig, infrastructure |
 | `ProviderCapability` | `'text-completion' \| 'tool-use' \| 'thinking' \| 'streaming'` | ProviderConfig, IModelProvider |
 | `ProviderStatus` | `'available' \| 'unavailable' \| 'unchecked' \| 'error'` | IProviderRegistry.checkProviderStatus |
 | `ProviderConfig` | `{ id, type, name, enabled, isBuiltIn, apiKey?, baseUrl?, models, defaultModel?, capabilities }` | Settings, ProviderRegistry |
@@ -97,7 +97,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 
 | Type | Shape | Used By |
 |------|-------|---------|
-| `AppSettings` | `{ hasClaudeCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId, completedTours }` | SettingsService, SettingsView, tourStore |
+| `AppSettings` | `{ hasClaudeCli, hasCodexCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId, completedTours }` | SettingsService, SettingsView, tourStore |
 
 ### Token Usage
 
@@ -228,6 +228,7 @@ Implemented by: `SettingsService` (`src/infrastructure/settings/`)
 |--------|-----------|---------|
 | `load` | `() => Promise<AppSettings>` | Cached settings merged with defaults |
 | `detectClaudeCli` | `() => Promise<boolean>` | Runs `claude --version` |
+| `detectCodexCli` | `() => Promise<boolean>` | Runs `codex --version` |
 | `update` | `(partial: Partial<AppSettings>) => Promise<void>` | Writes + invalidates cache |
 
 ### IAgentService
@@ -598,8 +599,9 @@ Implemented by: `FindReplaceService` (`src/application/FindReplaceService.ts`)
 | `DEFAULT_SETTINGS` | `AppSettings` | Default values for all settings (includes `providers` and `activeProviderId`) |
 | `AVAILABLE_MODELS` | 2-element array | **(deprecated)** Opus 4 and Sonnet 4. Use `BUILT_IN_PROVIDER_CONFIGS[0].models` or `IProviderRegistry.listAllModels()` |
 | `CLAUDE_CLI_PROVIDER_ID` | `'claude-cli'` | Built-in Claude CLI provider ID |
+| `CODEX_CLI_PROVIDER_ID` | `'codex-cli'` | Built-in Codex CLI provider ID |
 | `OPENCODE_CLI_PROVIDER_ID` | `'opencode-cli'` | Reserved for future OpenCode CLI provider |
-| `BUILT_IN_PROVIDER_CONFIGS` | `ProviderConfig[]` (1 element) | Default Claude CLI provider with Opus 4 and Sonnet 4 models |
+| `BUILT_IN_PROVIDER_CONFIGS` | `ProviderConfig[]` (2 elements) | Default Claude CLI provider plus Codex CLI provider with GPT-5.2 Codex and GPT-5.1 Codex models |
 | `FILE_MANIFEST_KEYS` | 13-element array | Canonical file paths for context |
 | `VERITY_PHASE_FILES` | Partial record | Maps pipeline phases to Verity sub-prompt filenames |
 | `VERITY_AUDIT_MODEL` | `'claude-sonnet-4-20250514'` | Model for audit pass |

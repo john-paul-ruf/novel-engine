@@ -69,6 +69,54 @@ function ClaudeCliSection(): React.ReactElement {
   );
 }
 
+function CodexCliSection(): React.ReactElement {
+  const { settings, detectCodexCli } = useSettingsStore();
+  const [checking, setChecking] = useState(false);
+
+  const handleRecheck = useCallback(async () => {
+    setChecking(true);
+    await detectCodexCli();
+    setChecking(false);
+  }, [detectCodexCli]);
+
+  const connected = settings?.hasCodexCli ?? false;
+
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Codex CLI Status</SectionHeading>
+      <div className="flex items-center gap-3">
+        <span
+          className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
+        />
+        <span className={`text-sm font-medium ${connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          {connected ? 'Connected' : 'Not connected'}
+        </span>
+        <button
+          onClick={handleRecheck}
+          disabled={checking}
+          className="ml-auto rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+        >
+          {checking ? 'Checking...' : 'Re-check'}
+        </button>
+      </div>
+      {!connected && (
+        <div className="mt-2">
+          <button
+            onClick={() =>
+              window.novelEngine.shell.openExternal(
+                'https://developers.openai.com/codex/cli',
+              )
+            }
+            className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
+          >
+            Installation instructions
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ModelSelectionSection(): React.ReactElement {
   const { settings, update } = useSettingsStore();
   const { providers } = useProviderStore();
@@ -142,7 +190,7 @@ function ModelSelectionSection(): React.ReactElement {
                     )}
                   </div>
                   <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
-                  {model.id === 'claude-opus-4-20250514' && (
+                  {(model.id === 'claude-opus-4-20250514' || model.id === 'gpt-5.2-codex') && (
                     <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
                       Recommended
                     </span>
@@ -588,7 +636,7 @@ function AboutSection(): React.ReactElement {
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
           <span className="font-medium">Novel Engine</span> v0.1.0
         </p>
-        <HelpText>Powered by Claude Code CLI</HelpText>
+        <HelpText>Powered by Claude Code CLI and Codex CLI</HelpText>
         <div className="flex gap-4">
           <button
             onClick={() =>
@@ -609,6 +657,16 @@ function AboutSection(): React.ReactElement {
             className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
           >
             Claude Code Docs
+          </button>
+          <button
+            onClick={() =>
+              window.novelEngine.shell.openExternal(
+                'https://developers.openai.com/codex/cli',
+              )
+            }
+            className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
+          >
+            Codex CLI Docs
           </button>
         </div>
       </div>
@@ -711,6 +769,8 @@ export function SettingsView(): React.ReactElement {
           {activeTab === 'providers' && (
             <>
               <ClaudeCliSection />
+              <SectionDivider />
+              <CodexCliSection />
               <SectionDivider />
               <ProviderSection />
             </>

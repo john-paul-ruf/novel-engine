@@ -262,7 +262,7 @@ export type ActiveStreamInfo = {
 export type ProviderId = string;
 
 /** The implementation strategy for a provider. Determines which infrastructure class is instantiated. */
-export type ProviderType = 'claude-cli' | 'opencode-cli' | 'openai-compatible';
+export type ProviderType = 'claude-cli' | 'codex-cli' | 'opencode-cli' | 'openai-compatible';
 
 /** Capabilities a provider may support. Used to gate features in the UI and services. */
 export type ProviderCapability =
@@ -313,6 +313,7 @@ export type SavedPrompt = {
 
 export type AppSettings = {
   hasClaudeCli: boolean;   // true if `claude` CLI is detected and authenticated
+  hasCodexCli: boolean;    // true if `codex` CLI is detected and authenticated
   model: string;
   maxTokens: number;
   enableThinking: boolean;

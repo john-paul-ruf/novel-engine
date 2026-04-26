@@ -25,7 +25,7 @@ A desktop application for **building novels**, not writing them. Novel Engine is
 
 You bring the story. The agents pitch, scaffold, draft in your voice, read, analyze, plan revisions, copy-edit, and compile your manuscript into export-ready formats. The pipeline is a build process: source material goes in, a production-ready manuscript comes out. "Build" is both metaphor and literal — the final phase assembles chapters via [Pandoc](https://pandoc.org/) into Markdown, DOCX, and EPUB.
 
-Built with Electron, React, TypeScript, and powered by the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — with extensible multi-model provider support for OpenAI-compatible endpoints. No cloud backend. Everything runs on your machine.
+Built with Electron, React, TypeScript, and powered by local CLI providers: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), [Codex CLI](https://developers.openai.com/codex/cli), and extensible OpenAI-compatible endpoints. No cloud backend. Everything runs on your machine.
 
 Requires tech skill to use — or grab a pre-built installer from [Releases](https://github.com/john-paul-ruf/novel-engine/releases) if one exists for your platform.
 
@@ -42,6 +42,7 @@ Requires tech skill to use — or grab a pre-built installer from [Releases](htt
 > - Does the installer run and complete without errors?
 > - Does the app launch after installation?
 > - Does the onboarding wizard detect your Claude Code CLI?
+> - If you use Codex, does Settings detect your Codex CLI?
 > - Can you create a book and chat with an agent?
 > - Any UI glitches, missing fonts, or broken layouts?
 
@@ -159,7 +160,7 @@ Every agent interaction assembles context intelligently using a token-budget-awa
 2. **Per-agent read guidance** — tells each agent which files are required, relevant, or irrelevant to their role
 3. **Dynamic conversation compaction** — calculates how much context window remains after the system prompt and response reserve, then keeps as many recent turns as the budget allows (generous: all turns, moderate: 8, tight: 4, critical: 2)
 
-Agents run in full **agent mode** with tool use — they read and write files directly in the book directory using Claude Code CLI's Read, Write, Edit, and LS tools.
+Agents run in full **agent mode** with tool use — they read and write files directly in the book directory through local CLI providers such as Claude Code CLI and Codex CLI.
 
 ### Auto-Draft
 
@@ -226,7 +227,7 @@ Features:
 
 ### Extended Thinking
 
-Enable **extended thinking** globally or override it per-message with the **thinking budget slider**. Each agent has a default thinking budget tuned to their task complexity. When enabled, the app passes `--effort high` to the Claude CLI. Thinking blocks are displayed in collapsible amber panels with auto-generated summaries (~200 characters).
+Enable **extended thinking** globally or override it per-message with the **thinking budget slider**. Each agent has a default thinking budget tuned to their task complexity. Claude CLI can surface thinking blocks in collapsible amber panels with auto-generated summaries (~200 characters); Codex CLI runs reasoning internally but does not expose Claude-style thinking text.
 
 ### Quick Actions
 
@@ -234,7 +235,7 @@ Each agent has pre-built prompts accessible from a dropdown next to the chat inp
 
 ### CLI Activity Monitor
 
-A real-time panel showing all active Claude CLI processes. Tracks every stream across the app — chat, auto-draft, hot takes, ad hoc revisions, revision queue sessions, audits, and motif audits. Each stream shows the agent name, progress stage (reading → thinking → drafting → editing → reviewing → complete), active tool use with file paths, and elapsed time. The panel persists across view changes.
+A real-time panel showing all active local CLI processes. Tracks every stream across the app — chat, auto-draft, hot takes, ad hoc revisions, revision queue sessions, audits, and motif audits. Each stream shows the agent name, progress stage (reading → thinking → drafting → editing → reviewing → complete), active tool use with file paths, and elapsed time. The panel persists across view changes.
 
 ### Modal Chat
 
@@ -271,7 +272,7 @@ When an agent finishes responding and the app window is not focused, Novel Engin
 
 ### Multi-Model Provider Support
 
-Beyond the built-in Claude Code CLI, Novel Engine supports **OpenAI-compatible endpoints** (e.g., Ollama, LM Studio, self-hosted models). Add providers in Settings with a base URL and optional API key. Each provider declares its capabilities (text-completion, tool-use, thinking, streaming) so the app gates features accordingly. A central provider registry routes model requests to the correct backend.
+Beyond the built-in Claude Code CLI and Codex CLI, Novel Engine supports **OpenAI-compatible endpoints** (e.g., Ollama, LM Studio, self-hosted models). Add providers in Settings with a base URL and optional API key. Each provider declares its capabilities (text-completion, tool-use, thinking, streaming) so the app gates features accordingly. A central provider registry routes model requests to the correct backend.
 
 ### Series Bible
 
@@ -387,6 +388,7 @@ View and edit book metadata (`about.json`) directly in the Files view — title,
 
 - **Node.js** 18+
 - **Claude Code CLI** — install via `npm install -g @anthropic-ai/claude-code`, then authenticate with `claude login`
+- **Codex CLI** (optional) — install via `npm i -g @openai/codex`, then authenticate with `codex login`
 - **Pandoc** (optional) — required for DOCX/EPUB export. Run `npm run download-pandoc` to fetch a platform-specific binary, or install separately
 
 ---
@@ -412,7 +414,7 @@ On first launch the **Onboarding Wizard** walks you through five steps:
 
 1. **Welcome** — introduction
 2. **Claude CLI Setup** — auto-detects the `claude` binary; links to install instructions if not found
-3. **Model Selection** — choose a default Claude model (Opus or Sonnet)
+3. **Model Selection** — choose a default model from enabled providers, including Claude and Codex models
 4. **Author Profile** — write or skip your creative DNA document
 5. **Ready** — creates your first book or enters the app
 
@@ -470,6 +472,9 @@ src/
 │   ├── claude-cli/
 │   │   ├── ClaudeCodeClient.ts          # Claude CLI wrapper, streaming, tool tracking
 │   │   ├── StreamSessionTracker.ts      # Progress stage inference, file touch tracking
+│   │   └── index.ts
+│   ├── codex-cli/
+│   │   ├── CodexCliClient.ts            # Codex CLI wrapper, JSONL streaming, changed-file tracking
 │   │   └── index.ts
 │   ├── providers/
 │   │   ├── ProviderRegistry.ts          # Central registry routing models to providers
@@ -693,7 +698,7 @@ Agent system prompts live in `custom-agents/` and are fully editable — customi
 | Styling | [Tailwind CSS](https://tailwindcss.com/) + [Typography plugin](https://github.com/tailwindlabs/tailwindcss-typography) | 4.x |
 | State | [Zustand](https://zustand-demo.pmnd.rs/) | 5.x |
 | Database | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | 11.x |
-| AI Backend | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) + OpenAI-compatible endpoints | (spawned / fetched) |
+| AI Backend | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) + [Codex CLI](https://developers.openai.com/codex/cli) + OpenAI-compatible endpoints | (spawned / fetched) |
 | Manuscript Export | [Pandoc](https://pandoc.org/) (bundled binary) | — |
 | Charts | [Recharts](https://recharts.org/) | 3.x |
 | Diffing | [diff](https://github.com/kpdecker/jsdiff) | 8.x |
@@ -713,7 +718,7 @@ DOMAIN ← INFRASTRUCTURE ← APPLICATION ← IPC/MAIN ← RENDERER
 ```
 
 - **Domain** ([`src/domain/`](./src/domain/)) — Pure TypeScript types, interfaces, and constants. Zero imports. Every other layer depends on this.
-- **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI wrapper, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support, series file-based storage.
+- **Infrastructure** ([`src/infrastructure/`](./src/infrastructure/)) — Concrete implementations: SQLite database with forward-only migrations, filesystem I/O, Claude CLI and Codex CLI wrappers, file watchers, Pandoc runner, settings persistence, provider registry with OpenAI-compatible support, series file-based storage.
 - **Application** ([`src/application/`](./src/application/)) — Business logic orchestrating infrastructure through injected interfaces: ChatService, ContextBuilder, PipelineService, BuildService, RevisionQueueService, AuditService, PitchRoomService, HotTakeService, AdhocRevisionService, StreamManager, MotifLedgerService, VersionService, ManuscriptImportService, SourceGenerationService, SeriesImportService, HelperService, DashboardService, StatisticsService, FindReplaceService, UsageService, ChapterValidator.
 - **Main/IPC** ([`src/main/`](./src/main/)) — Electron entry point (composition root), IPC handlers (thin one-liner delegations), first-run bootstrap, OS notifications.
 - **Renderer** ([`src/renderer/`](./src/renderer/)) — React components, Zustand stores (23 stores), hooks. Communicates with the backend exclusively through `window.novelEngine` (the preload bridge). May import domain types but never values.
