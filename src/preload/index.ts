@@ -59,6 +59,7 @@ const api = {
   settings: {
     load: (): Promise<AppSettings> => ipcRenderer.invoke('settings:load'),
     detectClaudeCli: (): Promise<boolean> => ipcRenderer.invoke('settings:detectClaudeCli'),
+    detectCodexCli: (): Promise<boolean> => ipcRenderer.invoke('settings:detectCodexCli'),
     update: (partial: Partial<AppSettings>): Promise<void> => ipcRenderer.invoke('settings:update', partial),
     saveAuthorProfile: (content: string): Promise<void> =>
       ipcRenderer.invoke('settings:saveAuthorProfile', content),

@@ -104,6 +104,9 @@ export const AVAILABLE_MODELS = [
 /** The built-in Claude CLI provider ID. Always present, cannot be removed. */
 export const CLAUDE_CLI_PROVIDER_ID: ProviderId = 'claude-cli';
 
+/** The built-in Codex CLI provider ID. Always present, cannot be removed. */
+export const CODEX_CLI_PROVIDER_ID: ProviderId = 'codex-cli';
+
 /** Reserved provider ID for OpenCode CLI (future implementation). */
 export const OPENCODE_CLI_PROVIDER_ID: ProviderId = 'opencode-cli';
 
@@ -138,11 +141,41 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
     defaultModel: 'claude-opus-4-20250514',
     capabilities: ['text-completion', 'tool-use', 'thinking', 'streaming'],
   },
+  {
+    id: CODEX_CLI_PROVIDER_ID,
+    type: 'codex-cli',
+    name: 'Codex CLI',
+    enabled: true,
+    isBuiltIn: true,
+    models: [
+      {
+        id: 'gpt-5.2-codex',
+        label: 'GPT-5.2 Codex',
+        description: 'OpenAI Codex model for long-running agentic writing tasks',
+        providerId: CODEX_CLI_PROVIDER_ID,
+        contextWindow: 400_000,
+        supportsThinking: true,
+        supportsToolUse: true,
+      },
+      {
+        id: 'gpt-5.1-codex',
+        label: 'GPT-5.1 Codex',
+        description: 'OpenAI Codex model optimized for coding-agent style tool use',
+        providerId: CODEX_CLI_PROVIDER_ID,
+        contextWindow: 400_000,
+        supportsThinking: true,
+        supportsToolUse: true,
+      },
+    ],
+    defaultModel: 'gpt-5.2-codex',
+    capabilities: ['text-completion', 'tool-use', 'thinking', 'streaming'],
+  },
 ];
 
 // Default settings
 export const DEFAULT_SETTINGS: AppSettings = {
   hasClaudeCli: false,
+  hasCodexCli: false,
   model: 'claude-sonnet-4-20250514',
   maxTokens: 8192,
   enableThinking: false,

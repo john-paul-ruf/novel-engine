@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import type { AppSettings } from '@domain/types';
 import type { ISettingsService } from '@domain/interfaces';
-import { DEFAULT_SETTINGS } from '@domain/constants';
+import { BUILT_IN_PROVIDER_CONFIGS, DEFAULT_SETTINGS } from '@domain/constants';
 
 const execFile = promisify(execFileCb);
 
@@ -23,7 +23,11 @@ export class SettingsService implements ISettingsService {
     try {
       const raw = await readFile(this.settingsPath, 'utf-8');
       const stored: Partial<AppSettings> = JSON.parse(raw);
-      this._cache = { ...DEFAULT_SETTINGS, ...stored };
+      this._cache = {
+        ...DEFAULT_SETTINGS,
+        ...stored,
+        providers: this.mergeProviderConfigs(stored.providers),
+      };
       return this._cache;
     } catch {
       // ENOENT or malformed JSON — use defaults for first launch
@@ -53,5 +57,31 @@ export class SettingsService implements ISettingsService {
       await this.update({ hasClaudeCli: false });
       return false;
     }
+  }
+
+  async detectCodexCli(): Promise<boolean> {
+    try {
+      const { stdout } = await execFile('codex', ['--version'], { timeout: 10_000 });
+      const found = stdout.trim().length > 0;
+      await this.update({ hasCodexCli: found });
+      return found;
+    } catch {
+      await this.update({ hasCodexCli: false });
+      return false;
+    }
+  }
+
+  private mergeProviderConfigs(storedProviders: AppSettings['providers'] | undefined): AppSettings['providers'] {
+    const providersById = new Map<string, AppSettings['providers'][number]>();
+    for (const provider of storedProviders ?? []) {
+      providersById.set(provider.id, provider);
+    }
+
+    for (const builtInProvider of BUILT_IN_PROVIDER_CONFIGS) {
+      const stored = providersById.get(builtInProvider.id);
+      providersById.set(builtInProvider.id, stored ? { ...builtInProvider, ...stored, isBuiltIn: true } : builtInProvider);
+    }
+
+    return Array.from(providersById.values());
   }
 }

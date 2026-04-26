@@ -104,6 +104,8 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('settings:detectClaudeCli', () => services.settings.detectClaudeCli());
 
+  ipcMain.handle('settings:detectCodexCli', () => services.settings.detectCodexCli());
+
   ipcMain.handle('settings:update', async (_, partial: Partial<AppSettings>) => {
     await services.settings.update(partial);
 
