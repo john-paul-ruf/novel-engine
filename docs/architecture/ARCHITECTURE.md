@@ -1,8 +1,8 @@
 # Architecture — Novel Engine
 
-> Last updated: 2026-03-29
+> Last updated: 2026-04-26
 
-Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Pandoc
+Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Codex CLI + Pandoc
 
 See domain-specific docs:
 - [Domain](./DOMAIN.md) — Types, interfaces, constants
@@ -56,6 +56,9 @@ src/
 │   ├── claude-cli/
 │   │   ├── ClaudeCodeClient.ts              # Spawns `claude` process, streams NDJSON, lifecycle
 │   │   ├── StreamSessionTracker.ts          # Tracks active stream sessions for orphan recovery
+│   │   └── index.ts
+│   ├── codex-cli/
+│   │   ├── CodexCliClient.ts                # Spawns `codex exec --json`, streams JSONL, tracks changed files
 │   │   └── index.ts
 │   ├── pandoc/
 │   │   └── index.ts                         # Pandoc binary path resolution (dev vs packaged)
@@ -156,6 +159,7 @@ DatabaseService(dbPath)
 AgentService(agentsDir)
 FileSystemService(booksDir, userDataPath)
 ClaudeCodeClient(booksDir, db)
+CodexCliClient(booksDir, db)
 
 UsageService
 └── IDatabaseService (DatabaseService)
@@ -273,7 +277,7 @@ The renderer layer normally uses `import type` only from domain. However, **pure
 
 - `contextIsolation: true` — always
 - `nodeIntegration: false` — always
-- No API keys stored — Claude Code CLI handles its own authentication
+- No API keys stored for built-in CLI providers — Claude Code CLI and Codex CLI handle their own authentication
 - All renderer↔main communication through the preload bridge
 - Custom `novel-asset://` protocol for serving local files (cover images) to renderer
 
@@ -322,7 +326,7 @@ The renderer layer normally uses `import type` only from domain. However, **pure
 | Styling | Tailwind CSS | ^4.0.0 |
 | State | Zustand | ^5.0.0 |
 | Database | better-sqlite3 | ^11.0.0 |
-| AI Backend | Claude Code CLI | (system-installed) |
+| AI Backend | Claude Code CLI + Codex CLI | (system-installed) |
 | Build | Pandoc | (bundled binary) |
 | IDs | nanoid | 3 |
 | Markdown | marked | ^15.0.0 |

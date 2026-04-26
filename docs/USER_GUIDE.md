@@ -1,6 +1,6 @@
 # Novel Engine — User Guide
 
-> Last updated: 2026-03-28
+> Last updated: 2026-04-26
 
 ---
 
@@ -8,9 +8,9 @@
 
 Novel Engine is an Electron desktop application for writing novels with the help of 7 specialized AI agents. Each agent has a distinct role in the writing process — from pitching a story concept through drafting, revision, copy editing, and publication.
 
-The app uses the **Claude Code CLI** as its AI backend. You need a Claude subscription — Novel Engine doesn't store API keys or handle billing. The CLI authenticates through your own Anthropic account.
+The app uses local CLI providers as AI backends. Claude Code CLI and Codex CLI authenticate through their own accounts, and Novel Engine does not store API keys for those built-in CLI providers.
 
-All your books, chapters, and project files are stored locally on your machine in the app's user data directory. Nothing is sent to external servers beyond the Claude API calls made through the CLI.
+All your books, chapters, and project files are stored locally on your machine in the app's user data directory. AI prompts are sent through the provider you select in Settings.
 
 ---
 
@@ -20,11 +20,12 @@ All your books, chapters, and project files are stored locally on your machine i
 
 When you open Novel Engine for the first time, the **onboarding wizard** guides you through setup:
 
-1. **CLI Detection** — The app checks if the `claude` CLI is installed and authenticated. If not, you'll see instructions to install it.
+1. **CLI Detection** — The app checks if the `claude` CLI is installed and authenticated. Codex CLI can be detected later from Settings.
 2. **Author Name** — Enter your name (used in book metadata and cover pages).
 3. **Model Selection** — Choose your default model:
    - **Claude Opus 4** — Best quality, recommended for all creative work
    - **Claude Sonnet 4** — Faster and cheaper, good for copy editing and utility tasks
+   - **GPT-5.2 Codex** — Codex CLI option for local agentic tool-use workflows
 
 ### Creating Your First Book
 
@@ -415,7 +416,7 @@ Choose between **Light**, **Dark** (default), or **System** (follows OS preferen
 
 ### Provider Management
 
-Configure AI providers in the **Providers** section. Claude CLI is the built-in provider and cannot be removed.
+Configure AI providers in the **Providers** section. Claude CLI and Codex CLI are built-in providers and cannot be removed. Use **Re-check** on either CLI status card after installing or logging in.
 
 ### OS Notifications
 
@@ -478,11 +479,20 @@ The Claude Code CLI must be installed and authenticated:
 3. Verify: `claude --version` should show the version number.
 4. Restart Novel Engine — it re-checks on startup.
 
+### "Codex CLI not detected"
+
+The Codex CLI must be installed and authenticated before you select a Codex model:
+
+1. Install: `npm i -g @openai/codex`
+2. Authenticate: Run `codex login` in your terminal and follow the login flow.
+3. Verify: `codex --version` should show the version number.
+4. Open Settings > Providers and click **Re-check** under Codex CLI Status.
+
 ### Agent Not Responding
 
-- Check that the Claude CLI is still authenticated (run `claude` in a terminal).
-- Check your internet connection — the CLI needs to reach Anthropic's API.
-- Check the model — Opus may be temporarily unavailable; try switching to Sonnet in Settings.
+- Check that the selected CLI is still authenticated (run `claude` or `codex` in a terminal).
+- Check your internet connection — the selected provider needs to reach its API.
+- Check the model — if one provider is unavailable, try switching models in Settings.
 
 ### Slow Responses
 

@@ -4,6 +4,47 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-04-26] — Codex CLI provider support
+
+### Summary
+
+Added Codex CLI as a second built-in local tool-use provider alongside Claude Code CLI. The provider registry now registers a `codex-cli` backend, Settings can detect `codex --version`, model selection includes Codex models, and the new Codex runner translates `codex exec --json` output into Novel Engine stream events while tracking changed files.
+
+### Added
+- `src/infrastructure/codex-cli/CodexCliClient.ts` — Implements `IModelProvider` for `codex exec --json`, process aborts, JSONL parsing, event persistence, token usage capture, and changed-file detection.
+- `src/infrastructure/codex-cli/index.ts` — Exports the Codex CLI client module.
+
+### Changed
+- `src/domain/types.ts` — Added `codex-cli` to `ProviderType` and `hasCodexCli` to `AppSettings`.
+- `src/domain/interfaces.ts` — Added `ISettingsService.detectCodexCli()`.
+- `src/domain/constants.ts` — Added `CODEX_CLI_PROVIDER_ID` and Codex built-in provider models.
+- `src/infrastructure/settings/SettingsService.ts` — Added `codex --version` detection and built-in provider config merging for existing settings files.
+- `src/main/index.ts` — Instantiates and registers `CodexCliClient` as a built-in provider.
+- `src/main/ipc/handlers.ts` — Added `settings:detectCodexCli`.
+- `src/preload/index.ts` — Exposes `settings.detectCodexCli()` to the renderer.
+- `src/renderer/stores/settingsStore.ts` — Added Codex CLI detection action.
+- `src/renderer/components/Settings/SettingsView.tsx` — Added Codex CLI status card and Codex docs link.
+- `src/renderer/components/Settings/ProviderSection.tsx` — Labels `codex-cli` provider cards and describes both CLI providers.
+- `README.md` — Documents Codex CLI support, setup, provider selection, and source tree updates.
+- `docs/USER_GUIDE.md` — Documents Codex CLI setup and troubleshooting.
+- `docs/architecture/ARCHITECTURE.md` — Adds Codex CLI to stack, source tree, dependencies, and security notes.
+- `docs/architecture/DOMAIN.md` — Documents Codex provider types, settings, interfaces, and constants.
+- `docs/architecture/INFRASTRUCTURE.md` — Documents the new Codex CLI module and invocation.
+- `docs/architecture/IPC.md` — Documents `settings:detectCodexCli` and preload bridge shape.
+- `docs/architecture/RENDERER.md` — Documents settings store and Settings UI changes.
+
+### Architecture Impact
+- New infrastructure module: `src/infrastructure/codex-cli/`.
+- New built-in provider: `codex-cli`.
+- New IPC channel: `settings:detectCodexCli`.
+- New preload bridge method: `window.novelEngine.settings.detectCodexCli()`.
+- New settings field: `hasCodexCli`.
+
+### Migration Notes
+- Existing `settings.json` files are forward-merged with built-in provider configs on load so Codex CLI appears without deleting user providers.
+
+---
+
 ## [2026-03-29] — Architecture Engine readme
 
 ### Summary

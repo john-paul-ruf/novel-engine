@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-03-29
+> Last updated: 2026-04-26
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
@@ -69,6 +69,8 @@ File: `stores/settingsStore.ts`
 | Action | What It Does |
 |--------|-------------|
 | `load()` | Calls `window.novelEngine.settings.load()` |
+| `detectClaudeCli()` | Calls `settings.detectClaudeCli()`, reloads settings |
+| `detectCodexCli()` | Calls `settings.detectCodexCli()`, reloads settings |
 | `update(partial)` | Calls bridge, then reloads |
 
 ### bookStore
@@ -390,8 +392,8 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `SettingsView.tsx` | Full settings panel: CLI status, providers, model selection (grouped by provider), thinking, theme, author profile, usage stats, catalog export |
-| `ProviderSection.tsx` | Provider management: cards with status dots, test connectivity, add/remove/toggle, "Add Provider" form |
+| `SettingsView.tsx` | Full settings panel: Claude CLI status, Codex CLI status, providers, model selection (grouped by provider), thinking, theme, author profile, usage stats, catalog export |
+| `ProviderSection.tsx` | Provider management: cards with status dots, provider type labels including `codex-cli`, test connectivity, add/remove/toggle, "Add Provider" form |
 
 ### Sidebar/
 

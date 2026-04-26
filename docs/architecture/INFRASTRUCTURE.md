@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-03-28 (SESSION-03)
+> Last updated: 2026-04-26
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -19,7 +19,8 @@ Key behavior:
 - Constructor takes `userDataPath: string`
 - In-memory cache invalidated on write
 - `detectClaudeCli()` runs `claude --version` with timeout
-- Settings merged with `DEFAULT_SETTINGS` on load (forward-compatible)
+- `detectCodexCli()` runs `codex --version` with timeout
+- Settings merged with `DEFAULT_SETTINGS` on load; built-in provider configs are merged by ID so existing settings pick up newly shipped built-ins
 
 ### database/ — SQLite Persistence
 
@@ -90,6 +91,23 @@ Key behavior:
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` for idle detection
 - EPIPE/ERR_STREAM_DESTROYED on stdin logged with diagnostic info (stdinBytes, writableFinished, writableEnded)
 - System prompt size guard: rejects prompts > 500KB with clear error before spawn
+
+### codex-cli/ — Codex CLI Client
+
+| File | Purpose |
+|------|---------|
+| `CodexCliClient.ts` | Implements `IModelProvider`. Spawns `codex exec --json`, translates JSONL events into `StreamEvent`, tracks active processes, persists stream events, and detects changed files by comparing the working directory before/after a run. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- Provider ID is `codex-cli`; capabilities are `text-completion`, `tool-use`, and `streaming`
+- Spawns `codex --ask-for-approval never exec --json --sandbox workspace-write --skip-git-repo-check --ephemeral --model <model> --cd <workingDir> --add-dir <booksDir>`
+- Feeds the agent system prompt and conversation transcript to stdin because Codex CLI has no Claude-style `--system-prompt` argument
+- Parses `thread.started`, `turn.started`, `item.started`, `item.completed`, `turn.completed`, and `error` JSONL events from stdout
+- Maps `item.completed` assistant text to text blocks and `turn.completed.usage` to final token usage
+- Ignores non-JSON stderr warnings unless the Codex process exits nonzero
+- `abortStream` sends SIGTERM, then SIGKILL after 2s grace period
+- `isAvailable()` caches `codex --version`
 
 ### providers/ — Model Provider Registry
 
@@ -263,6 +281,41 @@ CLI outputs NDJSON (one JSON object per line) to stdout. Events map to `StreamEv
 ### Orphan Recovery
 
 On startup, `ChatService.recoverOrphanedSessions()` checks `stream_sessions` for rows with `ended_at IS NULL`, marks them as `interrupted`, and exposes them to the UI.
+
+---
+
+## Codex CLI Integration
+
+### Invocation
+
+```
+codex --ask-for-approval never exec \
+      --json \
+      --sandbox workspace-write \
+      --skip-git-repo-check \
+      --ephemeral \
+      --model <model> \
+      --cd <workingDir> \
+      --add-dir <booksDir>
+```
+
+- Working directory is the explicit `workingDir`, the active book directory, or `booksDir`
+- System prompt and conversation transcript are combined into a single stdin prompt
+- `workspace-write` keeps Codex scoped to the book working directory plus `booksDir`
+- `--json` emits newline-delimited JSON events on stdout
+
+### Streaming Protocol
+
+| Codex Event | StreamEvent Type |
+|-------------|------------------|
+| `turn.started` | `status` |
+| `item.started` | `toolUse` when the item is tool-like |
+| `item.completed` with assistant text | `blockStart` → `textDelta` → `blockEnd` |
+| `item.completed` with tool-like item | `toolUse`, `toolDuration` |
+| `turn.completed` | Captures token usage for final `done` |
+| process close | `filesChanged` from directory diff, then `done` |
+
+Changed-file detection is filesystem based rather than Codex event-schema based, so agent-written files are still captured if Codex JSON item shapes change.
 
 ---
 
