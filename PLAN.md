@@ -54,12 +54,12 @@ Break the heavy single-call pipeline agents (Ghostlight, Lumen, Sable, Forge) in
 
 ## Phase 2: Agent Step Definitions
 
-### T-S1: Sable (Copy Edit) — 6-step schema
-- **Outcome**: Define 6 steps for Sable: (1) Build style sheet from full read, (2) Continuity & facts pass, (3) Grammar & mechanics pass, (4) Repetition & word-level pass, (5) Formatting & production pass, (6) Synthesize audit report. Steps 1–5 each read the manuscript and write findings to `source/.scratch/sable-pass-N.md`. Step 6 reads all 5 scratch files and writes the final `source/audit-report.md` + updates `source/style-sheet.md`.
-- **Verification**: Schema compiles. Step prompts reference correct scratch file paths.
+### T-S1: Sable (Copy Edit) — sip-and-track schema
+- **Outcome**: Sable uses the same sip-and-track pattern as Lumen/Ghostlight. Dynamic read batches (~25K words each) scan chapters and track ALL copy-edit categories per chapter to `source/.scratch/sable-read-N.md`. Three analysis passes work from tracking notes only (never re-read chapters): (1) Style Sheet & Continuity → `sable-analysis-1.md`, (2) Grammar & Repetition → `sable-analysis-2.md`, (3) Formatting → `sable-analysis-3.md`. Synthesis reads the 3 analysis files and writes `source/audit-report.md` + updates `source/style-sheet.md`. Read batches have `dynamic: true` and use `{{CHAPTER_LIST}}` / `{{READ_TRACKER_FILES}}` placeholders.
+- **Verification**: `tsc --noEmit` clean. `npm run lint` clean.
 - **Files**: `src/domain/constants.ts`
 - **Status**: DONE
-- **Notes**: Depends on T-O1
+- **Notes**: Depends on T-O1. Refactored from 5 full-manuscript passes to sip-and-track in session-7. See DECISIONS.md.
 
 ### T-S2: Lumen (Dev Editor) — sip-and-track schema
 - **Outcome**: Define 7-step sip-and-track schema for Lumen: (1–2) Dynamic read batches (~25K words each) produce structural tracking notes to `source/.scratch/lumen-read-N.md`, (3) Lenses 1–3 analysis from tracking notes, (4) Lenses 4–5 analysis from tracking notes, (5) Lenses 6–7 analysis from tracking notes, (6–7) Synthesize full dev report. Read batches are expanded at runtime by word count (e.g. 102K words → 5 read batches → 9 total steps). Analysis steps use `{{READ_TRACKER_FILES}}` placeholder replaced by orchestrator with explicit batch file list.

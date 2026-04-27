@@ -159,3 +159,23 @@
   - Generate agent-specific prompts in orchestrator: rejected — brittle, hardcodes agent knowledge in infrastructure. Template-preserving approach keeps prompts in constants.ts where they belong
 - **Verification**: `tsc --noEmit` clean. `npm run lint` clean. For 102K words: 5 read batches + 3 lens analyses + 1 synthesis = 9 steps, each under ~50K tokens.
 - **Follow-ups**: T-P1 (E2E Ollama test) — re-run Lumen assessment to verify the sip-and-track schema completes without stalling.
+
+## 2026-04-26 session-7 — Sable sip-and-track: separate reading from analysis
+
+- **Context**: Sable's 6-step schema had each of 5 audit passes reading the entire manuscript. On Ollama, this causes the same context explosion that was fixed for Lumen in session-6 — each pass accumulates 100K+ words of chapter content in the context window. The multi-call split provided no actual context reduction since every pass still said "Read the manuscript chapters."
+- **Decision**: Refactored Sable to the sip-and-track pattern (matching Lumen and Ghostlight):
+  1. **Dynamic read batches** (2 template steps, expanded to N by word count): Read chapters in ~25K-word batches, tracking ALL 5 copy-edit categories per chapter: style sheet items, continuity flags, grammar/mechanics, repetition/word-level, and formatting issues. Write to `source/.scratch/sable-read-N.md`.
+  2. **Three analysis passes** (static steps, work from tracking notes only — never re-read chapters):
+     - Analysis 1: Style Sheet Construction + Continuity Audit (builds `source/style-sheet.md`)
+     - Analysis 2: Grammar & Mechanics + Repetition (with crutch word frequency counts)
+     - Analysis 3: Formatting & Production
+     Uses `{{READ_TRACKER_FILES}}` placeholder replaced by orchestrator.
+  3. **Synthesis** (unchanged pattern): Reads 3 analysis files, writes `source/audit-report.md`.
+  
+  Also updated quick actions to match the new sip-and-track structure (read halves + 3 analysis passes + synthesis).
+- **Alternatives considered**:
+  - Keep 5-pass schema with dynamic reads per pass: rejected — 5× redundant reading (each pass would re-read the same batches), and the analysis categories are lightweight enough to combine into 3 groups
+  - Single analysis pass after reading: rejected — too much content to consolidate in one call; 3 focused analysis groups keeps each call bounded
+  - Exact 5 analysis groups (one per original pass): rejected — unnecessary granularity; style+continuity and grammar+repetition are natural pairs that benefit from cross-referencing
+- **Verification**: `tsc --noEmit` clean. `npm run lint` clean. For 102K words: ~4 read batches + 3 analysis passes + 1 synthesis = 8 steps, each under ~50K tokens.
+- **Follow-ups**: T-P1 (E2E Ollama test) — re-run Sable copy edit to verify the sip-and-track schema completes without stalling.

@@ -256,13 +256,13 @@ export const AGENT_QUICK_ACTIONS: Record<CreativeAgentName, QuickAction[]> = {
   Sable: [
     { label: 'Copy edit', prompt: 'Copy edit the full manuscript. Read every chapter in order, audit for grammar, consistency, and mechanical issues, then produce the audit report and write it to source/audit-report.md. Build or update the style sheet at source/style-sheet.md.' },
     { label: 'Build style sheet', prompt: 'Read the manuscript and build a style sheet — catalog all character name spellings, place names, hyphenation choices, number formatting, recurring constructions, and any inconsistencies. Write it to source/style-sheet.md.' },
-    // ── Granular passes (manual fallback for multi-call orchestration) ──
-    { label: 'Pass 1: Style Sheet', prompt: 'Run Pass 1: Style Sheet Construction & Consistency. Read the manuscript chapters in order. Build (or update) the Style Sheet at source/style-sheet.md. Flag every spelling, capitalization, hyphenation, and formatting deviation. Write findings to source/.scratch/sable-pass-1.md. Do not produce the final audit report.' },
-    { label: 'Pass 2: Continuity', prompt: 'Run Pass 2: Continuity & Facts. Read the manuscript chapters. Cross-reference against the Story Bible. Track character details, timeline, geography, and object continuity. Flag contradictions. Read source/.scratch/sable-pass-1.md to avoid duplicates. Write findings to source/.scratch/sable-pass-2.md.' },
-    { label: 'Pass 3: Grammar', prompt: 'Run Pass 3: Grammar & Mechanics. Read the manuscript chapters. Audit for grammar, punctuation, syntax. Cross-reference the Voice Profile for intentional choices. Give dialogue punctuation a focused sub-pass. Write findings to source/.scratch/sable-pass-3.md.' },
-    { label: 'Pass 4: Repetition', prompt: 'Run Pass 4: Repetition & Word-Level Issues. Read the manuscript. Flag unintentional repetition, echo words, crutch words (with frequency counts), and malapropisms. Check Voice Profile "Avoid" list. Write findings to source/.scratch/sable-pass-4.md.' },
-    { label: 'Pass 5: Formatting', prompt: 'Run Pass 5: Formatting & Production. Read the manuscript. Verify chapter headings, scene breaks, check for stray placeholders, verify part.txt dividers, flag formatting issues. Write findings to source/.scratch/sable-pass-5.md.' },
-    { label: 'Synthesize report', prompt: 'Synthesize the final Copy Edit Audit Report. Read all five pass results: source/.scratch/sable-pass-1.md through source/.scratch/sable-pass-5.md. Combine into one structured audit report with summary, findings by chapter, global findings, and queries for author. Write to source/audit-report.md. Update source/style-sheet.md if needed.' },
+    // ── Granular passes (manual fallback for sip-and-track orchestration) ──
+    { label: 'Read first half', prompt: 'Read the first half of the manuscript chapters (by word count) as a copy editor. For each chapter, track: style sheet items (names, spellings, capitalization, hyphenation), continuity flags (character details, timeline, geography), grammar/punctuation issues, repetition/echo words, and formatting issues. Write your chapter-by-chapter tracker to source/.scratch/sable-read-1.md.' },
+    { label: 'Read second half', prompt: 'Read the second half of the manuscript chapters (by word count). Read source/.scratch/sable-read-1.md first to recall your observations from the first batch. Continue tracking for each chapter. Write your tracker to source/.scratch/sable-read-2.md.' },
+    { label: 'Analysis 1: Style & Continuity', prompt: 'Run Analysis 1: Style Sheet & Continuity. Do NOT read manuscript chapters — read ONLY the tracking note files in source/.scratch/ that start with sable-read-. Build the style sheet at source/style-sheet.md. Consolidate all continuity flags. Write findings to source/.scratch/sable-analysis-1.md.' },
+    { label: 'Analysis 2: Grammar & Repetition', prompt: 'Run Analysis 2: Grammar & Repetition. Do NOT read manuscript chapters — read ONLY the tracking note files in source/.scratch/ that start with sable-read-. Consolidate grammar issues and repetition patterns. Produce crutch word frequency counts. Write findings to source/.scratch/sable-analysis-2.md.' },
+    { label: 'Analysis 3: Formatting', prompt: 'Run Analysis 3: Formatting & Production. Do NOT read manuscript chapters — read ONLY the tracking note files in source/.scratch/ that start with sable-read-. Consolidate all formatting issues. Write findings to source/.scratch/sable-analysis-3.md.' },
+    { label: 'Synthesize report', prompt: 'Synthesize the final Copy Edit Audit Report. Read source/.scratch/sable-analysis-1.md, source/.scratch/sable-analysis-2.md, and source/.scratch/sable-analysis-3.md. Do NOT read manuscript chapters. Produce the complete audit report with summary, findings by chapter, global findings, crutch word table, and queries for author. Write to source/audit-report.md. Update source/style-sheet.md if needed.' },
   ],
   Forge: [
     { label: 'Create revision plan', prompt: 'Read source/reader-report.md and source/dev-report.md. Synthesize both into a prioritized revision plan with phased tasks and session prompts for Verity. Write the task list to source/project-tasks.md and the session prompts to source/revision-prompts.md.' },
@@ -487,84 +487,183 @@ export const MULTI_CALL_MAX_RETRIES = 2;
 export const MULTI_CALL_RETRY_EXTRA_TURNS = 5;
 
 /**
- * Sable (Copy Edit) — 6 steps: 5 audit passes + synthesis.
+ * Sable (Copy Edit) — sip-and-track pattern (same as Lumen/Ghostlight).
  *
- * Each pass reads the full manuscript but focuses on one error category.
- * The synthesis step reads all 5 scratch files and writes the final report.
+ * 1. Dynamic read batches (~25K words each) scan chapters and track ALL
+ *    copy-edit categories per chapter: style, continuity, grammar,
+ *    repetition, and formatting observations.
+ * 2. Three analysis passes work ONLY from tracking notes (never re-read chapters):
+ *    - Style Sheet & Consistency + Continuity
+ *    - Grammar & Mechanics + Repetition
+ *    - Formatting & Production
+ * 3. Synthesis step combines all analysis files into the final audit report.
+ *
+ * The read batches have `dynamic: true` — the orchestrator expands them
+ * based on actual manuscript word count (e.g. 102K words → 4 read batches).
  */
 export const SABLE_MULTI_CALL_STEPS: MultiCallStep[] = [
+  // ── Dynamic read batches (expanded at runtime by word count) ──
+  // Template: 2 read steps that get expanded to N batches.
+  // The orchestrator uses the first dynamic step as the template.
   {
-    id: 'sable-pass-1',
-    label: 'Style Sheet & Consistency',
-    promptTemplate: `Run Pass 1: Style Sheet Construction & Consistency.
+    id: 'sable-read-1',
+    label: 'Read First Half',
+    promptTemplate: `Read the following manuscript chapters as a copy editor, building detailed tracking notes.
 
-Read the manuscript chapters in order. Build (or update) the Style Sheet at source/style-sheet.md. Flag every spelling, capitalization, hyphenation, and formatting deviation you find.
+{{CHAPTER_LIST}}
 
-Write your findings to source/.scratch/sable-pass-1.md in the audit report format (chapter-by-chapter findings). Include the Style Sheet status at the top.
+**Instructions:**
+1. Use the **Read** tool on each chapter file listed above, one at a time, in order.
+2. After reading ALL chapters in this batch, use the **Write** tool to create the tracker file.
 
-Do NOT produce the final audit report yet — this is pass 1 of 5.`,
-    scratchFile: 'source/.scratch/sable-pass-1.md',
+For each chapter, track these copy-edit observations in concise bullet form:
+- **Style sheet items**: Character name spellings, place names, hyphenation choices, capitalization patterns, number formatting, recurring constructions. Note the first occurrence of each.
+- **Continuity flags**: Character details (eye color, age, clothing), timeline markers, geography, object tracking. Flag any contradictions or impossibilities.
+- **Grammar & mechanics**: Incorrect grammar, punctuation errors, syntax problems, dialogue punctuation issues. Note the specific sentence or phrase.
+- **Repetition & word-level**: Echo words (same word repeated within a paragraph/page), crutch words, unintentional repetition patterns, malapropisms.
+- **Formatting issues**: Chapter heading format, scene break style, stray placeholder text, double spaces, inconsistent dash types, quote style mismatches, markup artifacts.
+- **Voice profile notes**: Any intentional style choices to preserve (dialect, sentence fragments, unconventional punctuation). These are NOT errors.
+
+**IMPORTANT: You MUST use the Write tool to create \`source/.scratch/sable-read-1.md\` before finishing.** Do not end without writing the file.
+
+Do NOT read any reference docs (story-bible, voice-profile, etc.) — focus only on the chapters listed above.
+Do NOT write any analysis, audit report, or style sheet yet — this is a reading pass only.`,
+    scratchFile: 'source/.scratch/sable-read-1.md',
+    maxTurns: 15,
+    isSynthesis: false,
+    dynamic: true,
+    thinkingBudgetOverride: 0,
+    lightweightPrompt: true,
+  },
+  {
+    id: 'sable-read-2',
+    label: 'Read Second Half',
+    promptTemplate: `Continue reading manuscript chapters as a copy editor, building detailed tracking notes.
+
+{{CHAPTER_LIST}}
+
+**Instructions:**
+1. Use the **Read** tool on \`source/.scratch/sable-read-1.md\` to recall your observations from the previous batch.
+2. Use the **Read** tool on each chapter file listed above, one at a time, in order.
+3. After reading ALL chapters in this batch, use the **Write** tool to create the tracker file.
+
+For each chapter, track these copy-edit observations in concise bullet form:
+- **Style sheet items**: Character name spellings, place names, hyphenation choices, capitalization patterns, number formatting, recurring constructions. Note first occurrences AND deviations from patterns established in earlier batches.
+- **Continuity flags**: Character details, timeline markers, geography, object tracking. Flag contradictions with earlier chapters.
+- **Grammar & mechanics**: Incorrect grammar, punctuation errors, syntax problems, dialogue punctuation issues.
+- **Repetition & word-level**: Echo words, crutch words, unintentional repetition patterns, malapropisms.
+- **Formatting issues**: Chapter heading format, scene break style, stray placeholder text, double spaces, dash types, quote styles, markup artifacts.
+- **Voice profile notes**: Intentional style choices to preserve.
+
+**IMPORTANT: You MUST use the Write tool to create \`source/.scratch/sable-read-2.md\` before finishing.** Do not end without writing the file.
+
+Do NOT read any reference docs or other files — focus only on the chapters listed above and the prior batch tracker.
+Do NOT write any analysis, audit report, or style sheet yet — this is a reading pass only.`,
+    scratchFile: 'source/.scratch/sable-read-2.md',
+    maxTurns: 15,
+    isSynthesis: false,
+    dynamic: true,
+    thinkingBudgetOverride: 0,
+    lightweightPrompt: true,
+  },
+  // ── Analysis passes (work from tracking notes, NOT raw chapters) ──
+  // Three analysis groups that consolidate the 5 audit categories.
+  {
+    id: 'sable-analysis-1',
+    label: 'Style Sheet & Continuity',
+    promptTemplate: `Run Copy Edit Analysis 1: Style Sheet Construction + Continuity Audit.
+
+**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your tracking notes already contain everything you need.
+
+Read ONLY these tracking note files (use the Read tool on each one):
+{{READ_TRACKER_FILES}}
+
+These contain your chapter-by-chapter copy-edit observations from the reading passes.
+
+After reading all tracking files, perform two analyses:
+
+**Style Sheet Construction:**
+- Compile all style sheet items from your tracking notes into a comprehensive style sheet
+- Catalog: character name spellings (all variants seen), place names, hyphenation choices, capitalization patterns, number formatting conventions, recurring constructions
+- Flag every deviation from the dominant pattern (e.g. "grey" 47× vs "gray" 3×)
+- Build or update the style sheet at source/style-sheet.md
+
+**Continuity & Facts Audit:**
+- Cross-reference all continuity flags from your tracking notes
+- Track character details across chapters (physical descriptions, ages, relationships)
+- Verify timeline consistency, geography, object continuity
+- Flag contradictions and impossibilities with chapter references
+
+Write your combined analysis to source/.scratch/sable-analysis-1.md in audit report format (findings by chapter + global findings).
+
+Do NOT produce the final audit report yet — this is analysis pass 1 of 3.`,
+    scratchFile: 'source/.scratch/sable-analysis-1.md',
     maxTurns: 10,
     isSynthesis: false,
   },
   {
-    id: 'sable-pass-2',
-    label: 'Continuity & Facts',
-    promptTemplate: `Run Pass 2: Continuity & Facts.
+    id: 'sable-analysis-2',
+    label: 'Grammar & Repetition',
+    promptTemplate: `Run Copy Edit Analysis 2: Grammar & Mechanics + Repetition Audit.
 
-Read the manuscript chapters. Cross-reference against the Story Bible (if it exists). Track character details, timeline, geography, and object continuity. Flag contradictions and impossibilities.
+**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your tracking notes already contain everything you need.
 
-Read source/.scratch/sable-pass-1.md to see what Pass 1 already found — do not duplicate those findings.
+Read ONLY these tracking note files (use the Read tool on each one):
+{{READ_TRACKER_FILES}}
 
-Write your findings to source/.scratch/sable-pass-2.md in the audit report format.
+Focus on the **Grammar & mechanics** and **Repetition & word-level** fields in each chapter's tracking notes. Also reference the **Voice profile notes** to avoid flagging intentional style choices.
 
-Do NOT produce the final audit report yet — this is pass 2 of 5.`,
-    scratchFile: 'source/.scratch/sable-pass-2.md',
+After reading all tracking files, perform two analyses:
+
+**Grammar & Mechanics Audit:**
+- Consolidate all grammar/punctuation/syntax issues from your tracking notes
+- Give dialogue punctuation its own section (common source of errors)
+- Cross-reference voice profile notes — do NOT flag intentional choices as errors
+- Categorize by severity: error (must fix), query (needs author decision), note (minor)
+
+**Repetition & Word-Level Audit:**
+- Compile all echo words, crutch words, and repetition patterns from your notes
+- Produce frequency counts for crutch words across the full manuscript
+- Flag malapropisms and word confusions
+- Distinguish between unintentional repetition and deliberate stylistic echoes
+
+Write your combined analysis to source/.scratch/sable-analysis-2.md in audit report format.
+
+Do NOT produce the final audit report yet — this is analysis pass 2 of 3.`,
+    scratchFile: 'source/.scratch/sable-analysis-2.md',
     maxTurns: 10,
     isSynthesis: false,
   },
   {
-    id: 'sable-pass-3',
-    label: 'Grammar & Mechanics',
-    promptTemplate: `Run Pass 3: Grammar & Mechanics.
-
-Read the manuscript chapters. Audit for grammar, punctuation, syntax, and sentence-level correctness. Cross-reference the Voice Profile to avoid flagging intentional style choices. Give dialogue punctuation its own focused sub-pass.
-
-Write your findings to source/.scratch/sable-pass-3.md in the audit report format.
-
-Do NOT produce the final audit report yet — this is pass 3 of 5.`,
-    scratchFile: 'source/.scratch/sable-pass-3.md',
-    maxTurns: 10,
-    isSynthesis: false,
-  },
-  {
-    id: 'sable-pass-4',
-    label: 'Repetition & Word-Level',
-    promptTemplate: `Run Pass 4: Repetition & Word-Level Issues.
-
-Read the manuscript chapters. Flag unintentional repetition, echo words, crutch words (with frequency counts), and malapropisms. Check for Voice Profile "Avoid" list items.
-
-Write your findings to source/.scratch/sable-pass-4.md in the audit report format.
-
-Do NOT produce the final audit report yet — this is pass 4 of 5.`,
-    scratchFile: 'source/.scratch/sable-pass-4.md',
-    maxTurns: 10,
-    isSynthesis: false,
-  },
-  {
-    id: 'sable-pass-5',
+    id: 'sable-analysis-3',
     label: 'Formatting & Production',
-    promptTemplate: `Run Pass 5: Formatting & Production.
+    promptTemplate: `Run Copy Edit Analysis 3: Formatting & Production Audit.
 
-Read the manuscript chapters. Verify chapter heading format, scene break consistency, check for stray placeholder text, verify part.txt dividers, and flag formatting issues (double spaces, dash types, quote styles, markup artifacts).
+**IMPORTANT**: Do NOT read any manuscript chapters. Do NOT use the Read tool on any chapters/ files. Your tracking notes already contain everything you need.
 
-Write your findings to source/.scratch/sable-pass-5.md in the audit report format.
+Read ONLY these tracking note files (use the Read tool on each one):
+{{READ_TRACKER_FILES}}
 
-Do NOT produce the final audit report yet — this is pass 5 of 5.`,
-    scratchFile: 'source/.scratch/sable-pass-5.md',
+Focus on the **Formatting issues** fields in each chapter's tracking notes.
+
+After reading all tracking files, analyze:
+
+**Formatting & Production Audit:**
+- Verify chapter heading format consistency across all chapters
+- Check scene break style consistency
+- Flag stray placeholder text, TODO markers, or author notes left in prose
+- Audit part.txt dividers if applicable
+- Flag formatting issues: double spaces, inconsistent dash types (em vs en vs hyphen), curly vs straight quotes, markup artifacts, orphaned whitespace
+- Check for consistent use of italics, bold, or other markup
+
+Write your analysis to source/.scratch/sable-analysis-3.md in audit report format.
+
+Do NOT produce the final audit report yet — this is analysis pass 3 of 3.`,
+    scratchFile: 'source/.scratch/sable-analysis-3.md',
     maxTurns: 10,
     isSynthesis: false,
   },
+  // ── Synthesis (reads all analysis files, writes final report) ──
   {
     id: 'sable-synthesis',
     label: 'Synthesize Audit Report',
@@ -572,24 +671,23 @@ Do NOT produce the final audit report yet — this is pass 5 of 5.`,
     promptTemplate: `Synthesize the final Copy Edit Audit Report.
 
 **CRITICAL RULES — read carefully before doing anything:**
-1. You have EXACTLY 5 files to read. Do NOT read anything else — no chapters, no manuscript files.
-2. After reading all 5 files, write the report IMMEDIATELY. Do not re-read files.
+1. You have EXACTLY 3 files to read. Do NOT read anything else — no chapters, no batch trackers, no other files.
+2. After reading all 3 files, write the report IMMEDIATELY. Do not re-read files.
 3. If you are tempted to read a file not listed below, STOP and write the report instead.
 
-Read these 5 files (use the Read tool on each):
-- source/.scratch/sable-pass-1.md (Style Sheet & Consistency)
-- source/.scratch/sable-pass-2.md (Continuity & Facts)
-- source/.scratch/sable-pass-3.md (Grammar & Mechanics)
-- source/.scratch/sable-pass-4.md (Repetition & Word-Level)
-- source/.scratch/sable-pass-5.md (Formatting & Production)
+Read these 3 files (use the Read tool on each):
+- source/.scratch/sable-analysis-1.md (Style Sheet & Continuity)
+- source/.scratch/sable-analysis-2.md (Grammar & Repetition)
+- source/.scratch/sable-analysis-3.md (Formatting & Production)
 
 Then IMMEDIATELY write the final report to source/audit-report.md with:
-- Summary with total counts by severity
-- Findings by chapter (merged from all passes)
-- Global findings
+- Summary with total counts by severity (error / query / note)
+- Findings by chapter (merged from all analysis passes)
+- Global findings (patterns that span the whole manuscript)
+- Crutch word frequency table
 - Queries for author
 
-Also update source/style-sheet.md if Pass 1 built or modified it.`,
+Also update source/style-sheet.md if the analysis-1 pass built or modified it.`,
     scratchFile: null,
     outputFile: 'source/audit-report.md',
     maxTurns: 30,
