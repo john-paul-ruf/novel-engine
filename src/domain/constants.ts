@@ -447,7 +447,7 @@ export const MOTIF_AUDIT_CADENCE = 3;
 // call with a focused prompt and bounded context. Intermediate results go
 // to source/.scratch/ and are cleaned up after synthesis.
 //
-// Agents NOT listed (Spark, Verity, Forge, Quill, etc.) run as a single call.
+// Agents NOT listed (Spark, Verity, Quill, etc.) run as a single call.
 
 import type { MultiCallStep } from '@domain/types';
 
@@ -975,15 +975,87 @@ Then IMMEDIATELY write the final report to source/reader-report.md with:
 ];
 
 /**
+ * Forge (Task Planner) — 2 steps: task list + session prompts.
+ *
+ * Forge reads diagnostic reports (dev-report, audit-report, reader-report)
+ * and produces two output files. Splitting into two steps ensures each file
+ * gets a dedicated call with verification — matching the same reliability
+ * pattern as Sable, Lumen, and Ghostlight.
+ *
+ * Step 1: Read reports → write source/project-tasks.md
+ * Step 2: Read task list → write source/revision-prompts.md
+ */
+export const FORGE_MULTI_CALL_STEPS: MultiCallStep[] = [
+  {
+    id: 'forge-task-list',
+    label: 'Build Task List',
+    promptTemplate: `Read the available diagnostic reports and produce the phased Revision Task List.
+
+Read these files if they exist (use the Read tool):
+- source/dev-report.md (Lumen's developmental assessment)
+- source/audit-report.md (Sable's copy edit audit)
+- source/reader-report.md (Ghostlight's reader report — for priority context)
+- source/style-sheet.md (if present)
+
+Also read for context:
+- about.json
+- source/voice-profile.md
+- source/scene-outline.md
+- source/story-bible.md
+
+Enumerate all chapter directories under chapters/.
+
+If source/project-tasks.md already exists, this is a second revision cycle — execute Report Archival (rename existing files to v1 archives) before proceeding.
+
+Produce the complete phased task list following your system prompt instructions:
+- Phase 0: Author Decisions (blockers)
+- Phase 1–6: Structural → Chapter-Level → Continuity → Mechanical → Reference Docs → Line Polish
+- Deduplicate findings across reports
+- Number tasks sequentially across all phases
+
+Write the task list to source/project-tasks.md.
+
+Do NOT write session prompts yet — that is the next step. Do NOT append the session map yet.`,
+    scratchFile: null,
+    outputFile: 'source/project-tasks.md',
+    maxTurns: 15,
+    isSynthesis: false,
+  },
+  {
+    id: 'forge-session-prompts',
+    label: 'Write Session Prompts',
+    promptTemplate: `Read the task list you produced and write the Session Map + Session Prompts.
+
+Read these files (use the Read tool):
+- source/project-tasks.md (the task list you just wrote)
+- source/dev-report.md (to inline diagnostic excerpts into prompts)
+- source/audit-report.md (to inline diagnostic excerpts into prompts)
+- source/scene-outline.md (for chapter structure context)
+
+Enumerate all chapter directories under chapters/ to resolve real chapter paths.
+
+Then:
+1. Build the Session Map table and APPEND it to source/project-tasks.md under a ## Session Map heading. Include dependency columns (Produces, Required By) if any inter-session contracts exist.
+2. Append the Post-Revision Checklist to source/project-tasks.md under a ## Post-Revision Checklist heading.
+3. Create the source/session-handoffs/ directory if any sessions have inter-session dependencies.
+4. Write all session prompts to source/revision-prompts.md — fully resolved with real chapter paths, inlined diagnostic context, and session contracts (## Save Output / ## Prior Session Context where needed).
+
+Every chapter reference must use real slugs from chapters/. Every diagnostic excerpt must be inlined — no "see file X" placeholders.`,
+    scratchFile: null,
+    outputFile: 'source/revision-prompts.md',
+    maxTurns: 20,
+    isSynthesis: true,
+  },
+];
+
+/**
  * Registry mapping agents to their multi-call step schemas.
  * Agents not in this map run as a single call (existing behavior).
- *
- * Forge is intentionally excluded — it reads 2 small reports and writes
- * 2 files, well within a single call's capacity.
  */
 export const AGENT_MULTI_CALL_STEPS: Partial<Record<CreativeAgentName, MultiCallStep[]>> = {
   Sable: SABLE_MULTI_CALL_STEPS,
   Lumen: LUMEN_MULTI_CALL_STEPS,
   Ghostlight: GHOSTLIGHT_MULTI_CALL_STEPS,
+  Forge: FORGE_MULTI_CALL_STEPS,
 };
 

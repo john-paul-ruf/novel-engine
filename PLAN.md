@@ -75,10 +75,10 @@ Break the heavy single-call pipeline agents (Ghostlight, Lumen, Sable, Forge) in
 - **Status**: DONE
 - **Notes**: Depends on T-O1, T-O2. Dynamic word-count-based chapter batching in computeChapterBatches()
 
-### T-S4: Forge (Task Planner) — keep single call
-- **Outcome**: Forge reads 2 small reports and produces 2 files. No multi-call needed. Explicitly document that Forge is excluded from orchestration.
-- **Verification**: Forge still works as a single call.
-- **Files**: Documentation only (comment in constants)
+### T-S4: Forge (Task Planner) — 2-step multi-call
+- **Outcome**: Forge uses 2-step multi-call: (1) read reports → write `source/project-tasks.md`, (2) read task list → write `source/revision-prompts.md`. Each step gets dedicated verification, matching the Sable/Lumen/Ghostlight reliability pattern.
+- **Verification**: `tsc --noEmit` clean. `npm run lint` clean. Forge appears in `AGENT_MULTI_CALL_STEPS`.
+- **Files**: `src/domain/constants.ts`
 - **Status**: DONE
 
 ## Phase 3: Quick Actions (Manual Fallback)

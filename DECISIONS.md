@@ -179,3 +179,16 @@
   - Exact 5 analysis groups (one per original pass): rejected — unnecessary granularity; style+continuity and grammar+repetition are natural pairs that benefit from cross-referencing
 - **Verification**: `tsc --noEmit` clean. `npm run lint` clean. For 102K words: ~4 read batches + 3 analysis passes + 1 synthesis = 8 steps, each under ~50K tokens.
 - **Follow-ups**: T-P1 (E2E Ollama test) — re-run Sable copy edit to verify the sip-and-track schema completes without stalling.
+
+## 2026-04-27 session-8 — Forge 2-step multi-call: write both files reliably
+
+- **Context**: Forge produces two output files (`source/project-tasks.md` and `source/revision-prompts.md`). Previously excluded from multi-call orchestration, it relied on a fragile regex-based `splitResponseByFiles` extraction when running on providers without tool-use (Ollama, llama-server). This was inconsistent — the split depended on the model emitting a heading matching the secondary filename.
+- **Decision**: Added Forge to `AGENT_MULTI_CALL_STEPS` with a 2-step schema:
+  1. **Build Task List** (maxTurns 15): reads diagnostic reports + reference docs → writes `source/project-tasks.md`
+  2. **Write Session Prompts** (maxTurns 20, synthesis): reads task list + reports → appends session map & checklist to `project-tasks.md`, writes `source/revision-prompts.md`
+  Each step gets the orchestrator's file-existence verification after completion, matching the same reliability pattern as Sable/Lumen/Ghostlight. No scratch files needed — both outputs are real files. Cleanup is a no-op (no scratch files to delete).
+- **Alternatives considered**:
+  - Keep single-call + improve splitResponseByFiles regex: rejected — inherently fragile; depends on model formatting a heading a specific way. The orchestrator's per-step verification is strictly more reliable.
+  - 3 steps (separate session map from prompts): rejected — the session map is appended to `project-tasks.md` (same file as step 1), and prompts need the map for context. Two steps is the natural split.
+- **Verification**: `tsc --noEmit` clean. `npm run lint` clean.
+- **Follow-ups**: T-P1/T-P2 (E2E tests) — verify Forge pipeline produces both files on Ollama and Claude CLI.
