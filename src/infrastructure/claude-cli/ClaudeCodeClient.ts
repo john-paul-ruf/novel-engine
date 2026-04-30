@@ -248,6 +248,8 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
 
       let stdoutBuffer = '';
       let stderrBuffer = '';
+      /** Non-JSON lines from stdout — captured for diagnostics on failure. */
+      let stdoutDiagnostics: string[] = [];
       let settled = false;
 
       const settle = (fn: () => void) => {
@@ -294,7 +296,10 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
             const event = JSON.parse(line);
             this.processStreamEvent(event, tracker, wrappedOnEvent);
           } catch {
-            // Skip unparseable lines
+            // Not valid JSON — save for diagnostics if the CLI fails
+            if (line.trim()) {
+              stdoutDiagnostics.push(line.trim());
+            }
           }
         }
       });
@@ -321,7 +326,10 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
             const event = JSON.parse(stdoutBuffer.trim());
             this.processStreamEvent(event, tracker, wrappedOnEvent);
           } catch {
-            // Skip unparseable remainder
+            // Not valid JSON — capture for diagnostics on failure
+            if (stdoutBuffer.trim()) {
+              stdoutDiagnostics.push(stdoutBuffer.trim());
+            }
           }
         }
 
@@ -349,7 +357,25 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
           }
           settle(() => resolve());
         } else {
-          const message = stderrBuffer.trim() || `Claude CLI exited with code ${code}`;
+          // Build the most informative error message possible.
+          // Priority: stderr > non-JSON stdout lines > generic fallback.
+          const stderr = stderrBuffer.trim();
+          const stdoutExtra = stdoutDiagnostics.join('\n').trim();
+          let message: string;
+          if (stderr) {
+            message = stderr;
+          } else if (stdoutExtra) {
+            message = `Claude CLI exited with code ${code}: ${stdoutExtra}`;
+          } else {
+            message = `Claude CLI exited with code ${code} (no stderr/stdout diagnostics — ` +
+              `pid=${child.pid ?? 'unknown'}, model=${model}, stdinBytes=${stdinBytes})`;
+          }
+          console.error(
+            `[ClaudeCodeClient] CLI failed: code=${code}, pid=${child.pid ?? 'unknown'}, ` +
+            `model=${model}, stdinBytes=${stdinBytes}, ` +
+            `stderr=${stderr ? `"${stderr.slice(0, 500)}"` : '(empty)'}, ` +
+            `stdoutDiagnostics=${stdoutExtra ? `"${stdoutExtra.slice(0, 500)}"` : '(none)'}`,
+          );
           wrappedOnEvent({ type: 'error', message });
           settle(() => reject(new Error(message)));
         }
