@@ -64,6 +64,7 @@ import type {
 export interface ISettingsService {
   load(): Promise<AppSettings>;
   detectClaudeCli(): Promise<boolean>;
+  detectOllamaCli(): Promise<boolean>;
   update(partial: Partial<AppSettings>): Promise<void>;
 }
 

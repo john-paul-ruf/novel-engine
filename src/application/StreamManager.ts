@@ -22,6 +22,12 @@ export type StreamOptions = {
   trackFilesChanged?: boolean;
   /** Callback invoked after the assistant message is saved on 'done'. */
   onDone?: (event: StreamEvent & { type: 'done' }) => void | Promise<void>;
+  /**
+   * Callback invoked when the stream errors. Receives the response buffer
+   * accumulated so far, allowing callers to salvage partial output (e.g.
+   * post-stream file extraction for pipeline conversations).
+   */
+  onError?: (responseBuffer: string) => void | Promise<void>;
 };
 
 /**
@@ -59,6 +65,7 @@ export class StreamManager {
     getResponseBuffer: () => string;
     getThinkingBuffer: () => string;
     getChangedFiles: () => string[];
+    awaitPendingHook: () => Promise<void>;
   } {
     const { conversationId, agentName, model, bookSlug, sessionId, callId, onEvent } = params;
     const trackFilesChanged = options.trackFilesChanged ?? true;
@@ -85,6 +92,11 @@ export class StreamManager {
     let responseBuffer = '';
     let thinkingBuffer = '';
     let changedFiles: string[] = [];
+
+    // Pending async hook — tracked so we can await it before forwarding
+    // the terminal event (done/error) to the caller. This ensures
+    // post-stream file extraction completes before the IPC layer returns.
+    let pendingHook: Promise<void> | null = null;
 
     // The event handler that the caller passes to claude.sendMessage()
     const streamOnEvent = (event: StreamEvent): void => {
@@ -114,7 +126,13 @@ export class StreamManager {
         thinkingBuffer += event.text;
         if (stream) stream.thinkingBuffer = thinkingBuffer;
       } else if (event.type === 'filesChanged' && trackFilesChanged) {
-        changedFiles = event.paths;
+        // Accumulate rather than replace — multiple filesChanged events may fire
+        // (e.g. one per tool call in Ollama, or one final batch from Claude CLI)
+        for (const p of event.paths) {
+          if (!changedFiles.includes(p)) {
+            changedFiles.push(p);
+          }
+        }
       } else if (event.type === 'done') {
         // Save the assistant message
         this.db.saveMessage({
@@ -137,16 +155,32 @@ export class StreamManager {
         this.db.endStreamSession(sessionId, 'complete', event.filesTouched);
         this.activeStreams.delete(conversationId);
 
-        // Call optional onDone hook (for chapter validation, etc.)
+        // Call optional onDone hook (for chapter validation, file extraction, etc.)
+        // We track the promise so `awaitPendingHook()` can ensure it completes
+        // before the caller considers the stream finished.
         if (options.onDone) {
           const result = options.onDone(event as StreamEvent & { type: 'done' });
           if (result instanceof Promise) {
-            result.catch((err: unknown) => console.error('[StreamManager] onDone hook error:', err));
+            pendingHook = result.catch((err: unknown) =>
+              console.error('[StreamManager] onDone hook error:', err),
+            );
           }
         }
       } else if (event.type === 'error') {
         this.db.endStreamSession(sessionId, 'idle', {});
         this.activeStreams.delete(conversationId);
+
+        // Call optional onError hook — lets callers salvage partial output
+        // (e.g. post-stream file extraction when the stream errored but
+        // the response buffer has content worth saving).
+        if (options.onError) {
+          const result = options.onError(responseBuffer);
+          if (result instanceof Promise) {
+            pendingHook = result.catch((err: unknown) =>
+              console.error('[StreamManager] onError hook error:', err),
+            );
+          }
+        }
       }
 
       // Forward ALL events to the caller
@@ -158,6 +192,8 @@ export class StreamManager {
       getResponseBuffer: () => responseBuffer,
       getThinkingBuffer: () => thinkingBuffer,
       getChangedFiles: () => changedFiles,
+      /** Await any pending onDone/onError async hook before returning. */
+      awaitPendingHook: () => pendingHook ?? Promise.resolve(),
     };
   }
 

@@ -68,6 +68,8 @@ export function StreamingMessage(): React.ReactElement | null {
   const progressStage = useChatStore((s) => s.progressStage);
   const thinkingSummary = useChatStore((s) => s.thinkingSummary);
   const toolTimings = useChatStore((s) => s.toolTimings);
+  const warningMessage = useChatStore((s) => s.warningMessage);
+  const multiCallProgress = useChatStore((s) => s.multiCallProgress);
 
   const renderedHtml = useMemo(() => {
     if (!streamBuffer) return '';
@@ -108,6 +110,32 @@ export function StreamingMessage(): React.ReactElement | null {
             <span key={rotatingStatus} className="status-fade-in shimmer-text">
               {rotatingStatus}
             </span>
+          </div>
+        )}
+
+        {/* Multi-call progress indicator */}
+        {multiCallProgress && (
+          <div className="mb-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-3 py-2 text-xs text-blue-800 dark:text-blue-200">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium">{multiCallProgress.label}</span>
+              <span className="text-blue-500 dark:text-blue-400">
+                Step {multiCallProgress.step}/{multiCallProgress.totalSteps}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-blue-100 dark:bg-blue-900 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${(multiCallProgress.step / multiCallProgress.totalSteps) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Provider capability warning banner */}
+        {warningMessage && (
+          <div className="mb-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0">&#9888;</span>
+            <span>{warningMessage}</span>
           </div>
         )}
 

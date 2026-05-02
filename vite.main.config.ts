@@ -11,7 +11,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['better-sqlite3', 'archiver'],
+      external: ['better-sqlite3', 'archiver', 'undici'],
     },
   },
 });

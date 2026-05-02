@@ -24,6 +24,8 @@ import type {
 import {
   WRANGLER_MODEL,
   AGENT_REGISTRY,
+  MULTI_CALL_MAX_RETRIES,
+  MULTI_CALL_RETRY_EXTRA_TURNS,
 } from '@domain/constants';
 import { ContextBuilder } from './ContextBuilder';
 
@@ -366,59 +368,129 @@ export class RevisionQueueService implements IRevisionQueueService {
 
       const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
 
-      let rawResponse = '';
-      let cliError = '';
       const wranglerSettings = await this.settings.load();
       const wranglerThinkingBudget = wranglerSettings.enableThinking ? 4000 : undefined;
-      await this.providers.sendMessage({
-        model: WRANGLER_MODEL,
-        systemPrompt: await this.agents.loadRaw('WRANGLER-PARSE.md'),
-        messages: [{ role: 'user' as const, content: userMessage }],
-        maxTokens: 8192,
-        thinkingBudget: wranglerThinkingBudget,
-        maxTurns: 3,
-        onEvent: (event) => {
-          // Forward ALL stream events to the activity viewer so users can
-          // see thinking, tool use, and progress while the Wrangler works
-          this.emit({ type: 'session:streamEvent', sessionId: '__plan-load__', event });
+      const wranglerSystemPrompt = await this.agents.loadRaw('WRANGLER-PARSE.md');
+      const baseMaxTurns = 15;
 
-          if (event.type === 'textDelta') {
-            rawResponse += event.text;
-          } else if (event.type === 'error') {
-            cliError = event.message;
-          }
-        },
-      });
+      // ── Retry loop: same pattern as MultiCallOrchestrator ──
+      // The most common failure modes are: CLI timeout, partial/malformed JSON
+      // response, or the model exhausting its turn limit. On retry, bump
+      // maxTurns to give the model more room to complete its response.
+      let lastError: Error | null = null;
 
-      if (!rawResponse.trim() && cliError) {
-        throw new Error(`Wrangler CLI call failed: ${cliError}`);
-      }
+      for (let attempt = 0; attempt <= MULTI_CALL_MAX_RETRIES; attempt++) {
+        const isRetry = attempt > 0;
+        const extraTurns = attempt * MULTI_CALL_RETRY_EXTRA_TURNS;
+        const effectiveMaxTurns = baseMaxTurns + extraTurns;
 
-      // The real 'done' event is already forwarded by the onEvent handler above,
-      // so no synthetic done emission is needed here.
-
-      this.emit({ type: 'plan:loading-step', step: 'Parsing Wrangler response…' });
-
-      try {
-        const jsonStart = rawResponse.indexOf('{');
-        const jsonEnd = rawResponse.lastIndexOf('}');
-        if (jsonStart === -1 || jsonEnd === -1) {
-          throw new Error('No JSON object found in response');
+        if (isRetry) {
+          console.log(
+            `[RevisionQueue] Retrying Wrangler parse (attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}, ` +
+            `maxTurns: ${effectiveMaxTurns})`,
+          );
+          this.emit({
+            type: 'plan:loading-step',
+            step: `↻ Retrying Wrangler parse (attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}, ` +
+              `maxTurns bumped to ${effectiveMaxTurns})…`,
+          });
+          this.emit({
+            type: 'session:streamEvent',
+            sessionId: '__plan-load__',
+            event: {
+              type: 'status',
+              message: `Retrying Wrangler parse (attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1})…`,
+            },
+          });
         }
-        parsed = JSON.parse(rawResponse.slice(jsonStart, jsonEnd + 1));
-      } catch (err) {
+
+        let rawResponse = '';
+        let cliError = '';
+
+        try {
+          await this.providers.sendMessage({
+            model: WRANGLER_MODEL,
+            systemPrompt: wranglerSystemPrompt,
+            messages: [{ role: 'user' as const, content: userMessage }],
+            maxTokens: 16384,
+            thinkingBudget: wranglerThinkingBudget,
+            maxTurns: effectiveMaxTurns,
+            onEvent: (event) => {
+              // Forward ALL stream events to the activity viewer so users can
+              // see thinking, tool use, and progress while the Wrangler works
+              this.emit({ type: 'session:streamEvent', sessionId: '__plan-load__', event });
+
+              if (event.type === 'textDelta') {
+                rawResponse += event.text;
+              } else if (event.type === 'error') {
+                cliError = event.message;
+              }
+            },
+          });
+
+          // Check for CLI-level errors (provider emitted error via callback)
+          if (cliError) {
+            throw new Error(`Wrangler CLI error: ${cliError}`);
+          }
+
+          if (!rawResponse.trim()) {
+            throw new Error('Wrangler returned an empty response');
+          }
+
+          // The real 'done' event is already forwarded by the onEvent handler above,
+          // so no synthetic done emission is needed here.
+
+          this.emit({ type: 'plan:loading-step', step: 'Parsing Wrangler response…' });
+
+          const jsonStart = rawResponse.indexOf('{');
+          const jsonEnd = rawResponse.lastIndexOf('}');
+          if (jsonStart === -1 || jsonEnd === -1) {
+            throw new Error('No JSON object found in response');
+          }
+          parsed = JSON.parse(rawResponse.slice(jsonStart, jsonEnd + 1));
+
+          // Validate: don't cache garbage — the Wrangler must produce at least one session
+          if (!parsed.sessions?.length) {
+            throw new Error(
+              `Wrangler returned 0 sessions. This likely means the revision-prompts.md format was not recognized. ` +
+              `Response keys: ${Object.keys(parsed).join(', ')}`,
+            );
+          }
+
+          // Success — break out of the retry loop
+          lastError = null;
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          console.error(
+            `[RevisionQueue] Wrangler parse failed (attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}):`,
+            lastError.message,
+          );
+
+          if (attempt < MULTI_CALL_MAX_RETRIES) {
+            this.emit({
+              type: 'session:streamEvent',
+              sessionId: '__plan-load__',
+              event: {
+                type: 'status',
+                message: `Wrangler parse failed: ${lastError.message}. ` +
+                  `Retrying (${MULTI_CALL_MAX_RETRIES - attempt} attempt(s) remaining)…`,
+              },
+            });
+          }
+        }
+      }
+
+      if (lastError) {
         throw new Error(
-          `Failed to parse Wrangler response as JSON: ${err instanceof Error ? err.message : String(err)}. Response starts with: "${rawResponse.slice(0, 200)}"`,
+          `Wrangler parse failed after ${MULTI_CALL_MAX_RETRIES + 1} attempts: ${lastError.message}`,
         );
       }
 
-      // Validate: don't cache garbage — the Wrangler must produce at least one session
-      if (!parsed.sessions?.length) {
-        throw new Error(
-          `Wrangler returned 0 sessions. This likely means the revision-prompts.md format was not recognized. ` +
-          `Response keys: ${Object.keys(parsed).join(', ')}`,
-        );
-      }
+      // Safety: parsed is guaranteed to be set here (lastError is null only
+      // when the try block succeeded and assigned parsed before breaking).
+      // The non-null assertion satisfies TypeScript's definite assignment check.
+      parsed = parsed!;
 
       // Write cache for next time
       await this.writeCache(bookSlug, {

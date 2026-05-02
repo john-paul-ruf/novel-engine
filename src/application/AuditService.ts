@@ -9,7 +9,15 @@ import type {
 } from '@domain/interfaces';
 import type { AuditResult, StreamEvent } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VERITY_AUDIT_AGENT_FILE, VERITY_AUDIT_MODEL, VERITY_AUDIT_MAX_TOKENS, AGENT_REGISTRY } from '@domain/constants';
+import {
+  VERITY_AUDIT_AGENT_FILE,
+  VERITY_AUDIT_MODEL,
+  VERITY_AUDIT_MAX_TOKENS,
+  AGENT_REGISTRY,
+  CLAUDE_CLI_PROVIDER_ID,
+  MULTI_CALL_SCRATCH_DIR,
+  MULTI_CALL_TARGET_WORDS_PER_BATCH,
+} from '@domain/constants';
 import { resolveThinkingBudget } from './thinkingBudget';
 
 /**
@@ -31,8 +39,29 @@ export class AuditService implements IAuditService {
   ) {}
 
   /**
+   * Resolve the model for the audit pass.
+   *
+   * On Claude CLI → use hardcoded Sonnet (fast, cheap, sufficient).
+   * On Ollama / other providers → fall back to the user's selected model
+   * since Sonnet isn't available through those providers.
+   */
+  private async resolveAuditModel(): Promise<{ model: string; maxTokens: number }> {
+    const appSettings = await this.settings.load();
+    const activeProvider = this.providers.getProviderForModel(appSettings.model)
+      ?? this.providers.getDefaultProvider();
+    const isClaudeCli = activeProvider.providerId === CLAUDE_CLI_PROVIDER_ID;
+
+    if (isClaudeCli) {
+      return { model: VERITY_AUDIT_MODEL, maxTokens: VERITY_AUDIT_MAX_TOKENS };
+    }
+    // Non-Claude provider: use user's model with a reasonable token limit
+    return { model: appSettings.model, maxTokens: appSettings.maxTokens };
+  }
+
+  /**
    * Run the audit pass on a chapter draft. Returns the parsed audit result.
-   * Uses Sonnet for speed and cost. Returns null if the audit call fails.
+   * On Claude CLI, uses Sonnet for speed and cost. On other providers,
+   * falls back to the user's selected model. Returns null if the audit fails.
    */
   async auditChapter(params: {
     bookSlug: string;
@@ -105,18 +134,22 @@ export class AuditService implements IAuditService {
       let thinkingText = '';
       const sessionId = nanoid();
       const auditConversationId = `audit-${sessionId}`;
-      console.log(`[AuditService] Spawning audit CLI for ${chapterSlug} (model: ${VERITY_AUDIT_MODEL}, session: ${sessionId})`);
+      if (!targetConversationId) {
+        this.ensureEphemeralConversation(auditConversationId, bookSlug, 'Verity');
+      }
+      const { model: auditModel, maxTokens: auditMaxTokens } = await this.resolveAuditModel();
+      console.log(`[AuditService] Spawning audit CLI for ${chapterSlug} (model: ${auditModel}, session: ${sessionId})`);
 
       const AUDIT_TIMEOUT_MS = 120_000;
 
-      onEvent({ type: 'callStart', agentName: 'Verity', model: VERITY_AUDIT_MODEL, bookSlug });
+      onEvent({ type: 'callStart', agentName: 'Verity', model: auditModel, bookSlug });
       onEvent({ type: 'status', message: `Auditing ${chapterSlug} for voice/style violations…` });
 
       const cliPromise = this.providers.sendMessage({
-        model: VERITY_AUDIT_MODEL,
+        model: auditModel,
         systemPrompt: auditorPrompt,
         messages: [{ role: 'user' as const, content: userMessage }],
-        maxTokens: VERITY_AUDIT_MAX_TOKENS,
+        maxTokens: auditMaxTokens,
         maxTurns: 3,
         bookSlug,
         sessionId,
@@ -133,7 +166,7 @@ export class AuditService implements IAuditService {
               inputTokens: event.inputTokens,
               outputTokens: event.outputTokens,
               thinkingTokens: event.thinkingTokens,
-              model: VERITY_AUDIT_MODEL,
+              model: auditModel,
             });
           }
           onEvent(event);
@@ -274,11 +307,38 @@ export class AuditService implements IAuditService {
    * Reads the full manuscript, identifies repeated phrases and editorial intrusions,
    * and updates the motif ledger's flaggedPhrases section in source/motif-ledger.json.
    *
-   * This is a silent pre-step: it runs to completion before the main agent call,
-   * emitting status events but not saving a conversation (it's infrastructure, not a chat).
-   * Uses Sonnet for speed and cost — this is a mechanical pattern-detection task.
+   * Two modes:
+   *
+   * 1. **Claude CLI** (single call) — Reads the full manuscript in one go via
+   *    tool calls. Claude's 200K context handles even large manuscripts.
+   *
+   * 2. **Ollama / other providers** (multi-call sipping) — Breaks the read
+   *    into batches of ~MULTI_CALL_TARGET_WORDS_PER_BATCH words. Each batch
+   *    reads its chapters and writes a phrase tracker to source/.scratch/.
+   *    A final synthesis call reads all trackers and updates the motif ledger.
    */
   async runMotifAudit(params: {
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+  }): Promise<void> {
+    const { appSettings } = params;
+
+    const activeProvider = this.providers.getProviderForModel(appSettings.model)
+      ?? this.providers.getDefaultProvider();
+    const isClaudeCli = activeProvider.providerId === CLAUDE_CLI_PROVIDER_ID;
+
+    if (isClaudeCli) {
+      await this.runMotifAuditSingleCall(params);
+    } else {
+      await this.runMotifAuditMultiCall(params);
+    }
+  }
+
+  // ── Motif audit: single-call mode (Claude CLI) ──────────────────────────
+
+  private async runMotifAuditSingleCall(params: {
     bookSlug: string;
     appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
     onEvent: (event: StreamEvent) => void;
@@ -319,6 +379,8 @@ export class AuditService implements IAuditService {
     const thinkingBudget = resolveThinkingBudget(appSettings, lumenAgent.thinkingBudget);
 
     // Emit callStart so CLI Activity panel tracks this call
+    const motifConvId = `motif-audit-${sessionId}`;
+    this.ensureEphemeralConversation(motifConvId, bookSlug, 'Lumen');
     onEvent({ type: 'callStart', agentName: 'Lumen', model: appSettings.model, bookSlug });
     onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript…' });
 
@@ -331,11 +393,11 @@ export class AuditService implements IAuditService {
       maxTurns: AGENT_REGISTRY.Lumen.maxTurns,
       bookSlug,
       sessionId,
-      conversationId: `motif-audit-${sessionId}`,
+      conversationId: motifConvId,
       onEvent: (event: StreamEvent) => {
         if (event.type === 'done') {
           this.usage.recordUsage({
-            conversationId: `motif-audit-${sessionId}`,
+            conversationId: motifConvId,
             inputTokens: event.inputTokens,
             outputTokens: event.outputTokens,
             thinkingTokens: event.thinkingTokens,
@@ -346,5 +408,335 @@ export class AuditService implements IAuditService {
         onEvent(event);
       },
     });
+  }
+
+  // ── Motif audit: multi-call sipping mode (Ollama / non-Claude-CLI) ──────
+
+  private async runMotifAuditMultiCall(params: {
+    bookSlug: string;
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    onEvent: (event: StreamEvent) => void;
+    sessionId: string;
+  }): Promise<void> {
+    const { bookSlug, appSettings, onEvent, sessionId } = params;
+    const model = appSettings.model;
+
+    let lumenAgent;
+    try {
+      lumenAgent = await this.agents.load('Lumen');
+    } catch {
+      console.warn('[motif-audit] Lumen agent not found, skipping motif audit');
+      return;
+    }
+
+    const manifest = await this.fs.getProjectManifest(bookSlug);
+    if (manifest.chapterCount === 0) {
+      return;
+    }
+
+    const chapters = manifest.files
+      .filter((f) => f.path.startsWith('chapters/') && f.path.endsWith('/draft.md'))
+      .sort((a, b) => a.path.localeCompare(b.path));
+
+    if (chapters.length === 0) return;
+
+    const motifAuditInstructions = await this.agents.loadRaw('MOTIF-AUDIT.md');
+    const batches = this.computeWordCountBatches(chapters);
+    const totalSteps = batches.length + 1; // N read batches + 1 synthesis
+    const thinkingBudget = resolveThinkingBudget(appSettings, lumenAgent.thinkingBudget);
+    const scratchFiles: string[] = [];
+
+    console.log(
+      `[AuditService] Motif audit multi-call sipping: ${batches.length} read batch(es) + synthesis ` +
+      `for ${chapters.length} chapters, model=${model}`,
+    );
+
+    // ── Read batches — scan chapters for repeated phrases ──────────────
+
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      const batch = batches[batchIdx];
+      const stepNum = batchIdx + 1;
+      const scratchFile = `${MULTI_CALL_SCRATCH_DIR}/motif-audit-batch-${stepNum}.md`;
+      scratchFiles.push(scratchFile);
+
+      const batchLabel = batches.length === 1
+        ? 'Scanning manuscript for phrase patterns'
+        : `Scanning batch ${stepNum}/${batches.length} for phrase patterns`;
+
+      onEvent({
+        type: 'multiCallProgress',
+        step: stepNum,
+        totalSteps,
+        label: batchLabel,
+      });
+      onEvent({ type: 'status', message: `Step ${stepNum}/${totalSteps}: ${batchLabel}` });
+
+      const chapterListing = batch
+        .map((ch) => {
+          const name = ch.path.replace('chapters/', '').replace('/draft.md', '');
+          return `- \`${ch.path}\` — ${name} (${ch.wordCount.toLocaleString()} words)`;
+        })
+        .join('\n');
+
+      // Prior batch context: carry forward cumulative phrase inventory
+      const prevScratchFile = batchIdx > 0 ? scratchFiles[batchIdx - 1] : null;
+      const priorContext = prevScratchFile
+        ? `\n2. Use the **Read** tool on \`${prevScratchFile}\` to carry forward the running phrase inventory from the previous batch.\n`
+        : '';
+      const stepAfterPrior = prevScratchFile ? '3' : '2';
+
+      const batchPrompt = `Scan ${batches.length === 1 ? 'the' : `batch ${stepNum} of ${batches.length} of the`} manuscript for repeated phrases, constructions, and editorial intrusions${batchIdx > 0 ? ', continuing from where you left off' : ''}.
+
+${chapterListing}
+
+**Instructions:**
+1. Use the **Read** tool on each chapter file listed above, one at a time, in order.${priorContext}
+${stepAfterPrior}. After reading ALL chapters in this batch, use the **Write** tool to create \`${scratchFile}\`.
+
+Track every repeated element you find:
+- **Thematic phrases**: Exact or near-exact phrases reused across chapters
+- **Structural formulations**: Sentence templates reused with different nouns
+- **Editorial intrusions**: Narrator explaining what a scene already shows
+- **Rhetorical moves**: Repeated paragraph shapes or argumentative structures
+
+For each, record: the exact phrase/construction, every chapter where it appears, and the total count.
+
+**IMPORTANT: You MUST use the Write tool to create \`${scratchFile}\` before finishing.** Do not end without writing the file.
+
+${batches.length > 1 ? `Do NOT update source/motif-ledger.json yet — this is batch ${stepNum} of ${batches.length}.` : 'Do NOT update source/motif-ledger.json yet — that comes in the next step.'}`;
+
+      const batchSystemPrompt = lumenAgent.systemPrompt + '\n\n---\n\n' +
+        'You are running a SCOPED PHRASE & MOTIF AUDIT — Lens 8 only.\n' +
+        'This is a batch scan step. Read methodically, tracking every repeated element.\n' +
+        'Be exhaustive — every repeated phrase matters.';
+
+      const batchSessionId = nanoid();
+      const batchConversationId = `motif-audit-batch-${batchSessionId}`;
+      this.ensureEphemeralConversation(batchConversationId, bookSlug, 'Lumen');
+
+      // Intermediate steps: intercept done/error to prevent caller teardown
+      const wrappedOnEvent = (event: StreamEvent) => {
+        if (event.type === 'done') {
+          this.usage.recordUsage({
+            conversationId: batchConversationId,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
+            thinkingTokens: event.thinkingTokens,
+            model,
+          });
+          console.log(`[AuditService] Intercepted intermediate done (motif batch ${stepNum}/${batches.length})`);
+          return;
+        }
+        if (event.type === 'error') {
+          console.warn(`[AuditService] Motif batch ${stepNum} error: ${event.message}`);
+          onEvent({ type: 'status', message: `Motif batch ${stepNum} warning: ${event.message}` });
+          return;
+        }
+        onEvent(event);
+      };
+
+      try {
+        onEvent({ type: 'callStart', agentName: 'Lumen', model, bookSlug });
+
+        await this.providers.sendMessage({
+          model,
+          systemPrompt: batchSystemPrompt,
+          messages: [{ role: 'user', content: batchPrompt }],
+          maxTokens: appSettings.maxTokens,
+          thinkingBudget,
+          maxTurns: 15, // Enough for: N chapter reads + 1 prior-tracker read + 1 write + buffer
+          bookSlug,
+          sessionId: batchSessionId,
+          conversationId: batchConversationId,
+          onEvent: wrappedOnEvent,
+        });
+
+        console.log(`[AuditService] Motif batch ${stepNum}/${batches.length} complete`);
+      } catch (err) {
+        console.error(`[AuditService] Motif batch ${stepNum} failed:`, err);
+        onEvent({
+          type: 'error',
+          message: `Motif audit batch ${stepNum}/${batches.length} failed: ` +
+            `${err instanceof Error ? err.message : String(err)}. ` +
+            `Partial scan saved in ${MULTI_CALL_SCRATCH_DIR}/. You can retry.`,
+        });
+        return;
+      }
+    }
+
+    // ── Synthesis step — read all batch trackers, update motif ledger ──
+
+    const synthLabel = 'Updating motif ledger';
+    onEvent({
+      type: 'multiCallProgress',
+      step: totalSteps,
+      totalSteps,
+      label: synthLabel,
+    });
+    onEvent({ type: 'status', message: `Step ${totalSteps}/${totalSteps}: ${synthLabel}` });
+
+    const scratchFileList = scratchFiles
+      .map((f) => `- \`${f}\``)
+      .join('\n');
+
+    const synthPrompt = `Now synthesize your phrase/motif findings and update the motif ledger.
+
+Read your batch scan notes (use the Read tool on each file):
+${scratchFileList}
+
+Also read \`source/motif-ledger.json\` if it exists (to preserve non-flaggedPhrases sections).
+Also read \`source/reader-report.md\` if it exists (check for "Repetition Fatigue" section — prioritize phrases the reader actually noticed).
+
+Then UPDATE \`source/motif-ledger.json\`. Rebuild the \`flaggedPhrases\` array from ground truth — your audit replaces whatever was there before. Each entry uses this shape:
+
+\`\`\`json
+{
+  "id": "<short lowercase alphanumeric, 8-12 chars>",
+  "phrase": "<the exact phrase or construction>",
+  "category": "<retired | limited | crutch | anti-pattern>",
+  "alternatives": ["<suggested replacement 1>", "<suggested replacement 2>"],
+  "limit": "<number or omit — only for 'limited' category>",
+  "limitChapters": ["<chapter slug where use is allowed>"],
+  "notes": "<actual uses count, chapter list, recommendation>"
+}
+\`\`\`
+
+Category mapping:
+- RETIRE → "retired" (banned)
+- KEEP 2 → "limited" with limit: 2
+- ELIMINATE ALL → "retired"
+- Editorial intrusions → "anti-pattern"
+
+Preserve all other sections of the motif ledger (systems, entries, structuralDevices, foreshadows, minorCharacters, auditLog) unchanged. Only replace flaggedPhrases.
+
+After updating the ledger, respond with a brief summary: how many phrases found, how many flagged for retirement, and the 3 worst offenders.`;
+
+    const synthSessionId = nanoid();
+    const synthConversationId = `motif-audit-synth-${synthSessionId}`;
+    this.ensureEphemeralConversation(synthConversationId, bookSlug, 'Lumen');
+    const synthSystemPrompt = lumenAgent.systemPrompt + '\n\n---\n\n' + motifAuditInstructions;
+
+    onEvent({ type: 'callStart', agentName: 'Lumen', model, bookSlug });
+
+    try {
+      await this.providers.sendMessage({
+        model,
+        systemPrompt: synthSystemPrompt,
+        messages: [{ role: 'user', content: synthPrompt }],
+        maxTokens: appSettings.maxTokens,
+        thinkingBudget,
+        maxTurns: scratchFiles.length + 5, // reads + ledger read + reader-report read + write + buffer
+        bookSlug,
+        sessionId: synthSessionId,
+        conversationId: synthConversationId,
+        onEvent: (event: StreamEvent) => {
+          if (event.type === 'done') {
+            this.usage.recordUsage({
+              conversationId: synthConversationId,
+              inputTokens: event.inputTokens,
+              outputTokens: event.outputTokens,
+              thinkingTokens: event.thinkingTokens,
+              model,
+            });
+          }
+          // Final step — let all events through (including done)
+          onEvent(event);
+        },
+      });
+
+      // Clean up scratch files after successful synthesis
+      await this.cleanupScratchFiles(bookSlug, scratchFiles);
+    } catch (err) {
+      console.error('[AuditService] Motif audit synthesis failed:', err);
+      onEvent({
+        type: 'error',
+        message: `Motif audit synthesis failed: ${err instanceof Error ? err.message : String(err)}. ` +
+          `Batch scan notes preserved in ${MULTI_CALL_SCRATCH_DIR}/ — you can retry.`,
+      });
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /**
+   * Create an ephemeral conversation row so that token_usage FK constraint
+   * is satisfied when recording usage for audit sub-calls.
+   */
+  private ensureEphemeralConversation(id: string, bookSlug: string, agentName: 'Verity' | 'Lumen'): void {
+    try {
+      this.db.createConversation({
+        id,
+        bookSlug,
+        agentName,
+        pipelinePhase: null,
+        purpose: 'pipeline',
+        title: `[audit] ${id}`,
+      });
+    } catch {
+      // Row may already exist (e.g. retry) — ignore
+    }
+  }
+
+  /**
+   * Split chapters into word-count-balanced batches.
+   * Targets ~MULTI_CALL_TARGET_WORDS_PER_BATCH words per batch.
+   */
+  private computeWordCountBatches(
+    chapters: { path: string; wordCount: number }[],
+  ): { path: string; wordCount: number }[][] {
+    const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0);
+    const batchCount = Math.max(1, Math.min(8, Math.ceil(totalWords / MULTI_CALL_TARGET_WORDS_PER_BATCH)));
+
+    if (batchCount === 1) return [chapters];
+
+    const targetPerBatch = Math.ceil(totalWords / batchCount);
+    const batches: typeof chapters[] = [];
+    let current: typeof chapters = [];
+    let currentWords = 0;
+
+    for (const ch of chapters) {
+      current.push(ch);
+      currentWords += ch.wordCount;
+
+      if (currentWords >= targetPerBatch && batches.length < batchCount - 1) {
+        batches.push(current);
+        current = [];
+        currentWords = 0;
+      }
+    }
+
+    if (current.length > 0) {
+      batches.push(current);
+    }
+
+    return batches;
+  }
+
+  /**
+   * Delete scratch files after successful synthesis.
+   */
+  private async cleanupScratchFiles(bookSlug: string, scratchFiles: string[]): Promise<void> {
+    for (const file of scratchFiles) {
+      try {
+        const exists = await this.fs.fileExists(bookSlug, file);
+        if (exists) {
+          await this.fs.deleteFile(bookSlug, file);
+          console.log(`[AuditService] Cleaned up ${file}`);
+        }
+      } catch (err) {
+        console.warn(`[AuditService] Failed to clean up ${file}:`, err);
+      }
+    }
+
+    // Remove scratch dir if empty
+    try {
+      const entries = await this.fs.listDirectory(bookSlug, MULTI_CALL_SCRATCH_DIR);
+      if (entries.length === 0) {
+        await this.fs.deletePath(bookSlug, MULTI_CALL_SCRATCH_DIR);
+        console.log(`[AuditService] Removed empty ${MULTI_CALL_SCRATCH_DIR}/`);
+      }
+    } catch {
+      // Directory may not exist — fine
+    }
   }
 }
