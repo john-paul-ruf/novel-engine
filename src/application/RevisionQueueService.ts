@@ -23,6 +23,7 @@ import type {
 } from '@domain/interfaces';
 import {
   AGENT_REGISTRY,
+  CLAUDE_CLI_SECONDARY_MODEL,
   MULTI_CALL_MAX_RETRIES,
   MULTI_CALL_RETRY_EXTRA_TURNS,
 } from '@domain/constants';
@@ -637,8 +638,11 @@ export class RevisionQueueService implements IRevisionQueueService {
     const verity = await this.agents.load('Verity' as AgentName);
     const appSettings = await this.settings.load();
 
+    // 'sonnet' tier sessions use the secondary Claude CLI model (faster/cheaper).
+    // Derived from BUILT_IN_PROVIDER_CONFIGS via CLAUDE_CLI_SECONDARY_MODEL.
+    // Non-Claude providers fall through to appSettings.model for both tiers.
     const model = session.model === 'sonnet'
-      ? 'claude-sonnet-4-20250514'
+      ? CLAUDE_CLI_SECONDARY_MODEL
       : appSettings.model;
 
     const conversation = this.db.createConversation({

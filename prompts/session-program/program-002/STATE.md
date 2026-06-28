@@ -19,7 +19,7 @@ Remove all hardcoded Claude model ID strings (`'claude-opus-4-20250514'`, `'clau
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain: Single Source of Truth for Model IDs | M01 | done | 2026-06-28 | Derived constants added; runtime values unchanged |
-| 02 | Application Layer: Remove Runtime Model Hardcodes | M08 | pending | — | Depends on SESSION-01 |
+| 02 | Application Layer: Remove Runtime Model Hardcodes | M08 | done | 2026-06-28 | StatisticsService + RevisionQueueService fixed |
 | 03 | Renderer: Remove Hardcoded Model IDs from UI Components | M10 | pending | — | Depends on SESSION-01 |
 
 ---
@@ -92,3 +92,6 @@ SESSION-02 and SESSION-03 both depend on SESSION-01 but are independent of each 
 
 ### SESSION-01 — 2026-06-28
 Derived constants added. `CLAUDE_CLI_PRIMARY_MODEL` and `CLAUDE_CLI_SECONDARY_MODEL` inserted immediately after `BUILT_IN_PROVIDER_CONFIGS` closing bracket. `HOT_TAKE_MODEL`, `VERITY_AUDIT_MODEL`, and `DEFAULT_SETTINGS.model` now reference the derived constants. Runtime values unchanged — Opus 4 is primary, Sonnet 4 is secondary. `npx tsc --noEmit` passes clean. SESSION-02 and SESSION-03 can both proceed.
+
+### SESSION-02 — 2026-06-28
+`StatisticsService.estimateCost` now uses `Object.values(MODEL_PRICING)[0]` — no model ID named. `RevisionQueueService.runSession` imports and uses `CLAUDE_CLI_SECONDARY_MODEL` for sonnet-tier sessions. `npx tsc --noEmit` passes clean. SESSION-03 can proceed.

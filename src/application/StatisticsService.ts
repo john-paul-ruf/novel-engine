@@ -75,7 +75,10 @@ export class StatisticsService implements IStatisticsService {
   }
 
   private estimateCost(inputTokens: number, outputTokens: number, thinkingTokens: number): number {
-    const defaultPricing = MODEL_PRICING['claude-opus-4-20250514'];
+    // Use the first entry in the pricing table rather than naming a specific model.
+    // Cost estimation is a best-effort approximation — provider pricing is similar enough
+    // that this gives a useful ballpark regardless of which model was actually used.
+    const defaultPricing = Object.values(MODEL_PRICING)[0];
     if (!defaultPricing) return 0;
 
     const inputCost = (inputTokens / 1_000_000) * defaultPricing.inputPer1M;
