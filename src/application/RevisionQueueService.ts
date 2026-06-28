@@ -22,7 +22,6 @@ import type {
   ISettingsService,
 } from '@domain/interfaces';
 import {
-  WRANGLER_MODEL,
   AGENT_REGISTRY,
   MULTI_CALL_MAX_RETRIES,
   MULTI_CALL_RETRY_EXTRA_TURNS,
@@ -347,18 +346,26 @@ export class RevisionQueueService implements IRevisionQueueService {
         console.log('[RevisionQueue] No valid cache or matching state file found. Parsing with Wrangler.');
       }
 
+      const wranglerSettings = await this.settings.load();
+      const wranglerThinkingBudget = wranglerSettings.enableThinking ? 4000 : undefined;
+      // Use the user's configured model — never hardcode a model the account may not have access to.
+      // The original intent was to use Sonnet for cost efficiency, but a hardcoded model
+      // fails when the account doesn't have access to it (e.g. model_not_found from the CLI).
+      const wranglerModel = wranglerSettings.model;
+      const wranglerSystemPrompt = await this.agents.loadRaw('WRANGLER-PARSE.md');
+
       const promptSize = (revisionPromptsContent?.length ?? 0);
       const taskSize = (projectTasksContent?.length ?? 0);
       const totalChars = promptSize + taskSize;
       this.emit({
         type: 'plan:loading-step',
-        step: `Sending ${Math.round(totalChars / 1000)}k chars to Wrangler (${WRANGLER_MODEL})…`,
+        step: `Sending ${Math.round(totalChars / 1000)}k chars to Wrangler (${wranglerModel})…`,
       });
 
       this.emit({
         type: 'session:streamEvent',
         sessionId: '__plan-load__',
-        event: { type: 'callStart', agentName: 'Wrangler' as AgentName, model: WRANGLER_MODEL, bookSlug },
+        event: { type: 'callStart', agentName: 'Wrangler' as AgentName, model: wranglerModel, bookSlug },
       });
       this.emit({
         type: 'session:streamEvent',
@@ -367,10 +374,6 @@ export class RevisionQueueService implements IRevisionQueueService {
       });
 
       const userMessage = `## revision-prompts.md\n\n${revisionPromptsContent ?? '(File does not exist)'}\n\n## project-tasks.md\n\n${projectTasksContent ?? '(File does not exist)'}`;
-
-      const wranglerSettings = await this.settings.load();
-      const wranglerThinkingBudget = wranglerSettings.enableThinking ? 4000 : undefined;
-      const wranglerSystemPrompt = await this.agents.loadRaw('WRANGLER-PARSE.md');
       const baseMaxTurns = 15;
 
       // ── Retry loop: same pattern as MultiCallOrchestrator ──
@@ -409,12 +412,15 @@ export class RevisionQueueService implements IRevisionQueueService {
 
         try {
           await this.providers.sendMessage({
-            model: WRANGLER_MODEL,
+            model: wranglerModel,
             systemPrompt: wranglerSystemPrompt,
             messages: [{ role: 'user' as const, content: userMessage }],
             maxTokens: 16384,
             thinkingBudget: wranglerThinkingBudget,
             maxTurns: effectiveMaxTurns,
+            // Pass bookSlug so the CLI spawns in the book directory (a valid,
+            // accessible working directory that lives under --add-dir).
+            bookSlug,
             onEvent: (event) => {
               // Forward ALL stream events to the activity viewer so users can
               // see thinking, tool use, and progress while the Wrangler works
@@ -462,6 +468,13 @@ export class RevisionQueueService implements IRevisionQueueService {
           break;
         } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err));
+          // When the CLI exits non-zero, the promise rejects before rawResponse
+          // is inspected. If the CLI produced any text (e.g. a model_not_found
+          // error message), append it to the error for better diagnostics.
+          const rawSnippet = rawResponse.trim().slice(0, 400);
+          if (rawSnippet && !lastError.message.includes(rawSnippet.slice(0, 40))) {
+            lastError = new Error(`${lastError.message}\n\nWrangler output: ${rawSnippet}`);
+          }
           console.error(
             `[RevisionQueue] Wrangler parse failed (attempt ${attempt + 1}/${MULTI_CALL_MAX_RETRIES + 1}):`,
             lastError.message,

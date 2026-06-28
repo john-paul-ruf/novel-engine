@@ -1,9 +1,8 @@
-import type { IFileSystemService, IMotifLedgerService, IProviderRegistry } from '@domain/interfaces';
+import type { IFileSystemService, IMotifLedgerService, IProviderRegistry, ISettingsService } from '@domain/interfaces';
 import type {
   MotifLedger,
   StreamEvent,
 } from '@domain/types';
-import { WRANGLER_MODEL } from '@domain/constants';
 
 const LEDGER_PATH = 'source/motif-ledger.json';
 
@@ -311,6 +310,7 @@ export class MotifLedgerService implements IMotifLedgerService {
   constructor(
     private fs: IFileSystemService,
     private providers: IProviderRegistry,
+    private settings: ISettingsService,
   ) {}
 
   setNormalizationCallback(cb: NormalizationCallback): void {
@@ -374,9 +374,11 @@ export class MotifLedgerService implements IMotifLedgerService {
 
   private async normalizeViaCli(rawJson: string): Promise<MotifLedger | null> {
     let responseText = '';
+    // Use the user's configured model — never hardcode a model the account may not have access to.
+    const appSettings = await this.settings.load();
 
     await this.providers.sendMessage({
-      model: WRANGLER_MODEL,
+      model: appSettings.model,
       systemPrompt: NORMALIZATION_PROMPT,
       messages: [{ role: 'user', content: rawJson }],
       maxTokens: 16384,

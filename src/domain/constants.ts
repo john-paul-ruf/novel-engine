@@ -139,6 +139,9 @@ export const OLLAMA_CLI_PROVIDER_ID: ProviderId = 'ollama-cli';
 /** Built-in llama-server provider ID. Always present, enabled when server is reachable. */
 export const LLAMA_SERVER_PROVIDER_ID: ProviderId = 'llama-server';
 
+/** Built-in Codex CLI provider ID. Always present if CLI is detected. */
+export const CODEX_CLI_PROVIDER_ID: ProviderId = 'codex-cli';
+
 /** Default provider configurations shipped with the app. */
 export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
   {
@@ -189,12 +192,22 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
     models: [], // populated at runtime via /v1/models
     capabilities: ['text-completion', 'streaming', 'tool-use'],
   },
+  {
+    id: CODEX_CLI_PROVIDER_ID,
+    type: 'codex-cli',
+    name: 'Codex CLI',
+    enabled: false, // enabled dynamically when CLI is detected
+    isBuiltIn: true,
+    models: [], // populated at runtime from ~/.codex/models_cache.json
+    capabilities: ['text-completion', 'tool-use', 'thinking', 'streaming'],
+  },
 ];
 
 // Default settings
 export const DEFAULT_SETTINGS: AppSettings = {
   hasClaudeCli: false,
   hasOllamaCli: false,
+  hasCodexCli: false,
   model: 'claude-sonnet-4-20250514',
   maxTokens: 8192,
   enableThinking: false,
@@ -355,11 +368,6 @@ export const TURN_KEEP_COUNTS = {
   /** Critical budget — keep only this many (the current exchange) */
   critical: 2,
 } as const;
-
-// === Wrangler Model (used by RevisionQueueService for parsing Forge output) ===
-
-// The model used for parsing revision plans (cheap and fast)
-export const WRANGLER_MODEL = 'claude-sonnet-4-20250514';
 
 // Per-agent expected response sizes (tokens) — used for response buffer calculation
 export const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {

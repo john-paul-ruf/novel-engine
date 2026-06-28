@@ -182,8 +182,7 @@ export class AuditService implements IAuditService {
 
       await Promise.race([cliPromise, timeoutPromise]);
 
-      const clean = responseText.replace(/```json\s*|```/g, '').trim();
-      const result = JSON.parse(clean) as AuditResult;
+      const result = this.extractAuditJson(responseText);
 
       if (targetConversationId) {
         const severity = result.summary.severity;
@@ -657,6 +656,41 @@ After updating the ledger, respond with a brief summary: how many phrases found,
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /**
+   * Extract the AuditResult JSON from a model response that may contain
+   * prose preamble/postamble around the JSON object.
+   *
+   * Strategy:
+   * 1. Strip markdown code fences and try direct parse
+   * 2. Find the first `{` and last `}` and try parsing that substring
+   * 3. Throw with a descriptive message if no valid JSON found
+   */
+  private extractAuditJson(responseText: string): AuditResult {
+    // 1. Strip markdown fences first
+    const stripped = responseText.replace(/```json\s*|```/g, '').trim();
+    try {
+      return JSON.parse(stripped) as AuditResult;
+    } catch {
+      // Not clean JSON — fall through to extraction
+    }
+
+    // 2. Find the outermost JSON object by matching braces
+    const firstBrace = stripped.indexOf('{');
+    const lastBrace = stripped.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      const candidate = stripped.slice(firstBrace, lastBrace + 1);
+      try {
+        return JSON.parse(candidate) as AuditResult;
+      } catch {
+        // Malformed JSON even after extraction
+      }
+    }
+
+    throw new Error(
+      `Audit response is not valid JSON. Response starts with: "${responseText.slice(0, 80)}…"`,
+    );
+  }
 
   /**
    * Create an ephemeral conversation row so that token_usage FK constraint

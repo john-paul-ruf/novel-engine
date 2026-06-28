@@ -1,7 +1,7 @@
 {
   "name": "novel-engine",
   "productName": "Novel Engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A multi-agent AI writing desktop application",
   "main": ".vite/build/index.js",
   "private": true,

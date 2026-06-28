@@ -441,7 +441,7 @@ async function initializeApp(): Promise<void> {
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
   const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings);
-  const motifLedger = new MotifLedgerService(fs, providerRegistry);
+  const motifLedger = new MotifLedgerService(fs, providerRegistry, settings);
   motifLedger.setNormalizationCallback((status, error) => {
     for (const w of BrowserWindow.getAllWindows()) {
       try {

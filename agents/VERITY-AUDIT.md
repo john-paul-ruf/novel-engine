@@ -14,7 +14,7 @@ You will receive:
 
 ## Output Format
 
-Respond with ONLY a JSON object. No markdown. No explanation. No preamble.
+Respond with ONLY a JSON object. No markdown. No explanation. No preamble. No prose before or after the JSON. Your entire response must be parseable by JSON.parse().
 
 ```json
 {
