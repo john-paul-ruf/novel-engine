@@ -8,7 +8,6 @@ import type {
 } from '@domain/interfaces';
 import type { ProjectManifest, StreamEvent } from '@domain/types';
 import {
-  HOT_TAKE_MODEL,
   AGENT_REGISTRY,
   CLAUDE_CLI_PROVIDER_ID,
   MULTI_CALL_SCRATCH_DIR,
@@ -23,8 +22,8 @@ import { resolveThinkingBudget } from './thinkingBudget';
  *
  * Two modes:
  *
- * 1. **Claude CLI** (single call) — Uses Opus (HOT_TAKE_MODEL), reads the
- *    full manuscript in one go via tool calls. Opus's 200K context handles
+ * 1. **Claude CLI** (single call) — Uses the user's primary model, reads the
+ *    full manuscript in one go via tool calls. Claude's 200K context handles
  *    even large manuscripts without issue.
  *
  * 2. **Ollama / other providers** (multi-call sipping) — Breaks the read
@@ -110,7 +109,7 @@ export class HotTakeService implements IHotTakeService {
       {
         conversationId,
         agentName: 'Ghostlight',
-        model: HOT_TAKE_MODEL,
+        model: appSettings.model,
         bookSlug,
         sessionId,
         callId: params.callId ?? '',
@@ -122,7 +121,7 @@ export class HotTakeService implements IHotTakeService {
     onEvent({ type: 'status', message: randomWaitingStatus() });
 
     await this.providers.sendMessage({
-      model: HOT_TAKE_MODEL,
+      model: appSettings.model,
       systemPrompt,
       messages: conversationMessages.length > 0
         ? conversationMessages

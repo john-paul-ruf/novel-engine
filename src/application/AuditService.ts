@@ -11,7 +11,6 @@ import type { AuditResult, StreamEvent } from '@domain/types';
 import { nanoid } from 'nanoid';
 import {
   VERITY_AUDIT_AGENT_FILE,
-  VERITY_AUDIT_MODEL,
   VERITY_AUDIT_MAX_TOKENS,
   AGENT_REGISTRY,
   CLAUDE_CLI_PROVIDER_ID,
@@ -41,9 +40,9 @@ export class AuditService implements IAuditService {
   /**
    * Resolve the model for the audit pass.
    *
-   * On Claude CLI → use hardcoded Sonnet (fast, cheap, sufficient).
-   * On Ollama / other providers → fall back to the user's selected model
-   * since Sonnet isn't available through those providers.
+   * On Claude CLI → use the user's secondary model (Settings → Secondary Model).
+   * On Ollama / other providers → fall back to the user's selected primary model
+   * since the secondary model concept only applies to Claude CLI.
    */
   private async resolveAuditModel(): Promise<{ model: string; maxTokens: number }> {
     const appSettings = await this.settings.load();
@@ -52,7 +51,7 @@ export class AuditService implements IAuditService {
     const isClaudeCli = activeProvider.providerId === CLAUDE_CLI_PROVIDER_ID;
 
     if (isClaudeCli) {
-      return { model: VERITY_AUDIT_MODEL, maxTokens: VERITY_AUDIT_MAX_TOKENS };
+      return { model: appSettings.secondaryModel, maxTokens: VERITY_AUDIT_MAX_TOKENS };
     }
     // Non-Claude provider: use user's model with a reasonable token limit
     return { model: appSettings.model, maxTokens: appSettings.maxTokens };

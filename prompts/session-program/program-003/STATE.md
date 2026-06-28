@@ -19,7 +19,7 @@ Allow the user to pick a primary and secondary model for Claude in Settings → 
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain: Add `secondaryModel` to AppSettings | M01 | done | 2026-06-28 | `secondaryModel: string` added to `AppSettings`; default = `CLAUDE_CLI_SECONDARY_MODEL` |
-| 02 | Application: Wire `secondaryModel` into AuditService + HotTakeService | M08 | pending | — | Depends on SESSION-01 |
+| 02 | Application: Wire `secondaryModel` into AuditService + HotTakeService | M08 | done | 2026-06-28 | `AuditService` uses `settings.secondaryModel`; `HotTakeService` single-call uses `appSettings.model`. Constants `VERITY_AUDIT_MODEL` and `HOT_TAKE_MODEL` no longer referenced in service files. |
 | 03 | Renderer: Dual primary/secondary model picker in SettingsView | M10 | pending | — | Depends on SESSION-01 |
 
 ---
@@ -79,3 +79,11 @@ SESSION-02 and SESSION-03 are independent of each other; both require SESSION-01
 - Added `secondaryModel: CLAUDE_CLI_SECONDARY_MODEL` to `DEFAULT_SETTINGS` in `src/domain/constants.ts`
 - `npx tsc --noEmit` passes with zero errors
 - SESSION-02 and SESSION-03 are now unblocked
+
+### SESSION-02 (done 2026-06-28)
+- `AuditService.resolveAuditModel()`: replaced `VERITY_AUDIT_MODEL` with `appSettings.secondaryModel`; updated JSDoc to describe user-configurable secondary model
+- `HotTakeService.handleSingleCall()`: replaced both `HOT_TAKE_MODEL` references with `appSettings.model`; updated class JSDoc
+- Removed `VERITY_AUDIT_MODEL` from `AuditService.ts` imports
+- Removed `HOT_TAKE_MODEL` from `HotTakeService.ts` imports
+- `npx tsc --noEmit` passes with zero errors
+- SESSION-03 (renderer UI) remains the only pending session
