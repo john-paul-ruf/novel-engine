@@ -20,7 +20,7 @@ Allow the user to pick a primary and secondary model for Claude in Settings → 
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain: Add `secondaryModel` to AppSettings | M01 | done | 2026-06-28 | `secondaryModel: string` added to `AppSettings`; default = `CLAUDE_CLI_SECONDARY_MODEL` |
 | 02 | Application: Wire `secondaryModel` into AuditService + HotTakeService | M08 | done | 2026-06-28 | `AuditService` uses `settings.secondaryModel`; `HotTakeService` single-call uses `appSettings.model`. Constants `VERITY_AUDIT_MODEL` and `HOT_TAKE_MODEL` no longer referenced in service files. |
-| 03 | Renderer: Dual primary/secondary model picker in SettingsView | M10 | pending | — | Depends on SESSION-01 |
+| 03 | Renderer: Dual primary/secondary model picker in SettingsView | M10 | done | 2026-06-28 | Dual model picker live in Settings → Writing tab. Primary saves to `settings.model`; secondary saves to `settings.secondaryModel`. Secondary picker shows Claude CLI models only. |
 
 ---
 
@@ -87,3 +87,13 @@ SESSION-02 and SESSION-03 are independent of each other; both require SESSION-01
 - Removed `HOT_TAKE_MODEL` from `HotTakeService.ts` imports
 - `npx tsc --noEmit` passes with zero errors
 - SESSION-03 (renderer UI) remains the only pending session
+
+### SESSION-03 (done 2026-06-28)
+- Added `import { CLAUDE_CLI_PROVIDER_ID } from '@domain/constants'` to `SettingsView.tsx`
+- Replaced `ModelSelectionSection` with dual primary/secondary picker
+- Primary picker: all providers grouped, saves to `settings.model`, optionally switches `activeProviderId`
+- Secondary picker: Claude CLI models only, saves to `settings.secondaryModel`, never touches `activeProviderId`
+- Secondary "Recommended" badge highlights the last Claude model (Sonnet)
+- Secondary picker hidden entirely when no Claude CLI models are available
+- `npx tsc --noEmit` passes with zero errors
+- All 3 sessions complete

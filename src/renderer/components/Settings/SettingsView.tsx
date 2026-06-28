@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
 import type { ModelInfo, TourId, UsageSummary } from '@domain/types';
+import { CLAUDE_CLI_PROVIDER_ID } from '@domain/constants';
 import { ProviderSection } from './ProviderSection';
 import { useProviderStore } from '../../stores/providerStore';
 import { useTourStore } from '../../stores/tourStore';
@@ -78,13 +79,13 @@ function ModelSelectionSection(): React.ReactElement {
     window.novelEngine.models.getAvailable().then(setModels).catch(console.error);
   }, []);
 
-  // Fall back to the first loaded model if settings haven't been persisted yet.
-  const selected = settings?.model || models[0]?.id || '';
+  const primarySelected = settings?.model || models[0]?.id || '';
+  const secondarySelected = settings?.secondaryModel || '';
 
-  const handleSelect = useCallback(
+  // Primary: change model + potentially switch active provider
+  const handleSelectPrimary = useCallback(
     async (model: ModelInfo) => {
       await update({ model: model.id });
-      // If selecting a model from a different provider, update the active provider
       const currentProvider = settings?.activeProviderId;
       if (model.providerId && model.providerId !== currentProvider) {
         await window.novelEngine.providers.setDefault(model.providerId);
@@ -93,7 +94,15 @@ function ModelSelectionSection(): React.ReactElement {
     [update, settings?.activeProviderId],
   );
 
-  // Group models by provider
+  // Secondary: only update secondaryModel — never changes the active provider
+  const handleSelectSecondary = useCallback(
+    async (model: ModelInfo) => {
+      await update({ secondaryModel: model.id });
+    },
+    [update],
+  );
+
+  // Group all models by provider (for primary picker)
   const groupedModels: Record<string, ModelInfo[]> = {};
   for (const model of models) {
     const pid = model.providerId || 'unknown';
@@ -101,65 +110,116 @@ function ModelSelectionSection(): React.ReactElement {
     groupedModels[pid].push(model);
   }
 
-  // Resolve provider names
+  // Resolve provider display names
   const providerNames: Record<string, string> = {};
   for (const p of providers) {
     providerNames[p.id] = p.name;
   }
 
-  return (
-    <section className="space-y-3">
-      <SectionHeading>Model Selection</SectionHeading>
-      <div className="space-y-4">
-        {Object.entries(groupedModels).map(([providerId, providerModels]) => (
-          <div key={providerId} className="space-y-2">
-            {Object.keys(groupedModels).length > 1 && (
-              <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-                {providerNames[providerId] ?? providerId}
-              </h4>
-            )}
-            {providerModels.map((model) => (
-              <button
-                key={model.id}
-                onClick={() => handleSelect(model)}
-                className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                  selected === model.id
-                    ? 'border-blue-500 bg-blue-500/10'
-                    : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-600'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`h-4 w-4 rounded-full border-2 ${
-                      selected === model.id
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-zinc-300 dark:border-zinc-600'
-                    }`}
-                  >
-                    {selected === model.id && (
-                      <div className="flex h-full items-center justify-center">
-                        <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
-                  {models[0]?.id === model.id && (
-                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-                      Recommended
-                    </span>
-                  )}
-                  {model.supportsToolUse === false && (
-                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400">
-                      Text only
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 pl-6 text-xs text-zinc-500">{model.description}</p>
-              </button>
-            ))}
-          </div>
-        ))}
+  // Secondary picker shows only Claude CLI models (secondary model is a Claude-only concept)
+  const claudeModels = models.filter((m) => m.providerId === CLAUDE_CLI_PROVIDER_ID);
+
+  // Reusable model radio button renderer
+  const renderModelButton = (
+    model: ModelInfo,
+    isSelected: boolean,
+    onClick: () => void,
+    showRecommended: boolean,
+  ) => (
+    <button
+      key={model.id}
+      onClick={onClick}
+      className={`w-full rounded-lg border p-3 text-left transition-colors ${
+        isSelected
+          ? 'border-blue-500 bg-blue-500/10'
+          : 'border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-600'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className={`h-4 w-4 rounded-full border-2 flex-shrink-0 ${
+            isSelected
+              ? 'border-blue-500 bg-blue-500'
+              : 'border-zinc-300 dark:border-zinc-600'
+          }`}
+        >
+          {isSelected && (
+            <div className="flex h-full items-center justify-center">
+              <div className="h-1.5 w-1.5 rounded-full bg-white" />
+            </div>
+          )}
+        </div>
+        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
+        {showRecommended && (
+          <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+            Recommended
+          </span>
+        )}
+        {model.supportsToolUse === false && (
+          <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400">
+            Text only
+          </span>
+        )}
       </div>
+      <p className="mt-1 pl-6 text-xs text-zinc-500">{model.description}</p>
+    </button>
+  );
+
+  return (
+    <section className="space-y-6">
+      <SectionHeading>Model Selection</SectionHeading>
+
+      {/* ── Primary Model ──────────────────────────────────── */}
+      <div className="space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Primary Model</h4>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Used for all agent sessions, chat, revision queue, and hot-take reads.
+          </p>
+        </div>
+        <div className="space-y-4">
+          {Object.entries(groupedModels).map(([providerId, providerModels]) => (
+            <div key={providerId} className="space-y-2">
+              {Object.keys(groupedModels).length > 1 && (
+                <h5 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                  {providerNames[providerId] ?? providerId}
+                </h5>
+              )}
+              {providerModels.map((model, idx) =>
+                renderModelButton(
+                  model,
+                  primarySelected === model.id,
+                  () => handleSelectPrimary(model),
+                  idx === 0 && providerId === CLAUDE_CLI_PROVIDER_ID,
+                ),
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Secondary Model ────────────────────────────────── */}
+      {claudeModels.length > 0 && (
+        <div className="space-y-3 border-t border-zinc-200 dark:border-zinc-800 pt-5">
+          <div>
+            <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Secondary Model</h4>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Used for fast lightweight passes — chapter audits run on this model to save cost.
+              Choose a smaller, faster model here.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {claudeModels.map((model, idx) =>
+              renderModelButton(
+                model,
+                secondarySelected === model.id || (!secondarySelected && idx === claudeModels.length - 1),
+                () => handleSelectSecondary(model),
+                idx === claudeModels.length - 1, // last model = Sonnet = recommended for secondary
+              ),
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
