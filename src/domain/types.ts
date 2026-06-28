@@ -347,6 +347,8 @@ export type AppSettings = {
   hasOllamaCli: boolean;   // true if `ollama` CLI is detected
   hasCodexCli: boolean;    // true if `codex` CLI is detected and authenticated
   model: string;
+  /** Secondary model for fast/lightweight passes (e.g. chapter audits). Defaults to Sonnet. */
+  secondaryModel: string;
   maxTokens: number;
   enableThinking: boolean;
   thinkingBudget: number;

@@ -234,6 +234,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hasOllamaCli: false,
   hasCodexCli: false,
   model: CLAUDE_CLI_PRIMARY_MODEL,
+  secondaryModel: CLAUDE_CLI_SECONDARY_MODEL,
   maxTokens: 8192,
   enableThinking: false,
   thinkingBudget: 5000,
