@@ -171,10 +171,16 @@ function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement
 
 function ModelSelectStep({ onNext }: { onNext: (model: string) => void }): React.ReactElement {
   const [models, setModels] = useState<ModelOption[]>([]);
-  const [selected, setSelected] = useState('claude-opus-4-20250514');
+  const [selected, setSelected] = useState('');
 
   useEffect(() => {
-    window.novelEngine.models.getAvailable().then(setModels).catch(console.error);
+    window.novelEngine.models.getAvailable()
+      .then((available) => {
+        setModels(available);
+        // Default to the first available model if none has been selected yet.
+        setSelected((prev) => prev || available[0]?.id || '');
+      })
+      .catch(console.error);
   }, []);
 
   return (
@@ -210,7 +216,7 @@ function ModelSelectStep({ onNext }: { onNext: (model: string) => void }): React
                 )}
               </div>
               <span className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
-              {model.id === 'claude-opus-4-20250514' && (
+              {models[0]?.id === model.id && (
                 <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
                   Recommended
                 </span>
@@ -384,7 +390,7 @@ function ReadyStep({
 
 export function OnboardingWizard(): React.ReactElement {
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
-  const [selectedModel, setSelectedModel] = useState('claude-opus-4-20250514');
+  const [selectedModel, setSelectedModel] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [hasProfile, setHasProfile] = useState(false);
   const { settings, update } = useSettingsStore();

@@ -20,7 +20,7 @@ Remove all hardcoded Claude model ID strings (`'claude-opus-4-20250514'`, `'clau
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain: Single Source of Truth for Model IDs | M01 | done | 2026-06-28 | Derived constants added; runtime values unchanged |
 | 02 | Application Layer: Remove Runtime Model Hardcodes | M08 | done | 2026-06-28 | StatisticsService + RevisionQueueService fixed |
-| 03 | Renderer: Remove Hardcoded Model IDs from UI Components | M10 | pending | — | Depends on SESSION-01 |
+| 03 | Renderer: Remove Hardcoded Model IDs from UI Components | M10 | done | 2026-06-28 | OnboardingWizard, SettingsView, cliActivityStore fixed |
 
 ---
 
@@ -95,3 +95,6 @@ Derived constants added. `CLAUDE_CLI_PRIMARY_MODEL` and `CLAUDE_CLI_SECONDARY_MO
 
 ### SESSION-02 — 2026-06-28
 `StatisticsService.estimateCost` now uses `Object.values(MODEL_PRICING)[0]` — no model ID named. `RevisionQueueService.runSession` imports and uses `CLAUDE_CLI_SECONDARY_MODEL` for sonnet-tier sessions. `npx tsc --noEmit` passes clean. SESSION-03 can proceed.
+
+### SESSION-03 — 2026-06-28
+All renderer hardcodes removed. `ModelSelectStep` defaults `selected` to `''` and populates from `models[0]?.id` after `getAvailable()` resolves. `OnboardingWizard` outer component `selectedModel` initial state is `''`. "Recommended" badge in both `OnboardingWizard` and `SettingsView` now uses `models[0]?.id === model.id`. `SettingsView.ModelSelectionSection` falls back to `models[0]?.id || ''` instead of a hardcoded string. `getModelLabel` is now a generic date-and-vendor-prefix stripper that works for any provider. `npx tsc --noEmit` passes clean. All 3 sessions complete.

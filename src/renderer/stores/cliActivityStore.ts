@@ -131,10 +131,28 @@ const MAX_COMPLETED_CALLS = 10;
 let _activityRecoveryPollTimer: ReturnType<typeof setInterval> | null = null;
 let _activityRecoveryTimeout: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Extract a human-readable label from a model ID.
+ * Strips the trailing date suffix (e.g. -20250514) and the 'claude-' vendor
+ * prefix, then title-cases the remaining dash-separated parts.
+ *
+ * Examples:
+ *   'claude-opus-4-20250514'    → 'Opus 4'
+ *   'claude-sonnet-4-20250514'  → 'Sonnet 4'
+ *   'llama3.2'                  → 'Llama3.2'
+ *   'gpt-4o'                    → 'Gpt 4o'
+ */
 function getModelLabel(model: string): string {
-  if (model.includes('opus')) return 'Opus 4';
-  if (model.includes('sonnet')) return 'Sonnet 4';
-  return model;
+  const withoutDate = model.replace(/-\d{8}$/, '');
+  const withoutVendor = withoutDate.replace(/^claude-/, '');
+  if (!withoutVendor.includes('-')) {
+    // Single token — just capitalise the first letter
+    return withoutVendor.charAt(0).toUpperCase() + withoutVendor.slice(1);
+  }
+  return withoutVendor
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 /** Format milliseconds into a human-readable duration */

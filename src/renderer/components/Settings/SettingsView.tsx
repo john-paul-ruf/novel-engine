@@ -78,7 +78,8 @@ function ModelSelectionSection(): React.ReactElement {
     window.novelEngine.models.getAvailable().then(setModels).catch(console.error);
   }, []);
 
-  const selected = settings?.model ?? 'claude-opus-4-20250514';
+  // Fall back to the first loaded model if settings haven't been persisted yet.
+  const selected = settings?.model || models[0]?.id || '';
 
   const handleSelect = useCallback(
     async (model: ModelInfo) => {
@@ -142,7 +143,7 @@ function ModelSelectionSection(): React.ReactElement {
                     )}
                   </div>
                   <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{model.label}</span>
-                  {model.id === 'claude-opus-4-20250514' && (
+                  {models[0]?.id === model.id && (
                     <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
                       Recommended
                     </span>
