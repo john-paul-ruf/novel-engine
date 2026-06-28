@@ -203,12 +203,37 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
   },
 ];
 
+// ── Derived Claude CLI model IDs ──────────────────────────────────────────
+// Computed from BUILT_IN_PROVIDER_CONFIGS — single source of truth.
+// To change available models, edit BUILT_IN_PROVIDER_CONFIGS above.
+
+/** Reference to the Claude CLI built-in provider config (always index 0). */
+const _claudeCliConfig = BUILT_IN_PROVIDER_CONFIGS[0];
+
+/**
+ * The primary (highest-quality) Claude CLI model — Opus-tier.
+ * Equals the provider's defaultModel.
+ * Used for Ghostlight hot-take and RevisionQueue opus-tier sessions.
+ */
+export const CLAUDE_CLI_PRIMARY_MODEL: string =
+  _claudeCliConfig.defaultModel ?? _claudeCliConfig.models[0]?.id ?? '';
+
+/**
+ * The secondary (faster/cheaper) Claude CLI model — Sonnet-tier.
+ * First model in the list whose ID differs from the primary.
+ * Falls back to primary if only one model is configured.
+ * Used for audit passes and RevisionQueue sonnet-tier sessions.
+ */
+export const CLAUDE_CLI_SECONDARY_MODEL: string =
+  _claudeCliConfig.models.find((m) => m.id !== CLAUDE_CLI_PRIMARY_MODEL)?.id
+  ?? CLAUDE_CLI_PRIMARY_MODEL;
+
 // Default settings
 export const DEFAULT_SETTINGS: AppSettings = {
   hasClaudeCli: false,
   hasOllamaCli: false,
   hasCodexCli: false,
-  model: 'claude-sonnet-4-20250514',
+  model: CLAUDE_CLI_PRIMARY_MODEL,
   maxTokens: 8192,
   enableThinking: false,
   thinkingBudget: 5000,
@@ -382,7 +407,8 @@ export const AGENT_RESPONSE_BUFFER: Record<AgentName, number> = {
   Helper:     2000,
 };
 
-export const HOT_TAKE_MODEL = 'claude-opus-4-20250514';
+/** The model used for Ghostlight hot-take (single-call Claude CLI mode). Derived from BUILT_IN_PROVIDER_CONFIGS. */
+export const HOT_TAKE_MODEL: string = CLAUDE_CLI_PRIMARY_MODEL;
 
 // Canonical file manifest keys — maps internal keys to display paths.
 // NOTE: paths are relative to the book root EXCEPT authorProfile which lives in
@@ -428,8 +454,8 @@ export const VERITY_LEDGER_FILE = 'VERITY-LEDGER.md';
 
 export const VERITY_AUDIT_AGENT_FILE = 'VERITY-AUDIT.md';
 
-/** Model used for the audit pass. Sonnet is fast, cheap, and sufficient. */
-export const VERITY_AUDIT_MODEL = 'claude-sonnet-4-20250514';
+/** Model used for the audit pass — the secondary Claude CLI model (faster/cheaper). Derived from BUILT_IN_PROVIDER_CONFIGS. */
+export const VERITY_AUDIT_MODEL: string = CLAUDE_CLI_SECONDARY_MODEL;
 
 /** Max tokens for the audit pass response. The JSON output is compact. */
 export const VERITY_AUDIT_MAX_TOKENS = 4096;
