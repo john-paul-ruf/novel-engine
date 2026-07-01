@@ -59,7 +59,7 @@ import { LlamaServerClient } from '@infra/llama-server';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
 import { SeriesService } from '@infra/series';
-import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID, LLAMA_SERVER_PROVIDER_ID } from '@domain/constants';
+import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID, LLAMA_SERVER_PROVIDER_ID, CLAUDE_CLI_PROVIDER_ID, FABLE_MODEL_ID } from '@domain/constants';
 import type { ModelInfo } from '@domain/types';
 
 // Application
@@ -219,6 +219,41 @@ async function fetchLlamaServerModels(baseUrl: string): Promise<ModelInfo[]> {
   }
 }
 
+// ── Fable Model Probe ─────────────────────────────────────────────
+
+/**
+ * Check whether the Claude CLI accepts the `claude-fable-5` model ID.
+ *
+ * The CLI validates model names locally before making any API call, so an
+ * unrecognised model ID exits immediately with a human-readable error rather
+ * than spending tokens. For a valid model the probe sends a single-character
+ * prompt (minimal cost) to confirm the model is accessible to this account.
+ *
+ * Returns true  → fable is available; add it to the selectable model list.
+ * Returns false → fable is unknown or not accessible; skip silently.
+ */
+async function probeFableModel(): Promise<boolean> {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      'claude',
+      ['-p', '.', '--model', FABLE_MODEL_ID, '--output-format', 'json'],
+      { timeout: 10_000 },
+    );
+    const combined = stdout + stderr;
+    // The CLI rejects unknown / inaccessible models with a recognisable message
+    // before touching the API — so this branch is fast and free.
+    if (
+      combined.includes('issue with the selected model') ||
+      combined.includes('may not exist or you may not have access')
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── Window ─────────────────────────────────────────────────────────
 
 function createWindow(): void {
@@ -347,6 +382,39 @@ async function initializeApp(): Promise<void> {
     claudeClient,
     claudeConfig ?? BUILT_IN_PROVIDER_CONFIGS[0],
   );
+
+  // Probe for the optional claude-fable-5 model.
+  // The Claude CLI validates model names locally before touching the API, so
+  // an unavailable model fails instantly (no tokens spent). Only add the model
+  // to the selectable list if the probe confirms access.
+  {
+    const fableAvailable = await probeFableModel();
+    if (fableAvailable) {
+      const existingClaudeConfig = providerRegistry.getProviderConfig(CLAUDE_CLI_PROVIDER_ID);
+      if (existingClaudeConfig) {
+        const alreadyListed = existingClaudeConfig.models.some(m => m.id === FABLE_MODEL_ID);
+        if (!alreadyListed) {
+          providerRegistry.updateProviderConfig(CLAUDE_CLI_PROVIDER_ID, {
+            models: [
+              ...existingClaudeConfig.models,
+              {
+                id: FABLE_MODEL_ID,
+                label: 'Claude Fable 5',
+                description: 'Next-generation model — available via Claude CLI',
+                providerId: CLAUDE_CLI_PROVIDER_ID,
+                contextWindow: 200_000,
+                supportsThinking: true,
+                supportsToolUse: true,
+              },
+            ],
+          });
+        }
+      }
+      console.log('[startup] claude-fable-5 detected — added to Claude CLI model list');
+    } else {
+      console.log('[startup] claude-fable-5 not available — skipped');
+    }
+  }
 
   // Register the built-in Ollama CLI provider (always registered so the user
   // can configure the endpoint in Settings even if Ollama isn't reachable yet)

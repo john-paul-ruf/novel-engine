@@ -142,6 +142,13 @@ export const LLAMA_SERVER_PROVIDER_ID: ProviderId = 'llama-server';
 /** Built-in Codex CLI provider ID. Always present if CLI is detected. */
 export const CODEX_CLI_PROVIDER_ID: ProviderId = 'codex-cli';
 
+/**
+ * Model ID for Claude Fable 5.
+ * Not included in BUILT_IN_PROVIDER_CONFIGS — probed at startup and added
+ * to the Claude CLI model list only if the CLI accepts this model ID.
+ */
+export const FABLE_MODEL_ID = 'claude-fable-5';
+
 /** Default provider configurations shipped with the app. */
 export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
   {
