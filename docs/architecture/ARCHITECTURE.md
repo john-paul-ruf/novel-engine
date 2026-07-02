@@ -2,7 +2,7 @@
 
 > Last updated: 2026-07-02
 
-Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Codex CLI + Pandoc
+Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Codex CLI + Ollama CLI + Pandoc
 
 See domain-specific docs:
 - [Domain](./DOMAIN.md) — Types, interfaces, constants
@@ -59,6 +59,20 @@ src/
 │   │   └── index.ts
 │   ├── codex-cli/
 │   │   ├── CodexCliClient.ts                # Spawns `codex exec --json`, streams events, lifecycle
+│   │   └── index.ts
+│   ├── ollama-cli/
+│   │   ├── OllamaCodeClient.ts              # Uses Ollama `/api/chat` for streaming and tool-use loops
+│   │   ├── OllamaCliRunner.ts               # Wraps `ollama` detection, list/show, serve, and smoke tests
+│   │   ├── ToolExecutor.ts                  # Executes Ollama tool calls against book files
+│   │   ├── contextCompactor.ts              # Compacts long Ollama tool context
+│   │   ├── tools.ts                         # Ollama tool schemas and types
+│   │   └── index.ts
+│   ├── llama-server/
+│   │   ├── LlamaServerClient.ts             # OpenAI-compatible llama-server provider
+│   │   └── index.ts
+│   ├── providers/
+│   │   ├── ProviderRegistry.ts              # Provider registration, routing, and persistence
+│   │   ├── OpenAiCompatibleProvider.ts      # Generic OpenAI-compatible streaming provider
 │   │   └── index.ts
 │   ├── pandoc/
 │   │   └── index.ts                         # Pandoc binary path resolution (dev vs packaged)

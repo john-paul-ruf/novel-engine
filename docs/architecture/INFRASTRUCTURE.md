@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-02 (program-006 SESSION-01)
+> Last updated: 2026-07-02 (program-008 SESSION-01)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -115,6 +115,25 @@ Key behavior:
 - Uses `turn.completed.usage` when available; otherwise estimates tokens with `CHARS_PER_TOKEN`
 - Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` mirror the Claude provider idle checks
+
+### ollama-cli/ — Ollama CLI/API Hybrid Provider
+
+| File | Purpose |
+|------|---------|
+| `OllamaCodeClient.ts` | Implements `IModelProvider`. Uses Ollama `/api/chat` for streaming text, thinking, and tool-use loops. |
+| `OllamaCliRunner.ts` | Wraps the local `ollama` command for CLI detection, model listing, model context inspection, `ollama serve` lifecycle, and smoke tests. |
+| `ToolExecutor.ts` | Executes Ollama tool calls against the active book directory. |
+| `tools.ts` | Ollama tool schema definitions and tool-call types. |
+| `contextCompactor.ts` | Compacts tool context for long Ollama agent loops. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- `OllamaCodeClient` keeps `/api/chat` for structured streaming and tool-use responses.
+- `OllamaCliRunner.detect()` runs `ollama --version` and returns `false` on missing CLI or command failure.
+- `OllamaCliRunner.listModels()` parses `ollama list`, skips the `NAME ID SIZE MODIFIED` header, and returns `[]` on missing CLI or empty output.
+- `OllamaCliRunner.showModelContext()` tries `ollama show <model> --json`, then falls back to defensive text parsing for context length patterns.
+- `OllamaCliRunner.startServe()` spawns `ollama serve` once and warns, rather than throwing, if the process exits because the service is already running.
+- `OllamaCliRunner.runSmokeTest()` pipes a prompt into `ollama run <model>` with a timeout and boolean result.
 
 ### providers/ — Model Provider Registry
 

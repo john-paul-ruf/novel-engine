@@ -1741,3 +1741,25 @@ None
 - None
 
 ---
+## [2026-07-02] — Ollama CLI runner
+
+### Summary
+
+`./src/infrastructure/ollama-cli/OllamaCliRunner.ts` adds a focused wrapper around the local `ollama` command so later sessions can make local Ollama detection, model discovery, service startup, and smoke tests CLI-first without adding command parsing to the chat client.
+
+### Added
+- `./src/infrastructure/ollama-cli/OllamaCliRunner.ts` — Wraps `ollama --version`, `ollama list`, `ollama show`, `ollama serve`, and `ollama run` smoke tests with timeout-safe boolean/empty-list fallbacks.
+
+### Changed
+- `./src/infrastructure/ollama-cli/index.ts` — Exports `OllamaCliRunner` and `OllamaCliModel`.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documents the Ollama CLI/API hybrid module and runner behavior.
+- `./docs/architecture/ARCHITECTURE.md` — Lists `ollama-cli`, `llama-server`, and provider infrastructure files in the source tree and technology stack.
+
+### Architecture Impact
+- New infrastructure utility: `OllamaCliRunner` centralizes local `ollama` command invocation for future Ollama provider routing.
+- No new domain contracts, IPC channels, renderer stores, database schema changes, or composition-root wiring.
+
+### Migration Notes
+None
+
+---
