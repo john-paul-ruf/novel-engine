@@ -13,7 +13,7 @@
 | 01 | Add Ollama CLI runner | M06, M01 | done | 2026-07-02 | Added `OllamaCliRunner` plus exports and documentation. Parser skips the standard `NAME ID SIZE MODIFIED` header, treats the first whitespace column as the model name, and returns empty/false on missing CLI. |
 | 02 | Route Ollama availability and model discovery through CLI | M06, M09 | done | 2026-07-02 | Wired `OllamaCliRunner` into `OllamaCodeClient` and startup model discovery. Local CLI presence and `ollama list` verified; remote endpoint behavior kept HTTP-only by code path but not manually exercised. |
 | 03 | Update provider settings UX for CLI-first Ollama | M09, M10 | done | 2026-07-02 | Updated Settings and ProviderSection copy for local CLI-first Ollama, added Ollama CLI to built-in status via existing preload bridge, and left IPC unchanged. |
-| 04 | Documentation and verification | Docs | pending |  | Update mandatory changelog plus affected architecture docs after implementation sessions. |
+| 04 | Documentation and verification | Docs | done | 2026-07-02 | Final docs matched implementation; no architecture doc or changelog edits needed. `npx tsc --noEmit` passed; `npm run build` failed because `./package.json` has no build script; `ollama --version` and `ollama list` passed. |
 
 ## Dependency Graph
 
@@ -78,4 +78,6 @@ Feature scope:
 - SESSION-03 completed on 2026-07-02. `./src/renderer/components/Settings/SettingsView.tsx` now shows Ollama CLI in built-in CLI status and calls the existing `settings.detectOllamaCli()` preload method; no IPC or preload changes were needed.
 - `./src/renderer/components/Settings/ProviderSection.tsx` now labels Ollama as CLI-first, treats the endpoint as an advanced remote override, and keeps llama-server endpoint behavior separate.
 - Verification: `npx tsc --noEmit` and `npm run lint` passed. Manual `npm start` UI verification was not run.
+- SESSION-04 completed on 2026-07-02. Final consistency pass found `./docs/architecture/ARCHITECTURE.md`, `./docs/architecture/INFRASTRUCTURE.md`, `./docs/architecture/IPC.md`, and `./docs/architecture/RENDERER.md` already matched the implementation from sessions 01–03, so no extra doc/changelog entry was added.
+- Final verification: `npx tsc --noEmit` passed; `npm run build` failed with `Missing script: "build"` because `./package.json` only defines `start`, `package`, `make`, `publish`, `download-pandoc`, `generate-icons`, `ci-build`, `lint`, and `clean`; `ollama --version` and `ollama list` passed.
 - Agents implementing sessions must follow `./AGENTS.MD`: append `./CHANGELOG.md` every code-changing session and update only affected files in `./docs/architecture/`.
