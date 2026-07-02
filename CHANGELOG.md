@@ -1585,3 +1585,27 @@ Added Codex CLI detection beside the existing Claude and Ollama checks. The sett
 
 ### Migration Notes
 - None
+
+---
+
+## [2026-07-02] — Add Codex CLI provider client
+
+### Summary
+
+Added the infrastructure provider for Codex CLI. `CodexCliClient` implements `IModelProvider`, invokes `codex exec --json` through a non-interactive stdin prompt, streams JSONL assistant output into Novel Engine stream events, persists stream events in SQLite batches, and supports active-process idle checks and abort cleanup.
+
+### Added
+- `src/infrastructure/codex-cli/CodexCliClient.ts` — Implements the built-in Codex CLI provider with availability checks, prompt construction, JSONL/text streaming, usage handling, event persistence, and SIGTERM/SIGKILL abort support.
+- `src/infrastructure/codex-cli/index.ts` — Barrel export for the Codex CLI provider.
+
+### Changed
+- `docs/architecture/ARCHITECTURE.md` — Added `src/infrastructure/codex-cli/` to the source tree and Codex CLI to the technology stack.
+- `docs/architecture/INFRASTRUCTURE.md` — Added the `codex-cli/` module inventory and documented the chosen `codex exec --json` invocation.
+
+### Architecture Impact
+- New infrastructure module: `src/infrastructure/codex-cli/`
+- New provider implementation: `CodexCliClient` implements `IModelProvider`
+- New runtime dependency path: Codex CLI provider → local `codex exec --json`
+
+### Migration Notes
+- None

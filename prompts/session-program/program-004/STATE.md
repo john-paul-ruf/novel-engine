@@ -12,7 +12,7 @@
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain, settings, IPC surface for Codex detection | `M01`, `M02`, `M09` | done | 2026-07-02 | Added `detectCodexCli` contract, SettingsService probe, IPC/preload bridge, and settings store action. Verification: `npx tsc --noEmit`; `grep -R "settings:detectCodexCli\|detectCodexCli" -n ./src`; renderer Node API import check. |
-| 02 | Codex CLI provider implementation | `M06`, `M08` | pending |  | Adds infrastructure provider that invokes local `codex` CLI. |
+| 02 | Codex CLI provider implementation | `M06`, `M08` | done | 2026-07-02 | Added `CodexCliClient` and `codex-cli` barrel. Chosen command: `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --add-dir <booksDir> -`. Verification: `npx tsc --noEmit`; smoke `codex exec --json --skip-git-repo-check --sandbox read-only --cd <tmp> -` returned `OK` with `turn.completed.usage`. |
 | 03 | Register Codex and model discovery at startup | `M09`, `M06`, `M08` | pending |  | Wires Codex into composition root and provider registry. |
 | 04 | Provider switching UI polish and onboarding copy | `M10`, `M09` | pending |  | Makes all four built-ins clearly selectable/testable. |
 
@@ -61,5 +61,7 @@ flowchart TD
 
 - Session 01 completed on 2026-07-02. Codex detection uses only `codex --version` with a 10s timeout and persists `hasCodexCli` true/false via `SettingsService.update()`.
 - Verification passed: `npx tsc --noEmit`; `grep -R "settings:detectCodexCli\|detectCodexCli" -n ./src`; no renderer Node API imports found.
-- Next eligible session: Session 02 — Codex CLI provider implementation.
+- Session 02 completed on 2026-07-02. `CodexCliClient` invokes `codex exec --json` over stdin, parses `item.completed` assistant messages, uses `turn.completed.usage`, and falls back to token estimates when structured usage is absent.
+- Verification passed: `npx tsc --noEmit`; Codex smoke command returned `OK`; process maps are deleted in `abortStream()` and close cleanup paths.
+- Next eligible session: Session 03 — Register Codex and model discovery at startup.
 - Agents executing sessions must follow `AGENTS.MD`: append `CHANGELOG.md` every session and update only affected `docs/architecture/*.md` files after reading actual changed files.

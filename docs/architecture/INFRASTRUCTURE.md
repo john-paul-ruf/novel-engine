@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-02 (program-004 SESSION-01)
+> Last updated: 2026-07-02 (program-004 SESSION-02)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -92,6 +92,24 @@ Key behavior:
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` for idle detection
 - EPIPE/ERR_STREAM_DESTROYED on stdin logged with diagnostic info (stdinBytes, writableFinished, writableEnded)
 - System prompt size guard: rejects prompts > 500KB with clear error before spawn
+
+
+### codex-cli/ — Codex CLI Provider
+
+| File | Purpose |
+|------|---------|
+| `CodexCliClient.ts` | Implements `IModelProvider`. Spawns `codex exec --json` non-interactively, streams JSONL/text into `StreamEvent`s, tracks active child processes. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- Exposes `providerId` as `'codex-cli'` and capabilities: `text-completion`, `streaming`, `tool-use`, `thinking`
+- `isAvailable()` caches a non-interactive `codex --version` check with a 10s timeout
+- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --add-dir <booksDir> -`
+- Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
+- Parses `item.completed` assistant messages from JSONL and falls back to plain stdout text lines
+- Uses `turn.completed.usage` when available; otherwise estimates tokens with `CHARS_PER_TOKEN`
+- Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s
+- `hasActiveProcesses()` / `hasActiveProcessesForBook()` mirror the Claude provider idle checks
 
 ### providers/ — Model Provider Registry
 
