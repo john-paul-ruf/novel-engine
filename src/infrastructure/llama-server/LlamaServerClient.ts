@@ -6,6 +6,7 @@ import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@
 import { CHARS_PER_TOKEN, MAX_CALL_CONTEXT_TOKENS, LLAMA_SERVER_PROVIDER_ID } from '@domain/constants';
 import { StreamSessionTracker } from '../claude-cli/StreamSessionTracker';
 import { ToolExecutor } from '../ollama-cli/ToolExecutor';
+import { compactToolHistory } from '../ollama-cli/contextCompactor';
 import { OLLAMA_TOOLS, WRITE_TOOLS } from '../ollama-cli/tools';
 import type { OllamaToolCall } from '../ollama-cli/tools';
 import { Agent as UndiciAgent } from 'undici';
@@ -248,24 +249,39 @@ export class LlamaServerClient implements IModelProvider {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
-    // Context ceiling: stop before hitting the hard limit so the model
-    // has room to produce its response. 90% of the global cap.
-    const contextCeiling = Math.floor(MAX_CALL_CONTEXT_TOKENS * 0.90);
+    // Hard ceiling: never exceed 98% of the context window to avoid
+    // silent truncation by the model.
+    const contextCeiling = Math.floor(MAX_CALL_CONTEXT_TOKENS * 0.98);
 
     try {
       for (let turn = 0; turn < maxTurns; turn++) {
         // ── Context size guard ──────────────────────────────────────
-        const estimatedTokens = this.estimateMessageTokens(apiMessages);
-        if (turn > 0 && estimatedTokens > contextCeiling) {
-          console.warn(
-            `[LlamaServerClient] Context ceiling reached: ~${estimatedTokens.toLocaleString()} tokens ` +
-            `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
-          );
-          wrappedOnEvent({
-            type: 'status',
-            message: `Context limit approaching (~${Math.round(estimatedTokens / 1000)}K tokens). Finishing current work.`,
-          });
-          break;
+        // Compact old tool results if we're approaching the ceiling (>= 80%)
+        // before checking the hard limit. Only break if compaction fails.
+        let estimatedTokens = this.estimateMessageTokens(apiMessages);
+        const compactionThreshold = Math.floor(MAX_CALL_CONTEXT_TOKENS * 0.80);
+        if (turn > 0 && estimatedTokens >= compactionThreshold) {
+          const compacted = compactToolHistory(apiMessages, contextCeiling);
+          if (compacted) {
+            estimatedTokens = this.estimateMessageTokens(apiMessages);
+            console.log(
+              `[LlamaServerClient] Context compacted at turn ${turn + 1}: ` +
+              `now ~${estimatedTokens.toLocaleString()} tokens ` +
+              `(ceiling=${contextCeiling.toLocaleString()})`,
+            );
+          }
+
+          if (estimatedTokens > contextCeiling) {
+            console.warn(
+              `[LlamaServerClient] Context ceiling reached after compaction: ~${estimatedTokens.toLocaleString()} tokens ` +
+              `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
+            );
+            wrappedOnEvent({
+              type: 'status',
+              message: `Context limit approaching (~${Math.round(estimatedTokens / 1000)}K tokens). Finishing current work.`,
+            });
+            break;
+          }
         }
 
         console.log(`[LlamaServerClient] Turn ${turn + 1}/${maxTurns} starting (est. ~${estimatedTokens.toLocaleString()} tokens)...`);

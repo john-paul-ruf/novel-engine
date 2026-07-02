@@ -361,7 +361,7 @@ export const MAX_CONTEXT_TOKENS = 200_000;
  * Keeps each call well within the 128K context limit of most models
  * and prevents runaway context accumulation in multi-turn agent loops.
  */
-export const MAX_CALL_CONTEXT_TOKENS = 125_000;
+export const MAX_CALL_CONTEXT_TOKENS = 250_000;
 // Reserve for response + system prompt overhead
 export const CONTEXT_RESERVE_TOKENS = 14_000;
 

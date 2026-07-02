@@ -6,6 +6,7 @@ import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@
 import { CHARS_PER_TOKEN, MAX_CALL_CONTEXT_TOKENS, OLLAMA_CLI_PROVIDER_ID } from '@domain/constants';
 import { StreamSessionTracker } from '../claude-cli/StreamSessionTracker';
 import { ToolExecutor } from './ToolExecutor';
+import { compactToolHistory } from './contextCompactor';
 import { OllamaCliRunner } from './OllamaCliRunner';
 import { OLLAMA_TOOLS, WRITE_TOOLS } from './tools';
 import type { OllamaToolCall } from './tools';
@@ -354,9 +355,9 @@ export class OllamaCodeClient implements IModelProvider {
       ? Math.min(rawContextWindow, MAX_CALL_CONTEXT_TOKENS)
       : MAX_CALL_CONTEXT_TOKENS;
 
-    // Warn threshold: stop adding turns when context reaches 90% of the cap.
-    // This leaves headroom for the model's response tokens.
-    const contextCeiling = Math.floor(contextWindow * 0.90);
+    // Hard ceiling: never exceed 98% of the context window to avoid
+    // silent truncation by the model.
+    const contextCeiling = Math.floor(contextWindow * 0.98);
 
     try {
       // ── Multi-turn agent loop ──────────────────────────────────────
@@ -368,19 +369,33 @@ export class OllamaCodeClient implements IModelProvider {
       for (let turn = 0; turn < maxTurns; turn++) {
         // ── Context size guard ──────────────────────────────────────
         // Estimate total token count of all messages queued for the next
-        // turn. If we've exceeded the ceiling, break early so the model
-        // doesn't silently truncate or stall.
-        const estimatedTokens = this.estimateMessageTokens(apiMessages);
-        if (turn > 0 && estimatedTokens > contextCeiling) {
-          console.warn(
-            `[OllamaCodeClient] Context ceiling reached: ~${estimatedTokens.toLocaleString()} tokens ` +
-            `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
-          );
-          wrappedOnEvent({
-            type: 'status',
-            message: `Context limit approaching (~${Math.round(estimatedTokens / 1000)}K tokens). Finishing current work.`,
-          });
-          break;
+        // turn. Compact old tool results if we're approaching the ceiling
+        // (>= 80% used) so the model has room to finish its task. Only
+        // break if compaction can't bring us below the hard ceiling.
+        let estimatedTokens = this.estimateMessageTokens(apiMessages);
+        const compactionThreshold = Math.floor(contextWindow * 0.80);
+        if (turn > 0 && estimatedTokens >= compactionThreshold) {
+          const compacted = compactToolHistory(apiMessages, contextCeiling);
+          if (compacted) {
+            estimatedTokens = this.estimateMessageTokens(apiMessages);
+            console.log(
+              `[OllamaCodeClient] Context compacted at turn ${turn + 1}: ` +
+              `now ~${estimatedTokens.toLocaleString()} tokens ` +
+              `(ceiling=${contextCeiling.toLocaleString()})`,
+            );
+          }
+
+          if (estimatedTokens > contextCeiling) {
+            console.warn(
+              `[OllamaCodeClient] Context ceiling reached after compaction: ~${estimatedTokens.toLocaleString()} tokens ` +
+              `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
+            );
+            wrappedOnEvent({
+              type: 'status',
+              message: `Context limit approaching (~${Math.round(estimatedTokens / 1000)}K tokens). Finishing current work.`,
+            });
+            break;
+          }
         }
 
         console.log(`[OllamaCodeClient] Turn ${turn + 1}/${maxTurns} starting (est. ~${estimatedTokens.toLocaleString()} tokens)...`);
