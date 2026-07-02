@@ -106,8 +106,10 @@ Key behavior:
 - `isAvailable()` caches a non-interactive `codex --version` check with a 10s timeout
 - Startup registration in `src/main/index.ts` enables Codex when `CodexCliClient.isAvailable()` succeeds and persists `hasCodexCli`
 - Model discovery reads `~/.codex/models_cache.json` defensively, then falls back to built-in `gpt-5.3-codex`
-- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir>` and conditionally appends `--add-dir <booksDir>` when `codex exec --help` reports support
-- Falls back to `--cd`-scoped workspace access and logs a warning when the installed Codex CLI does not support `--add-dir`
+- Builds an explicit workspace plan before spawn: active-book `cwd` for book conversations, `booksDir` for root calls, or the caller-provided `workingDir`
+- Validates the planned working directory exists before spawning `codex`; missing paths emit an `error` stream event and abort launch
+- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`
+- Falls back to active-book-only workspace access for older Codex CLI installs, logging the fallback and emitting a `status` stream event before spawn
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses `item.completed` assistant messages from JSONL and falls back to plain stdout text lines
 - Uses `turn.completed.usage` when available; otherwise estimates tokens with `CHARS_PER_TOKEN`

@@ -1718,3 +1718,26 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-02] — Harden Codex CLI workspace fallback
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now validates the Codex CLI working directory before launch and reports the non-`--add-dir` fallback as a stream status event instead of only writing a console warning.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added explicit workspace planning for Codex CLI launches, active-book fallback mode, and spawn logging that includes the selected workspace mode.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented Codex CLI workspace planning, early directory validation, and fallback status diagnostics.
+
+### Fixed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Emits a clear error before spawn when the planned working directory is missing and emits an observable status event when older Codex CLI installs run with active-book-only workspace access.
+
+### Architecture Impact
+- None — no new dependencies, IPC channels, stores, or schema changes.
+
+### Migration Notes
+- None
+
+---

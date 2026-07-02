@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -68,6 +69,49 @@ export class CodexCliClient implements IModelProvider {
     }
   }
 
+  private async buildWorkspacePlan(params: {
+    bookSlug?: string;
+    workingDir?: string;
+  }): Promise<CodexWorkspacePlan> {
+    const cwd = params.workingDir
+      ? params.workingDir
+      : params.bookSlug
+        ? path.join(this.booksDir, params.bookSlug)
+        : this.booksDir;
+
+    if (!existsSync(cwd)) {
+      throw new Error(`Codex CLI working directory does not exist: ${cwd}`);
+    }
+
+    const supportsAddDir = await this.supportsAddDir();
+    const extraArgs: string[] = [];
+
+    if (supportsAddDir && cwd !== this.booksDir) {
+      extraArgs.push('--add-dir', this.booksDir);
+      return { cwd, argsCwd: cwd, extraArgs, mode: 'book-with-books-root' };
+    }
+
+    if (!supportsAddDir && params.bookSlug && !params.workingDir) {
+      return {
+        cwd,
+        argsCwd: cwd,
+        extraArgs,
+        mode: 'book-only',
+        warning: `Codex CLI does not support --add-dir; continuing with active-book workspace only (${params.bookSlug}).`,
+      };
+    }
+
+    return {
+      cwd,
+      argsCwd: cwd,
+      extraArgs,
+      mode: params.workingDir ? 'custom-working-dir' : 'books-root',
+      warning: !supportsAddDir && cwd !== this.booksDir
+        ? `Codex CLI does not support --add-dir; workspace is limited to ${cwd}.`
+        : undefined,
+    };
+  }
+
   hasActiveProcesses(): boolean {
     return this.activeProcesses.size > 0;
   }
@@ -116,11 +160,6 @@ export class CodexCliClient implements IModelProvider {
     const conversationId = params.conversationId ?? '';
     const tracker = new StreamSessionTracker(sessionId);
     const prompt = this.buildPrompt(systemPrompt, messages);
-    const cwd = workingDir
-      ? workingDir
-      : bookSlug
-        ? path.join(this.booksDir, bookSlug)
-        : this.booksDir;
 
     let doneEmitted = false;
     let textBlockOpen = false;
@@ -187,34 +226,41 @@ export class CodexCliClient implements IModelProvider {
       textBlockOpen = false;
     };
 
-    const supportsAddDir = await this.supportsAddDir();
+    let workspacePlan: CodexWorkspacePlan;
+    try {
+      workspacePlan = await this.buildWorkspacePlan({ bookSlug, workingDir });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      wrappedOnEvent({ type: 'error', message });
+      throw new Error(message);
+    }
+
+    if (workspacePlan.warning) {
+      console.warn(`[CodexCliClient] ${workspacePlan.warning}`);
+      wrappedOnEvent({ type: 'status', message: workspacePlan.warning });
+    }
+
     const args = [
       'exec',
       '--json',
       '--model', model,
       '--sandbox', 'workspace-write',
       '--skip-git-repo-check',
-      '--cd', cwd,
+      '--cd', workspacePlan.argsCwd,
+      ...workspacePlan.extraArgs,
+      '-',
     ];
 
-    if (supportsAddDir) {
-      args.push('--add-dir', this.booksDir);
-    } else if (cwd !== this.booksDir) {
-      console.warn(
-        `[CodexCliClient] Installed Codex CLI does not support --add-dir; ` +
-          `workspace access is limited to cwd=${cwd}`,
-      );
-    }
-
-    args.push('-');
-
-    console.log(`[CodexCliClient] Spawning CLI: model=${model}, cwd=${cwd}, conversationId=${conversationId}`);
+    console.log(
+      `[CodexCliClient] Spawning CLI: model=${model}, workspaceMode=${workspacePlan.mode}, ` +
+      `cwd=${workspacePlan.cwd}, conversationId=${conversationId}`,
+    );
 
     return new Promise<void>((resolve, reject) => {
       const child = spawn('codex', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env },
-        cwd,
+        cwd: workspacePlan.cwd,
       });
 
       if (conversationId) {
@@ -443,6 +489,14 @@ export class CodexCliClient implements IModelProvider {
     ].join('\n');
   }
 }
+
+type CodexWorkspacePlan = {
+  cwd: string;
+  argsCwd: string;
+  extraArgs: string[];
+  mode: 'book-with-books-root' | 'book-only' | 'custom-working-dir' | 'books-root';
+  warning?: string;
+};
 
 type EventRecord = {
   sessionId: string;
