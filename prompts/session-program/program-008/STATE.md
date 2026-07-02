@@ -12,7 +12,7 @@
 |---|---------|---------|--------|-----------|-------|
 | 01 | Add Ollama CLI runner | M06, M01 | done | 2026-07-02 | Added `OllamaCliRunner` plus exports and documentation. Parser skips the standard `NAME ID SIZE MODIFIED` header, treats the first whitespace column as the model name, and returns empty/false on missing CLI. |
 | 02 | Route Ollama availability and model discovery through CLI | M06, M09 | done | 2026-07-02 | Wired `OllamaCliRunner` into `OllamaCodeClient` and startup model discovery. Local CLI presence and `ollama list` verified; remote endpoint behavior kept HTTP-only by code path but not manually exercised. |
-| 03 | Update provider settings UX for CLI-first Ollama | M09, M10 | pending |  | Clarify endpoint as optional/advanced and expose CLI-backed status/test behavior through existing IPC. |
+| 03 | Update provider settings UX for CLI-first Ollama | M09, M10 | done | 2026-07-02 | Updated Settings and ProviderSection copy for local CLI-first Ollama, added Ollama CLI to built-in status via existing preload bridge, and left IPC unchanged. |
 | 04 | Documentation and verification | Docs | pending |  | Update mandatory changelog plus affected architecture docs after implementation sessions. |
 
 ## Dependency Graph
@@ -75,4 +75,7 @@ Feature scope:
 - SESSION-02 completed on 2026-07-02. `./src/infrastructure/ollama-cli/OllamaCodeClient.ts` now uses local CLI-first availability, attempts `ollama serve`, and checks local API readiness before `/api/chat`.
 - `./src/main/index.ts` now creates one `OllamaCliRunner`, injects it into `OllamaCodeClient`, uses CLI model discovery for local endpoints, and preserves HTTP discovery for remote/non-local Ollama base URLs.
 - Verification: `npx tsc --noEmit`, `npm run lint`, and `ollama list` passed. `npm run build` is unavailable because `./package.json` has no `build` script. Manual app streaming was not run.
+- SESSION-03 completed on 2026-07-02. `./src/renderer/components/Settings/SettingsView.tsx` now shows Ollama CLI in built-in CLI status and calls the existing `settings.detectOllamaCli()` preload method; no IPC or preload changes were needed.
+- `./src/renderer/components/Settings/ProviderSection.tsx` now labels Ollama as CLI-first, treats the endpoint as an advanced remote override, and keeps llama-server endpoint behavior separate.
+- Verification: `npx tsc --noEmit` and `npm run lint` passed. Manual `npm start` UI verification was not run.
 - Agents implementing sessions must follow `./AGENTS.MD`: append `./CHANGELOG.md` every code-changing session and update only affected files in `./docs/architecture/`.

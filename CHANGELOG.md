@@ -1784,3 +1784,22 @@ None
 None
 
 ---
+## [2026-07-02] — CLI-first Ollama settings copy
+
+### Summary
+
+Settings now presents Ollama as a local CLI-first provider. The Providers tab shows Ollama CLI status alongside Claude and Codex, explains that local models come from `ollama pull model-name` and `ollama list`, and keeps the endpoint field as an advanced override for remote Ollama hosts.
+
+### Changed
+- `./src/renderer/components/Settings/SettingsView.tsx` — Added Ollama CLI to built-in CLI status, updated provider guidance, and clarified empty-model copy for local Ollama pulls.
+- `./src/renderer/components/Settings/ProviderSection.tsx` — Renamed Ollama endpoint copy to an advanced override, added CLI discovery help, and labeled the provider badge as Ollama CLI.
+- `./docs/architecture/RENDERER.md` — Documented Settings and ProviderSection CLI-first Ollama behavior.
+
+### Architecture Impact
+- Renderer behavior change: Settings now calls the existing `settings:detectOllamaCli` bridge from the built-in CLI status section.
+- No new IPC channels, preload methods, stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None
+
+---

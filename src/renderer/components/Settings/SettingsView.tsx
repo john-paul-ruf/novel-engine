@@ -22,8 +22,9 @@ function HelpText({ children }: { children: React.ReactNode }): React.ReactEleme
 }
 
 function BuiltInCliStatusSection(): React.ReactElement {
-  const { settings, detectClaudeCli, detectCodexCli } = useSettingsStore();
-  const [checking, setChecking] = useState<'claude' | 'codex' | null>(null);
+  const { settings, detectClaudeCli, detectCodexCli, load: loadSettings } = useSettingsStore();
+  const loadProviders = useProviderStore((state) => state.load);
+  const [checking, setChecking] = useState<'claude' | 'codex' | 'ollama' | null>(null);
 
   const handleRecheckClaude = useCallback(async () => {
     setChecking('claude');
@@ -36,6 +37,17 @@ function BuiltInCliStatusSection(): React.ReactElement {
     await detectCodexCli();
     setChecking(null);
   }, [detectCodexCli]);
+
+  const handleRecheckOllama = useCallback(async () => {
+    setChecking('ollama');
+    try {
+      await window.novelEngine.settings.detectOllamaCli();
+      await loadSettings();
+      await loadProviders();
+    } finally {
+      setChecking(null);
+    }
+  }, [loadSettings, loadProviders]);
 
   const rows = [
     {
@@ -54,12 +66,20 @@ function BuiltInCliStatusSection(): React.ReactElement {
       onRecheck: handleRecheckCodex,
       docsUrl: 'https://developers.openai.com/codex/cli',
     },
+    {
+      id: 'ollama' as const,
+      name: 'Ollama CLI',
+      connected: settings?.hasOllamaCli ?? false,
+      checking: checking === 'ollama',
+      onRecheck: handleRecheckOllama,
+      docsUrl: 'https://ollama.com/download',
+    },
   ];
 
   return (
     <section className="space-y-3">
       <SectionHeading>Built-in CLI Status</SectionHeading>
-      <HelpText>Re-check local command-line providers. Endpoint-based providers are tested from their provider cards.</HelpText>
+      <HelpText>Re-check local command-line providers. Ollama models appear after `ollama pull model-name` and are discovered from `ollama list`; provider cards test remote endpoints.</HelpText>
       <div className="space-y-2">
         {rows.map((row) => (
           <div key={row.id} className="flex items-center gap-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-2">
@@ -220,7 +240,7 @@ function ModelSelectionSection(): React.ReactElement {
 
       {models.length === 0 && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
-          No models are available yet. Install or connect Claude CLI, Codex CLI, Ollama, or llama-server, then re-check providers.
+          No models are available yet. Install or connect Claude CLI, Codex CLI, Ollama CLI, or llama-server. For Ollama, run `ollama pull model-name`, then re-check providers.
         </p>
       )}
 
@@ -689,7 +709,7 @@ function AboutSection(): React.ReactElement {
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
           <span className="font-medium">Novel Engine</span> v0.1.0
         </p>
-        <HelpText>Powered by selectable AI backends: Claude CLI, Codex CLI, Ollama, llama-server, and OpenAI-compatible providers.</HelpText>
+        <HelpText>Powered by selectable AI backends: Claude CLI, Codex CLI, Ollama CLI, llama-server, and OpenAI-compatible providers.</HelpText>
         <div className="flex gap-4">
           <button
             onClick={() =>

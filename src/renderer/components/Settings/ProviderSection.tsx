@@ -15,7 +15,7 @@ function StatusDot({ status }: { status: ProviderStatus | undefined }): React.Re
 function TypeBadge({ type }: { type: string }): React.ReactElement {
   const label = type === 'claude-cli' ? 'Claude CLI' :
     type === 'codex-cli' ? 'Codex CLI' :
-    type === 'ollama-cli' ? 'Ollama' :
+    type === 'ollama-cli' ? 'Ollama CLI' :
     type === 'llama-server' ? 'llama-server' :
     type === 'openai-compatible' ? 'OpenAI Compatible' :
     type;
@@ -31,6 +31,7 @@ function OllamaEndpointField({ config }: { config: ProviderConfig }): React.Reac
   const [endpoint, setEndpoint] = useState(config.baseUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const isOllamaCli = config.type === 'ollama-cli';
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -51,24 +52,33 @@ function OllamaEndpointField({ config }: { config: ProviderConfig }): React.Reac
   }, [endpoint, config.id, updateProvider, checkStatus, load]);
 
   return (
-    <div className="mt-3 flex items-center gap-2">
-      <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Endpoint</label>
-      <input
-        type="text"
-        value={endpoint}
-        onChange={(e) => { setEndpoint(e.target.value); setDirty(true); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' && dirty) handleSave(); }}
-        placeholder="http://127.0.0.1:11434"
-        className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
-      {dirty && (
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
-        >
-          {saving ? '...' : 'Save'}
-        </button>
+    <div className="mt-3 space-y-1">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+          {isOllamaCli ? 'Advanced endpoint override' : 'Endpoint'}
+        </label>
+        <input
+          type="text"
+          value={endpoint}
+          onChange={(e) => { setEndpoint(e.target.value); setDirty(true); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && dirty) handleSave(); }}
+          placeholder={isOllamaCli ? 'Optional remote Ollama URL' : 'http://127.0.0.1:11434'}
+          className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        {dirty && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+          >
+            {saving ? '...' : 'Save'}
+          </button>
+        )}
+      </div>
+      {isOllamaCli && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Local Ollama uses the `ollama` CLI by default. Leave this blank for local CLI discovery; set a URL only for a remote Ollama host.
+        </p>
       )}
     </div>
   );
@@ -301,6 +311,11 @@ function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElemen
           <span className="text-xs text-zinc-400">Built-in</span>
         )}
       </div>
+      {config.type === 'ollama-cli' && (
+        <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+          Pull local models with `ollama pull model-name`; Novel Engine discovers them from `ollama list`.
+        </p>
+      )}
       {(config.type === 'ollama-cli' || config.type === 'llama-server') && (
         <OllamaEndpointField config={config} />
       )}
@@ -451,7 +466,7 @@ export function ProviderSection(): React.ReactElement {
     <section className="space-y-3">
       <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Model Providers</h3>
       <p className="text-sm text-zinc-500">
-        Choose the active AI backend. Built-in providers include Claude CLI, Codex CLI, Ollama, and llama-server. Tool support depends on the provider and selected model.
+        Choose the active AI backend. Built-in providers include Claude CLI, Codex CLI, Ollama CLI, and llama-server. Tool support depends on the provider and selected model.
       </p>
       <div className="space-y-3">
         {providers.map((config) => (
