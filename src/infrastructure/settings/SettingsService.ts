@@ -55,6 +55,18 @@ export class SettingsService implements ISettingsService {
     }
   }
 
+  async detectCodexCli(): Promise<boolean> {
+    try {
+      const { stdout, stderr } = await execFile('codex', ['--version'], { timeout: 10_000 });
+      const found = `${stdout}${stderr}`.trim().length > 0;
+      await this.update({ hasCodexCli: found });
+      return found;
+    } catch {
+      await this.update({ hasCodexCli: false });
+      return false;
+    }
+  }
+
   async detectOllamaCli(): Promise<boolean> {
     try {
       const { stdout } = await execFile('ollama', ['--version'], { timeout: 10_000 });

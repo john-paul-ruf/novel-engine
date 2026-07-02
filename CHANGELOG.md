@@ -1558,3 +1558,30 @@ Processed the full small feature request backlog into a structured 13-session bu
 
 ### Migration Notes
 - SESSION-05 removes `'motif-ledger'` from `ViewId`. Requires `version: 2` + `migrate` in viewStore persist config to handle users who have `'motif-ledger'` as their persisted currentView.
+
+---
+
+## [2026-07-02] — Add Codex CLI detection surface
+
+### Summary
+
+Added Codex CLI detection beside the existing Claude and Ollama checks. The settings service now probes `codex --version` non-interactively, persists `hasCodexCli`, and exposes the result through IPC, preload, and the settings Zustand store for future provider switching UI work.
+
+### Changed
+- `src/domain/interfaces.ts` — Added `ISettingsService.detectCodexCli()`.
+- `src/infrastructure/settings/SettingsService.ts` — Added `detectCodexCli()` using non-interactive `codex --version` with a 10s timeout.
+- `src/main/ipc/handlers.ts` — Added `settings:detectCodexCli` IPC handler.
+- `src/preload/index.ts` — Added `window.novelEngine.settings.detectCodexCli()` bridge method.
+- `src/renderer/stores/settingsStore.ts` — Added `detectCodexCli()` action that refreshes settings after probing.
+- `docs/architecture/DOMAIN.md` — Documented the new settings contract and current Codex/Ollama provider/settings shapes.
+- `docs/architecture/INFRASTRUCTURE.md` — Documented Codex and Ollama CLI detection behavior in `SettingsService`.
+- `docs/architecture/IPC.md` — Documented the new Codex detection channel and preload method.
+- `docs/architecture/RENDERER.md` — Documented the new settings store detection action.
+
+### Architecture Impact
+- New IPC channel: `settings:detectCodexCli`
+- New preload bridge method: `window.novelEngine.settings.detectCodexCli()`
+- Extended settings service contract: `ISettingsService.detectCodexCli()`
+
+### Migration Notes
+- None

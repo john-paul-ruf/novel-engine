@@ -1,6 +1,6 @@
 # Domain — Types, Interfaces, Constants
 
-> Last updated: 2026-03-28
+> Last updated: 2026-07-02
 
 Everything in `src/domain/`. Pure TypeScript declarations — zero imports from other layers.
 
@@ -87,7 +87,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | Type | Shape | Used By |
 |------|-------|---------|
 | `ProviderId` | `string` | ProviderConfig, IModelProvider, IProviderRegistry |
-| `ProviderType` | `'claude-cli' \| 'opencode-cli' \| 'openai-compatible'` | ProviderConfig, infrastructure |
+| `ProviderType` | `'claude-cli' \| 'codex-cli' \| 'ollama-cli' \| 'llama-server' \| 'opencode-cli' \| 'openai-compatible'` | ProviderConfig, infrastructure |
 | `ProviderCapability` | `'text-completion' \| 'tool-use' \| 'thinking' \| 'streaming'` | ProviderConfig, IModelProvider |
 | `ProviderStatus` | `'available' \| 'unavailable' \| 'unchecked' \| 'error'` | IProviderRegistry.checkProviderStatus |
 | `ProviderConfig` | `{ id, type, name, enabled, isBuiltIn, apiKey?, baseUrl?, models, defaultModel?, capabilities }` | Settings, ProviderRegistry |
@@ -97,7 +97,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 
 | Type | Shape | Used By |
 |------|-------|---------|
-| `AppSettings` | `{ hasClaudeCli, model, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId, completedTours }` | SettingsService, SettingsView, tourStore |
+| `AppSettings` | `{ hasClaudeCli, hasOllamaCli, hasCodexCli, model, secondaryModel, maxTokens, enableThinking, thinkingBudget, overrideThinkingBudget, autoCollapseThinking, enableNotifications, theme, initialized, authorName, providers, activeProviderId, completedTours, savedPrompts }` | SettingsService, SettingsView, tourStore |
 
 ### Token Usage
 
@@ -228,6 +228,8 @@ Implemented by: `SettingsService` (`src/infrastructure/settings/`)
 |--------|-----------|---------|
 | `load` | `() => Promise<AppSettings>` | Cached settings merged with defaults |
 | `detectClaudeCli` | `() => Promise<boolean>` | Runs `claude --version` |
+| `detectCodexCli` | `() => Promise<boolean>` | Runs `codex --version` and updates `hasCodexCli` |
+| `detectOllamaCli` | `() => Promise<boolean>` | Runs `ollama --version` and updates `hasOllamaCli` |
 | `update` | `(partial: Partial<AppSettings>) => Promise<void>` | Writes + invalidates cache |
 
 ### IAgentService

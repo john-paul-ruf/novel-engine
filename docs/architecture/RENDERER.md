@@ -69,6 +69,8 @@ File: `stores/settingsStore.ts`
 | Action | What It Does |
 |--------|-------------|
 | `load()` | Calls `window.novelEngine.settings.load()` |
+| `detectClaudeCli()` | Calls `window.novelEngine.settings.detectClaudeCli()`, then reloads settings |
+| `detectCodexCli()` | Calls `window.novelEngine.settings.detectCodexCli()`, then reloads settings |
 | `update(partial)` | Calls bridge, then reloads |
 
 ### bookStore

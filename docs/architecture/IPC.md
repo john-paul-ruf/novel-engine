@@ -1,6 +1,6 @@
 # IPC — Channels, Preload Bridge, Handler Registry
 
-> Last updated: 2026-03-28
+> Last updated: 2026-07-02
 
 Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between application services and the renderer.
 
@@ -14,6 +14,8 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 |---------|-----------|---------|---------|
 | `settings:load` | invoke | `settingsService.load()` | `AppSettings` |
 | `settings:detectClaudeCli` | invoke | `settingsService.detectClaudeCli()` | `boolean` |
+| `settings:detectCodexCli` | invoke | `settingsService.detectCodexCli()` | `boolean` |
+| `settings:detectOllamaCli` | invoke | `settingsService.detectOllamaCli()` | `boolean` |
 | `settings:update` | invoke | `settingsService.update(partial)` + syncs `nativeTheme.themeSource` | `void` |
 | `settings:getAvailableModels` | invoke | `providerRegistry.listAllModels()` | `ModelInfo[]` |
 | `settings:saveAuthorProfile` | invoke | `fs.writeFile(profilePath, content)` | `void` |
@@ -288,6 +290,8 @@ window.novelEngine: {
   settings: {
     load(): Promise<AppSettings>
     detectClaudeCli(): Promise<boolean>
+    detectCodexCli(): Promise<boolean>
+    detectOllamaCli(): Promise<boolean>
     update(partial: Partial<AppSettings>): Promise<void>
     saveAuthorProfile(content: string): Promise<void>
     loadAuthorProfile(): Promise<string>

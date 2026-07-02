@@ -6,6 +6,7 @@ type SettingsState = {
   loading: boolean;
   load: () => Promise<void>;
   detectClaudeCli: () => Promise<boolean>;
+  detectCodexCli: () => Promise<boolean>;
   update: (partial: Partial<AppSettings>) => Promise<void>;
 };
 
@@ -33,6 +34,18 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       return found;
     } catch (error) {
       console.error('Failed to detect Claude CLI:', error);
+      return false;
+    }
+  },
+
+  detectCodexCli: async () => {
+    try {
+      const found = await window.novelEngine.settings.detectCodexCli();
+      const settings = await window.novelEngine.settings.load();
+      set({ settings });
+      return found;
+    } catch (error) {
+      console.error('Failed to detect Codex CLI:', error);
       return false;
     }
   },

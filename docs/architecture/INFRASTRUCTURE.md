@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-03-28 (SESSION-03)
+> Last updated: 2026-07-02 (program-004 SESSION-01)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -19,6 +19,8 @@ Key behavior:
 - Constructor takes `userDataPath: string`
 - In-memory cache invalidated on write
 - `detectClaudeCli()` runs `claude --version` with timeout
+- `detectCodexCli()` runs non-interactive `codex --version` with timeout and persists `hasCodexCli`
+- `detectOllamaCli()` runs `ollama --version` with timeout and persists `hasOllamaCli`
 - Settings merged with `DEFAULT_SETTINGS` on load (forward-compatible)
 
 ### database/ — SQLite Persistence
