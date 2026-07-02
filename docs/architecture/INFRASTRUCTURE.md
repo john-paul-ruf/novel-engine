@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-02 (program-004 SESSION-02)
+> Last updated: 2026-07-02 (program-006 SESSION-01)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -106,7 +106,8 @@ Key behavior:
 - `isAvailable()` caches a non-interactive `codex --version` check with a 10s timeout
 - Startup registration in `src/main/index.ts` enables Codex when `CodexCliClient.isAvailable()` succeeds and persists `hasCodexCli`
 - Model discovery reads `~/.codex/models_cache.json` defensively, then falls back to built-in `gpt-5.3-codex`
-- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --add-dir <booksDir> -`
+- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir>` and conditionally appends `--add-dir <booksDir>` when `codex exec --help` reports support
+- Falls back to `--cd`-scoped workspace access and logs a warning when the installed Codex CLI does not support `--add-dir`
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses `item.completed` assistant messages from JSONL and falls back to plain stdout text lines
 - Uses `turn.completed.usage` when available; otherwise estimates tokens with `CHARS_PER_TOKEN`

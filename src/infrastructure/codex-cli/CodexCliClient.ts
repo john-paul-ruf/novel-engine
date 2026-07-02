@@ -30,6 +30,7 @@ export class CodexCliClient implements IModelProvider {
   ];
 
   private _available: boolean | null = null;
+  private _supportsAddDir: boolean | null = null;
   private activeProcesses: Map<string, ChildProcess> = new Map();
   private streamBookMap: Map<string, string> = new Map();
 
@@ -52,6 +53,19 @@ export class CodexCliClient implements IModelProvider {
 
   invalidateAvailabilityCache(): void {
     this._available = null;
+    this._supportsAddDir = null;
+  }
+
+  private async supportsAddDir(): Promise<boolean> {
+    if (this._supportsAddDir !== null) return this._supportsAddDir;
+    try {
+      const { stdout, stderr } = await execFileAsync('codex', ['exec', '--help'], { timeout: 10_000 });
+      this._supportsAddDir = `${stdout}${stderr}`.includes('--add-dir');
+      return this._supportsAddDir;
+    } catch {
+      this._supportsAddDir = false;
+      return false;
+    }
   }
 
   hasActiveProcesses(): boolean {
@@ -173,6 +187,7 @@ export class CodexCliClient implements IModelProvider {
       textBlockOpen = false;
     };
 
+    const supportsAddDir = await this.supportsAddDir();
     const args = [
       'exec',
       '--json',
@@ -180,9 +195,18 @@ export class CodexCliClient implements IModelProvider {
       '--sandbox', 'workspace-write',
       '--skip-git-repo-check',
       '--cd', cwd,
-      '--add-dir', this.booksDir,
-      '-',
     ];
+
+    if (supportsAddDir) {
+      args.push('--add-dir', this.booksDir);
+    } else if (cwd !== this.booksDir) {
+      console.warn(
+        `[CodexCliClient] Installed Codex CLI does not support --add-dir; ` +
+          `workspace access is limited to cwd=${cwd}`,
+      );
+    }
+
+    args.push('-');
 
     console.log(`[CodexCliClient] Spawning CLI: model=${model}, cwd=${cwd}, conversationId=${conversationId}`);
 

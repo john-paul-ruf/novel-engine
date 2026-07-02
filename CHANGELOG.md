@@ -1676,3 +1676,45 @@ Primary and Secondary Model selection now render from the same available-provide
 
 ### Migration Notes
 - None
+
+---
+
+## [2026-07-02] — Codex add-dir compatibility session program
+
+### Summary
+
+Created a Forge session program for fixing the Codex provider runtime failure where `codex exec` rejects `--add-dir`. The program captures the screenshot bug report, scopes the fix to `CodexCliClient`, and requires infrastructure documentation plus changelog updates during implementation.
+
+### Added
+- `prompts/session-program/program-006/input-files/bug-report.md` — Captures the screenshot symptoms, initial code pointers, and expected outcome.
+- `prompts/session-program/program-006/SESSION-01.md` — Defines the implementation session for conditional Codex CLI `--add-dir` support.
+- `prompts/session-program/program-006/STATE.md` — Tracks session status, scope, design decisions, and handoff notes.
+- `prompts/session-program/program-006/MASTER.md` — Defines the execution protocol, recovery steps, and final report requirements.
+
+### Architecture Impact
+None — prompt program only, no source wiring changes.
+
+### Migration Notes
+None
+
+---
+
+## [2026-07-02] — Codex add-dir compatibility fix
+
+### Summary
+
+`src/infrastructure/codex-cli/CodexCliClient.ts` now detects whether the installed Codex CLI supports `--add-dir` before spawning `codex exec`. Compatible installs keep the broader books-directory workspace, while older installs fall back to `--cd`-scoped access with a main-process warning instead of failing immediately.
+
+### Changed
+- `src/infrastructure/codex-cli/CodexCliClient.ts` — Added cached `codex exec --help` detection for `--add-dir`, conditional argument construction, and cache invalidation.
+- `docs/architecture/INFRASTRUCTURE.md` — Documented conditional Codex CLI `--add-dir` support and fallback behavior.
+
+### Fixed
+- `src/infrastructure/codex-cli/CodexCliClient.ts` — Prevents chat requests from hard-failing on Codex CLI installations that reject `--add-dir`.
+
+### Architecture Impact
+- CLI invocation behavior: `CodexCliClient` now branches on local `codex exec --help` output before adding `--add-dir <booksDir>`.
+- No domain contracts, IPC channels, renderer stores, or schema changes.
+
+### Migration Notes
+None
