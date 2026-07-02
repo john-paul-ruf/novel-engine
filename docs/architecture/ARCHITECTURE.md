@@ -159,6 +159,10 @@ DatabaseService(dbPath)
 AgentService(agentsDir)
 FileSystemService(booksDir, userDataPath)
 ClaudeCodeClient(booksDir, db)
+CodexCliClient(booksDir, db)
+OllamaCodeClient(booksDir, db, savedOllamaConfig?.baseUrl)
+LlamaServerClient(booksDir, db, savedLlamaConfig?.baseUrl)
+ProviderRegistry(settings)
 
 UsageService
 └── IDatabaseService (DatabaseService)

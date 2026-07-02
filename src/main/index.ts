@@ -54,12 +54,13 @@ import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
 import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
+import { CodexCliClient } from '@infra/codex-cli';
 import { OllamaCodeClient } from '@infra/ollama-cli';
 import { LlamaServerClient } from '@infra/llama-server';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
 import { SeriesService } from '@infra/series';
-import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID, LLAMA_SERVER_PROVIDER_ID, CLAUDE_CLI_PROVIDER_ID, FABLE_MODEL_ID } from '@domain/constants';
+import { BUILT_IN_PROVIDER_CONFIGS, OLLAMA_CLI_PROVIDER_ID, LLAMA_SERVER_PROVIDER_ID, CLAUDE_CLI_PROVIDER_ID, CODEX_CLI_PROVIDER_ID, FABLE_MODEL_ID } from '@domain/constants';
 import type { ModelInfo } from '@domain/types';
 
 // Application
@@ -111,6 +112,85 @@ let booksDir: string;
 protocol.registerSchemesAsPrivileged([
   { scheme: 'novel-asset', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
+
+
+// ── Codex Model Discovery ────────────────────────────────────────
+
+async function fetchCodexModels(fallback: ModelInfo[]): Promise<ModelInfo[]> {
+  const fallbackModels = normalizeCodexModels(fallback);
+  const homeDir = process.env.HOME;
+  if (!homeDir) return fallbackModels;
+
+  try {
+    const cachePath = path.join(homeDir, '.codex', 'models_cache.json');
+    const raw = readFileSync(cachePath, 'utf-8');
+    const parsed: unknown = JSON.parse(raw);
+    const ids = new Set<string>();
+    collectCodexModelIds(parsed, ids, 0);
+    const discovered = normalizeCodexModels([...ids].map((id) => ({
+      id,
+      label: prettifyModelLabel(id),
+      description: `Codex model — ${id}`,
+      providerId: CODEX_CLI_PROVIDER_ID,
+      supportsThinking: true,
+      supportsToolUse: true,
+    })));
+    if (discovered.length > 0) {
+      return discovered;
+    }
+  } catch {
+    // Missing or unparseable cache — fall back to built-in defaults.
+  }
+
+  return fallbackModels;
+}
+
+function normalizeCodexModels(models: ModelInfo[]): ModelInfo[] {
+  return models.map((model) => ({
+    ...model,
+    providerId: CODEX_CLI_PROVIDER_ID,
+    supportsThinking: true,
+    supportsToolUse: true,
+  }));
+}
+
+function collectCodexModelIds(value: unknown, ids: Set<string>, depth: number): void {
+  if (depth > 4 || value === null || value === undefined) return;
+
+  if (typeof value === 'string') {
+    if (looksLikeModelId(value)) ids.add(value);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectCodexModelIds(item, ids, depth + 1);
+    return;
+  }
+
+  if (typeof value !== 'object') return;
+  const record = value as Record<string, unknown>;
+  for (const key of ['id', 'model', 'name']) {
+    const candidate = record[key];
+    if (typeof candidate === 'string' && looksLikeModelId(candidate)) {
+      ids.add(candidate);
+    }
+  }
+  for (const nested of Object.values(record)) {
+    collectCodexModelIds(nested, ids, depth + 1);
+  }
+}
+
+function looksLikeModelId(value: string): boolean {
+  return /^[a-z0-9][a-z0-9._:-]*$/i.test(value) && value.includes('-');
+}
+
+function prettifyModelLabel(id: string): string {
+  return id
+    .split(/[-_:]+/)
+    .filter(Boolean)
+    .map((part) => part.toUpperCase() === 'GPT' ? 'GPT' : part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 // ── Ollama Model Discovery ────────────────────────────────────────
 
@@ -416,6 +496,32 @@ async function initializeApp(): Promise<void> {
     }
   }
 
+
+  // Register the built-in Codex CLI provider (always registered so the user
+  // can see and configure it even if the CLI is not installed yet)
+  const savedCodexConfig = appSettings.providers.find(p => p.id === CODEX_CLI_PROVIDER_ID);
+  const codexClient = new CodexCliClient(booksDir, db);
+  const codexBaseConfig = savedCodexConfig
+    ?? BUILT_IN_PROVIDER_CONFIGS.find(p => p.id === CODEX_CLI_PROVIDER_ID)!;
+
+  const codexAvailable = await codexClient.isAvailable();
+  const codexModels = codexAvailable
+    ? await fetchCodexModels(codexBaseConfig.models)
+    : normalizeCodexModels(codexBaseConfig.models);
+  await settings.update({ hasCodexCli: codexAvailable });
+  if (codexAvailable) {
+    console.log(`[startup] Codex CLI detected — ${codexModels.length} model(s) available`);
+  } else {
+    console.log('[startup] Codex CLI not found — provider registered for configuration');
+  }
+
+  providerRegistry.registerProvider(codexClient, {
+    ...codexBaseConfig,
+    enabled: codexAvailable,
+    models: codexModels,
+    defaultModel: codexBaseConfig.defaultModel ?? codexModels[0]?.id,
+  });
+
   // Register the built-in Ollama CLI provider (always registered so the user
   // can configure the endpoint in Settings even if Ollama isn't reachable yet)
   const savedOllamaConfig = appSettings.providers.find(p => p.id === OLLAMA_CLI_PROVIDER_ID);
@@ -466,6 +572,7 @@ async function initializeApp(): Promise<void> {
   // Initialize user-configured providers from settings
   for (const config of appSettings.providers) {
     if (config.id === 'claude-cli') continue;
+    if (config.id === CODEX_CLI_PROVIDER_ID) continue; // already registered above
     if (config.id === OLLAMA_CLI_PROVIDER_ID) continue; // already registered above
     if (config.id === LLAMA_SERVER_PROVIDER_ID) continue; // already registered above
     if (!config.enabled) continue;

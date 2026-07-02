@@ -1609,3 +1609,26 @@ Added the infrastructure provider for Codex CLI. `CodexCliClient` implements `IM
 
 ### Migration Notes
 - None
+
+---
+
+## [2026-07-02] — Register Codex provider at startup
+
+### Summary
+
+Registered Codex CLI as a built-in provider during app startup. The composition root now instantiates `CodexCliClient`, enables it when `codex --version` succeeds, persists `hasCodexCli`, discovers models from `~/.codex/models_cache.json` when available, and falls back to a built-in `gpt-5.3-codex` model.
+
+### Changed
+- `src/main/index.ts` — Imports and registers `CodexCliClient`, adds Codex model discovery, persists Codex CLI availability, and skips Codex in the user-provider loop.
+- `src/domain/constants.ts` — Adds fallback Codex model `gpt-5.3-codex` and default model metadata to the built-in Codex provider config.
+- `docs/architecture/ARCHITECTURE.md` — Updates the service dependency graph for Codex, Ollama, llama-server, and provider registry startup wiring.
+- `docs/architecture/DOMAIN.md` — Documents the current built-in provider IDs and four built-in provider configs.
+- `docs/architecture/INFRASTRUCTURE.md` — Documents Codex startup registration and model discovery fallback behavior.
+
+### Architecture Impact
+- New composition root wiring: `src/main/index.ts` instantiates `CodexCliClient(booksDir, db)`.
+- New startup model discovery path: `~/.codex/models_cache.json` → built-in `gpt-5.3-codex` fallback.
+- Settings persistence: startup updates `hasCodexCli` based on `CodexCliClient.isAvailable()`.
+
+### Migration Notes
+- None

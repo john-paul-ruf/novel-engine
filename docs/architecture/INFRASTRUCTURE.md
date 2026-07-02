@@ -104,6 +104,8 @@ Key behavior:
 Key behavior:
 - Exposes `providerId` as `'codex-cli'` and capabilities: `text-completion`, `streaming`, `tool-use`, `thinking`
 - `isAvailable()` caches a non-interactive `codex --version` check with a 10s timeout
+- Startup registration in `src/main/index.ts` enables Codex when `CodexCliClient.isAvailable()` succeeds and persists `hasCodexCli`
+- Model discovery reads `~/.codex/models_cache.json` defensively, then falls back to built-in `gpt-5.3-codex`
 - Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --add-dir <booksDir> -`
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses `item.completed` assistant messages from JSONL and falls back to plain stdout text lines

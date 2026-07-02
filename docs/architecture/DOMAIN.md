@@ -601,7 +601,10 @@ Implemented by: `FindReplaceService` (`src/application/FindReplaceService.ts`)
 | `AVAILABLE_MODELS` | 2-element array | **(deprecated)** Opus 4 and Sonnet 4. Use `BUILT_IN_PROVIDER_CONFIGS[0].models` or `IProviderRegistry.listAllModels()` |
 | `CLAUDE_CLI_PROVIDER_ID` | `'claude-cli'` | Built-in Claude CLI provider ID |
 | `OPENCODE_CLI_PROVIDER_ID` | `'opencode-cli'` | Reserved for future OpenCode CLI provider |
-| `BUILT_IN_PROVIDER_CONFIGS` | `ProviderConfig[]` (1 element) | Default Claude CLI provider with Opus 4 and Sonnet 4 models |
+| `OLLAMA_CLI_PROVIDER_ID` | `'ollama-cli'` | Built-in Ollama provider ID |
+| `LLAMA_SERVER_PROVIDER_ID` | `'llama-server'` | Built-in llama-server provider ID |
+| `CODEX_CLI_PROVIDER_ID` | `'codex-cli'` | Built-in Codex CLI provider ID |
+| `BUILT_IN_PROVIDER_CONFIGS` | `ProviderConfig[]` (4 elements) | Built-in Claude, Ollama, llama-server, and Codex configs. Codex includes fallback `gpt-5.3-codex`. |
 | `FILE_MANIFEST_KEYS` | 13-element array | Canonical file paths for context |
 | `VERITY_PHASE_FILES` | Partial record | Maps pipeline phases to Verity sub-prompt filenames |
 | `VERITY_AUDIT_MODEL` | `'claude-sonnet-4-20250514'` | Model for audit pass |

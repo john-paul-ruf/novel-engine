@@ -205,7 +205,17 @@ export const BUILT_IN_PROVIDER_CONFIGS: ProviderConfig[] = [
     name: 'Codex CLI',
     enabled: false, // enabled dynamically when CLI is detected
     isBuiltIn: true,
-    models: [], // populated at runtime from ~/.codex/models_cache.json
+    models: [
+      {
+        id: 'gpt-5.3-codex',
+        label: 'GPT-5.3 Codex',
+        description: 'Codex CLI default fallback model',
+        providerId: CODEX_CLI_PROVIDER_ID,
+        supportsThinking: true,
+        supportsToolUse: true,
+      },
+    ],
+    defaultModel: 'gpt-5.3-codex',
     capabilities: ['text-completion', 'tool-use', 'thinking', 'streaming'],
   },
 ];
