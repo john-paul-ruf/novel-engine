@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-02 (program-008 SESSION-01)
+> Last updated: 2026-07-02 (program-008 SESSION-02)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -128,12 +128,15 @@ Key behavior:
 | `index.ts` | Barrel export |
 
 Key behavior:
-- `OllamaCodeClient` keeps `/api/chat` for structured streaming and tool-use responses.
+- `OllamaCodeClient.isAvailable()` is CLI-first for local endpoints: detect the `ollama` binary, check `/api/tags`, attempt `ollama serve`, then accept CLI-listed models as provider availability if the API is still down.
+- `OllamaCodeClient.sendMessage()` keeps `/api/chat` for structured streaming and tool-use responses, but first ensures the local API is reachable for localhost/127.0.0.1 endpoints.
+- Remote/non-local Ollama endpoints stay HTTP-first through `/api/tags` and `/api/show`; local CLI fallback is not used for remote hosts.
 - `OllamaCliRunner.detect()` runs `ollama --version` and returns `false` on missing CLI or command failure.
 - `OllamaCliRunner.listModels()` parses `ollama list`, skips the `NAME ID SIZE MODIFIED` header, and returns `[]` on missing CLI or empty output.
 - `OllamaCliRunner.showModelContext()` tries `ollama show <model> --json`, then falls back to defensive text parsing for context length patterns.
 - `OllamaCliRunner.startServe()` spawns `ollama serve` once and warns, rather than throwing, if the process exits because the service is already running.
 - `OllamaCliRunner.runSmokeTest()` pipes a prompt into `ollama run <model>` with a timeout and boolean result.
+- Startup model discovery in `src/main/index.ts` uses `OllamaCliRunner.listModels()` and `showModelContext()` for local endpoints, and preserves API discovery for configured remote endpoints.
 
 ### providers/ — Model Provider Registry
 

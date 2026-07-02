@@ -1763,3 +1763,24 @@ None
 None
 
 ---
+## [2026-07-02] — CLI-first Ollama provider routing
+
+### Summary
+
+`./src/infrastructure/ollama-cli/OllamaCodeClient.ts` now treats local Ollama as a CLI-first provider for availability while preserving `/api/chat` for structured streaming and tool-use. Startup model discovery in `./src/main/index.ts` uses `OllamaCliRunner` for local models and context windows, with HTTP discovery retained for remote Ollama endpoints.
+
+### Changed
+- `./src/infrastructure/ollama-cli/OllamaCodeClient.ts` — Injects `OllamaCliRunner`, checks local CLI availability before API reachability, attempts `ollama serve`, and verifies the local API before chat streaming.
+- `./src/main/index.ts` — Instantiates one `OllamaCliRunner`, passes it into `OllamaCodeClient`, uses CLI-backed model discovery for local Ollama, and keeps HTTP discovery for remote hosts.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documents local CLI-first availability, local API readiness before chat, and remote HTTP behavior.
+- `./docs/architecture/ARCHITECTURE.md` — Updates the composition root dependency graph for `OllamaCliRunner` injection.
+
+### Architecture Impact
+- New dependency wiring: `OllamaCodeClient` receives `OllamaCliRunner` from `./src/main/index.ts`.
+- Provider behavior change: local Ollama availability is based on CLI detection and model listing before API-only failure; remote Ollama remains HTTP-based.
+- No new IPC channels, renderer stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None
+
+---

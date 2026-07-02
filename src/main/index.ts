@@ -55,7 +55,7 @@ import { AgentService } from '@infra/agents';
 import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
 import { CodexCliClient } from '@infra/codex-cli';
-import { OllamaCodeClient } from '@infra/ollama-cli';
+import { OllamaCodeClient, OllamaCliRunner } from '@infra/ollama-cli';
 import { LlamaServerClient } from '@infra/llama-server';
 import { ProviderRegistry, OpenAiCompatibleProvider } from '@infra/providers';
 import { resolvePandocPath } from '@infra/pandoc';
@@ -194,60 +194,57 @@ function prettifyModelLabel(id: string): string {
 
 // ── Ollama Model Discovery ────────────────────────────────────────
 
-/**
- * Run `ollama list` and parse the output into ModelInfo entries.
- * Returns an empty array if the command fails or produces no models.
- */
-async function fetchOllamaModels(ollamaBaseUrl: string): Promise<ModelInfo[]> {
+function isLocalOllamaBaseUrl(baseUrl: string): boolean {
   try {
-    // First try the HTTP API (works for remote Ollama instances)
-    let models: ModelInfo[] = [];
-    try {
-      const resp = await fetch(`${ollamaBaseUrl}/api/tags`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5_000),
-      });
-      if (resp.ok) {
-        const data = await resp.json() as { models?: { name: string }[] };
-        models = (data.models ?? []).map((m) => ({
-          id: m.name,
-          label: m.name.replace(/:latest$/, ''),
-          description: `Ollama model — ${m.name}`,
-          providerId: OLLAMA_CLI_PROVIDER_ID,
-          supportsThinking: false,
-          supportsToolUse: false,
-        }));
-      }
-    } catch { /* API not reachable — fall back to CLI */ }
+    const host = new URL(baseUrl).hostname.toLowerCase();
+    return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+  } catch {
+    return baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost');
+  }
+}
 
-    // Fallback: try local `ollama list` CLI
-    if (models.length === 0) {
-      const { stdout } = await execFileAsync('ollama', ['list'], { timeout: 10_000 });
-      const lines = stdout.trim().split('\n');
-      // First line is the header: "NAME    ID    SIZE    MODIFIED"
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].trim().split(/\s+/);
-        if (!cols[0]) continue;
-        const name = cols[0]; // e.g. "llama3.1:latest"
-        const label = name.replace(/:latest$/, '');
-        models.push({
-          id: name,
-          label,
-          description: `Ollama model — ${name}`,
-          providerId: OLLAMA_CLI_PROVIDER_ID,
-          supportsThinking: false,
-          supportsToolUse: false,
-        });
-      }
-    }
+async function fetchOllamaModels(ollamaBaseUrl: string, runner: OllamaCliRunner): Promise<ModelInfo[]> {
+  if (isLocalOllamaBaseUrl(ollamaBaseUrl)) {
+    const cliModels = await runner.listModels();
+    const models: ModelInfo[] = cliModels.map((model) => ({
+      id: model.name,
+      label: model.name.replace(/:latest$/, ''),
+      description: `Ollama model — ${model.name}`,
+      providerId: OLLAMA_CLI_PROVIDER_ID,
+      supportsThinking: false,
+      supportsToolUse: true,
+    }));
 
-    // Enrich with context window sizes via /api/show (best-effort)
-    await Promise.allSettled(models.map(async (m) => {
+    await Promise.allSettled(models.map(async (model) => {
+      model.contextWindow = await runner.showModelContext(model.id);
+    }));
+
+    return models;
+  }
+
+  try {
+    const resp = await fetch(`${ollamaBaseUrl}/api/tags`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!resp.ok) return [];
+
+    const data = await resp.json() as { models?: { name: string }[] };
+    const models: ModelInfo[] = (data.models ?? []).map((model) => ({
+      id: model.name,
+      label: model.name.replace(/:latest$/, ''),
+      description: `Ollama model — ${model.name}`,
+      providerId: OLLAMA_CLI_PROVIDER_ID,
+      supportsThinking: false,
+      supportsToolUse: true,
+    }));
+
+    await Promise.allSettled(models.map(async (model) => {
       try {
         const r = await fetch(`${ollamaBaseUrl}/api/show`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: m.id }),
+          body: JSON.stringify({ name: model.id }),
           signal: AbortSignal.timeout(5_000),
         });
         if (!r.ok) return;
@@ -256,15 +253,16 @@ async function fetchOllamaModels(ollamaBaseUrl: string): Promise<ModelInfo[]> {
         if (!mi) return;
         for (const [k, v] of Object.entries(mi)) {
           if (k.endsWith('.context_length') && typeof v === 'number') {
-            m.contextWindow = v;
+            model.contextWindow = v;
             break;
           }
         }
       } catch { /* contextWindow stays undefined */ }
     }));
+
     return models;
   } catch {
-    console.warn('[startup] Failed to fetch Ollama models');
+    console.warn('[startup] Failed to fetch remote Ollama models');
     return [];
   }
 }
@@ -525,16 +523,18 @@ async function initializeApp(): Promise<void> {
   // Register the built-in Ollama CLI provider (always registered so the user
   // can configure the endpoint in Settings even if Ollama isn't reachable yet)
   const savedOllamaConfig = appSettings.providers.find(p => p.id === OLLAMA_CLI_PROVIDER_ID);
-  const ollamaClient = new OllamaCodeClient(booksDir, db, savedOllamaConfig?.baseUrl);
+  const ollamaCliRunner = new OllamaCliRunner();
+  const ollamaClient = new OllamaCodeClient(booksDir, db, savedOllamaConfig?.baseUrl, ollamaCliRunner);
   const ollamaBaseConfig = savedOllamaConfig
     ?? BUILT_IN_PROVIDER_CONFIGS.find(p => p.id === OLLAMA_CLI_PROVIDER_ID)!;
 
+  const ollamaCliAvailable = await ollamaCliRunner.detect();
   const ollamaAvailable = await ollamaClient.isAvailable();
   let ollamaModels: ModelInfo[] = [];
+  await settings.update({ hasOllamaCli: ollamaCliAvailable });
   if (ollamaAvailable) {
-    ollamaModels = await fetchOllamaModels(ollamaClient.getBaseUrl());
-    await settings.update({ hasOllamaCli: true });
-    console.log(`[startup] Ollama detected at ${ollamaClient.getBaseUrl()} — ${ollamaModels.length} models available`);
+    ollamaModels = await fetchOllamaModels(ollamaClient.getBaseUrl(), ollamaCliRunner);
+    console.log(`[startup] Ollama detected at ${ollamaClient.getBaseUrl()} — ${ollamaModels.length} model(s) available`);
   } else {
     console.log(`[startup] Ollama not reachable at ${ollamaClient.getBaseUrl()} — provider registered for configuration`);
   }

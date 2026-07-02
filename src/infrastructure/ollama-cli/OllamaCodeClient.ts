@@ -6,6 +6,7 @@ import type { MessageRole, StreamEvent, ProviderCapability, ProviderId } from '@
 import { CHARS_PER_TOKEN, MAX_CALL_CONTEXT_TOKENS, OLLAMA_CLI_PROVIDER_ID } from '@domain/constants';
 import { StreamSessionTracker } from '../claude-cli/StreamSessionTracker';
 import { ToolExecutor } from './ToolExecutor';
+import { OllamaCliRunner } from './OllamaCliRunner';
 import { OLLAMA_TOOLS, WRITE_TOOLS } from './tools';
 import type { OllamaToolCall } from './tools';
 import { Agent as UndiciAgent } from 'undici';
@@ -28,6 +29,9 @@ const ollamaDispatcher = new UndiciAgent({
 
 const OLLAMA_NOT_FOUND_MESSAGE =
   'Ollama not reachable. Check the endpoint in Settings → Providers.';
+
+const OLLAMA_LOCAL_SERVICE_NOT_READY_MESSAGE =
+  'Ollama CLI is installed, but the local Ollama service is not responding. Run `ollama serve` or check Settings → Providers.';
 
 const OLLAMA_REQUEST_FAILED_MESSAGE =
   'Ollama request failed — the prompt may exceed the model\'s context window. ' +
@@ -89,6 +93,7 @@ export class OllamaCodeClient implements IModelProvider {
     private booksDir: string,
     private db: IDatabaseService,
     configBaseUrl?: string,
+    private cliRunner = new OllamaCliRunner(),
   ) {
     // Priority: explicit config > OLLAMA_HOST env var > default localhost
     const envHost = process.env.OLLAMA_HOST;
@@ -115,21 +120,83 @@ export class OllamaCodeClient implements IModelProvider {
 
   async isAvailable(): Promise<boolean> {
     if (this._available !== null) return this._available;
-    try {
-      // Only check API reachability — the local `ollama` CLI binary is not
-      // required. The user may be connecting to a remote Ollama instance
-      // where no local CLI is installed, or the Electron process may not
-      // have `ollama` in its PATH.
-      const resp = await fetch(`${this.baseUrl}/api/tags`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5_000),
-      });
-      this._available = resp.ok;
+
+    if (!this.isLocalBaseUrl()) {
+      this._available = await this.isApiReachable();
       return this._available;
-    } catch {
+    }
+
+    const cliAvailable = await this.cliRunner.detect();
+    if (!cliAvailable) {
       this._available = false;
       return false;
     }
+
+    if (await this.isApiReachable()) {
+      this._available = true;
+      return true;
+    }
+
+    this.cliRunner.startServe();
+    if (await this.waitForApiReady()) {
+      this._available = true;
+      return true;
+    }
+
+    const models = await this.cliRunner.listModels();
+    this._available = models.length > 0;
+    if (this._available) {
+      console.warn('[OllamaCodeClient] Local Ollama CLI is available, but /api/tags is not reachable. Chat will require the local service to start.');
+    }
+    return this._available;
+  }
+
+  private isLocalBaseUrl(): boolean {
+    try {
+      const host = new URL(this.baseUrl).hostname.toLowerCase();
+      return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+    } catch {
+      return this.baseUrl.includes('127.0.0.1') || this.baseUrl.includes('localhost');
+    }
+  }
+
+  private async isApiReachable(timeoutMs = 5_000): Promise<boolean> {
+    try {
+      const resp = await fetch(`${this.baseUrl}/api/tags`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      return resp.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private async waitForApiReady(attempts = 10, intervalMs = 500): Promise<boolean> {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      if (await this.isApiReachable(1_000)) return true;
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    return false;
+  }
+
+  private async ensureLocalApiReady(): Promise<void> {
+    if (!this.isLocalBaseUrl()) return;
+    if (await this.isApiReachable()) return;
+
+    const cliAvailable = await this.cliRunner.detect();
+    if (!cliAvailable) {
+      throw new Error(OLLAMA_NOT_FOUND_MESSAGE);
+    }
+
+    this.cliRunner.startServe();
+    if (await this.waitForApiReady()) {
+      this._available = true;
+      return;
+    }
+
+    this._available = null;
+    throw new Error(OLLAMA_LOCAL_SERVICE_NOT_READY_MESSAGE);
   }
 
   /** Force re-check on next isAvailable() call (e.g. after user installs Ollama). */
@@ -175,6 +242,8 @@ export class OllamaCodeClient implements IModelProvider {
   }): Promise<void> {
     const { model, systemPrompt, messages, bookSlug } = params;
     const maxTurns = params.maxTurns ?? DEFAULT_MAX_TURNS;
+
+    await this.ensureLocalApiReady();
 
     // Use caller-provided sessionId or generate one
     const sessionId = params.sessionId || nanoid();
@@ -740,7 +809,7 @@ export class OllamaCodeClient implements IModelProvider {
   }
 
   /**
-   * Look up a model's context window size via /api/show.
+   * Look up a model's context window size via /api/show, then local CLI fallback.
    * Cached per model for the session lifetime.
    */
   private async getModelContextWindow(model: string): Promise<number | undefined> {
@@ -753,18 +822,30 @@ export class OllamaCodeClient implements IModelProvider {
         body: JSON.stringify({ name: model }),
         signal: AbortSignal.timeout(5_000),
       });
-      if (!resp.ok) return undefined;
-      const data = await resp.json() as Record<string, unknown>;
-      const info = data.model_info as Record<string, unknown> | undefined;
-      if (!info) return undefined;
-      for (const [key, value] of Object.entries(info)) {
-        if (key.endsWith('.context_length') && typeof value === 'number') {
-          this.contextWindowCache.set(model, value);
-          console.log(`[OllamaCodeClient] Model ${model} context window: ${value.toLocaleString()} tokens`);
-          return value;
+      if (resp.ok) {
+        const data = await resp.json() as Record<string, unknown>;
+        const info = data.model_info as Record<string, unknown> | undefined;
+        if (info) {
+          for (const [key, value] of Object.entries(info)) {
+            if (key.endsWith('.context_length') && typeof value === 'number') {
+              this.contextWindowCache.set(model, value);
+              console.log(`[OllamaCodeClient] Model ${model} context window: ${value.toLocaleString()} tokens`);
+              return value;
+            }
+          }
         }
       }
     } catch { /* non-critical */ }
+
+    if (this.isLocalBaseUrl()) {
+      const cliContext = await this.cliRunner.showModelContext(model);
+      if (cliContext !== undefined) {
+        this.contextWindowCache.set(model, cliContext);
+        console.log(`[OllamaCodeClient] Model ${model} CLI context window: ${cliContext.toLocaleString()} tokens`);
+        return cliContext;
+      }
+    }
+
     return undefined;
   }
 
