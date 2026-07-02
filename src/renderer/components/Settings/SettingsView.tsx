@@ -4,7 +4,6 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
 import type { ModelInfo, TourId, UsageSummary } from '@domain/types';
-import { CLAUDE_CLI_PROVIDER_ID } from '@domain/constants';
 import { ProviderSection } from './ProviderSection';
 import { useProviderStore } from '../../stores/providerStore';
 import { useTourStore } from '../../stores/tourStore';
@@ -140,8 +139,11 @@ function ModelSelectionSection(): React.ReactElement {
     providerNames[p.id] = p.name;
   }
 
-  // Secondary picker shows only Claude CLI models (secondary model is a Claude-only concept)
-  const claudeModels = models.filter((m) => m.providerId === CLAUDE_CLI_PROVIDER_ID);
+  const primaryRecommendedId = models[0]?.id ?? '';
+  const secondaryRecommendedId = secondarySelected
+    || models.find((model) => model.id !== primarySelected)?.id
+    || models[0]?.id
+    || '';
 
   // Reusable model radio button renderer
   const renderModelButton = (
@@ -189,9 +191,38 @@ function ModelSelectionSection(): React.ReactElement {
     </button>
   );
 
+  const renderGroupedModelButtons = (
+    selectedModelId: string,
+    onSelect: (model: ModelInfo) => void,
+    recommendedPredicate: (model: ModelInfo, index: number, providerId: string) => boolean,
+  ): React.ReactElement[] =>
+    Object.entries(groupedModels).map(([providerId, providerModels]) => (
+      <div key={providerId} className="space-y-2">
+        {Object.keys(groupedModels).length > 1 && (
+          <h5 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            {providerNames[providerId] ?? providerId}
+          </h5>
+        )}
+        {providerModels.map((model, idx) =>
+          renderModelButton(
+            model,
+            selectedModelId === model.id,
+            () => onSelect(model),
+            recommendedPredicate(model, idx, providerId),
+          ),
+        )}
+      </div>
+    ));
+
   return (
     <section className="space-y-6">
       <SectionHeading>Model Selection</SectionHeading>
+
+      {models.length === 0 && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+          No models are available yet. Install or connect Claude CLI, Codex CLI, Ollama, or llama-server, then re-check providers.
+        </p>
+      )}
 
       {/* ── Primary Model ──────────────────────────────────── */}
       <div className="space-y-3">
@@ -202,44 +233,29 @@ function ModelSelectionSection(): React.ReactElement {
           </p>
         </div>
         <div className="space-y-4">
-          {Object.entries(groupedModels).map(([providerId, providerModels]) => (
-            <div key={providerId} className="space-y-2">
-              {Object.keys(groupedModels).length > 1 && (
-                <h5 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-                  {providerNames[providerId] ?? providerId}
-                </h5>
-              )}
-              {providerModels.map((model, idx) =>
-                renderModelButton(
-                  model,
-                  primarySelected === model.id,
-                  () => handleSelectPrimary(model),
-                  idx === 0 && providerId === CLAUDE_CLI_PROVIDER_ID,
-                ),
-              )}
-            </div>
-          ))}
+          {renderGroupedModelButtons(
+            primarySelected,
+            handleSelectPrimary,
+            (model) => model.id === primaryRecommendedId,
+          )}
         </div>
       </div>
 
       {/* ── Secondary Model ────────────────────────────────── */}
-      {claudeModels.length > 0 && (
+      {models.length > 0 && (
         <div className="space-y-3 border-t border-zinc-200 dark:border-zinc-800 pt-5">
           <div>
             <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Secondary Model</h4>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Used for fast lightweight passes — chapter audits run on this model to save cost.
-              Choose a smaller, faster model here.
+              Used for fast lightweight passes — chapter audits run on this model to save cost or use a local provider.
+              Choose any available model from an installed or reachable provider.
             </p>
           </div>
-          <div className="space-y-2">
-            {claudeModels.map((model, idx) =>
-              renderModelButton(
-                model,
-                secondarySelected === model.id || (!secondarySelected && idx === claudeModels.length - 1),
-                () => handleSelectSecondary(model),
-                idx === claudeModels.length - 1, // last model = Sonnet = recommended for secondary
-              ),
+          <div className="space-y-4">
+            {renderGroupedModelButtons(
+              secondarySelected,
+              handleSelectSecondary,
+              (model) => model.id === secondaryRecommendedId,
             )}
           </div>
         </div>

@@ -1654,3 +1654,25 @@ Updated Settings and onboarding copy so Codex CLI is presented as a first-class 
 
 ### Migration Notes
 - None
+
+---
+
+## [2026-07-02] — Unify Settings model pickers
+
+### Summary
+
+Primary and Secondary Model selection now render from the same available-provider model list exposed by `models.getAvailable()`. Secondary model selection is provider-neutral, persists only `secondaryModel`, and chapter audits now resolve that secondary model through the provider registry before falling back to the primary model.
+
+### Changed
+- `src/renderer/components/Settings/SettingsView.tsx` — Removed Claude-only secondary filtering, reused grouped available-provider model buttons for both pickers, added empty-list guidance, and clarified secondary model copy.
+- `src/application/AuditService.ts` — Resolves `AppSettings.secondaryModel` through `IProviderRegistry` for chapter audits before falling back to the primary model.
+- `docs/architecture/RENDERER.md` — Documented that both Settings model pickers use the same available-provider groups and only primary changes switch the active provider.
+- `docs/architecture/APPLICATION.md` — Documented provider-registry secondary model resolution for `AuditService.auditChapter()`.
+
+### Architecture Impact
+- Application behavior change: `AuditService.auditChapter()` can route `secondaryModel` to any registered available provider through `IProviderRegistry`.
+- Renderer behavior change: `SettingsView.tsx` uses one grouped model list for primary and secondary pickers.
+- No new IPC channels or preload bridge methods.
+
+### Migration Notes
+- None

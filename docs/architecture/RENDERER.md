@@ -392,7 +392,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `SettingsView.tsx` | Full settings panel: built-in CLI status for Claude/Codex, providers, provider-switching model selection, thinking, theme, author profile, usage stats, catalog export |
+| `SettingsView.tsx` | Full settings panel: built-in CLI status for Claude/Codex, providers, primary/secondary model selection from the same `window.novelEngine.models.getAvailable()` provider groups, thinking, theme, author profile, usage stats, catalog export. Primary model changes switch the active provider; secondary model changes only persist `secondaryModel`. |
 | `ProviderSection.tsx` | Provider management: cards with status dots, active badge, active-provider switch, test connectivity, endpoint fields for Ollama/llama-server, add/remove/toggle, "Add Provider" form |
 
 ### Sidebar/

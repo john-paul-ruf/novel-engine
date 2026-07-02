@@ -104,15 +104,16 @@ Owns the chapter audit/fix subsystem — three cohesive operations that were ext
 
 | Method | What It Does |
 |--------|-------------|
-| `auditChapter(params)` | Runs Verity audit agent on a single chapter draft. Returns parsed `AuditResult` or null. Uses Sonnet for speed/cost. |
+| `auditChapter(params)` | Runs Verity audit agent on a single chapter draft. Returns parsed `AuditResult` or null. Uses `AppSettings.secondaryModel` through `IProviderRegistry` when that model is available, then falls back to the primary model. |
 | `fixChapter(params)` | Runs Verity fix pass using audit findings. Edits draft in-place. Uses Opus for creative judgment. |
 | `runMotifAudit(params)` | Runs Lumen's phrase/motif audit (Lens 8) across the full manuscript. Updates motif-ledger.json flaggedPhrases. |
 
 **Audit flow:**
 1. Read chapter draft + voice profile + motif ledger (non-fatal if missing)
 2. Load auditor prompt via `agents.loadRaw(VERITY_AUDIT_AGENT_FILE)`
-3. Spawn CLI with Sonnet, 120s timeout
-4. Parse JSON response → `AuditResult`
+3. Resolve secondary model through `IProviderRegistry`, falling back to the primary model if unavailable
+4. Spawn provider stream with 120s timeout
+5. Parse JSON response → `AuditResult`
 
 **Fix flow:**
 1. Load Verity core prompt + VERITY-FIX.md template + audit JSON

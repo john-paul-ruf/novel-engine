@@ -40,27 +40,24 @@ export class AuditService implements IAuditService {
   /**
    * Resolve the model for the audit pass.
    *
-   * On Claude CLI → use the user's secondary model (Settings → Secondary Model).
-   * On Ollama / other providers → fall back to the user's selected primary model
-   * since the secondary model concept only applies to Claude CLI.
+   * Prefer the user's secondary model (Settings → Secondary Model) when that
+   * model is registered by an available provider. Fall back to the primary
+   * model if the secondary choice is missing or no longer available.
    */
   private async resolveAuditModel(): Promise<{ model: string; maxTokens: number }> {
     const appSettings = await this.settings.load();
-    const activeProvider = this.providers.getProviderForModel(appSettings.model)
-      ?? this.providers.getDefaultProvider();
-    const isClaudeCli = activeProvider.providerId === CLAUDE_CLI_PROVIDER_ID;
 
-    if (isClaudeCli) {
+    if (appSettings.secondaryModel && this.providers.getProviderForModel(appSettings.secondaryModel)) {
       return { model: appSettings.secondaryModel, maxTokens: VERITY_AUDIT_MAX_TOKENS };
     }
-    // Non-Claude provider: use user's model with a reasonable token limit
+
     return { model: appSettings.model, maxTokens: appSettings.maxTokens };
   }
 
   /**
    * Run the audit pass on a chapter draft. Returns the parsed audit result.
-   * On Claude CLI, uses Sonnet for speed and cost. On other providers,
-   * falls back to the user's selected model. Returns null if the audit fails.
+   * Uses the secondary model for speed and cost when available through any
+   * registered provider. Returns null if the audit fails.
    */
   async auditChapter(params: {
     bookSlug: string;
