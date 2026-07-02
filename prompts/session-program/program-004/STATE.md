@@ -14,7 +14,7 @@
 | 01 | Domain, settings, IPC surface for Codex detection | `M01`, `M02`, `M09` | done | 2026-07-02 | Added `detectCodexCli` contract, SettingsService probe, IPC/preload bridge, and settings store action. Verification: `npx tsc --noEmit`; `grep -R "settings:detectCodexCli\|detectCodexCli" -n ./src`; renderer Node API import check. |
 | 02 | Codex CLI provider implementation | `M06`, `M08` | done | 2026-07-02 | Added `CodexCliClient` and `codex-cli` barrel. Chosen command: `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --add-dir <booksDir> -`. Verification: `npx tsc --noEmit`; smoke `codex exec --json --skip-git-repo-check --sandbox read-only --cd <tmp> -` returned `OK` with `turn.completed.usage`. |
 | 03 | Register Codex and model discovery at startup | `M09`, `M06`, `M08` | done | 2026-07-02 | Registered `CodexCliClient` in the composition root. Model discovery uses `~/.codex/models_cache.json` when parseable, then falls back to built-in `gpt-5.3-codex`. Verification: `npx tsc --noEmit`; `npm run build` unavailable (missing script); `npm run ci-build` passed. |
-| 04 | Provider switching UI polish and onboarding copy | `M10`, `M09` | pending |  | Makes all four built-ins clearly selectable/testable. |
+| 04 | Provider switching UI polish and onboarding copy | `M10`, `M09` | done | 2026-07-02 | Added Codex/Ollama provider labels, active provider badges/buttons, Claude/Codex CLI checks, and provider-neutral onboarding copy. Verification: `npx tsc --noEmit`; `npm run build` unavailable (missing script); `npm run ci-build` passed. Manual app UI inspection not run. |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -66,5 +66,7 @@ flowchart TD
 - Session 03 completed on 2026-07-02. Startup now registers Codex as a built-in provider, persists `hasCodexCli`, and skips Codex in the later user-provider loop.
 - Model discovery uses defensive parsing of `~/.codex/models_cache.json`; if absent or empty, the built-in config provides `gpt-5.3-codex`.
 - Verification passed: `npx tsc --noEmit`; `npm run ci-build`. `npm run build` is listed in Forge instructions but missing from `package.json`.
-- Next eligible session: Session 04 — Provider switching UI polish and onboarding copy.
+- Session 04 completed on 2026-07-02. Settings now labels Claude CLI, Codex CLI, Ollama, and llama-server clearly; provider cards show active state and can switch active provider; onboarding accepts Claude or Codex as local CLI backends.
+- Verification passed: `npx tsc --noEmit`; `npm run ci-build`. `npm run build` remains unavailable because `package.json` has no `build` script. Manual app UI inspection not run.
+- All sessions are complete.
 - Agents executing sessions must follow `AGENTS.MD`: append `CHANGELOG.md` every session and update only affected `docs/architecture/*.md` files after reading actual changed files.

@@ -1632,3 +1632,25 @@ Registered Codex CLI as a built-in provider during app startup. The composition 
 
 ### Migration Notes
 - None
+
+---
+
+## [2026-07-02] — Polish provider switching UI
+
+### Summary
+
+Updated Settings and onboarding copy so Codex CLI is presented as a first-class built-in backend alongside Claude CLI, Ollama, and llama-server. Provider cards now show clear labels, active-provider state, active switching, and local CLI checks for Claude/Codex without exposing endpoint fields for Codex.
+
+### Changed
+- `src/renderer/components/Settings/ProviderSection.tsx` — Added Codex/Ollama type labels, active badges, active-provider switching, provider-neutral copy, and kept endpoint editing scoped to Ollama/llama-server.
+- `src/renderer/components/Settings/SettingsView.tsx` — Replaced Claude-only status copy with Claude/Codex built-in CLI checks and clarified model selection switches the active provider.
+- `src/renderer/components/Onboarding/OnboardingWizard.tsx` — Updated onboarding setup and ready summary to accept Claude CLI or Codex CLI as local built-in backends.
+- `src/renderer/stores/providerStore.ts` — Reloads settings after `setDefault()` so active provider state refreshes cleanly.
+- `docs/architecture/RENDERER.md` — Documented provider switching UI, provider store refresh behavior, and Codex-aware onboarding.
+
+### Architecture Impact
+- Renderer state flow: `providerStore.setDefault()` now reloads `settingsStore` after `providers:setDefault`.
+- No new IPC channels — existing `providers:setDefault`, `settings:detectClaudeCli`, and `settings:detectCodexCli` are reused.
+
+### Migration Notes
+- None

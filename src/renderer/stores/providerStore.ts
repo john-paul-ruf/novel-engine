@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useSettingsStore } from './settingsStore';
 import type { ProviderConfig, ProviderId, ProviderStatus } from '@domain/types';
 
 type ProviderState = {
@@ -53,5 +54,6 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   setDefault: async (providerId) => {
     await window.novelEngine.providers.setDefault(providerId);
     await get().load();
+    await useSettingsStore.getState().load();
   },
 }));

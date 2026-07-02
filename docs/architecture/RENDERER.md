@@ -157,7 +157,7 @@ File: `stores/providerStore.ts`
 | `updateProvider(id, partial)` | Updates via bridge, reloads |
 | `removeProvider(id)` | Removes via bridge, reloads |
 | `checkStatus(id)` | Tests connectivity, caches result |
-| `setDefault(id)` | Sets active provider via bridge |
+| `setDefault(id)` | Sets active provider via bridge, then reloads providers and settings |
 
 ### pipelineStore
 
@@ -386,14 +386,14 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `OnboardingWizard.tsx` | First-run wizard: CLI detection, author name, initial setup |
+| `OnboardingWizard.tsx` | First-run wizard: detects Claude CLI/Codex CLI, model selection, author name/profile, initial setup |
 
 ### Settings/
 
 | File | Purpose |
 |------|---------|
-| `SettingsView.tsx` | Full settings panel: CLI status, providers, model selection (grouped by provider), thinking, theme, author profile, usage stats, catalog export |
-| `ProviderSection.tsx` | Provider management: cards with status dots, test connectivity, add/remove/toggle, "Add Provider" form |
+| `SettingsView.tsx` | Full settings panel: built-in CLI status for Claude/Codex, providers, provider-switching model selection, thinking, theme, author profile, usage stats, catalog export |
+| `ProviderSection.tsx` | Provider management: cards with status dots, active badge, active-provider switch, test connectivity, endpoint fields for Ollama/llama-server, add/remove/toggle, "Add Provider" form |
 
 ### Sidebar/
 

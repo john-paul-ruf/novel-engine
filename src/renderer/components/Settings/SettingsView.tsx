@@ -22,62 +22,86 @@ function HelpText({ children }: { children: React.ReactNode }): React.ReactEleme
   return <p className="text-sm text-zinc-500">{children}</p>;
 }
 
-function ClaudeCliSection(): React.ReactElement {
-  const { settings, detectClaudeCli } = useSettingsStore();
-  const [checking, setChecking] = useState(false);
+function BuiltInCliStatusSection(): React.ReactElement {
+  const { settings, detectClaudeCli, detectCodexCli } = useSettingsStore();
+  const [checking, setChecking] = useState<'claude' | 'codex' | null>(null);
 
-  const handleRecheck = useCallback(async () => {
-    setChecking(true);
+  const handleRecheckClaude = useCallback(async () => {
+    setChecking('claude');
     await detectClaudeCli();
-    setChecking(false);
+    setChecking(null);
   }, [detectClaudeCli]);
 
-  const connected = settings?.hasClaudeCli ?? false;
+  const handleRecheckCodex = useCallback(async () => {
+    setChecking('codex');
+    await detectCodexCli();
+    setChecking(null);
+  }, [detectCodexCli]);
+
+  const rows = [
+    {
+      id: 'claude' as const,
+      name: 'Claude CLI',
+      connected: settings?.hasClaudeCli ?? false,
+      checking: checking === 'claude',
+      onRecheck: handleRecheckClaude,
+      docsUrl: 'https://docs.anthropic.com/en/docs/claude-code',
+    },
+    {
+      id: 'codex' as const,
+      name: 'Codex CLI',
+      connected: settings?.hasCodexCli ?? false,
+      checking: checking === 'codex',
+      onRecheck: handleRecheckCodex,
+      docsUrl: 'https://developers.openai.com/codex/cli',
+    },
+  ];
 
   return (
     <section className="space-y-3">
-      <SectionHeading>Claude CLI Status</SectionHeading>
-      <div className="flex items-center gap-3">
-        <span
-          className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
-        />
-        <span className={`text-sm font-medium ${connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-          {connected ? 'Connected' : 'Not connected'}
-        </span>
-        <button
-          onClick={handleRecheck}
-          disabled={checking}
-          className="ml-auto rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
-        >
-          {checking ? 'Checking...' : 'Re-check'}
-        </button>
+      <SectionHeading>Built-in CLI Status</SectionHeading>
+      <HelpText>Re-check local command-line providers. Endpoint-based providers are tested from their provider cards.</HelpText>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.id} className="flex items-center gap-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-2">
+            <span className={`h-3 w-3 rounded-full ${row.connected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <div>
+              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{row.name}</span>
+              <span className={`ml-2 text-xs ${row.connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {row.connected ? 'Connected' : 'Not connected'}
+              </span>
+            </div>
+            <button
+              onClick={row.onRecheck}
+              disabled={checking !== null}
+              className="ml-auto rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+            >
+              {row.checking ? 'Checking...' : 'Re-check'}
+            </button>
+            {!row.connected && (
+              <button
+                onClick={() => window.novelEngine.shell.openExternal(row.docsUrl)}
+                className="text-xs text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
+              >
+                Install
+              </button>
+            )}
+          </div>
+        ))}
       </div>
-      {!connected && (
-        <div className="mt-2">
-          <button
-            onClick={() =>
-              window.novelEngine.shell.openExternal(
-                'https://docs.anthropic.com/en/docs/claude-code',
-              )
-            }
-            className="text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
-          >
-            Installation instructions
-          </button>
-        </div>
-      )}
     </section>
   );
 }
 
 function ModelSelectionSection(): React.ReactElement {
   const { settings, update } = useSettingsStore();
-  const { providers } = useProviderStore();
+  const { providers, load: loadProviders, setDefault } = useProviderStore();
   const [models, setModels] = useState<ModelInfo[]>([]);
 
   useEffect(() => {
     window.novelEngine.models.getAvailable().then(setModels).catch(console.error);
-  }, []);
+    loadProviders().catch(console.error);
+  }, [loadProviders]);
 
   const primarySelected = settings?.model || models[0]?.id || '';
   const secondarySelected = settings?.secondaryModel || '';
@@ -88,10 +112,10 @@ function ModelSelectionSection(): React.ReactElement {
       await update({ model: model.id });
       const currentProvider = settings?.activeProviderId;
       if (model.providerId && model.providerId !== currentProvider) {
-        await window.novelEngine.providers.setDefault(model.providerId);
+        await setDefault(model.providerId);
       }
     },
-    [update, settings?.activeProviderId],
+    [update, setDefault, settings?.activeProviderId],
   );
 
   // Secondary: only update secondaryModel — never changes the active provider
@@ -174,7 +198,7 @@ function ModelSelectionSection(): React.ReactElement {
         <div>
           <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Primary Model</h4>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Used for all agent sessions, chat, revision queue, and hot-take reads.
+            Used for all agent sessions, chat, revision queue, and hot-take reads. Choosing a model also switches the active provider.
           </p>
         </div>
         <div className="space-y-4">
@@ -649,7 +673,7 @@ function AboutSection(): React.ReactElement {
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
           <span className="font-medium">Novel Engine</span> v0.1.0
         </p>
-        <HelpText>Powered by Claude Code CLI</HelpText>
+        <HelpText>Powered by selectable AI backends: Claude CLI, Codex CLI, Ollama, llama-server, and OpenAI-compatible providers.</HelpText>
         <div className="flex gap-4">
           <button
             onClick={() =>
@@ -771,7 +795,7 @@ export function SettingsView(): React.ReactElement {
 
           {activeTab === 'providers' && (
             <>
-              <ClaudeCliSection />
+              <BuiltInCliStatusSection />
               <SectionDivider />
               <ProviderSection />
             </>

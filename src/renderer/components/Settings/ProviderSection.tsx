@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useProviderStore } from '../../stores/providerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import type { ProviderConfig, ModelInfo, ProviderStatus } from '@domain/types';
 
 function StatusDot({ status }: { status: ProviderStatus | undefined }): React.ReactElement {
@@ -13,6 +14,8 @@ function StatusDot({ status }: { status: ProviderStatus | undefined }): React.Re
 
 function TypeBadge({ type }: { type: string }): React.ReactElement {
   const label = type === 'claude-cli' ? 'Claude CLI' :
+    type === 'codex-cli' ? 'Codex CLI' :
+    type === 'ollama-cli' ? 'Ollama' :
     type === 'llama-server' ? 'llama-server' :
     type === 'openai-compatible' ? 'OpenAI Compatible' :
     type;
@@ -72,7 +75,8 @@ function OllamaEndpointField({ config }: { config: ProviderConfig }): React.Reac
 }
 
 function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElement {
-  const { statuses, checkStatus, removeProvider, updateProvider } = useProviderStore();
+  const { statuses, checkStatus, removeProvider, updateProvider, setDefault } = useProviderStore();
+  const { settings, update: updateSettings } = useSettingsStore();
   const [checking, setChecking] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -82,6 +86,7 @@ function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElemen
   const [editModels, setEditModels] = useState(config.models.map(m => m.id).join('\n'));
   const [editError, setEditError] = useState('');
   const status = statuses[config.id];
+  const isActive = settings?.activeProviderId === config.id;
 
   const handleTest = useCallback(async () => {
     setChecking(true);
@@ -99,6 +104,14 @@ function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElemen
   const handleRemove = useCallback(async () => {
     await removeProvider(config.id);
   }, [removeProvider, config.id]);
+
+  const handleSetActive = useCallback(async () => {
+    await setDefault(config.id);
+    const nextModel = config.defaultModel ?? config.models[0]?.id;
+    if (nextModel) {
+      await updateSettings({ model: nextModel });
+    }
+  }, [setDefault, updateSettings, config]);
 
   const handleEdit = useCallback(() => {
     setEditName(config.name);
@@ -232,6 +245,11 @@ function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElemen
         <StatusDot status={status} />
         <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{config.name}</span>
         <TypeBadge type={config.type} />
+        {isActive && (
+          <span className="rounded bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+            Active
+          </span>
+        )}
         {!config.capabilities.includes('tool-use') && (
           <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400">
             Text only
@@ -272,8 +290,15 @@ function ProviderCard({ config }: { config: ProviderConfig }): React.ReactElemen
             </button>
           </>
         )}
+        <button
+          onClick={handleSetActive}
+          disabled={isActive || !config.enabled || config.models.length === 0}
+          className="ml-auto rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isActive ? 'Active' : 'Use as Active'}
+        </button>
         {config.isBuiltIn && (
-          <span className="ml-auto text-xs text-zinc-400">Built-in</span>
+          <span className="text-xs text-zinc-400">Built-in</span>
         )}
       </div>
       {(config.type === 'ollama-cli' || config.type === 'llama-server') && (
@@ -415,16 +440,18 @@ function AddProviderForm({ onAdded }: { onAdded: () => void }): React.ReactEleme
 
 export function ProviderSection(): React.ReactElement {
   const { providers, load } = useProviderStore();
+  const loadSettings = useSettingsStore((s) => s.load);
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadSettings();
+  }, [load, loadSettings]);
 
   return (
     <section className="space-y-3">
       <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">Model Providers</h3>
       <p className="text-sm text-zinc-500">
-        Configure AI model providers. Claude CLI is the primary provider with full tool-use support. Add OpenAI-compatible providers for BYOK or self-hosted models (text only).
+        Choose the active AI backend. Built-in providers include Claude CLI, Codex CLI, Ollama, and llama-server. Tool support depends on the provider and selected model.
       </p>
       <div className="space-y-3">
         {providers.map((config) => (

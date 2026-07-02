@@ -53,24 +53,19 @@ function WelcomeStep({ onNext }: { onNext: () => void }): React.ReactElement {
 
 function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement {
   const [status, setStatus] = useState<CliStatus>('idle');
-  const { detectClaudeCli } = useSettingsStore();
+  const { detectClaudeCli, detectCodexCli } = useSettingsStore();
 
   const handleCheck = useCallback(async () => {
     setStatus('checking');
-    const found = await detectClaudeCli();
-    setStatus(found ? 'connected' : 'not-found');
-  }, [detectClaudeCli]);
-
-  const handleOpenDocs = useCallback(() => {
-    window.novelEngine.shell.openExternal('https://docs.anthropic.com/en/docs/claude-code');
-  }, []);
+    const [hasClaude, hasCodex] = await Promise.all([detectClaudeCli(), detectCodexCli()]);
+    setStatus(hasClaude || hasCodex ? 'connected' : 'not-found');
+  }, [detectClaudeCli, detectCodexCli]);
 
   return (
     <div className="flex flex-col items-center">
-      <h2 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">Connect to Claude</h2>
+      <h2 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">Connect an AI backend</h2>
       <p className="mb-6 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
-        Novel Engine uses the Claude Code CLI for AI interactions. This is cheaper than
-        direct API access and uses your existing Claude subscription.
+        Novel Engine can use Claude CLI, Codex CLI, Ollama, or llama-server. Install and authenticate at least one local CLI provider now, or skip and configure providers later in Settings.
       </p>
 
       <div className="mb-6 w-full space-y-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50 p-4">
@@ -79,9 +74,12 @@ function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement
             1
           </span>
           <div>
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">Install Claude Code CLI:</p>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">Install a supported CLI:</p>
             <code className="mt-1 block rounded bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-300">
               npm install -g @anthropic-ai/claude-code
+            </code>
+            <code className="mt-1 block rounded bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-300">
+              npm install -g @openai/codex
             </code>
           </div>
         </div>
@@ -91,30 +89,24 @@ function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement
           </span>
           <div>
             <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              Authenticate: Run{' '}
+              Authenticate in your terminal with the provider's login command, such as{' '}
               <code className="rounded bg-zinc-50 dark:bg-zinc-900 px-1.5 py-0.5 text-xs">claude login</code>{' '}
-              in your terminal
+              or{' '}
+              <code className="rounded bg-zinc-50 dark:bg-zinc-900 px-1.5 py-0.5 text-xs">codex login</code>.
             </p>
           </div>
         </div>
       </div>
 
-      <button
-        onClick={handleOpenDocs}
-        className="mb-6 text-sm text-blue-600 dark:text-blue-400 underline decoration-blue-600/30 dark:decoration-blue-400/30 transition-colors hover:text-blue-600 dark:hover:text-blue-300"
-      >
-        Learn more at docs.anthropic.com
-      </button>
-
       {(status === 'not-found' || status === 'idle') && (
-          <button
-            onClick={onNext}
-            className="rounded-lg px-6 py-2.5 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            Skip for now
-          </button>
-        )}
-        {status === 'connected' && (
+        <button
+          onClick={onNext}
+          className="rounded-lg px-6 py-2.5 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          Skip for now
+        </button>
+      )}
+      {status === 'connected' && (
         <div className="mb-4 flex items-center gap-2 text-green-600 dark:text-green-400">
           <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path
@@ -123,15 +115,14 @@ function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement
               clipRule="evenodd"
             />
           </svg>
-          <span className="text-sm font-medium">Claude CLI detected!</span>
+          <span className="text-sm font-medium">AI backend detected!</span>
         </div>
       )}
 
       {status === 'not-found' && (
         <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2">
           <p className="text-sm text-red-600 dark:text-red-400">
-            Claude Code CLI not found. Make sure it&apos;s installed and you&apos;ve run{' '}
-            <code className="rounded bg-zinc-50 dark:bg-zinc-900 px-1.5 py-0.5 text-xs">claude login</code>.
+            No local CLI provider was found. You can continue now and configure Claude CLI, Codex CLI, Ollama, or llama-server later in Settings.
           </p>
         </div>
       )}
@@ -152,7 +143,7 @@ function ClaudeSetupStep({ onNext }: { onNext: () => void }): React.ReactElement
                 Checking...
               </span>
             ) : (
-              'Check Connection'
+              'Check Providers'
             )}
           </button>
         )}
@@ -306,12 +297,14 @@ function ReadyStep({
   authorName,
   hasProfile,
   hasClaudeCli,
+  hasCodexCli,
   onLaunch,
 }: {
   model: string;
   authorName: string;
   hasProfile: boolean;
   hasClaudeCli: boolean;
+  hasCodexCli: boolean;
   onLaunch: (bookTitle: string) => void;
 }): React.ReactElement {
   const [bookTitle, setBookTitle] = useState('');
@@ -335,6 +328,22 @@ function ReadyStep({
           <span className="text-sm text-zinc-500 dark:text-zinc-400">Claude CLI</span>
           <span className="flex items-center gap-1.5 text-sm">
             {hasClaudeCli ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-green-600 dark:text-green-400">Connected</span>
+              </>
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="text-red-600 dark:text-red-400">Not connected</span>
+              </>
+            )}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">Codex CLI</span>
+          <span className="flex items-center gap-1.5 text-sm">
+            {hasCodexCli ? (
               <>
                 <span className="h-2 w-2 rounded-full bg-green-500" />
                 <span className="text-green-600 dark:text-green-400">Connected</span>
@@ -476,6 +485,7 @@ export function OnboardingWizard(): React.ReactElement {
                 authorName={authorName}
                 hasProfile={hasProfile}
                 hasClaudeCli={settings?.hasClaudeCli ?? false}
+                hasCodexCli={settings?.hasCodexCli ?? false}
                 onLaunch={handleLaunch}
               />
             )}
