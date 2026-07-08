@@ -1,6 +1,6 @@
 # Application — Services & Orchestration
 
-> Last updated: 2026-03-28
+> Last updated: 2026-07-08 (program-016 SESSION-02)
 
 Everything in `src/application/`. Business logic that orchestrates infrastructure through injected interfaces.
 
@@ -40,8 +40,10 @@ Clean router (403 lines). Delegates special-purpose flows to sub-services. Only 
 4. Save user message to database
 5. Spawn CLI stream via `IProviderRegistry.sendMessage`
 6. Forward stream events to `onEvent` callback
-7. On `done`: save assistant message, record usage, run chapter validation
+7. On `done`: save assistant message, record usage, run chapter validation, and use `done.filesTouched` to decide whether pipeline post-stream extraction is needed
 8. On `error`: emit error event
+
+**Pipeline file fallback:** For pipeline conversations, `ChatService.sendMessage()` checks `done.filesTouched` from the provider stream. If no files were touched and the current phase expects output files, it writes the accumulated response buffer to the missing phase output file(s). Codex, Claude, and other tool-use providers must populate `done.filesTouched` during the stream so this fallback only runs when the agent truly failed to write files.
 
 **Special modes** (prompt templates loaded at runtime via `AgentService.loadRaw()`):
 - `voice-setup`: Appends `VOICE-SETUP.md` to Verity's prompt

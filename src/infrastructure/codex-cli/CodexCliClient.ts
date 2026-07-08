@@ -331,7 +331,7 @@ export class CodexCliClient implements IModelProvider {
         stdoutBuffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          applyLineResult(this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock));
+          applyLineResult(this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd));
         }
       });
 
@@ -341,7 +341,7 @@ export class CodexCliClient implements IModelProvider {
 
       child.on('close', (code, signal) => {
         if (stdoutBuffer.trim()) {
-          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock));
+          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd));
         }
         closeTextBlock();
         const fallbackText = readFallbackOutput();
@@ -407,6 +407,10 @@ export class CodexCliClient implements IModelProvider {
               filesTouched: tracker.getFileTouches(),
             });
           }
+          const touchedPaths = Object.keys(tracker.getFileTouches());
+          if (touchedPaths.length > 0) {
+            wrappedOnEvent({ type: 'filesChanged', paths: touchedPaths });
+          }
           cleanup();
           settle(() => resolve());
         } else {
@@ -443,6 +447,7 @@ export class CodexCliClient implements IModelProvider {
     onEvent: (event: StreamEvent) => void,
     tracker: StreamSessionTracker,
     closeTextBlock: () => void,
+    workspaceCwd: string,
   ): CodexLineResult {
     const emptyResult: CodexLineResult = {
       parsedJson: false,
@@ -470,6 +475,36 @@ export class CodexCliClient implements IModelProvider {
         emittedText: false,
         emittedUsageDone: false,
       };
+    }
+
+    const tool = this.extractToolInfo(parsed, workspaceCwd);
+    if (tool) {
+      const stageChange = tracker.inferStage('toolUse', tool.toolName, tool.filePath);
+      if (stageChange) {
+        onEvent({ type: 'progressStage', stage: stageChange });
+      }
+
+      if (tool.filePath && this.isFileWriteTool(tool.toolName)) {
+        tracker.touchFile(tool.filePath);
+      }
+
+      const now = Date.now();
+      const toolInfo = {
+        toolName: tool.toolName,
+        toolId: tool.toolId,
+        filePath: tool.filePath,
+        status: 'complete' as const,
+      };
+      onEvent({ type: 'toolUse', tool: toolInfo });
+      onEvent({
+        type: 'toolDuration',
+        tool: {
+          ...toolInfo,
+          startedAt: now,
+          endedAt: now,
+          durationMs: 0,
+        },
+      });
     }
 
     const text = this.extractText(parsed);
@@ -527,6 +562,96 @@ export class CodexCliClient implements IModelProvider {
       return [type, itemType, toolName].filter(Boolean).join(':');
     }
     return type;
+  }
+
+  private extractToolInfo(event: Record<string, unknown>, workspaceCwd: string): { toolName: string; filePath?: string; toolId: string } | null {
+    const item = event.item;
+    if (!this.isRecord(item)) return null;
+    if (!this.isCompletedCodexItem(event, item)) return null;
+
+    const itemType = this.getString(item, 'type') ?? '';
+    if (itemType === 'file_change') {
+      const filePath = this.extractFileChangePath(item, workspaceCwd);
+      if (!filePath) return null;
+      const toolName = this.getFileChangeToolName(item);
+      const toolId = this.getString(item, 'id') ?? `${toolName}:${filePath}`;
+      return { toolName, filePath, toolId };
+    }
+
+    const rawToolName = this.getString(item, 'name')
+      ?? this.getString(item, 'tool_name')
+      ?? this.getString(item, 'toolName')
+      ?? itemType;
+    const toolName = this.normalizeToolName(rawToolName);
+
+    const lower = `${itemType} ${toolName}`.toLowerCase();
+    const isToolLike = lower.includes('tool')
+      || ['read', 'write', 'edit', 'ls'].some((name) => lower.includes(name));
+    if (!isToolLike) return null;
+
+    const input = item.input;
+    const filePath = this.extractToolFilePath(this.isRecord(input) ? input : item, toolName, workspaceCwd);
+    const toolId = this.getString(item, 'id') ?? `${toolName}:${filePath ?? 'unknown'}`;
+    return { toolName, filePath, toolId };
+  }
+
+  private isCompletedCodexItem(event: Record<string, unknown>, item: Record<string, unknown>): boolean {
+    const eventType = this.getString(event, 'type') ?? '';
+    const status = this.getString(item, 'status') ?? '';
+    return eventType.includes('completed') || status.includes('complete');
+  }
+
+  private extractToolFilePath(record: Record<string, unknown>, toolName: string | undefined, workspaceCwd: string): string | undefined {
+    const directPath = this.getString(record, 'file_path')
+      ?? this.getString(record, 'filePath')
+      ?? this.getString(record, 'path');
+    if (directPath) return this.normalizeWorkspacePath(directPath, workspaceCwd);
+
+    const cmd = this.getString(record, 'cmd');
+    if (!cmd || !toolName || !['Read', 'Write', 'Edit'].includes(toolName)) return undefined;
+    return /\s/.test(cmd) ? undefined : this.normalizeWorkspacePath(cmd, workspaceCwd);
+  }
+
+  private extractFileChangePath(item: Record<string, unknown>, workspaceCwd: string): string | undefined {
+    const changes = item.changes;
+    if (!Array.isArray(changes)) return undefined;
+    for (const change of changes) {
+      if (!this.isRecord(change)) continue;
+      const changePath = this.getString(change, 'path');
+      if (changePath) return this.normalizeWorkspacePath(changePath, workspaceCwd);
+    }
+    return undefined;
+  }
+
+  private getFileChangeToolName(item: Record<string, unknown>): string {
+    const changes = item.changes;
+    if (Array.isArray(changes)) {
+      for (const change of changes) {
+        if (!this.isRecord(change)) continue;
+        const kind = (this.getString(change, 'kind') ?? '').toLowerCase();
+        if (kind === 'add' || kind === 'create') return 'Write';
+      }
+    }
+    return 'Edit';
+  }
+
+  private normalizeWorkspacePath(filePath: string, workspaceCwd: string): string {
+    if (!path.isAbsolute(filePath)) return filePath;
+    const relativePath = path.relative(workspaceCwd, filePath);
+    return relativePath && !relativePath.startsWith('..') ? relativePath : filePath;
+  }
+
+  private normalizeToolName(toolName: string): string {
+    const lower = toolName.toLowerCase();
+    if (lower === 'read' || lower.includes('read')) return 'Read';
+    if (lower === 'write' || lower.includes('write')) return 'Write';
+    if (lower === 'edit' || lower.includes('edit')) return 'Edit';
+    if (lower === 'ls' || lower.includes('list')) return 'LS';
+    return toolName;
+  }
+
+  private isFileWriteTool(toolName: string): boolean {
+    return toolName === 'Write' || toolName === 'Edit';
   }
 
   private buildCodexExitMessage(params: {

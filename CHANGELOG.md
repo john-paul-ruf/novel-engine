@@ -1887,3 +1887,27 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-08] — Codex tool and file event tracking
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now converts completed Codex tool/file JSON items into Novel Engine stream activity. Codex `file_change` events update `done.filesTouched`, emit tool/progress events, and send one terminal `filesChanged` event so pipeline chats do not fall back to response extraction after Codex already wrote files.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added defensive Codex tool/file item extraction, file-change path normalization, tracker file touches, progress inference, zero-duration tool duration events, and terminal `filesChanged` emission.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented Codex tool/file tracking and emitted stream events.
+- `./docs/architecture/APPLICATION.md` — Documented `ChatService` reliance on `done.filesTouched` for pipeline post-stream extraction.
+- `./prompts/session-program/program-016/STATE.md` — Marked SESSION-02 complete with observed Codex `file_change` event shape.
+
+### Fixed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Prevents Codex-written files from being treated as no-file pipeline runs when Codex reports writes through `file_change` JSON items.
+
+### Architecture Impact
+- Codex provider stream behavior now emits `toolUse`, `toolDuration`, `progressStage`, `done.filesTouched`, and terminal `filesChanged` for completed file/tool items.
+- No new IPC channels, renderer stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None

@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-08 (program-016 SESSION-01)
+> Last updated: 2026-07-08 (program-016 SESSION-02)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -113,6 +113,7 @@ Key behavior:
 - Reads the temporary `--output-last-message` file on clean close when JSON stdout contained no assistant text, emits that fallback as `textDelta`, then deletes the temp directory
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses JSONL in `--json` mode; non-JSON stdout is captured as bounded diagnostics instead of assistant text
+- Tracks completed Codex tool/file items, including `file_change` events, through `StreamSessionTracker` and emits `toolUse`, zero-duration `toolDuration`, `progressStage`, `done.filesTouched`, and one terminal `filesChanged` event for touched paths
 - Emits native Codex error JSON as `StreamEvent { type: 'error' }` and rejects the run when the process closes
 - Converts clean no-output/no-usage exits into diagnostic `error` events with exit code, signal, elapsed time, workspace mode, JSON event count, parsed event tail, last status, stderr tail, and stdout tail
 - Preserves synthetic `done` only when assistant text streamed but Codex omitted `turn.completed.usage`; token counts are estimated with `CHARS_PER_TOKEN`
