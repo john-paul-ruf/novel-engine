@@ -8,6 +8,7 @@ import { agentColor } from '../../common/agentColors';
 import { Icon } from '../../common/Icon';
 import { agentForPhase } from '../../PipelineSpine/stages';
 import { ProseViewer, useBookFile } from '../../common/ProseViewer';
+import { VersionHistoryModal } from '../../common/VersionHistoryModal';
 import type { CompanionDocRequest } from '../CompanionPane';
 
 type ReportFile = { path: string; label: string; description: string };
@@ -79,6 +80,7 @@ export function ReportsTab({ request }: { request: CompanionDocRequest | null })
   const selectedPhaseId = useWorkspaceStore((s) => s.selectedPhaseId);
   const [statuses, setStatuses] = useState<Record<string, DocStatus>>({});
   const [selected, setSelected] = useState<string | null>(null);
+  const [historyPath, setHistoryPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSlug) return;
@@ -112,6 +114,7 @@ export function ReportsTab({ request }: { request: CompanionDocRequest | null })
 
   useEffect(() => {
     setSelected(null);
+    setHistoryPath(null);
   }, [activeSlug]);
 
   // Phase-aware preselect — re-applies when the workspace phase changes.
@@ -160,6 +163,16 @@ export function ReportsTab({ request }: { request: CompanionDocRequest | null })
               {selectedStatus.wordCount.toLocaleString()}w
             </span>
           )}
+          {selectedStatus?.exists && (
+            <button
+              onClick={() => setHistoryPath(selected)}
+              title="Version history"
+              className="ml-auto flex shrink-0 items-center gap-1 rounded-md border border-ne-line bg-ne-bg2 px-2 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+            >
+              <Icon name="history" size={10} strokeWidth={2} />
+              History
+            </button>
+          )}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6 pb-14">
           {selectedStatus && !selectedStatus.exists ? (
@@ -174,6 +187,14 @@ export function ReportsTab({ request }: { request: CompanionDocRequest | null })
             <ProseViewer content={content} />
           )}
         </div>
+
+        {historyPath && activeSlug && (
+          <VersionHistoryModal
+            bookSlug={activeSlug}
+            filePath={historyPath}
+            onClose={() => setHistoryPath(null)}
+          />
+        )}
       </div>
     );
   }

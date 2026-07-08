@@ -4,6 +4,7 @@ import { useViewStore } from '../../../stores/viewStore';
 import { FileBrowser } from '../../Files/FileBrowser';
 import { Icon } from '../../common/Icon';
 import { ProseViewer, useBookFile } from '../../common/ProseViewer';
+import { VersionHistoryModal } from '../../common/VersionHistoryModal';
 
 /** Verity-authored chapter drafts (body chapters 02+) are read-only in the UI. */
 function isVerityDraft(path: string): boolean {
@@ -29,11 +30,13 @@ export function ExplorerTab(): React.ReactElement {
   const { navigate } = useViewStore();
   const [dirPath, setDirPath] = useState('');
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [historyPath, setHistoryPath] = useState<string | null>(null);
 
   // Book switch → back to the root listing.
   useEffect(() => {
     setDirPath('');
     setPreviewPath(null);
+    setHistoryPath(null);
   }, [activeSlug]);
 
   const { content, loading, error } = useBookFile(activeSlug, previewPath);
@@ -60,6 +63,14 @@ export function ExplorerTab(): React.ReactElement {
           >
             {previewPath}
           </span>
+          <button
+            onClick={() => setHistoryPath(previewPath)}
+            title="Version history"
+            className="flex items-center gap-1 rounded-md border border-ne-line bg-ne-bg2 px-2 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+          >
+            <Icon name="history" size={10} strokeWidth={2} />
+            History
+          </button>
           {!isVerityDraft(previewPath) && (
             <button
               onClick={() => navigate('manuscript', { filePath: previewPath, manuscriptMode: 'editor' })}
@@ -80,6 +91,14 @@ export function ExplorerTab(): React.ReactElement {
             <ProseViewer content={isJson ? formatJson(content) : content} raw={!isMarkdown} />
           )}
         </div>
+
+        {historyPath && activeSlug && (
+          <VersionHistoryModal
+            bookSlug={activeSlug}
+            filePath={historyPath}
+            onClose={() => setHistoryPath(null)}
+          />
+        )}
       </div>
     );
   }

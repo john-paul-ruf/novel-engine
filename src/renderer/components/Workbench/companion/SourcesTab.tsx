@@ -3,6 +3,7 @@ import { useBookStore } from '../../../stores/bookStore';
 import { useFileChangeStore } from '../../../stores/fileChangeStore';
 import { Icon } from '../../common/Icon';
 import { ProseViewer, useBookFile } from '../../common/ProseViewer';
+import { VersionHistoryModal } from '../../common/VersionHistoryModal';
 import type { CompanionDocRequest } from '../CompanionPane';
 
 /** Same inventory SourcePanel exposes (order per the workbench design). */
@@ -28,6 +29,7 @@ export function SourcesTab({ request }: { request: CompanionDocRequest | null })
   const revision = useFileChangeStore((s) => s.revision);
   const [statuses, setStatuses] = useState<Record<string, DocStatus>>({});
   const [selected, setSelected] = useState<string | null>(null);
+  const [historyPath, setHistoryPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSlug) return;
@@ -62,6 +64,7 @@ export function SourcesTab({ request }: { request: CompanionDocRequest | null })
   // Book switch → reset; default to the first existing doc once statuses load.
   useEffect(() => {
     setSelected(null);
+    setHistoryPath(null);
   }, [activeSlug]);
 
   useEffect(() => {
@@ -113,6 +116,16 @@ export function SourcesTab({ request }: { request: CompanionDocRequest | null })
             </button>
           );
         })}
+        {selected && statuses[selected]?.exists && (
+          <button
+            onClick={() => setHistoryPath(selected)}
+            title="Version history"
+            className="ml-auto flex items-center gap-1 rounded-md border border-ne-line bg-ne-bg2 px-2 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+          >
+            <Icon name="history" size={10} strokeWidth={2} />
+            History
+          </button>
+        )}
       </div>
 
       {/* Viewer */}
@@ -138,6 +151,14 @@ export function SourcesTab({ request }: { request: CompanionDocRequest | null })
           <ProseViewer content={content} />
         )}
       </div>
+
+      {historyPath && activeSlug && (
+        <VersionHistoryModal
+          bookSlug={activeSlug}
+          filePath={historyPath}
+          onClose={() => setHistoryPath(null)}
+        />
+      )}
     </div>
   );
 }

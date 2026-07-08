@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useBookStore } from '../../../stores/bookStore';
 import { useDashboardStore } from '../../../stores/dashboardStore';
 import { useViewStore } from '../../../stores/viewStore';
+import { Icon } from '../../common/Icon';
 import { ProseViewer, useBookFile } from '../../common/ProseViewer';
+import { VersionHistoryModal } from '../../common/VersionHistoryModal';
 
 function humanize(slug: string): string {
   return slug
@@ -34,10 +36,12 @@ export function ChapterTab(): React.ReactElement {
   const { navigate } = useViewStore();
 
   const [selected, setSelected] = useState<string | null>(null);
+  const [historyPath, setHistoryPath] = useState<string | null>(null);
 
   // Book switch → reset so the new book's default is adopted.
   useEffect(() => {
     setSelected(null);
+    setHistoryPath(null);
   }, [activeSlug]);
 
   // Default: the most recently modified chapter draft (dashboard recent files,
@@ -107,6 +111,16 @@ export function ChapterTab(): React.ReactElement {
             />
           ))}
         </div>
+        {selected && !error && (
+          <button
+            onClick={() => setHistoryPath(`chapters/${selected}/draft.md`)}
+            title="Version history"
+            className="flex shrink-0 items-center gap-1 rounded-md border border-ne-line bg-ne-bg2 px-2 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+          >
+            <Icon name="history" size={10} strokeWidth={2} />
+            History
+          </button>
+        )}
       </div>
 
       {/* Typeset draft */}
@@ -132,6 +146,14 @@ export function ChapterTab(): React.ReactElement {
             Open in Manuscript →
           </button>
         </div>
+      )}
+
+      {historyPath && activeSlug && (
+        <VersionHistoryModal
+          bookSlug={activeSlug}
+          filePath={historyPath}
+          onClose={() => setHistoryPath(null)}
+        />
       )}
     </div>
   );

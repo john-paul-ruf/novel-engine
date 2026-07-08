@@ -16,7 +16,7 @@
 |---|---------|---------|--------|-----------|-------|
 | 01 | Retheme version-history surfaces (DiffViewer, VersionHistoryPanel, FileEditor, UserEditsDiffModal remnants) | M10 | done | 2026-07-08 | Pure className swap (66 lines). Save button uses `text-ne-bg0` (LibraryView precedent) instead of `text-white`. Preview pane prose themed via `--tw-prose-*` vars → `ne-*` tokens. |
 | 02 | Reusable VersionHistoryModal (common component) | M10 | done | 2026-07-08 | `frameless` prop was needed on `VersionHistoryPanel` (drops `border-l border-ne-line`, defaults to current behavior). |
-| 03 | History buttons in companion tabs (Sources, Explorer, Chapter, Reports) | M10 | pending | — | — |
+| 03 | History buttons in companion tabs (Sources, Explorer, Chapter, Reports) | M10 | done | 2026-07-08 | Existing `history` icon reused (no `clock` glyph added). Additive-only wiring, 83 insertions, no `onReverted` anywhere. |
 | 04 | History in Manuscript reader mode + final audit | M10 | pending | — | — |
 
 (Status: pending | in-progress | done | blocked | skipped)
@@ -106,3 +106,23 @@ SESSION-01 ──► SESSION-02 ──► SESSION-03
   Component is intentionally unreferenced until SESSION-03 wires the first host.
 - **Gotcha found (pre-existing):** an empty 0-byte `VersionHistoryModal.tsx` already
   existed on disk (stray touch); overwritten with the real component.
+
+### SESSION-03 (2026-07-08)
+
+- **Landed:** History buttons + `VersionHistoryModal` wiring in all four companion tabs.
+  All hosts follow the shared pattern: `historyPath` state, reset on `activeSlug` change,
+  no `onReverted` (read-only hosts refresh via `useBookFile`/`fileChangeStore`).
+- **Icon:** `Icon.tsx` already had a `history` glyph (circular-arrow + clock hands) —
+  reused it; no `clock` icon added, `Icon.tsx` untouched.
+- **Per-tab specifics:**
+  - `SourcesTab`: button `ml-auto` in the doc-chip row; shows when `selected` exists on disk.
+  - `ExplorerTab`: button in preview header before Edit; shows for **all** previewed files
+    including Verity drafts (where Edit is hidden). Modal rendered in the preview branch —
+    unmounts with the preview, which is fine (button lives there too).
+  - `ChapterTab`: button right of the scrubber row when `selected && !error`; needed new
+    `Icon` import. Path built as `chapters/${selected}/draft.md`.
+  - `ReportsTab`: state name is `selected` (a report path, e.g. `source/dev-report.md`);
+    button `ml-auto` in the viewer header when `selectedStatus?.exists`. Modal in the
+    viewer branch.
+- **For SESSION-04:** Manuscript reader host still pending; manual visual pass for
+  SESSION-01/03 surfaces folded into the final audit checklist.
