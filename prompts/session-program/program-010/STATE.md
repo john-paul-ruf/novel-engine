@@ -23,7 +23,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 08 | Workbench shell + phase header | M10 | done | 2026-07-07 | WorkspaceView live (spine + header + temp body); also touched PipelineSpine (usePhaseAction extraction per §2) + TitleBar (phase breadcrumb per verification) |
 | 09 | Split pane — chat + companion shell | M10 | done | 2026-07-07 | Split workbench live; also touched QuickActions.tsx (compact chip trigger per §3) |
 | 10 | Companion content tabs | M10 | done | 2026-07-07 | All 5 tabs live; ProseViewer + useBookFile shared; also touched PhaseHeader (chip wiring per §6); Motifs embeds MotifLedgerView lazily (mount-on-first-visit) |
-| 11 | Manuscript view (read + edit) | M10 | pending | — | |
+| 11 | Manuscript view (read + edit) | M10 | done | 2026-07-07 | Rail + Reader(chapter/full-book) + Editor live; also touched FilesView (deep-dive → shared hook per §1), ProseViewer (`wide`), hooks/useChapterDeepDive.ts (new, per §1) |
 | 12 | Exports, Statistics, Settings routing | M10 | pending | — | |
 | 13 | Pitch Room + palette-launched actions | M10 | pending | — | |
 | 14 | Legacy removal, tours, final audit | M10 | pending | — | |
@@ -78,6 +78,25 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-11 (2026-07-07)
+
+**Built:** `Manuscript/ManuscriptView.tsx` (toolbar Reader|Editor + Chapter|Full-book sub-toggle, position line, Find&Replace button + modal, deep-link handling), `Manuscript/ChapterRail.tsx` (236px rail + exported `useChapterList(slug)` hook + `ChapterInfo` type), `hooks/useChapterDeepDive.ts` (new, prescribed by §1 — FilesView refactored onto it, behavior identical). AppLayout `manuscript` placeholder replaced.
+
+**`useChapterDeepDive(activeSlug)` → `{ deepDive(chapterSlug), isDeepDiving }`** — exact FilesView logic (creates pipeline-purpose Lumen conversation, attaches external stream, fires `chat.deepDive`). **It still navigates to the LEGACY `chat` view** (kept verbatim per §1 "exact handleDeepDive logic"; the conversation is not phase-tagged so the workspace ChatPane can't display it — S14 must decide the re-route when deleting ChatView).
+
+**Deep links handled (all payload-driven):** `chapterSlug` (palette Chapters items + companion "Open in Manuscript →" land on the chapter, reader scope), `manuscriptMode` ('reader'|'editor'), `filePath` (S10 Explorer "Edit" → opens ANY book file in the editor via a file-override; chapters/* paths also select the rail row). Rail management: add back matter, delete (DeleteConfirmModal + Verity warning), Notes (editor, always writable), Deep Dive — all in a per-row hover menu; **refresh is fileChangeStore-driven** (no local refreshKeys — deletes/adds call notifyChange).
+
+**Reader:** chapter scope = live `useBookFile` + `ProseViewer wide` (68ch — ProseViewer gained the `wide` prop) + brass "CHAPTER N" eyebrow for body chapters; full-book scope ports ReadingModeView verbatim (assembleManuscript, `h1[data-chapter-index]` injection, IntersectionObserver rootMargin -20%/-70%) — scroll highlights the rail row, rail click scrollIntoViews. Legacy `reading` view untouched/routable until S14. **Editor:** embeds FileEditor (History+DiffViewer come with it) keyed by path; Verity drafts (ch 02+) show the read-only banner + typeset prose instead. Editor content loads once per path (NOT revision-driven — typing is never clobbered).
+
+**Palette:** ManuscriptView module registers Actions "Find & Replace" and "Read full manuscript" (module-level callbacks assigned while mounted — always, via ViewContent). Chapters provider already navigated correctly (S04) — untouched.
+
+**Warnings:**
+- ChaptersPanel has NO reorder feature despite §1 mentioning "reorder" — nothing was lost; nothing was invented.
+- Rail sections are FRONT MATTER / STORY CHAPTERS / BACK MATTER (session said two sections, but dropping front matter would lose dedication editing — zero-feature-loss rule wins). Copyright row is display-only (AUTO pill, no menu).
+- Chapter word counts come from `books.wordCount` (front matter reports 0 by design); position line counts BODY chapters only (matches mock).
+- When the manuscript view is hidden with editor mode active, FileEditor stays mounted (ViewContent pattern) — its global ⌘S handler coexists with FilesView's editor if both target files; each saves only its own dirty buffer (no-op otherwise).
+- Version-history direct buttons from ChaptersPanel rows were folded into the editor's History toggle (feature reachable: rail → Notes/draft → History).
 
 ### SESSION-10 (2026-07-07)
 

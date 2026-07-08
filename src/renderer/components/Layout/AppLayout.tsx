@@ -30,6 +30,7 @@ import { IconRail } from '../Rail/IconRail';
 import { LibraryView } from '../Library/LibraryView';
 import { WorkspaceView } from '../Workbench/WorkspaceView';
 import { CommandPalette } from '../Palette/CommandPalette';
+import { ManuscriptView } from '../Manuscript/ManuscriptView';
 import { usePaletteStore } from '../../stores/paletteStore';
 
 /**
@@ -101,10 +102,10 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'workspace' ? '' : 'hidden'}`}>
         <WorkspaceView />
       </div>
-      {/* Streamlined Workspace placeholders — replaced in Phase B/C sessions */}
       <div className={`h-full ${currentView === 'manuscript' ? '' : 'hidden'}`}>
-        <div className="p-8 text-sm opacity-60">Manuscript — arrives in SESSION-11</div>
+        <ManuscriptView />
       </div>
+      {/* Streamlined Workspace placeholder — replaced in SESSION-12 */}
       <div className={`h-full ${currentView === 'exports' ? '' : 'hidden'}`}>
         <div className="p-8 text-sm opacity-60">Exports — arrives in SESSION-12</div>
       </div>

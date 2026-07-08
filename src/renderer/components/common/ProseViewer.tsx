@@ -6,7 +6,7 @@ marked.setOptions({ async: false });
 
 /** Literary typeset styling per the streamlined-workspace mock. */
 const PROSE_CLASS = [
-  'mx-auto max-w-[62ch] font-ne-serif text-[16.5px] leading-[1.78] text-ne-ink',
+  'mx-auto font-ne-serif text-[16.5px] leading-[1.78] text-ne-ink',
   '[&_p]:mb-4 [&_p]:indent-[1.4em] [&_p:first-of-type]:indent-0',
   '[&_h1]:mb-5 [&_h1]:text-[26px] [&_h1]:font-medium [&_h1]:leading-snug',
   '[&_h2]:mb-3 [&_h2]:mt-8 [&_h2]:font-ne-ui [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-[0.1em] [&_h2]:text-ne-ink-dim',
@@ -26,13 +26,15 @@ type ProseViewerProps = {
   content: string;
   /** Render as raw monospace text (JSON, non-markdown files). */
   raw?: boolean;
+  /** 68ch measure (manuscript view) instead of the companion's 62ch. */
+  wide?: boolean;
 };
 
 /**
  * Shared typeset markdown renderer for the workspace (companion tabs,
- * SESSION-11 manuscript view). Callers own the scroll container.
+ * manuscript view). Callers own the scroll container.
  */
-export function ProseViewer({ content, raw = false }: ProseViewerProps): React.ReactElement {
+export function ProseViewer({ content, raw = false, wide = false }: ProseViewerProps): React.ReactElement {
   if (raw) {
     return (
       <pre className="mx-auto max-w-[72ch] whitespace-pre-wrap font-ne-mono text-[12.5px] leading-relaxed text-ne-ink-dim">
@@ -41,7 +43,12 @@ export function ProseViewer({ content, raw = false }: ProseViewerProps): React.R
     );
   }
   const html = marked.parse(content) as string;
-  return <div className={PROSE_CLASS} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div
+      className={`${PROSE_CLASS} ${wide ? 'max-w-[68ch]' : 'max-w-[62ch]'}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 type BookFileState = {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
-import { useChatStore } from '../../stores/chatStore';
+import { useChapterDeepDive } from '../../hooks/useChapterDeepDive';
 import { FilesHeader } from './FilesHeader';
 import { FileBrowser } from './FileBrowser';
 import { FileEditor } from './FileEditor';
@@ -71,43 +71,14 @@ export function FilesView(): React.ReactElement {
   // "Chat with Spark" for about.json — creates a Spark conversation and navigates
   const handleOpenSpark = useOpenSpark(activeSlug);
 
-  // Chapter Deep Dive — triggers a scoped Lumen analysis of the selected chapter draft
-  const [isDeepDiving, setIsDeepDiving] = useState(false);
+  // Chapter Deep Dive — shared hook (also used by the manuscript chapter rail)
+  const { deepDive, isDeepDiving } = useChapterDeepDive(activeSlug);
 
   const handleDeepDive = useCallback(async () => {
-    if (!activeSlug || !filePath) return;
-    const chapterSlug = extractChapterSlug(filePath);
+    const chapterSlug = filePath ? extractChapterSlug(filePath) : null;
     if (!chapterSlug) return;
-
-    setIsDeepDiving(true);
-    try {
-      const callId = crypto.randomUUID();
-
-      // Create the Lumen conversation in the chatStore (sets activeConversation)
-      await useChatStore.getState().createConversation('Lumen', activeSlug, null, 'pipeline');
-      const { activeConversation } = useChatStore.getState();
-      if (!activeConversation) return;
-      const conversationId = activeConversation.id;
-
-      // Attach stream listener before firing so we don't miss early events
-      useChatStore.getState().attachToExternalStream(callId, conversationId);
-
-      // Navigate to chat — ChatView will mount with the active Lumen conversation
-      navigate('chat');
-
-      // Fire and forget — stream events arrive via chat:streamEvent broadcast
-      void window.novelEngine.chat.deepDive({
-        bookSlug: activeSlug,
-        chapterSlug,
-        conversationId,
-        callId,
-      });
-    } catch (err) {
-      console.error('[DeepDive] Failed:', err);
-    } finally {
-      setIsDeepDiving(false);
-    }
-  }, [activeSlug, filePath, navigate]);
+    await deepDive(chapterSlug);
+  }, [filePath, deepDive]);
 
   type FilesTab = 'source' | 'chapters' | 'agents' | 'explorer' | 'ledger';
 
