@@ -17,7 +17,7 @@
 | 01 | Baseline-diff foundation (types, DB query, VersionService API, prune pinning) | M01, M03, M08 | done | 2026-07-08 | Implemented exactly per spec; prune SQL verified against in-memory SQLite |
 | 02 | IPC handlers + preload bridge | M09 | done | 2026-07-08 | Typecheck clean; DevTools smoke test deferred to SESSION-03 manual pass |
 | 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | done | 2026-07-08 | Typecheck clean; manual UI flows pending final pass |
-| 04 | Rail EDITED badges + discard-my-edits flow | M10 | pending | — | |
+| 04 | Rail EDITED badges + discard-my-edits flow | M10 | done | 2026-07-08 | Typecheck clean; manual UI flows pending final pass |
 | 05 | Author-edits context injection for Verity | M08, M09 | done | 2026-07-08 | Typecheck clean; live context inspection deferred to final manual pass |
 | 06 | Agent-activity guard + external-change reload | M10 | pending | — | |
 
@@ -159,6 +159,23 @@ absent for non-Verity agents and unedited books) deferred to the final manual pa
 
 **Deviation:** `FindReplaceModal` has no Escape handler to mirror — the new modal implements
 Escape itself (window keydown listener). Manual UI verification deferred to final pass.
+
+### SESSION-04 (2026-07-08)
+
+**Done.** For SESSION-06 (same surfaces):
+
+- `ChapterInfo` gained required `hasUserEdits: boolean` (populated best-effort from
+  `versions.getChapterEditStatuses`, fetched once per `useChapterList` refresh).
+- Badge precedence in `ChapterRow`: AUTO → **EDITED** (brass, replaces DRAFT) → DRAFT → EMPTY.
+- `UserEditsDiffModal` gained `onReverted?: () => void` and a footer discard flow:
+  inline two-step confirm (`confirmingDiscard` state), `discarding` pending-disable,
+  `discardError` inline text; Discard disabled when `diff.oldVersion` is null.
+- `ManuscriptView` has `editorReloadKey` state — `FileEditor key` is now
+  `` `${editorPath}:${editorReloadKey}` `` and the content-load effect depends on it;
+  `onReverted` bumps it to reload from disk after the revert.
+
+**Styling note:** modal footer uses zinc shell classes (matching the modal) with
+`ne-sable` danger accents for the discard buttons.
 
 **Gotchas:** `better-sqlite3` in `node_modules` is compiled for Electron's ABI
 (MODULE_VERSION 130) — plain `node` scripts can't load it; use the `sqlite3` CLI or the

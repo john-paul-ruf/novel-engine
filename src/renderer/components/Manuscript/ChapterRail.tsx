@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ChapterEditStatus } from '@domain/types';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { DeleteConfirmModal, useDeleteFile } from '../Files/DeleteConfirmModal';
 import { Icon } from '../common/Icon';
@@ -14,6 +15,7 @@ export type ChapterInfo = {
   wordCount: number;
   hasDraft: boolean;
   hasNotes: boolean;
+  hasUserEdits: boolean;
   kind: ChapterKind;
 };
 
@@ -91,6 +93,15 @@ export function useChapterList(activeSlug: string): { chapters: ChapterInfo[]; l
         if (cancelled) return;
         const wordCountMap = new Map(wordCounts.map((wc) => [wc.slug, wc.wordCount]));
 
+        let editStatuses: ChapterEditStatus[] = [];
+        try {
+          editStatuses = await window.novelEngine.versions.getChapterEditStatuses(activeSlug);
+        } catch { /* badge is best-effort — ignore */ }
+        if (cancelled) return;
+        const editedSet = new Set(
+          editStatuses.filter((s) => s.hasUserEdits).map((s) => s.chapterSlug),
+        );
+
         const infos = await Promise.all(
           chapterDirs.map(async (dir) => {
             const { number, title, kind } = parseChapterName(dir.name);
@@ -102,7 +113,7 @@ export function useChapterList(activeSlug: string): { chapters: ChapterInfo[]; l
             try {
               hasNotes = await window.novelEngine.files.exists(activeSlug, `chapters/${dir.name}/notes.md`);
             } catch { /* treat as no notes */ }
-            return { slug: dir.name, number, title, wordCount: wordCountMap.get(dir.name) ?? 0, hasDraft, hasNotes, kind };
+            return { slug: dir.name, number, title, wordCount: wordCountMap.get(dir.name) ?? 0, hasDraft, hasNotes, hasUserEdits: editedSet.has(dir.name), kind };
           }),
         );
 
@@ -194,6 +205,10 @@ function ChapterRow({
         {isCopyright ? (
           <span className="shrink-0 rounded border border-ne-line px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] text-ne-ink-faint">
             AUTO
+          </span>
+        ) : chapter.hasDraft && chapter.hasUserEdits ? (
+          <span className="shrink-0 rounded border border-ne-brass/40 bg-ne-brass/15 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] text-ne-brass">
+            EDITED
           </span>
         ) : chapter.hasDraft ? (
           <span className="shrink-0 rounded border border-ne-spark/30 bg-ne-spark/15 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] text-ne-spark">

@@ -232,6 +232,8 @@ export function ManuscriptView(): React.ReactElement {
 
   // ── Editor content (loaded once per file — not revision-driven) ────────────
   const [editorContent, setEditorContent] = useState<string | null>(null);
+  /** Bumped after a discard-revert to force the editor to reload from disk. */
+  const [editorReloadKey, setEditorReloadKey] = useState(0);
   /** Tracked-edit UI for Verity drafts — editable, with every change versioned. */
   const isTrackedDraft = editorPath !== null && isVerityDraft(editorPath);
 
@@ -253,7 +255,8 @@ export function ManuscriptView(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [mode, editorPath, activeSlug]);
+    // editorReloadKey forces a reload from disk after a discard-revert
+  }, [mode, editorPath, activeSlug, editorReloadKey]);
 
   if (!activeSlug) {
     return (
@@ -379,7 +382,7 @@ export function ManuscriptView(): React.ReactElement {
             )}
             {editorPath && editorContent !== null ? (
               <FileEditor
-                key={editorPath}
+                key={`${editorPath}:${editorReloadKey}`}
                 filePath={editorPath}
                 initialContent={editorContent}
                 onSave={async (newContent) => {
@@ -406,6 +409,7 @@ export function ManuscriptView(): React.ReactElement {
           filePath={editorPath}
           chapterTitle={selectedChapter?.title ?? selectedSlug ?? ''}
           onClose={() => setShowUserEdits(false)}
+          onReverted={() => setEditorReloadKey((k) => k + 1)}
         />
       )}
     </div>

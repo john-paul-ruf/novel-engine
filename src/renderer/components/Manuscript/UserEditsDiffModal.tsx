@@ -8,6 +8,8 @@ type UserEditsDiffModalProps = {
   filePath: string; // chapters/NN-slug/draft.md
   chapterTitle: string;
   onClose: () => void;
+  /** Called after a successful discard-revert, so the parent can reload the editor. */
+  onReverted?: () => void;
 };
 
 /**
@@ -19,10 +21,30 @@ export function UserEditsDiffModal({
   filePath,
   chapterTitle,
   onClose,
+  onReverted,
 }: UserEditsDiffModalProps): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState<string | null>(null);
+
+  const handleDiscard = async (): Promise<void> => {
+    // Guard: never revert without an agent baseline to revert to
+    if (!diff?.oldVersion || discarding) return;
+    setDiscarding(true);
+    setDiscardError(null);
+    try {
+      await window.novelEngine.versions.revert(bookSlug, filePath, diff.oldVersion.id);
+      onReverted?.();
+      onClose();
+    } catch (err) {
+      setDiscardError(err instanceof Error ? err.message : 'Failed to discard edits');
+      setDiscarding(false);
+      setConfirmingDiscard(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +112,46 @@ export function UserEditsDiffModal({
             <DiffViewer diff={diff} />
           )}
         </div>
+
+        {/* Footer — discard flow, only when a diff (with baseline) is shown */}
+        {!loading && !error && diff !== null && (
+          <div className="flex items-center gap-3 border-t border-zinc-200 px-6 py-3 dark:border-zinc-800">
+            {discardError && (
+              <p className="min-w-0 flex-1 truncate text-xs text-red-400" title={discardError}>
+                {discardError}
+              </p>
+            )}
+            {confirmingDiscard ? (
+              <>
+                <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
+                  Really discard? This restores Verity's last draft.
+                </span>
+                <button
+                  onClick={() => setConfirmingDiscard(false)}
+                  disabled={discarding}
+                  className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => void handleDiscard()}
+                  disabled={discarding || !diff.oldVersion}
+                  className="rounded-md border border-ne-sable/40 bg-ne-sable/10 px-2.5 py-1 text-xs font-semibold text-ne-sable transition-colors hover:bg-ne-sable/20 disabled:opacity-50"
+                >
+                  {discarding ? 'Discarding…' : 'Confirm'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmingDiscard(true)}
+                disabled={!diff.oldVersion || discarding}
+                className="ml-auto rounded-md border border-ne-sable/40 px-2.5 py-1 text-xs text-ne-sable transition-colors hover:bg-ne-sable/10 disabled:opacity-50"
+              >
+                Discard my edits
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
