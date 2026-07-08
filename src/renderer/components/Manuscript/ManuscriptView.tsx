@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ManuscriptAssembly } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
+import { useCliActivityStore } from '../../stores/cliActivityStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { usePaletteStore } from '../../stores/paletteStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useChapterDeepDive } from '../../hooks/useChapterDeepDive';
@@ -237,6 +239,15 @@ export function ManuscriptView(): React.ReactElement {
   /** Tracked-edit UI for Verity drafts — editable, with every change versioned. */
   const isTrackedDraft = editorPath !== null && isVerityDraft(editorPath);
 
+  // Agent-activity guard: while any CLI call is active for this book, tracked
+  // drafts fall back to read-only so user saves can't race agent writes.
+  const agentBusy = useCliActivityStore((s) =>
+    Object.values(s.calls).some((c) => c.isActive && c.callMeta.bookSlug === activeSlug),
+  );
+
+  /** Last content known to match disk (load or self-save) — staleness baseline. */
+  const lastDiskContentRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (mode !== 'editor' || !editorPath || !activeSlug) {
       setEditorContent(null);
@@ -246,17 +257,58 @@ export function ManuscriptView(): React.ReactElement {
     window.novelEngine.files
       .read(activeSlug, editorPath)
       .then((content) => {
-        if (!cancelled) setEditorContent(content);
+        if (!cancelled) {
+          setEditorContent(content);
+          lastDiskContentRef.current = content;
+        }
       })
       .catch(() => {
         // Missing file (e.g. new notes.md) — start empty.
-        if (!cancelled) setEditorContent('');
+        if (!cancelled) {
+          setEditorContent('');
+          lastDiskContentRef.current = '';
+        }
       });
     return () => {
       cancelled = true;
     };
     // editorReloadKey forces a reload from disk after a discard-revert
   }, [mode, editorPath, activeSlug, editorReloadKey]);
+
+  // ── External-change detection (agent write / revert from another surface) ──
+  const revision = useFileChangeStore((s) => s.revision);
+  const [externalChange, setExternalChange] = useState(false);
+
+  // Reset staleness whenever the open file, book, or reload generation changes.
+  useEffect(() => {
+    setExternalChange(false);
+  }, [editorPath, activeSlug, editorReloadKey]);
+
+  useEffect(() => {
+    if (mode !== 'editor' || !editorPath || !activeSlug || lastDiskContentRef.current === null) return;
+    let cancelled = false;
+    window.novelEngine.files
+      .read(activeSlug, editorPath)
+      .then((disk) => {
+        if (!cancelled && disk !== lastDiskContentRef.current) setExternalChange(true);
+      })
+      .catch(() => {
+        // Deleted on disk — FileEditor save will recreate; ignore.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately revision-only: this effect answers "did the last file-change
+    // signal touch the file the editor loaded?" — self-saves update
+    // lastDiskContentRef (see onSave below), so they never flag.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision]);
+
+  const handleExternalReload = (): void => {
+    setExternalChange(false);
+    setEditorContent(null);
+    setEditorReloadKey((k) => k + 1);
+  };
 
   if (!activeSlug) {
     return (
@@ -368,15 +420,45 @@ export function ManuscriptView(): React.ReactElement {
           <div className="flex min-h-0 flex-1 flex-col">
             {isTrackedDraft && editorPath && (
               <div className="flex shrink-0 items-center gap-2 border-b border-ne-spark/30 bg-ne-spark/10 px-6 py-2">
+                {agentBusy ? (
+                  <>
+                    <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-ne-spark" />
+                    <p className="min-w-0 flex-1 text-xs text-ne-ink-dim">
+                      <strong className="text-ne-ink">Verity is working on this book — editing is paused.</strong>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="min-w-0 flex-1 text-xs text-ne-ink-dim">
+                      <strong className="text-ne-ink">You're editing Verity's draft.</strong>{' '}
+                      Every change is tracked and shared with Verity on her next revision.
+                    </p>
+                    <button
+                      onClick={() => setShowUserEdits(true)}
+                      className="shrink-0 rounded-md border border-ne-line bg-ne-bg2 px-2.5 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+                    >
+                      View my changes
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+            {externalChange && editorPath && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-ne-brass/30 bg-ne-brass/10 px-6 py-2">
                 <p className="min-w-0 flex-1 text-xs text-ne-ink-dim">
-                  <strong className="text-ne-ink">You're editing Verity's draft.</strong>{' '}
-                  Every change is tracked and shared with Verity on her next revision.
+                  This file changed outside the editor.
                 </p>
                 <button
-                  onClick={() => setShowUserEdits(true)}
-                  className="shrink-0 rounded-md border border-ne-line bg-ne-bg2 px-2.5 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+                  onClick={handleExternalReload}
+                  className="shrink-0 rounded-md border border-ne-brass/40 bg-ne-bg2 px-2.5 py-1 text-[11px] font-semibold text-ne-brass transition-colors hover:bg-ne-brass/15"
                 >
-                  View my changes
+                  Reload
+                </button>
+                <button
+                  onClick={() => setExternalChange(false)}
+                  className="shrink-0 rounded-md border border-ne-line bg-ne-bg2 px-2.5 py-1 text-[11px] text-ne-ink-dim transition-colors hover:text-ne-ink"
+                >
+                  Keep mine
                 </button>
               </div>
             )}
@@ -385,8 +467,12 @@ export function ManuscriptView(): React.ReactElement {
                 key={`${editorPath}:${editorReloadKey}`}
                 filePath={editorPath}
                 initialContent={editorContent}
+                disabled={isTrackedDraft && agentBusy}
                 onSave={async (newContent) => {
                   await window.novelEngine.files.write(activeSlug, editorPath, newContent);
+                  // Keep the staleness baseline in sync so self-saves don't
+                  // trigger the external-change bar on the revision bump.
+                  lastDiskContentRef.current = newContent;
                 }}
                 onClose={() => {
                   setFileOverride(null);

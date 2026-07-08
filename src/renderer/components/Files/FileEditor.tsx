@@ -8,6 +8,8 @@ type FileEditorProps = {
   initialContent: string;
   onSave: (content: string) => Promise<void>;
   onClose: () => void;
+  /** Read-only mode: textarea locked, save + unmount-autosave no-ops. */
+  disabled?: boolean;
 };
 
 function countWords(text: string): number {
@@ -19,6 +21,7 @@ export function FileEditor({
   initialContent,
   onSave,
   onClose,
+  disabled = false,
 }: FileEditorProps): React.ReactElement {
   const { activeSlug } = useBookStore();
   const [content, setContent] = useState(initialContent);
@@ -41,7 +44,7 @@ export function FileEditor({
 
   // Save handler
   const handleSave = useCallback(async () => {
-    if (!hasUnsavedChanges) return;
+    if (disabled || !hasUnsavedChanges) return;
 
     setSaveStatus('saving');
     try {
@@ -58,7 +61,7 @@ export function FileEditor({
       console.error('Failed to save file:', err);
       setSaveStatus('idle');
     }
-  }, [content, hasUnsavedChanges, onSave]);
+  }, [content, hasUnsavedChanges, onSave, disabled]);
 
   // Keyboard shortcut: Cmd/Ctrl+S
   useEffect(() => {
@@ -83,13 +86,16 @@ export function FileEditor({
   // Use refs to capture latest values for auto-save on unmount
   const contentRef = useRef(content);
   const savedContentRef = useRef(savedContent);
+  const disabledRef = useRef(disabled);
   contentRef.current = content;
   savedContentRef.current = savedContent;
+  disabledRef.current = disabled;
 
-  // Auto-save on unmount if there are unsaved changes
+  // Auto-save on unmount if there are unsaved changes (never while disabled —
+  // writing during an active agent call would race the agent's own writes)
   useEffect(() => {
     return () => {
-      if (contentRef.current !== savedContentRef.current && activeSlug) {
+      if (!disabledRef.current && contentRef.current !== savedContentRef.current && activeSlug) {
         window.novelEngine.files
           .write(activeSlug, filePath, contentRef.current)
           .catch((err) => console.error('Auto-save failed:', err));
@@ -135,7 +141,7 @@ export function FileEditor({
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!hasUnsavedChanges || saveStatus === 'saving'}
+            disabled={disabled || !hasUnsavedChanges || saveStatus === 'saving'}
             className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saveStatus === 'saving'
@@ -182,7 +188,8 @@ export function FileEditor({
                 ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="w-full h-full bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-400 dark:placeholder-zinc-600"
+                readOnly={disabled}
+                className={`w-full h-full bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-400 dark:placeholder-zinc-600 ${disabled ? 'opacity-60' : ''}`}
                 placeholder="Start writing..."
                 spellCheck={false}
               />

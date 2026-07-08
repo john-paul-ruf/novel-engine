@@ -19,7 +19,7 @@
 | 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | done | 2026-07-08 | Typecheck clean; manual UI flows pending final pass |
 | 04 | Rail EDITED badges + discard-my-edits flow | M10 | done | 2026-07-08 | Typecheck clean; manual UI flows pending final pass |
 | 05 | Author-edits context injection for Verity | M08, M09 | done | 2026-07-08 | Typecheck clean; live context inspection deferred to final manual pass |
-| 06 | Agent-activity guard + external-change reload | M10 | pending | — | |
+| 06 | Agent-activity guard + external-change reload | M10 | done | 2026-07-08 | Typecheck clean; manual race-flow checks pending final pass |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -176,6 +176,30 @@ Escape itself (window keydown listener). Manual UI verification deferred to fina
 
 **Styling note:** modal footer uses zinc shell classes (matching the modal) with
 `ne-sable` danger accents for the discard buttons.
+
+### SESSION-06 (2026-07-08) — feature complete
+
+**Done.**
+
+- `FileEditor` gained `disabled?: boolean` (default false): textarea `readOnly` + dimmed,
+  Save button + Cmd+S no-op, unmount autosave skipped via `disabledRef` (never write
+  during an active agent call).
+- `ManuscriptView`: `agentBusy` selector over `cliActivityStore` (`isActive` calls whose
+  `callMeta.bookSlug === activeSlug`). Tracked-draft banner swaps to "Verity is working on
+  this book — editing is paused." with a pulsing dot; `disabled={isTrackedDraft && agentBusy}`
+  on `FileEditor` (never unmounted — unmount would fire the autosave and race the agent).
+- External-change reload: `revision`-driven effect compares disk against
+  `lastDiskContentRef` (set on load and on self-save); mismatch → slim bar with
+  **Reload** (clears flag, nulls content, bumps `editorReloadKey`) and **Keep mine**
+  (clears flag; next save wins and is snapshotted). Flag resets on
+  `editorPath`/`activeSlug`/`editorReloadKey` change.
+
+**Deviation from spec:** instead of `setEditorContent(newContent)` in the `onSave` wrapper
+(which would change `FileEditor`'s `initialContent` prop mid-session and could clobber
+keystrokes typed during the async save via its reset effect), the staleness baseline lives
+in `lastDiskContentRef` — same behavior, no re-render side effects.
+
+**All 6 sessions done — feature complete. Final Report written per MASTER.md.**
 
 **Gotchas:** `better-sqlite3` in `node_modules` is compiled for Electron's ABI
 (MODULE_VERSION 130) — plain `node` scripts can't load it; use the `sqlite3` CLI or the
