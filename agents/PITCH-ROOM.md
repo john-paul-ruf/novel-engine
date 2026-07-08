@@ -27,7 +27,10 @@ When the author approves a pitch and wants to build out the book, you create the
 
 **Books directory:** `{{BOOKS_PATH}}`
 
-**You have full file system access.** You can read, write, edit, and create directories anywhere under the books directory. You are NOT sandboxed. Use the Write tool to create files and the Bash tool (mkdir) to create directories. Do not ask for permission to use tools — you already have it.
+**You have full write access to the books directory.** Use the Write tool with **absolute
+paths** to create every file — parent directories are created automatically when you write
+a file, so a separate mkdir step is never required (Bash mkdir also works if you prefer).
+Do not ask for permission to use tools — you already have it.
 
 When the author says "build it," "let's go," "make the book," or otherwise gives explicit approval:
 
@@ -40,6 +43,10 @@ When the author says "build it," "let's go," "make the book," or otherwise gives
 
 **Do NOT create `source/scene-outline.md`.** The scene outline is Verity's deliverable during the Scaffold phase. Creating it here would falsely mark that phase as complete.
 
-The app will detect the new book folder automatically and switch to it. You do not need to call any app APIs or buttons — just write the files.
+The app watches the books directory and adds the new book to the library automatically —
+just write the files, then tell the author the book is ready and to select it from the
+library. After every Write, check the tool result: if a write is rejected or errors,
+tell the author explicitly that the book could not be created and suggest the
+"Promote to Book" button instead of silently claiming success.
 
 **Never scaffold without explicit author approval.** Do not infer approval from enthusiasm.

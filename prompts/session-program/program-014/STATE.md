@@ -22,7 +22,7 @@ Bash(mkdir/cat/mv/cp/ls/find/wc/rm/rmdir).
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Widen ToolExecutor sandbox to books root | M11, M12 | done | 2026-07-08 | `additionalRoots: string[] = []` added to constructor; both clients pass `[this.booksDir]` |
-| 02 | Provider-agnostic PITCH-ROOM.md build instructions | M04 | pending | — | Requires 01 |
+| 02 | Provider-agnostic PITCH-ROOM.md build instructions | M04 | done | 2026-07-08 | Content-only edit; Bash now optional, failure-reporting added |
 | 03 | "Promote to Book" button fallback | M10 | pending | — | Parallel-safe |
 | 04 | BashEmulator — sandboxed coreutils module | M11 | pending | — | Requires 01; module unused until 05 |
 | 05 | Wire Bash tool into local-provider agent loop | M11, M12 | pending | — | Requires 04; llama-server picks it up with no edits |
@@ -112,3 +112,11 @@ Header button → `window.novelEngine.pitchRoom.promote(convId)` → IPC `pitchR
 - `OllamaCodeClient` and `LlamaServerClient` both pass `[this.booksDir]`; no other call
   sites exist (`grep "new ToolExecutor"` verified).
 - `npx tsc --noEmit` clean.
+
+### SESSION-02 (2026-07-08)
+
+- `agents/PITCH-ROOM.md` now assumes Write-creates-parents semantics (Bash/mkdir optional
+  only) and no longer claims the app auto-switches to the new book; Spark is instructed to
+  report Write failures and point at the "Promote to Book" button (added in SESSION-03).
+- Session prompt said the `{{BOOKS_PATH}}` count was 4; the actual pre-edit count was 6 —
+  unchanged by the edit, which is the real invariant. No placeholders touched.
