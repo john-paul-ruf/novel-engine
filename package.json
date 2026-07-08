@@ -53,6 +53,9 @@
     "vite": "^5.4.21"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@tailwindcss/typography": "^0.5.0",
     "archiver": "^7.0.1",
     "better-sqlite3": "^11.0.0",
