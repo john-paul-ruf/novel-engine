@@ -14,6 +14,8 @@ import type {
 
 const DEFAULT_KEEP_COUNT = 50;
 const VERSIONABLE_EXTENSIONS = new Set(['.md', '.json']);
+/** Max rendered diff lines per chapter in the author-edits context section. */
+const AUTHOR_EDITS_MAX_DIFF_LINES = 120;
 
 export class VersionService implements IVersionService {
   constructor(
@@ -246,6 +248,63 @@ export class VersionService implements IVersionService {
       }
     }
     return statuses;
+  }
+
+  async buildAuthorEditsSection(bookSlug: string): Promise<string | null> {
+    const statuses = await this.getChapterEditStatuses(bookSlug);
+    const edited = statuses.filter((s) => s.hasUserEdits);
+    if (edited.length === 0) return null;
+
+    const parts: string[] = [
+      '## Author Edits Since Your Last Draft',
+      '',
+      'The author hand-edited the chapters below after you last wrote them. **Preserve these edits**',
+      'unless the current request explicitly asks to rework that passage. If a requested change',
+      "conflicts with an author edit, keep the author's intent and call out the conflict in your reply.",
+    ];
+
+    let anyRendered = false;
+    for (const status of edited) {
+      let diff: FileDiff | null = null;
+      try {
+        diff = await this.getUserEditsSinceAgentBaseline(bookSlug, status.filePath);
+      } catch (error) {
+        console.error(`[author-edits] diff failed for ${bookSlug}/${status.filePath}:`, error);
+        continue;
+      }
+      if (!diff) continue;
+
+      // Render hunks in unified-diff style
+      const rendered: string[] = [];
+      for (const hunk of diff.hunks) {
+        rendered.push(`@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@`);
+        for (const line of hunk.lines) {
+          const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
+          rendered.push(prefix + line.content);
+        }
+      }
+
+      // Cap output to bound token cost on heavily-edited chapters
+      let body = rendered;
+      let truncationNote: string | null = null;
+      if (rendered.length > AUTHOR_EDITS_MAX_DIFF_LINES) {
+        body = rendered.slice(0, AUTHOR_EDITS_MAX_DIFF_LINES);
+        const remaining = rendered.length - AUTHOR_EDITS_MAX_DIFF_LINES;
+        truncationNote = `... (${remaining} more edited lines — read the file for the full text)`;
+      }
+
+      parts.push(
+        '',
+        `### \`${status.filePath}\` (+${diff.totalAdditions} / -${diff.totalDeletions} lines)`,
+        '```diff',
+        ...body,
+        '```',
+      );
+      if (truncationNote) parts.push(truncationNote);
+      anyRendered = true;
+    }
+
+    return anyRendered ? parts.join('\n') : null;
   }
 
   // ── Private Helpers ───────────────────────────────────────────────

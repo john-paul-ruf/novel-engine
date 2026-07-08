@@ -10,6 +10,7 @@ import type {
   IFileSystemService,
   ISeriesService,
   ISettingsService,
+  IVersionService,
 } from '@domain/interfaces';
 import type {
   ActiveStreamInfo,
@@ -62,9 +63,10 @@ export class ChatService implements IChatService {
     private adhocRevision: IAdhocRevisionService,
     private streamManager: StreamManager,
     private series: ISeriesService,
+    private version: IVersionService,
   ) {
     this.multiCallOrchestrator = new MultiCallOrchestrator(
-      settings, agents, db, providers, fs, streamManager, series,
+      settings, agents, db, providers, fs, streamManager, series, version,
     );
   }
 
@@ -287,6 +289,16 @@ export class ChatService implements IChatService {
       const seriesBiblePath = await this.series.getSeriesBiblePath(bookSlug);
 
       // Step 7e: Build context using the lean ContextBuilder (budget-aware compaction)
+      // Author-edits section: only Verity revises chapters, so only Verity needs it
+      let authorEditsSection: string | undefined;
+      if (agentName === 'Verity') {
+        try {
+          authorEditsSection = (await this.version.buildAuthorEditsSection(bookSlug)) ?? undefined;
+        } catch (err) {
+          console.error('[author-edits] section build failed:', err);
+        }
+      }
+
       const authorProfileAbsPath = this.fs.getAuthorProfilePath();
       const assembled = this.contextBuilder.build({
         agentName,
@@ -298,6 +310,7 @@ export class ChatService implements IChatService {
         seriesBiblePath: seriesBiblePath ?? undefined,
         thinkingBudget,
         maxContextTokens: modelContextWindow,
+        authorEditsSection,
       });
 
       // Step 7f: For non-Claude-CLI providers, add explicit file-path guidance

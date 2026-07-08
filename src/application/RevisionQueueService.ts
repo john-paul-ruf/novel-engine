@@ -20,6 +20,7 @@ import type {
   IAgentService,
   IDatabaseService,
   ISettingsService,
+  IVersionService,
 } from '@domain/interfaces';
 import {
   AGENT_REGISTRY,
@@ -105,6 +106,7 @@ export class RevisionQueueService implements IRevisionQueueService {
     private agents: IAgentService,
     private db: IDatabaseService,
     private settings: ISettingsService,
+    private version: IVersionService,
   ) {}
 
   onEvent(callback: (event: RevisionQueueEvent) => void): () => void {
@@ -669,12 +671,22 @@ export class RevisionQueueService implements IRevisionQueueService {
 
     const manifest = await this.fs.getProjectManifest(plan.bookSlug);
     const messages = this.db.getMessages(conversation.id);
+
+    // Author-edits section: revision sessions always run Verity
+    let authorEditsSection: string | undefined;
+    try {
+      authorEditsSection = (await this.version.buildAuthorEditsSection(plan.bookSlug)) ?? undefined;
+    } catch (err) {
+      console.error('[author-edits] section build failed:', err);
+    }
+
     const contextBuilder = new ContextBuilder();
     const assembled = contextBuilder.build({
       agentName: 'Verity' as AgentName,
       agentSystemPrompt: verity.systemPrompt,
       manifest,
       messages,
+      authorEditsSection,
     });
     const systemPrompt = assembled.systemPrompt;
 

@@ -723,6 +723,12 @@ export interface IVersionService {
 
   /** Pending user-edit status for every body-chapter draft in the book. */
   getChapterEditStatuses(bookSlug: string): Promise<ChapterEditStatus[]>;
+
+  /**
+   * Markdown section describing pending author edits across all body chapters,
+   * for agent context injection. Null when there are none.
+   */
+  buildAuthorEditsSection(bookSlug: string): Promise<string | null>;
 }
 
 export interface IManuscriptImportService {

@@ -15,6 +15,7 @@ import type {
   IProviderRegistry,
   ISettingsService,
   ISeriesService,
+  IVersionService,
 } from '@domain/interfaces';
 import {
   AGENT_MULTI_CALL_STEPS,
@@ -56,6 +57,7 @@ export class MultiCallOrchestrator {
     private fs: IFileSystemService,
     private streamManager: StreamManager,
     private series: ISeriesService,
+    private version: IVersionService,
   ) {}
 
   /**
@@ -413,6 +415,16 @@ export class MultiCallOrchestrator {
     if (step.lightweightPrompt) {
       systemPrompt = this.buildLightweightSystemPrompt(manifest);
     } else {
+      // Author-edits section: only Verity revises chapters, so only Verity needs it
+      let authorEditsSection: string | undefined;
+      if (agentName === 'Verity') {
+        try {
+          authorEditsSection = (await this.version.buildAuthorEditsSection(bookSlug)) ?? undefined;
+        } catch (err) {
+          console.error('[author-edits] section build failed:', err);
+        }
+      }
+
       const assembled = this.contextBuilder.build({
         agentName,
         agentSystemPrompt: agent.systemPrompt,
@@ -422,6 +434,7 @@ export class MultiCallOrchestrator {
         seriesBiblePath: seriesBiblePath ?? undefined,
         thinkingBudget,
         maxContextTokens: modelContextWindow,
+        authorEditsSection,
       });
       systemPrompt = assembled.systemPrompt;
     }

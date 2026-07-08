@@ -612,10 +612,12 @@ async function initializeApp(): Promise<void> {
   const hotTake = new HotTakeService(agents, providerRegistry, db, fs, streamManager);
   const adhocRevision = new AdhocRevisionService(agents, audit, providerRegistry, db, fs, streamManager);
   const series = new SeriesService(userDataPath);
-  const chat = new ChatService(settings, agents, db, providerRegistry, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager, series);
+  // VersionService must be constructed before its consumers (ChatService, RevisionQueueService)
+  const version = new VersionService(db, fs);
+  const chat = new ChatService(settings, agents, db, providerRegistry, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager, series, version);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
-  const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings);
+  const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings, version);
   const motifLedger = new MotifLedgerService(fs, providerRegistry, settings);
   motifLedger.setNormalizationCallback((status, error) => {
     for (const w of BrowserWindow.getAllWindows()) {
@@ -624,7 +626,6 @@ async function initializeApp(): Promise<void> {
       } catch { /* window closing */ }
     }
   });
-  const version = new VersionService(db, fs);
   const findReplace = new FindReplaceService(fs, version);
   const manuscriptImport = new ManuscriptImportService(fs, pandocPath);
   const seriesImport = new SeriesImportService(manuscriptImport, series);

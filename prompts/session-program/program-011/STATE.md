@@ -18,7 +18,7 @@
 | 02 | IPC handlers + preload bridge | M09 | done | 2026-07-08 | Typecheck clean; DevTools smoke test deferred to SESSION-03 manual pass |
 | 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | pending | — | |
 | 04 | Rail EDITED badges + discard-my-edits flow | M10 | pending | — | |
-| 05 | Author-edits context injection for Verity | M08, M09 | pending | — | |
+| 05 | Author-edits context injection for Verity | M08, M09 | done | 2026-07-08 | Typecheck clean; live context inspection deferred to final manual pass |
 | 06 | Agent-activity guard + external-change reload | M10 | pending | — | |
 
 (Status: pending | in-progress | done | blocked | skipped)
@@ -117,6 +117,29 @@ there). `NovelEngineAPI` is `typeof api`, so no separate type change was needed.
 
 **Deviation:** the `npm start` DevTools console check was deferred — run it as part of
 SESSION-03's manual verification (the modal exercises both methods end-to-end).
+
+### SESSION-05 (2026-07-08)
+
+**Done.** For SESSION-03's banner copy: the exact section heading injected into Verity's
+context is **`## Author Edits Since Your Last Draft`**. Cap: **120 rendered diff lines per
+chapter** (`AUTHOR_EDITS_MAX_DIFF_LINES` in `src/application/VersionService.ts`), then
+`... ({n} more edited lines — read the file for the full text)`.
+
+- `IVersionService.buildAuthorEditsSection(bookSlug): Promise<string | null>` — null when
+  no chapter has pending edits.
+- `ContextBuilder.build()` gained optional `authorEditsSection?: string`, pushed right
+  after `guidanceSection`.
+- Injection sites (Verity-only guard at each): `ChatService.ts` Step 7e,
+  `MultiCallOrchestrator.runSingleStep` (non-lightweight steps only),
+  `RevisionQueueService.runSession` (always Verity there — no guard needed).
+- Composition root: `VersionService` now constructed at `src/main/index.ts:616`, before
+  `ChatService` (617) and `RevisionQueueService` (620); passed as 12th/6th ctor arg
+  respectively; `ChatService` forwards it to `MultiCallOrchestrator` (8th arg).
+
+**Deviation:** manual `npm start` checks (section appears for Verity with correct diff;
+absent for non-Verity agents and unedited books) deferred to the final manual pass.
+**Gotcha:** `MultiCallOrchestrator` rebuilds the section per non-lightweight step — cheap
+(SQLite + small diffs) and keeps it fresh if the user edits mid-run.
 
 **Gotchas:** `better-sqlite3` in `node_modules` is compiled for Electron's ABI
 (MODULE_VERSION 130) — plain `node` scripts can't load it; use the `sqlite3` CLI or the
