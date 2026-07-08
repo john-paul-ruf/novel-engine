@@ -1,7 +1,77 @@
 import { useEffect, useState } from 'react';
 import { Tooltip } from '../common/Tooltip';
+import { Icon } from '../common/Icon';
+import { useViewStore } from '../../stores/viewStore';
+import { useBookStore } from '../../stores/bookStore';
 
 const isMac = navigator.userAgent.includes('Macintosh');
+
+const VIEW_LABELS: Record<string, string> = {
+  library: 'Library',
+  workspace: 'Workspace',
+  manuscript: 'Manuscript',
+  exports: 'Exports',
+  settings: 'Settings',
+  statistics: 'Statistics',
+  'pitch-room': 'Pitch Room',
+  onboarding: 'Welcome',
+  dashboard: 'Dashboard',
+  chat: 'Chat',
+  files: 'Files',
+  build: 'Build',
+  reading: 'Reading',
+};
+
+/** `{book title} / {view}` — book title omitted in the Library and when no book is active. */
+function Breadcrumb(): React.ReactElement {
+  const currentView = useViewStore((s) => s.currentView);
+  const bookTitle = useBookStore((s) => s.books.find((b) => b.slug === s.activeSlug)?.title);
+  const label = VIEW_LABELS[currentView] ?? '';
+
+  if (currentView === 'library' || !bookTitle) {
+    return <span className="text-xs font-semibold text-ne-ink">{label}</span>;
+  }
+  return (
+    <span className="text-xs text-ne-ink-dim">
+      <span className="font-semibold text-ne-ink">{bookTitle}</span>
+      <span className="mx-1.5 text-ne-ink-faint">/</span>
+      {label}
+    </span>
+  );
+}
+
+/** Live word count for the active book — hidden in the Library. */
+function WordCount(): React.ReactElement | null {
+  const totalWordCount = useBookStore((s) => s.totalWordCount);
+  const hasBook = useBookStore((s) => s.activeSlug !== '');
+  const currentView = useViewStore((s) => s.currentView);
+
+  if (!hasBook || currentView === 'library') return null;
+  return (
+    <span className="text-[11px] tabular-nums text-ne-ink-faint">
+      {totalWordCount.toLocaleString()} words
+    </span>
+  );
+}
+
+/**
+ * ⌘K pill — opens the command palette. Until SESSION-04 lands, this
+ * dispatches the `ne:open-palette` window event (no dead import).
+ */
+function CommandPill(): React.ReactElement {
+  return (
+    <button
+      onClick={() => window.dispatchEvent(new CustomEvent('ne:open-palette'))}
+      className="no-drag flex items-center gap-1.5 rounded-md border border-ne-line bg-ne-bg2 px-2 py-[3px] text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass hover:text-ne-ink"
+    >
+      <Icon name="search" size={12} strokeWidth={2} />
+      Search
+      <kbd className="rounded border border-ne-line bg-ne-bg0 px-1 font-ne-mono text-[10px] text-ne-ink-faint">
+        ⌘K
+      </kbd>
+    </button>
+  );
+}
 
 function WindowControls(): React.ReactElement {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -77,17 +147,17 @@ export function TitleBar(): React.ReactElement {
         </div>
       )}
 
-      {/* Center — app title on macOS */}
-      {isMac && (
-        <span className="text-xs font-medium text-zinc-500">Novel Engine</span>
-      )}
+      {/* Center — book / view breadcrumb */}
+      <div className="min-w-0 flex-1 truncate text-center">
+        <Breadcrumb />
+      </div>
 
-      {/* Right — window controls on Windows/Linux, empty on macOS */}
-      {isMac ? (
-        <div className="w-[78px] shrink-0" />
-      ) : (
-        <WindowControls />
-      )}
+      {/* Right — word count + ⌘K pill, then window controls on Windows/Linux */}
+      <div className="flex shrink-0 items-center gap-2.5 pr-2">
+        <WordCount />
+        <CommandPill />
+        {!isMac && <WindowControls />}
+      </div>
     </div>
   );
 }

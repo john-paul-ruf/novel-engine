@@ -25,6 +25,7 @@ import { useHelperStore } from '../../stores/helperStore';
 import { useRightPanelStore } from '../../stores/rightPanelStore';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
+import { IconRail } from '../Rail/IconRail';
 
 /**
  * Keeps the stream listener alive for the entire app lifecycle,
@@ -151,6 +152,7 @@ export function AppLayout(): React.ReactElement {
       <TitleBar />
       <StreamManager />
       <div className="flex flex-1 overflow-hidden">
+        <IconRail />
         <Sidebar />
         <main data-tour="main-content" className="flex-1 overflow-hidden">
           <ViewContent />

@@ -15,7 +15,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 |---|---------|---------|--------|-----------|-------|
 | 01 | Design tokens & typography foundation | M10 | done | 2026-07-07 | Additive only — tokens + fonts + agentColors.ts; no existing component touched |
 | 02 | viewStore v5 — new view routing | M10 | done | 2026-07-07 | ViewId extended, persist v5 migration forwards legacy views, placeholders mounted, `navigateToPhase` exported |
-| 03 | Icon rail + title bar breadcrumb | M10 | pending | — | |
+| 03 | Icon rail + title bar breadcrumb | M10 | done | 2026-07-07 | Rail + breadcrumb + ⌘K pill live; Sidebar lost bottom-nav only; legacy views now reachable only via in-app links until S05/S08 |
 | 04 | Command palette + action registry | M10 | pending | — | |
 | 05 | Status bar + activity drawer | M10 | pending | — | |
 | 06 | Library view (bookshelf) | M10 | pending | — | |
@@ -78,6 +78,20 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-03 (2026-07-07)
+
+**Built:** `common/Icon.tsx` (shared SVG set), `Rail/IconRail.tsx` (56px rail, 6 nav targets, brass active state + left indicator, book-gated Workspace/Manuscript/Exports), TitleBar breadcrumb + live word count + ⌘K pill, rail mounted left of Sidebar, Sidebar bottom-nav block removed (BookPanel + PitchHistory remain).
+
+**Icon names implemented (all 22, use `<Icon name=... size={19} strokeWidth={1.5}>`):**
+`logo, library, workspace, manuscript, exports, statistics, settings, search, send, check, chevronDown, chevronRight, chevronUp, plus, bulb, play, eye, pencil, download, x, history, sparkles` — exported type `IconName`. `play` is fill-based; all others stroke `currentColor`.
+
+**`ne:open-palette` event contract for S04:** the TitleBar ⌘K pill calls `window.dispatchEvent(new CustomEvent('ne:open-palette'))`. S04 must `window.addEventListener('ne:open-palette', ...)` to open the palette, and may then (optionally) replace the dispatch with a direct `usePaletteStore` call.
+
+**Warnings:**
+- Feature-access gap (by design, per session prompt): with the bottom-nav gone, legacy `chat`/`files`/`build`/`reading`/`dashboard`/`pitch-room` views are reachable only via in-app links (ConversationList, dashboard cards); Pipeline panel toggle and CLI Activity toggle have NO entry point until S05 (drawer) / S07 (spine). Hot Take / Ad Hoc buttons unused until S13 rewires them (files kept).
+- Tours: steps targeting `[data-tour="sidebar-nav"]` now skip gracefully (GuidedTourOverlay warns + advances). S14 rewrites tours; rail carries `data-tour="rail"`.
+- Rail logo badge uses fixed dark gradient + `#e8c988` glyph (theme-independent, matches mock in both themes).
 
 ### SESSION-02 (2026-07-07)
 
