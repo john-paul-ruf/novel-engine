@@ -654,18 +654,36 @@ export class ChatService implements IChatService {
       return;
     }
 
+    // Never overwrite an output file that already has content. The fallback
+    // exists for the initial generation only — on follow-up turns the agent
+    // often replies conversationally without touching files, and auto-saving
+    // that reply would clobber the previously generated document.
+    const missingFiles: string[] = [];
+    for (const filePath of outputFiles) {
+      const hasContent =
+        (await this.fs.fileExists(bookSlug, filePath)) &&
+        (await this.fs.readFile(bookSlug, filePath)).trim().length > 0;
+      if (!hasContent) missingFiles.push(filePath);
+    }
+    if (missingFiles.length === 0) {
+      console.log(
+        `[ChatService] Post-stream extraction skipped — ${outputFiles.join(', ')} already populated`,
+      );
+      return;
+    }
+
     try {
-      if (outputFiles.length === 1) {
+      if (missingFiles.length === 1) {
         // Single-file phase — write the full response
-        await this.fs.writeFile(bookSlug, outputFiles[0], responseBuffer);
-        onEvent({ type: 'filesChanged', paths: [outputFiles[0]] });
+        await this.fs.writeFile(bookSlug, missingFiles[0], responseBuffer);
+        onEvent({ type: 'filesChanged', paths: [missingFiles[0]] });
         onEvent({
           type: 'status',
-          message: `Auto-saved response to ${outputFiles[0]}`,
+          message: `Auto-saved response to ${missingFiles[0]}`,
         });
       } else {
         // Multi-file phase — attempt to split at the second file's path
-        const [primaryFile, ...secondaryFiles] = outputFiles;
+        const [primaryFile, ...secondaryFiles] = missingFiles;
         const segments = this.splitResponseByFiles(responseBuffer, secondaryFiles);
 
         // Write primary file

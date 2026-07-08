@@ -185,6 +185,7 @@ export class BuildService implements IBuildService {
         `--to=${toFlag}`,
         `--metadata=title:${meta.title}`,
         `--metadata=author:${meta.author}`,
+        '--metadata=lang:en',
       ];
 
       // Add cover image for EPUB if available

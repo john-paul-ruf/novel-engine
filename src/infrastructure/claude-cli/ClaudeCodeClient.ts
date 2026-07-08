@@ -2,6 +2,8 @@ import { spawn, type ChildProcess } from 'child_process';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'node:path';
+import os from 'node:os';
+import { writeFile, unlink } from 'node:fs/promises';
 import { nanoid } from 'nanoid';
 
 import type { IClaudeClient, IModelProvider, IDatabaseService } from '@domain/interfaces';
@@ -191,13 +193,43 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
     // Build conversation prompt from message history
     const conversationPrompt = this.buildConversationPrompt(messages);
 
+    // Guard against runaway system prompts before writing them to disk.
+    const MAX_SYSTEM_PROMPT_BYTES = 500_000;
+    const promptBytes = Buffer.byteLength(systemPrompt, 'utf-8');
+    if (promptBytes > MAX_SYSTEM_PROMPT_BYTES) {
+      const message = `System prompt exceeds ${MAX_SYSTEM_PROMPT_BYTES / 1000}KB limit (actual: ${Math.round(promptBytes / 1000)}KB). Check the agent .md file for excessive content.`;
+      params.onEvent({ type: 'error', message });
+      return;
+    }
+
+    // Pass the system prompt via a temp file instead of argv.
+    // Windows caps the entire CreateProcess command line at ~32,767 chars, so
+    // large agent prompts (e.g. FORGE.md at ~42KB) would fail spawn() with
+    // ENAMETOOLONG if passed as a --system-prompt argument. The CLI supports
+    // --system-prompt-file, which sidesteps the argv limit on every platform.
+    const systemPromptFile = path.join(os.tmpdir(), `novel-engine-sysprompt-${sessionId}.md`);
+    try {
+      await writeFile(systemPromptFile, systemPrompt, 'utf-8');
+    } catch (err) {
+      const message = `Failed to write system prompt temp file: ${err instanceof Error ? err.message : String(err)}`;
+      params.onEvent({ type: 'error', message });
+      return;
+    }
+
+    /** Best-effort removal of the system prompt temp file after the CLI exits. */
+    const cleanupSystemPromptFile = () => {
+      unlink(systemPromptFile).catch(() => {
+        // Best-effort: temp dir is cleaned by the OS eventually.
+      });
+    };
+
     const args = [
       '--print',
       '--output-format', 'stream-json',
       '--verbose',
       '--model', model,
       '--max-turns', String(params.maxTurns ?? 30),
-      '--system-prompt', systemPrompt,
+      '--system-prompt-file', systemPromptFile,
       '--allowedTools', 'Read,Write,Edit,LS,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(wc:*),Bash(rm:*),Bash(rmdir:*)',
       '--add-dir', this.booksDir,
     ];
@@ -216,18 +248,7 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
         ? path.join(this.booksDir, bookSlug)
         : undefined;
 
-    // Guard against system prompts that would exceed the OS argument size limit.
-    // Most systems support 128KB-2MB for total argv. We cap the system prompt at
-    // 500KB to leave room for other arguments.
-    const MAX_SYSTEM_PROMPT_BYTES = 500_000;
-    const promptBytes = Buffer.byteLength(systemPrompt, 'utf-8');
-    if (promptBytes > MAX_SYSTEM_PROMPT_BYTES) {
-      const message = `System prompt exceeds ${MAX_SYSTEM_PROMPT_BYTES / 1000}KB limit (actual: ${Math.round(promptBytes / 1000)}KB). Check the agent .md file for excessive content.`;
-      params.onEvent({ type: 'error', message });
-      return;
-    }
-
-    console.log(`[ClaudeCodeClient] Spawning CLI: model=${model}, cwd=${cwd ?? '(none)'}, conversationId=${conversationId}, args=${args.length} items`);
+    console.log(`[ClaudeCodeClient] Spawning CLI: model=${model}, cwd=${cwd ?? '(none)'}, conversationId=${conversationId}, args=${args.length} items, systemPromptBytes=${promptBytes}`);
 
     return new Promise<void>((resolve, reject) => {
       const child = spawn('claude', args, {
@@ -260,6 +281,7 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       };
 
       child.on('error', (err: NodeJS.ErrnoException) => {
+        cleanupSystemPromptFile();
         const message = err.code === 'ENOENT' ? CLI_NOT_FOUND_MESSAGE : err.message;
         wrappedOnEvent({ type: 'error', message });
         settle(() => reject(new Error(message)));
@@ -309,6 +331,8 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       });
 
       child.on('close', (code) => {
+        cleanupSystemPromptFile();
+
         // Flush any buffered events before processing the close
         flushBatch();
 
