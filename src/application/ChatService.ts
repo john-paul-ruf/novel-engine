@@ -134,14 +134,23 @@ export class ChatService implements IChatService {
 
     // Step 2: Load settings for model, maxTokens, thinking config
     const appSettings = await this.settings.load();
+    const resolvedModel = this.providers.resolveModelSelection(appSettings.model, appSettings.activeProviderId);
+    const effectiveModel = resolvedModel.model;
+    const effectiveAppSettings = { ...appSettings, model: effectiveModel };
+    if (resolvedModel.didFallback) {
+      onEvent({
+        type: 'warning',
+        message: `Selected model ${resolvedModel.requestedModel} is unavailable. Using ${effectiveModel} instead.`,
+      });
+    }
 
     // Step 2b: Check provider capabilities for pipeline conversations
-    const activeProvider = this.providers.getProviderForModel(appSettings.model)
+    const activeProvider = this.providers.getProviderForModel(effectiveModel)
       ?? this.providers.getDefaultProvider();
     const providerHasToolUse = activeProvider.capabilities.includes('tool-use');
 
     console.log(
-      `[ChatService] Routing: model=${appSettings.model}, ` +
+      `[ChatService] Routing: model=${effectiveModel}, ` +
       `provider=${activeProvider.providerId}, ` +
       `toolUse=${providerHasToolUse}, agent=${agentName}`,
     );
@@ -153,7 +162,7 @@ export class ChatService implements IChatService {
     const isClaudeCli = activeProvider.providerId === CLAUDE_CLI_PROVIDER_ID;
 
     // Look up model's context window for budget-aware context building, capped at global ceiling
-    const modelInfo = this.providers.listAllModels().find(m => m.id === appSettings.model);
+    const modelInfo = this.providers.listAllModels().find(m => m.id === effectiveModel);
     const modelContextWindow = Math.min(
       modelInfo?.contextWindow ?? MAX_CALL_CONTEXT_TOKENS,
       MAX_CALL_CONTEXT_TOKENS,
@@ -176,7 +185,7 @@ export class ChatService implements IChatService {
       id: sessionId,
       conversationId,
       agentName,
-      model: appSettings.model,
+      model: effectiveModel,
       bookSlug,
       startedAt: new Date().toISOString(),
       endedAt: null,
@@ -194,7 +203,7 @@ export class ChatService implements IChatService {
       // Pitch Room branch — skip wrangler, minimal context, custom working dir
       if (conversation?.purpose === 'pitch-room') {
         await this.pitchRoom.handleMessage({
-          conversationId, agentName, bookSlug, appSettings, agent, onEvent, sessionId,
+          conversationId, agentName, bookSlug, appSettings: effectiveAppSettings, agent, onEvent, sessionId,
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
@@ -204,7 +213,7 @@ export class ChatService implements IChatService {
       // Hot Take branch — Ghostlight reads full manuscript in agent mode, no files written
       if (conversation?.purpose === 'hot-take') {
         await this.hotTake.handleMessage({
-          conversationId, bookSlug, appSettings, agent, onEvent, sessionId,
+          conversationId, bookSlug, appSettings: effectiveAppSettings, agent, onEvent, sessionId,
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
@@ -214,7 +223,7 @@ export class ChatService implements IChatService {
       // Ad Hoc Revision branch — Forge generates project-tasks.md and revision-prompts.md
       if (conversation?.purpose === 'adhoc-revision') {
         await this.adhocRevision.handleMessage({
-          conversationId, bookSlug, message, appSettings, agent, onEvent, sessionId,
+          conversationId, bookSlug, message, appSettings: effectiveAppSettings, agent, onEvent, sessionId,
           thinkingBudgetOverride: params.thinkingBudgetOverride,
           callId: params.callId,
         });
@@ -355,7 +364,7 @@ export class ChatService implements IChatService {
       const stream = this.streamManager.startStream({
         conversationId,
         agentName,
-        model: appSettings.model,
+        model: effectiveModel,
         bookSlug,
         sessionId,
         callId: params.callId ?? '',
@@ -421,7 +430,7 @@ export class ChatService implements IChatService {
       onEvent({ type: 'status', message: randomWaitingStatus() });
 
       await this.providers.sendMessage({
-        model: appSettings.model,
+        model: effectiveModel,
         systemPrompt: assembled.systemPrompt,
         messages: assembled.conversationMessages,
         maxTokens: appSettings.maxTokens,

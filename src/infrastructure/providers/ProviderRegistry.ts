@@ -9,6 +9,7 @@ import type {
   ProviderConfig,
   ProviderId,
   ProviderStatus,
+  ResolvedModelSelection,
   StreamEvent,
 } from '@domain/types';
 
@@ -76,6 +77,60 @@ export class ProviderRegistry implements IProviderRegistry {
     const providerId = this.modelIndex.get(modelId);
     if (!providerId) return null;
     return this.providers.get(providerId) ?? null;
+  }
+
+  resolveModelSelection(requestedModel: string, preferredProviderId?: ProviderId): ResolvedModelSelection {
+    const indexedProviderId = this.modelIndex.get(requestedModel);
+    if (indexedProviderId && this.providers.has(indexedProviderId)) {
+      return {
+        requestedModel,
+        model: requestedModel,
+        providerId: indexedProviderId,
+        didFallback: false,
+        reason: 'requested-model-available',
+      };
+    }
+
+    if (preferredProviderId) {
+      const activeProviderModel = this.getDefaultModelForProvider(preferredProviderId);
+      if (activeProviderModel) {
+        return {
+          requestedModel,
+          model: activeProviderModel.model,
+          providerId: activeProviderModel.providerId,
+          didFallback: true,
+          reason: 'active-provider-default',
+        };
+      }
+    }
+
+    if (this.defaultProviderId) {
+      const defaultProviderModel = this.getDefaultModelForProvider(this.defaultProviderId);
+      if (defaultProviderModel) {
+        return {
+          requestedModel,
+          model: defaultProviderModel.model,
+          providerId: defaultProviderModel.providerId,
+          didFallback: true,
+          reason: 'default-provider-default',
+        };
+      }
+    }
+
+    for (const config of this.configs.values()) {
+      const providerModel = this.getDefaultModelForProvider(config.id);
+      if (providerModel) {
+        return {
+          requestedModel,
+          model: providerModel.model,
+          providerId: providerModel.providerId,
+          didFallback: true,
+          reason: 'first-enabled-model',
+        };
+      }
+    }
+
+    throw new Error(`No enabled models are available for requested model: ${requestedModel}`);
   }
 
   listProviders(): ProviderConfig[] {
@@ -252,12 +307,18 @@ export class ProviderRegistry implements IProviderRegistry {
     conversationId?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<void> {
-    const provider = this.getProviderForModel(params.model);
+    const resolved = this.resolveModelSelection(params.model);
+    const provider = this.getProvider(resolved.providerId);
     if (!provider) {
-      const defaultProvider = this.getDefaultProvider();
-      return defaultProvider.sendMessage(params);
+      throw new Error(`Resolved provider is not registered: ${resolved.providerId}`);
     }
-    return provider.sendMessage(params);
+    if (resolved.didFallback) {
+      params.onEvent({
+        type: 'warning',
+        message: `Selected model ${params.model} is unavailable. Using ${resolved.model} instead.`,
+      });
+    }
+    return provider.sendMessage({ ...params, model: resolved.model });
   }
 
   abortStream(conversationId: string): void {
@@ -300,6 +361,17 @@ export class ProviderRegistry implements IProviderRegistry {
         this.modelIndex.set(model.id, config.id);
       }
     }
+  }
+
+  private getDefaultModelForProvider(providerId: ProviderId): { providerId: ProviderId; model: string } | null {
+    const config = this.configs.get(providerId);
+    if (!config?.enabled || config.models.length === 0 || !this.providers.has(providerId)) {
+      return null;
+    }
+    const configuredDefault = config.defaultModel
+      ? config.models.find((model) => model.id === config.defaultModel)
+      : undefined;
+    return { providerId, model: (configuredDefault ?? config.models[0]).id };
   }
 
   private persistConfigs(): void {

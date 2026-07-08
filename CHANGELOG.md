@@ -1911,3 +1911,38 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-08] — Provider model resolution guardrails
+
+### Summary
+
+Stale model settings now resolve to an available provider model before chat streaming. The provider registry exposes deterministic model resolution, startup repairs stale `settings.json` model/provider pairs, ChatService records and routes streams with the effective model, and Settings shows a warning when the saved primary model is unavailable.
+
+### Changed
+- `./src/domain/types.ts` — Added `ResolvedModelSelection` for requested/effective model fallback results.
+- `./src/domain/interfaces.ts` — Added `IProviderRegistry.resolveModelSelection()` to the provider registry contract.
+- `./src/infrastructure/providers/ProviderRegistry.ts` — Added deterministic model fallback and warning emission before dispatching fallback model streams.
+- `./src/main/index.ts` — Reconciles stale startup `model` and `activeProviderId` settings after provider registration.
+- `./src/application/ChatService.ts` — Uses the effective model for provider routing, logs, stream metadata, and provider calls.
+- `./src/renderer/components/Settings/SettingsView.tsx` — Shows stale primary-model warning and falls back visually to the first available model.
+- `./docs/architecture/DOMAIN.md` — Documents the new model-resolution type and provider registry method.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documents ProviderRegistry model-resolution behavior.
+- `./docs/architecture/APPLICATION.md` — Documents ChatService effective-model routing and usage recording.
+- `./docs/architecture/RENDERER.md` — Documents Settings stale-model display handling.
+- `./prompts/session-program/program-016/STATE.md` — Marked SESSION-03 complete with verification notes.
+
+### Fixed
+- `./src/infrastructure/providers/ProviderRegistry.ts` — Prevents stale model IDs from being forwarded unchanged to fallback providers.
+- `./src/application/ChatService.ts` — Prevents routing logs and stream session metadata from recording unavailable stale model IDs.
+
+### Architecture Impact
+- New domain type: `./src/domain/types.ts` exports `ResolvedModelSelection`.
+- New provider contract method: `./src/domain/interfaces.ts` adds `IProviderRegistry.resolveModelSelection()`.
+- Startup behavior change: `./src/main/index.ts` persists repaired `model` and `activeProviderId` settings when stale values are detected.
+- Renderer behavior change: `./src/renderer/components/Settings/SettingsView.tsx` displays a fallback model instead of selecting an unavailable saved model.
+- No new IPC channels, preload methods, stores, or database schema changes.
+
+### Migration Notes
+- Existing stale `settings.json` model/provider pairs are repaired on startup to the resolved effective model and provider.

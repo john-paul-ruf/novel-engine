@@ -589,6 +589,16 @@ async function initializeApp(): Promise<void> {
   }
 
   providerRegistry.setDefaultProvider(appSettings.activeProviderId);
+  try {
+    const resolved = providerRegistry.resolveModelSelection(appSettings.model, appSettings.activeProviderId);
+    if (resolved.didFallback || resolved.providerId !== appSettings.activeProviderId) {
+      await settings.update({ model: resolved.model, activeProviderId: resolved.providerId });
+      providerRegistry.setDefaultProvider(resolved.providerId);
+      console.warn(`[startup] Repaired stale model selection: ${resolved.requestedModel} -> ${resolved.model}`);
+    }
+  } catch (err) {
+    console.error('[startup] Failed to reconcile model selection:', err);
+  }
 
   // 3.5 Auto-reconcile any book folders whose name diverged from the
   //      title stored in about.json (e.g. after a direct on-disk edit).

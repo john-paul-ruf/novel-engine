@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-08 (program-016 SESSION-02)
+> Last updated: 2026-07-08 (program-016 SESSION-03)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -156,7 +156,8 @@ Key behavior:
 - Constructor takes `ISettingsService` for config persistence
 - `registerProvider()` adds provider + config, first registered becomes default
 - `getProviderForModel()` uses reverse model→provider index (O(1) lookup)
-- `sendMessage()` routes to model's provider, falls back to default
+- `resolveModelSelection()` repairs stale model IDs by choosing the requested model when available, then the active provider default, default provider default, or first enabled model
+- `sendMessage()` routes to the resolved provider and emits a warning before using a fallback model
 - `abortStream()` broadcasts to all providers (idempotent)
 - `updateProviderConfig()` protects `id`, `type`, `isBuiltIn` from mutation
 - Config changes auto-persist to `settings.json`

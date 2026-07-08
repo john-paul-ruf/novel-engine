@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-07-02
+> Last updated: 2026-07-08 (program-016 SESSION-03)
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
@@ -392,7 +392,7 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `SettingsView.tsx` | Full settings panel: built-in CLI status for Claude/Codex/Ollama, providers, primary/secondary model selection from the same `window.novelEngine.models.getAvailable()` provider groups, thinking, theme, author profile, usage stats, catalog export. Primary model changes switch the active provider; secondary model changes only persist `secondaryModel`. Ollama copy points users to `ollama pull model-name` and `ollama list` for local discovery. |
+| `SettingsView.tsx` | Full settings panel: built-in CLI status for Claude/Codex/Ollama, providers, primary/secondary model selection from the same `window.novelEngine.models.getAvailable()` provider groups, thinking, theme, author profile, usage stats, catalog export. Primary model changes switch the active provider; stale primary selections show a warning and visually fall back to the first available model until updated. Secondary model changes only persist `secondaryModel`. Ollama copy points users to `ollama pull model-name` and `ollama list` for local discovery. |
 | `ProviderSection.tsx` | Provider management: cards with status dots, active badge, active-provider switch, test connectivity, optional advanced endpoint override for Ollama CLI, endpoint field for llama-server, add/remove/toggle, "Add Provider" form |
 
 ### Sidebar/

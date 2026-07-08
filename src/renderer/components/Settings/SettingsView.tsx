@@ -122,7 +122,9 @@ function ModelSelectionSection(): React.ReactElement {
     loadProviders().catch(console.error);
   }, [loadProviders]);
 
-  const primarySelected = settings?.model || models[0]?.id || '';
+  const primaryModelExists = Boolean(settings?.model && models.some((model) => model.id === settings.model));
+  const primaryFallback = models[0] ?? null;
+  const primarySelected = primaryModelExists ? (settings?.model ?? '') : (primaryFallback?.id ?? '');
   const secondarySelected = settings?.secondaryModel || '';
 
   // Primary: change model + potentially switch active provider
@@ -252,6 +254,11 @@ function ModelSelectionSection(): React.ReactElement {
             Used for all agent sessions, chat, revision queue, and hot-take reads. Choosing a model also switches the active provider.
           </p>
         </div>
+        {!primaryModelExists && settings?.model && primaryFallback && (
+          <HelpText>
+            Selected model is no longer available. Choose an available model below; Novel Engine will use {primaryFallback.label} until updated.
+          </HelpText>
+        )}
         <div className="space-y-4">
           {renderGroupedModelButtons(
             primarySelected,

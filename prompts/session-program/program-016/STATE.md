@@ -18,7 +18,7 @@ Fix Codex CLI chat failures where `codex exec --json` exits with code `0` after 
 |---|---------|---------|--------|-----------|-------|
 | 01 | Codex final-output fallback + diagnostics | `M06` | done | 2026-07-08 | Added `--output-last-message`, fallback text emission, temp cleanup, and parsed event-tail diagnostics. Verified with `npx tsc --noEmit` and Codex final-message smoke test (`OK` observed). |
 | 02 | Codex tool/file event tracking | `M06`, `M08` | done | 2026-07-08 | Tracks completed Codex `file_change` and tool-like items into `StreamSessionTracker`; emits progress/tool/file events. Verified with `npx tsc --noEmit`, `npm run lint`, and Codex file-write smoke test. |
-| 03 | Provider model resolution guardrails | `M01`, `M08`, `M09`, `M10` | pending | — | Resolve stale model/provider settings before launch and keep UI selection coherent. |
+| 03 | Provider model resolution guardrails | `M01`, `M08`, `M09`, `M10` | done | 2026-07-08 | Added provider model resolution, startup stale-setting repair, effective-model chat routing, and Settings fallback display. Verified with `npx tsc --noEmit` and `npm run lint`; Electron runtime repair smoke was not run in this shell session; `npm run build` is unavailable because `package.json` has no build script. |
 
 ## Dependency Graph
 
@@ -69,3 +69,11 @@ Agents should append notes here after each session.
 - `./src/infrastructure/codex-cli/CodexCliClient.ts` now parses completed Codex tool-like items and `file_change` items, normalizes absolute workspace paths to relative paths, updates `StreamSessionTracker.touchFile()`, and emits `toolUse`, zero-duration `toolDuration`, `progressStage`, `done.filesTouched`, and one terminal `filesChanged`.
 - Observed Codex write event shape: `item.started` then `item.completed` with `item.type="file_change"`, `item.status="completed"`, and `item.changes=[{ path, kind:"add" }]`. The implementation tracks only completed items.
 - Verification: `npx tsc --noEmit` passed. `npm run lint` passed. Manual Codex smoke test wrote `codex-tool-smoke.txt` and produced `item.completed:file_change` JSON. Full Electron pipeline UI smoke was not run in this shell session.
+
+
+### 2026-07-08 — SESSION-03 complete
+
+- `./src/domain/types.ts` and `./src/domain/interfaces.ts` now define `ResolvedModelSelection` and `IProviderRegistry.resolveModelSelection()` so callers can resolve stale model/provider settings before dispatch.
+- `./src/infrastructure/providers/ProviderRegistry.ts` now falls back deterministically from requested model to active provider default, default provider default, or first enabled model; fallback streams emit a warning and call the provider with the resolved model ID.
+- `./src/main/index.ts` repairs stale startup `model`/`activeProviderId` settings after provider registration; `./src/application/ChatService.ts` logs, records stream sessions, and sends provider calls with the effective model; `./src/renderer/components/Settings/SettingsView.tsx` warns and visually falls back when the saved primary model is no longer available.
+- Verification: `npx tsc --noEmit` passed. `npm run lint` passed. Fallback wiring was verified by static type/lint checks; live Electron startup repair and chat usage recording were not smoke-tested in this shell session; `npm run build` returned `Missing script: "build"`.

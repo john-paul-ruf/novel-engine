@@ -44,6 +44,7 @@ import type {
   QueueMode,
   QueueStatus,
   RecentFile,
+  ResolvedModelSelection,
   RevisionPlan,
   RevisionQueueEvent,
   SeriesImportCommitConfig,
@@ -351,6 +352,9 @@ export interface IProviderRegistry {
 
   /** Resolve which provider handles a given model ID. Returns null if no provider claims it. */
   getProviderForModel(modelId: string): IModelProvider | null;
+
+  /** Resolve stale model/provider settings to an available model and provider. */
+  resolveModelSelection(requestedModel: string, preferredProviderId?: ProviderId): ResolvedModelSelection;
 
   /** List all registered provider configs. */
   listProviders(): ProviderConfig[];

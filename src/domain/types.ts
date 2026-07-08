@@ -330,6 +330,14 @@ export type ModelInfo = {
   supportsToolUse?: boolean;             // whether agent-loop tool use works
 };
 
+export type ResolvedModelSelection = {
+  requestedModel: string;
+  model: string;
+  providerId: ProviderId;
+  didFallback: boolean;
+  reason: 'requested-model-available' | 'active-provider-default' | 'default-provider-default' | 'first-enabled-model';
+};
+
 // === Saved Prompts ===
 
 export type SavedPrompt = {

@@ -1,6 +1,6 @@
 # Domain — Types, Interfaces, Constants
 
-> Last updated: 2026-07-02
+> Last updated: 2026-07-08 (program-016 SESSION-03)
 
 Everything in `src/domain/`. Pure TypeScript declarations — zero imports from other layers.
 
@@ -92,6 +92,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `ProviderStatus` | `'available' \| 'unavailable' \| 'unchecked' \| 'error'` | IProviderRegistry.checkProviderStatus |
 | `ProviderConfig` | `{ id, type, name, enabled, isBuiltIn, apiKey?, baseUrl?, models, defaultModel?, capabilities }` | Settings, ProviderRegistry |
 | `ModelInfo` | `{ id, label, description, providerId, contextWindow?, supportsThinking?, supportsToolUse? }` | ProviderConfig.models, IProviderRegistry.listAllModels |
+| `ResolvedModelSelection` | `{ requestedModel, model, providerId, didFallback, reason }` | IProviderRegistry.resolveModelSelection, ChatService, startup reconciliation |
 
 ### Settings
 
@@ -361,6 +362,7 @@ Router/manager for all configured providers. Services call with a model ID; regi
 | `getProvider` | `(providerId) => IModelProvider \| null` | — |
 | `getDefaultProvider` | `() => IModelProvider` | Active provider |
 | `getProviderForModel` | `(modelId) => IModelProvider \| null` | Provider owning model |
+| `resolveModelSelection` | `(requestedModel, preferredProviderId?) => ResolvedModelSelection` | Effective model/provider with deterministic fallback |
 | `listProviders` | `() => ProviderConfig[]` | All configs |
 | `listAllModels` | `() => ModelInfo[]` | All models from enabled providers |
 | `checkProviderStatus` | `(providerId) => Promise<ProviderStatus>` | Availability check |
