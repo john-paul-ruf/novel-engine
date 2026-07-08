@@ -91,25 +91,15 @@ export class CodexCliClient implements IModelProvider {
       return { cwd, argsCwd: cwd, extraArgs, mode: 'book-with-books-root' };
     }
 
-    if (!supportsAddDir && params.bookSlug && !params.workingDir) {
-      return {
-        cwd,
-        argsCwd: cwd,
-        extraArgs,
-        mode: 'book-only',
-        warning: `Codex CLI does not support --add-dir; continuing with active-book workspace only (${params.bookSlug}).`,
-      };
+    if (!supportsAddDir && cwd !== this.booksDir) {
+      // Older Codex CLIs (e.g. 0.27.0) lack --add-dir but honor config overrides.
+      // sandbox_workspace_write.writable_roots adds extra writable roots to the
+      // workspace-write sandbox (verified against codex debug seatbelt, 0.27.0).
+      extraArgs.push('-c', `sandbox_workspace_write.writable_roots=[${JSON.stringify(this.booksDir)}]`);
+      return { cwd, argsCwd: cwd, extraArgs, mode: 'book-with-books-root-config' };
     }
 
-    return {
-      cwd,
-      argsCwd: cwd,
-      extraArgs,
-      mode: params.workingDir ? 'custom-working-dir' : 'books-root',
-      warning: !supportsAddDir && cwd !== this.booksDir
-        ? `Codex CLI does not support --add-dir; workspace is limited to ${cwd}.`
-        : undefined,
-    };
+    return { cwd, argsCwd: cwd, extraArgs, mode: params.workingDir ? 'custom-working-dir' : 'books-root' };
   }
 
   hasActiveProcesses(): boolean {
@@ -233,11 +223,6 @@ export class CodexCliClient implements IModelProvider {
       const message = err instanceof Error ? err.message : String(err);
       wrappedOnEvent({ type: 'error', message });
       throw new Error(message);
-    }
-
-    if (workspacePlan.warning) {
-      console.warn(`[CodexCliClient] ${workspacePlan.warning}`);
-      wrappedOnEvent({ type: 'status', message: workspacePlan.warning });
     }
 
     const args = [
@@ -494,8 +479,7 @@ type CodexWorkspacePlan = {
   cwd: string;
   argsCwd: string;
   extraArgs: string[];
-  mode: 'book-with-books-root' | 'book-only' | 'custom-working-dir' | 'books-root';
-  warning?: string;
+  mode: 'book-with-books-root' | 'book-with-books-root-config' | 'custom-working-dir' | 'books-root';
 };
 
 type EventRecord = {

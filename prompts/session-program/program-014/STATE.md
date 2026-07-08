@@ -26,7 +26,7 @@ Bash(mkdir/cat/mv/cp/ls/find/wc/rm/rmdir).
 | 03 | "Promote to Book" button fallback | M10 | done | 2026-07-08 | Manual GUI smoke deferred to end-to-end check |
 | 04 | BashEmulator — sandboxed coreutils module | M11 | done | 2026-07-08 | Module unreferenced until 05, compiles + barrel-exported |
 | 05 | Wire Bash tool into local-provider agent loop | M11, M12 | done | 2026-07-08 | llama-server picked it up with zero edits, as designed |
-| 06 | Codex writable_roots sandbox fallback | M13 | pending | — | Parallel-safe; verified against codex-cli 0.27.0 |
+| 06 | Codex writable_roots sandbox fallback | M13 | done | 2026-07-08 | Seatbelt proof re-run at build time — blocked/allowed/cwd all as expected |
 
 ## Dependency Graph
 
@@ -160,3 +160,13 @@ Header button → `window.novelEngine.pitchRoom.promote(convId)` → IPC `pitchR
   reports `isWrite: false`) reach the model as tool errors with `toolName: 'Bash'`.
 - Manual smoke against a live Ollama model (`ls .`, `mkdir` under books, pipe rejection)
   still needs a human pass; no model-specific argument malformations observed yet.
+
+### SESSION-06 (2026-07-08)
+
+- Installed Codex is 0.27.0 (no `--add-dir`) → runtime will use
+  `mode: 'book-with-books-root-config'` (`-c 'sandbox_workspace_write.writable_roots=[…]'`).
+  If a future Codex gains `--add-dir`, the `codex exec --help` probe automatically
+  prefers `book-with-books-root`.
+- Seatbelt proof re-run during this build: write outside cwd blocked without the override,
+  allowed with it, cwd still writable.
+- `book-only` mode and the `warning` field/emission removed — no remaining producers.
