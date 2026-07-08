@@ -82,17 +82,17 @@ export function UserEditsDiffModal({
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[80vh] w-full max-w-2xl flex-col rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900"
+        className="relative flex max-h-[80vh] w-full max-w-2xl flex-col rounded-xl border border-ne-line bg-ne-bg1 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <div className="flex items-center justify-between border-b border-ne-line-soft px-6 py-4">
+          <h2 className="text-base font-semibold text-ne-ink">
             My changes — {chapterTitle}
           </h2>
           <button
             onClick={onClose}
-            className="text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-200"
+            className="text-ne-ink-dim transition-colors hover:text-ne-ink"
           >
             <Icon name="x" size={16} strokeWidth={2} />
           </button>
@@ -101,11 +101,11 @@ export function UserEditsDiffModal({
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {loading ? (
-            <div className="py-8 text-center text-sm text-zinc-500">Loading changes…</div>
+            <div className="py-8 text-center text-sm text-ne-ink-faint">Loading changes…</div>
           ) : error ? (
-            <div className="py-8 text-center text-sm text-red-400">{error}</div>
+            <div className="py-8 text-center text-sm text-ne-sable">{error}</div>
           ) : diff === null ? (
-            <div className="py-8 text-center text-sm text-zinc-500">
+            <div className="py-8 text-center text-sm text-ne-ink-faint">
               No edits since Verity's last draft.
             </div>
           ) : (
@@ -115,21 +115,21 @@ export function UserEditsDiffModal({
 
         {/* Footer — discard flow, only when a diff (with baseline) is shown */}
         {!loading && !error && diff !== null && (
-          <div className="flex items-center gap-3 border-t border-zinc-200 px-6 py-3 dark:border-zinc-800">
+          <div className="flex items-center gap-3 border-t border-ne-line-soft px-6 py-3">
             {discardError && (
-              <p className="min-w-0 flex-1 truncate text-xs text-red-400" title={discardError}>
+              <p className="min-w-0 flex-1 truncate text-xs text-ne-sable" title={discardError}>
                 {discardError}
               </p>
             )}
             {confirmingDiscard ? (
               <>
-                <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="ml-auto text-xs text-ne-ink-dim">
                   Really discard? This restores Verity's last draft.
                 </span>
                 <button
                   onClick={() => setConfirmingDiscard(false)}
                   disabled={discarding}
-                  className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs text-zinc-600 transition-colors hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-100"
+                  className="rounded-md border border-ne-line px-2.5 py-1 text-xs text-ne-ink-dim transition-colors hover:text-ne-ink disabled:opacity-50"
                 >
                   Cancel
                 </button>

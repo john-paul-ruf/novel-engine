@@ -12,9 +12,9 @@ type VersionHistoryPanelProps = {
 };
 
 const SOURCE_LABELS: Record<FileVersionSource, { label: string; className: string }> = {
-  user: { label: 'You', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-  agent: { label: 'Agent', className: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
-  revert: { label: 'Revert', className: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  user: { label: 'You', className: 'bg-ne-quill/15 text-ne-quill border-ne-quill/30' },
+  agent: { label: 'Agent', className: 'bg-ne-brass-dim text-ne-brass border-ne-brass/30' },
+  revert: { label: 'Revert', className: 'bg-ne-forge/15 text-ne-forge border-ne-forge/30' },
 };
 
 function formatTimestamp(iso: string): string {
@@ -68,8 +68,8 @@ function VersionEntry({
     <div
       className={`border-l-2 pl-3 py-2 cursor-pointer transition-colors ${
         isSelected
-          ? 'border-blue-500 bg-blue-500/10'
-          : 'border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/50'
+          ? 'border-ne-brass bg-ne-brass-dim'
+          : 'border-ne-line hover:border-ne-brass/50 hover:bg-ne-bg2'
       }`}
       onClick={onSelect}
     >
@@ -78,11 +78,11 @@ function VersionEntry({
           <span className={`px-1.5 py-0.5 text-[10px] rounded border ${sourceInfo.className}`}>
             {sourceInfo.label}
           </span>
-          <span className="text-xs text-zinc-400 truncate">
+          <span className="text-xs text-ne-ink-dim truncate">
             {formatTimestamp(version.createdAt)}
           </span>
         </div>
-        <span className="text-[10px] text-zinc-600 shrink-0">
+        <span className="text-[10px] text-ne-ink-faint shrink-0">
           {formatBytes(version.byteSize)}
         </span>
       </div>
@@ -90,7 +90,7 @@ function VersionEntry({
       {/* Revert button — only show when selected */}
       {isSelected && !showConfirm && (
         <button
-          className="mt-2 px-2 py-1 text-xs bg-amber-600/20 text-amber-300 border border-amber-600/30 rounded hover:bg-amber-600/30 transition-colors"
+          className="mt-2 px-2 py-1 text-xs bg-ne-forge/15 text-ne-forge border border-ne-forge/40 rounded hover:bg-ne-forge/25 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             setShowConfirm(true);
@@ -103,9 +103,9 @@ function VersionEntry({
       {/* Confirmation */}
       {isSelected && showConfirm && (
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-xs text-amber-300">Are you sure?</span>
+          <span className="text-xs text-ne-forge">Are you sure?</span>
           <button
-            className="px-2 py-0.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-500 transition-colors"
+            className="px-2 py-0.5 text-xs bg-ne-forge text-white rounded hover:opacity-90 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
               setShowConfirm(false);
@@ -115,7 +115,7 @@ function VersionEntry({
             Yes, revert
           </button>
           <button
-            className="px-2 py-0.5 text-xs bg-zinc-700 text-zinc-300 rounded hover:bg-zinc-600 transition-colors"
+            className="px-2 py-0.5 text-xs bg-ne-bg2 text-ne-ink-dim rounded hover:text-ne-ink transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               setShowConfirm(false);
@@ -164,15 +164,15 @@ export function VersionHistoryPanel({
   const fileName = filePath.split('/').pop() ?? filePath;
 
   return (
-    <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
+    <div className="flex flex-col h-full bg-ne-bg1 border-l border-ne-line">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-ne-line">
         <div className="min-w-0">
-          <h3 className="text-sm font-medium text-zinc-100 truncate">Version History</h3>
-          <p className="text-xs text-zinc-500 truncate">{fileName}</p>
+          <h3 className="text-sm font-medium text-ne-ink truncate">Version History</h3>
+          <p className="text-xs text-ne-ink-faint truncate">{fileName}</p>
         </div>
         <button
-          className="p-1 text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="p-1 text-ne-ink-dim hover:text-ne-ink transition-colors"
           onClick={onClose}
           title="Close history"
         >
@@ -184,7 +184,7 @@ export function VersionHistoryPanel({
 
       {/* Error banner */}
       {error && (
-        <div className="px-4 py-2 bg-red-900/30 border-b border-red-700/50 text-xs text-red-300">
+        <div className="px-4 py-2 bg-ne-sable/10 border-b border-ne-sable/30 text-xs text-ne-sable">
           {error}
         </div>
       )}
@@ -192,19 +192,19 @@ export function VersionHistoryPanel({
       {/* Content area: version list + diff */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Version timeline */}
-        <div className="overflow-auto flex-shrink-0 max-h-[40%] border-b border-zinc-700">
+        <div className="overflow-auto flex-shrink-0 max-h-[40%] border-b border-ne-line">
           {isLoading && versions.length === 0 ? (
-            <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
+            <div className="flex items-center justify-center py-8 text-ne-ink-faint text-sm">
               Loading history...
             </div>
           ) : versions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-zinc-500 text-sm text-center px-4">
+            <div className="flex flex-col items-center justify-center py-8 text-ne-ink-faint text-sm text-center px-4">
               <p>No version history yet.</p>
               <p className="text-xs mt-1">Versions are created when files are saved or modified by agents.</p>
             </div>
           ) : (
             <div className="p-3 space-y-1">
-              <div className="text-[10px] text-zinc-600 mb-2">
+              <div className="text-[10px] text-ne-ink-faint mb-2">
                 {totalCount} version{totalCount !== 1 ? 's' : ''}
               </div>
               {versions.map((v) => (
@@ -218,7 +218,7 @@ export function VersionHistoryPanel({
               ))}
               {versions.length < totalCount && (
                 <button
-                  className="w-full py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="w-full py-2 text-xs text-ne-ink-faint hover:text-ne-ink-dim transition-colors"
                   onClick={loadMoreHistory}
                   disabled={isLoading}
                 >
@@ -232,17 +232,17 @@ export function VersionHistoryPanel({
         {/* Diff viewer */}
         <div className="flex-1 overflow-auto p-3">
           {isDiffLoading ? (
-            <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
+            <div className="flex items-center justify-center py-8 text-ne-ink-faint text-sm">
               Computing diff...
             </div>
           ) : diff ? (
             <DiffViewer diff={diff} />
           ) : selectedVersionId ? (
-            <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
+            <div className="flex items-center justify-center py-8 text-ne-ink-faint text-sm">
               Loading...
             </div>
           ) : (
-            <div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
+            <div className="flex items-center justify-center py-8 text-ne-ink-faint text-sm">
               Select a version from the timeline above to view its changes
             </div>
           )}

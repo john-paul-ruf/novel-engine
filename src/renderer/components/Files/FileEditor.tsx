@@ -110,11 +110,11 @@ export function FileEditor({
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-2">
-        <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-          <span className="text-zinc-800 dark:text-zinc-200 font-medium">{fileName}</span>
+      <div className="shrink-0 flex items-center justify-between border-b border-ne-line-soft px-6 py-2">
+        <div className="flex items-center gap-2 text-sm text-ne-ink-dim">
+          <span className="text-ne-ink font-medium">{fileName}</span>
           {hasUnsavedChanges && (
-            <span className="text-amber-600 dark:text-amber-400" title="Unsaved changes">
+            <span className="text-ne-forge" title="Unsaved changes">
               ●
             </span>
           )}
@@ -122,7 +122,7 @@ export function FileEditor({
 
         <div className="flex items-center gap-2">
           {/* Word count */}
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-ne-ink-faint">
             {wordCount.toLocaleString()} words
           </span>
 
@@ -131,8 +131,8 @@ export function FileEditor({
             onClick={() => setShowPreview(!showPreview)}
             className={`rounded px-2.5 py-1 text-xs transition-colors ${
               showPreview
-                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                ? 'border border-ne-brass/60 bg-ne-brass-dim text-ne-ink'
+                : 'border border-ne-line bg-ne-bg2 text-ne-ink-dim hover:text-ne-ink'
             }`}
           >
             Preview
@@ -142,7 +142,7 @@ export function FileEditor({
           <button
             onClick={handleSave}
             disabled={disabled || !hasUnsavedChanges || saveStatus === 'saving'}
-            className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded bg-ne-brass px-3 py-1 text-xs font-medium text-ne-bg0 transition-colors hover:bg-ne-brass-hi disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saveStatus === 'saving'
               ? 'Saving...'
@@ -156,8 +156,8 @@ export function FileEditor({
             onClick={() => setShowHistory(!showHistory)}
             className={`rounded px-2.5 py-1 text-xs transition-colors ${
               showHistory
-                ? 'bg-blue-600 text-white'
-                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                ? 'border border-ne-brass/60 bg-ne-brass-dim text-ne-ink'
+                : 'border border-ne-line bg-ne-bg2 text-ne-ink-dim hover:text-ne-ink'
             }`}
             title="Version history"
           >
@@ -170,7 +170,7 @@ export function FileEditor({
           {/* Cancel button */}
           <button
             onClick={onClose}
-            className="rounded bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            className="rounded bg-ne-bg2 px-3 py-1 text-xs text-ne-ink-dim transition-colors hover:text-ne-ink"
           >
             Cancel
           </button>
@@ -183,13 +183,13 @@ export function FileEditor({
         <div className={`flex flex-col overflow-hidden ${showHistory ? 'w-1/2' : 'flex-1'}`}>
           <div className="flex flex-1 min-h-0">
             {/* Textarea */}
-            <div className={`flex-1 min-w-0 ${showPreview ? 'border-r border-zinc-200 dark:border-zinc-800' : ''}`}>
+            <div className={`flex-1 min-w-0 ${showPreview ? 'border-r border-ne-line-soft' : ''}`}>
               <textarea
                 ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 readOnly={disabled}
-                className={`w-full h-full bg-white dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-mono text-sm p-6 resize-none outline-none border-none placeholder-zinc-400 dark:placeholder-zinc-600 ${disabled ? 'opacity-60' : ''}`}
+                className={`w-full h-full bg-ne-bg0 text-ne-ink font-mono text-sm p-6 resize-none outline-none border-none placeholder-ne-ink-faint ${disabled ? 'opacity-60' : ''}`}
                 placeholder="Start writing..."
                 spellCheck={false}
               />
@@ -199,7 +199,7 @@ export function FileEditor({
             {showPreview && (
               <div className="flex-1 min-w-0 overflow-y-auto p-6">
                 <div
-                  className="prose dark:prose-invert prose-zinc max-w-none"
+                  className="prose max-w-none [--tw-prose-body:var(--ne-ink)] [--tw-prose-headings:var(--ne-ink)] [--tw-prose-bold:var(--ne-ink)] [--tw-prose-links:var(--ne-quill)] [--tw-prose-code:var(--ne-ink-dim)] [--tw-prose-quotes:var(--ne-ink-dim)] [--tw-prose-quote-borders:var(--ne-line)] [--tw-prose-counters:var(--ne-ink-dim)] [--tw-prose-bullets:var(--ne-ink-faint)] [--tw-prose-hr:var(--ne-line)] [--tw-prose-pre-bg:var(--ne-bg2)] [--tw-prose-pre-code:var(--ne-ink-dim)] [--tw-prose-th-borders:var(--ne-line)] [--tw-prose-td-borders:var(--ne-line-soft)]"
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
               </div>
@@ -209,7 +209,7 @@ export function FileEditor({
 
         {/* Version history panel */}
         {showHistory && activeSlug && (
-          <div className="w-1/2 border-l border-zinc-200 dark:border-zinc-800">
+          <div className="w-1/2 border-l border-ne-line">
             <VersionHistoryPanel
               bookSlug={activeSlug}
               filePath={filePath}
