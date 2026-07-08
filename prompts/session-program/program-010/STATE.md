@@ -19,7 +19,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 04 | Command palette + action registry | M10 | done | 2026-07-07 | Palette + registry live; ⌘K/Ctrl+K global; also touched bookStore (chapters cache) + both Sidebar button files (trigger extraction per §2) |
 | 05 | Status bar + activity drawer | M10 | done | 2026-07-07 | Bottom status bar + drawer live; cost-today deferred (session tokens shown); also touched useVerticalResize (direction:'up') |
 | 06 | Library view (bookshelf) | M10 | done | 2026-07-07 | Shelf grid + modals live; reuses ImportChoiceModal/AboutJsonViewer; SeriesModal + import wizards still mounted via BookPanel (S14 must re-home) |
-| 07 | Pipeline spine panel | M10 | pending | — | |
+| 07 | Pipeline spine panel | M10 | done | 2026-07-07 | Spine + workspaceStore + stages built; NOT yet mounted (S08 mounts it in the workbench); tsc + boot verified via temp mount |
 | 08 | Workbench shell + phase header | M10 | pending | — | |
 | 09 | Split pane — chat + companion shell | M10 | pending | — | |
 | 10 | Companion content tabs | M10 | pending | — | |
@@ -79,7 +79,23 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 
 (agents append here after each session — newest first)
 
-### SESSION-06 (2026-07-07)
+### SESSION-07 (2026-07-07)
+
+**Built:** `stores/workspaceStore.ts`, `PipelineSpine/{stages.ts, PhaseNode.tsx, PipelineSpine.tsx}`. **The spine is NOT mounted anywhere yet** — S08 mounts it as the workspace view's left panel (it was temp-mounted in the workspace placeholder for boot verification, then reverted; AppLayout untouched in the commit). Because nothing imports `workspaceStore` yet, its cross-store subscriptions are dormant until S08 imports the spine.
+
+**Canonical phase ids (14, from `PIPELINE_PHASES` in `@domain/constants` — order matters):** `pitch, scaffold, first-draft, first-read, first-assessment, revision-plan-1, revision, second-read, second-assessment, copy-edit, revision-plan-2, mechanical-fixes, build, publish`.
+
+**Stage grouping (`PipelineSpine/stages.ts`):** CONCEIVE(pitch, scaffold) · DRAFT(first-draft) · ASSESS(first-read, first-assessment) · REVISE(revision-plan-1 … mechanical-fixes) · SHIP(build, publish). Exports `STAGES: {label, phaseIds: PipelinePhaseId[]}[]` and `agentForPhase(phaseId): AgentName | null`.
+
+**workspaceStore API for S08/S09/S10:** `selectedPhaseId: string | null`, `selectPhase(id)`, `companionTab: 'chapter'|'sources'|'reports'|'motifs'|'explorer'` (type export `CompanionTab`), `setCompanionTab(tab)`. Auto-behavior: book switch → selection resets to null; pipeline load/advance → adopts `activePhase` when selection is null OR was the previous active phase (so confirm-&-advance follows along); `navigate('workspace', {phaseId})` (i.e. `navigateToPhase`) → adopts the payload phaseId.
+
+**PipelineSpine:** 282px default (resizable 220–420 via `useResizeHandle` direction 'left', persisted at `novel-engine:pipeline-spine-width`), book header (cover/title/status chip/word count + "Phase N of 14" overall bar — replaces Dashboard PipelineCard), stage micro-labels + `PhaseNode` rows (`data-tour="pipeline-phase-{id}"` preserved; panel root `data-tour="pipeline-spine"`). Current-phase action card reuses PipelineTracker trigger logic: pending-completion → "Confirm & advance"; first-draft → Start/Stop(2-click)/Retry Auto Draft with chapters micro-progress; revision/mechanical-fixes + plan files → "Open Revision Queue" (same stale-state reset) + revision-tasks micro from dashboardStore; revision also gets secondary "Complete Revision" (2-click); build → `navigate('exports')` per session spec (exports is a placeholder until S12; legacy Build view remains reachable via the old PipelineTracker right panel); publish → `ensureBuildForQuill` guard (copied) then Quill conversation; generic active → open/create agent conversation → `navigate('chat')`.
+
+**Deviations/warnings:**
+- Auto Draft micro shows "{chaptersWritten} chapters" (not "N / M") — no planned-chapter total exists in any store; inventing M was worse. If a total becomes available, wire it in the card.
+- "Done" manual-override (mark phase complete with warning modal) was NOT ported to the spine — it lives only in the legacy PipelineTracker until S14 decides its new home (candidates: phase header in S08 or palette action in S13).
+- PhaseNode click selects for ALL phases including locked (per spec); the real locked-state UX arrives with S08's workbench.
+- Card error display consolidates the tracker's five error slots into one auto-clearing line.
 
 **Built:** `Library/LibraryView.tsx` (header + actions, standalone shelf grid with ghost cards at grid end, one titled section per series, recent line, all modals) and `Library/BookCard.tsx` (2:3 cover w/ click-to-change + pencil overlay, serif title, status chip, `Phase N of 14` + progress bar, word count, hover "Resume →"/"Open →", ⋯ overflow menu → Book info / Archive). AppLayout `library` placeholder replaced.
 
