@@ -23,7 +23,7 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 | 05 | Landing Page | 3 | — (docs/) | done | 2026-07-08 | index.html rebuilt writer-first per SESSION-03 amendment; raw GitHub screenshot URLs; all claims README-verified |
 | 06 | Architecture + Changelog Pages | 3 | — (docs/) | done | 2026-07-08 | 14 changelog entries added (76 blocks / 78 source entries, 2 legacy merges); arch page updated to 8 tables / 25 stores / 4 backends; badges v0.8.0 |
 | 07 | Press Kit + Contact Pages | 3 | — (docs/) | done | 2026-07-08 | Numbers corrected (131/187/25/8/~46K); dead screenshots replaced; ownership card added; badges v0.8.0 |
-| 08 | Site-Wide Verification + Report | 3 | — (docs/) | pending | | |
+| 08 | Site-Wide Verification + Report | 3 | — (docs/) | done | 2026-07-08 | All 16 Step-8 checks pass (2 false positives triaged); cross-phase consistency verified; report delivered. **FEATURE COMPLETE** |
 
 ## Dependency Graph
 
@@ -128,3 +128,10 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 - **contact.html:** bug-report version guidance de-versioned to "From Settings or the About panel" (the in-app About shows v0.1.0 — decoupled from the tag; avoided quoting any number); testers checklist now says "AI backend (Claude, Codex, or Ollama)"; "Windows Squirrel"→"Windows .exe" (matches README); License section gains the your-words-are-yours reassurance; badges v0.8.0. GitHub Discussions still not linked (repo has none — verified nothing claims it).
 - **Claims omitted as unverifiable:** none new — everything published traces to README, evaluation.html, or measured source counts.
 - **For SESSION-08:** all six pages now carry v0.8.0 badges; no `2026-03-29` screenshot URLs remain anywhere in docs/ (changelog.html's 2026-03-29 strings are entry dates, not URLs).
+
+### SESSION-08 (2026-07-08) — Site-Wide Verification + Report — FEATURE COMPLETE
+
+- **All 16 update-website.md Step-8 checks pass.** Automated sweep: 6 pages exist; every internal `.html` link resolves; evaluation text verified sentence-by-sentence against the true pre-migration original (`a7a7c4b~1:docs/index.html`) — 0 substantive sentences absent; zero external `<script src>`; 10/10 Amazon ASINs on index/press/evaluation; repo URL + email on all 6 pages; all screenshot raw-URLs resolve to git-tracked files; 6 unique OG titles; hamburger + mobile-menu on every page; `docs/architecture/*.md` + `og-image.png` untouched; no tracking; all 78 CHANGELOG entries represented in changelog.html.
+- **Two false positives triaged, no fix-ups needed:** (1) v0.5.8/v0.6.0 strings are historical content inside the March "Deployment Prep" changelog entry — all 6 nav badges and 6 footer versions are v0.8.0; (2) Onboarding SESSION-04 tooltips entry is covered by the merged 5-session block (fuzzy path-match under-scores merged blocks).
+- **Cross-phase consistency verified:** RELEASE_NOTES v0.8.0 = site badges; all RELEASE_NOTES headline features (multi-provider, Codex, tracked editing, version history, command palette, Manuscript view) present in README; site claims sourced from the SESSION-03 README. `package.json` remains 0.2.0 — intentionally decoupled and quoted nowhere (SESSION-01 quirk).
+- **Left for the user (Ready to Ship):** review RELEASE_NOTES.md + README diff, preview docs/index.html, `git tag v0.8.0`, `git push origin main --tags`. Note: raw-GitHub screenshot URLs and the evaluation link resolve publicly only after push. CHANGELOG.md's uncommitted 2026-07-02 entry (untouched by this program) should be committed before tagging.
