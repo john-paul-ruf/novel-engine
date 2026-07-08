@@ -799,17 +799,17 @@ export function SettingsView(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<SettingsTab>('writing');
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-ne-bg0">
       {/* Tab bar */}
-      <div className="flex shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-6 pt-4">
+      <div className="flex shrink-0 border-b border-ne-line bg-ne-bg0 px-6 pt-4">
         {(['writing', 'providers', 'appearance', 'profile'] as SettingsTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`mr-1 px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab
-                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                ? 'border-b-2 border-ne-brass text-ne-ink'
+                : 'text-ne-ink-faint hover:text-ne-ink-dim'
             }`}
           >
             {TAB_LABELS[tab]}

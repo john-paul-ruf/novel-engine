@@ -3,7 +3,10 @@ import { useBookStore } from '../../stores/bookStore';
 import { useViewStore } from '../../stores/viewStore';
 import type { BuildFormat, BuildResult } from '@domain/types';
 
-const FORMAT_LABELS: Record<BuildFormat, string> = {
+// Pieces below are exported for reuse by ExportsView (SESSION-12);
+// this legacy view is deleted wholesale in SESSION-14, which re-homes them.
+
+export const FORMAT_LABELS: Record<BuildFormat, string> = {
   md: 'Markdown',
   docx: 'Word Document',
   epub: 'EPUB',
@@ -18,14 +21,14 @@ const FORMAT_ICONS: Record<BuildFormat, string> = {
 };
 
 /** Formats produced by BuildService, in display order. */
-const KNOWN_FORMATS: BuildFormat[] = ['md', 'docx', 'epub', 'pdf'];
+export const KNOWN_FORMATS: BuildFormat[] = ['md', 'docx', 'epub', 'pdf'];
 
 /** Build output filenames based on the book slug. */
-function getOutputFilename(slug: string, format: BuildFormat): string {
+export function getOutputFilename(slug: string, format: BuildFormat): string {
   return `${slug}.${format}`;
 }
 
-function ProgressLog({
+export function ProgressLog({
   logs,
   isBuilding,
 }: {
@@ -74,7 +77,7 @@ function ProgressLog({
   );
 }
 
-function OutputFiles({
+export function OutputFiles({
   buildResult,
   activeSlug,
 }: {
@@ -152,11 +155,22 @@ function OutputFiles({
   );
 }
 
-export function BuildView(): React.ReactElement {
-  const { activeSlug, totalWordCount, books } = useBookStore();
-  const { navigate } = useViewStore();
-  const activeBook = books.find((b) => b.slug === activeSlug);
-
+/**
+ * The manuscript build/export state machine — Pandoc check, existing-output
+ * scan, progress streaming, build + zip export. Shared by the legacy
+ * BuildView and the new ExportsView (each instance holds its own log).
+ */
+export function useManuscriptBuild(activeSlug: string): {
+  logs: string[];
+  isBuilding: boolean;
+  isExporting: boolean;
+  buildResult: BuildResult | null;
+  pandocAvailable: boolean;
+  exportMessage: string | null;
+  hasSuccessfulFormats: boolean;
+  handleBuild: () => Promise<void>;
+  handleExportZip: () => Promise<void>;
+} {
   const [logs, setLogs] = useState<string[]>([]);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -253,12 +267,42 @@ export function BuildView(): React.ReactElement {
     }
   };
 
+  const hasSuccessfulFormats =
+    buildResult !== null && buildResult.formats.some((f) => !f.error);
+
+  return {
+    logs,
+    isBuilding,
+    isExporting,
+    buildResult,
+    pandocAvailable,
+    exportMessage,
+    hasSuccessfulFormats,
+    handleBuild,
+    handleExportZip,
+  };
+}
+
+export function BuildView(): React.ReactElement {
+  const { activeSlug, totalWordCount, books } = useBookStore();
+  const { navigate } = useViewStore();
+  const activeBook = books.find((b) => b.slug === activeSlug);
+
+  const {
+    logs,
+    isBuilding,
+    isExporting,
+    buildResult,
+    pandocAvailable,
+    exportMessage,
+    hasSuccessfulFormats,
+    handleBuild,
+    handleExportZip,
+  } = useManuscriptBuild(activeSlug);
+
   const handleOpenPandocSite = () => {
     window.novelEngine.shell.openExternal('https://pandoc.org');
   };
-
-  const hasSuccessfulFormats =
-    buildResult && buildResult.formats.some((f) => !f.error);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">

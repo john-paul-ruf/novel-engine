@@ -294,11 +294,11 @@ export function StatisticsView(): React.ReactElement {
   }, [activeSlug, bookFilter, load]);
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto bg-ne-bg0">
       <div className="max-w-5xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Writing Statistics</h1>
+          <h1 className="font-ne-serif text-[26px] font-medium text-ne-ink">Writing Statistics</h1>
           <div className="flex items-center gap-3">
             {loading && (
               <span className="text-xs text-zinc-400 dark:text-zinc-500">Loading...</span>

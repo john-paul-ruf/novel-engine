@@ -24,7 +24,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 09 | Split pane — chat + companion shell | M10 | done | 2026-07-07 | Split workbench live; also touched QuickActions.tsx (compact chip trigger per §3) |
 | 10 | Companion content tabs | M10 | done | 2026-07-07 | All 5 tabs live; ProseViewer + useBookFile shared; also touched PhaseHeader (chip wiring per §6); Motifs embeds MotifLedgerView lazily (mount-on-first-visit) |
 | 11 | Manuscript view (read + edit) | M10 | done | 2026-07-07 | Rail + Reader(chapter/full-book) + Editor live; also touched FilesView (deep-dive → shared hook per §1), ProseViewer (`wide`), hooks/useChapterDeepDive.ts (new, per §1) |
-| 12 | Exports, Statistics, Settings routing | M10 | pending | — | |
+| 12 | Exports, Statistics, Settings routing | M10 | done | 2026-07-07 | ExportsView live (spine build-phase target now real); BuildView exports hook+components; trivial ne reskin on Statistics header + Settings tab bar |
 | 13 | Pitch Room + palette-launched actions | M10 | pending | — | |
 | 14 | Legacy removal, tours, final audit | M10 | pending | — | |
 
@@ -78,6 +78,21 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-12 (2026-07-07)
+
+**Built:** `Exports/ExportsView.tsx` (serif header + book subline, build card with format chips + brass build button + reused `ProgressLog`, reused `OutputFiles`, "Read it in Manuscript →" link, no-book empty state). AppLayout `exports` placeholder replaced — the S07 spine's build-phase `navigate('exports')` now lands on a real view.
+
+**BuildView internals exported for reuse (S14 re-homes these when deleting the legacy wrapper):** `FORMAT_LABELS`, `KNOWN_FORMATS`, `getOutputFilename`, `ProgressLog`, `OutputFiles`, and **`useManuscriptBuild(activeSlug)`** — the whole state machine (pandoc check, dist/ pre-scan, `build:progress` streaming, build + exportZip, exportMessage auto-clear) extracted verbatim; BuildView itself now consumes the hook (zero behavior change, "Read Full Manuscript" button kept in the legacy view only).
+
+**Format selection is preselect-only:** `build.run(slug)` has no per-format IPC (all formats are always generated together — the card says so). Palette "Export as DOCX/EPUB/Markdown" navigates to exports + preselects the chip via a module-level setter (`preselectFormatFromPalette`, assigned while ExportsView is mounted). Also registered: Actions "Open Settings"/"Open Statistics" (per session — they duplicate the S04 Navigate items; S14 audit may prune one set).
+
+**Reskin (beyond file table, prescribed by §2, chrome only):** `Statistics/StatisticsView.tsx` (page bg → `ne-bg0`, h1 → serif ink) and `Settings/SettingsView.tsx` (page bg + tab bar → ne tokens, active tab brass). Charts/tabs/providers/tours untouched.
+
+**Warnings:**
+- BuildView + ExportsView are both always mounted and both subscribe to `build:progress` — a build streams into BOTH logs (each instance holds its own array). Harmless; resolves when S14 deletes BuildView.
+- `OutputFiles` (reused, not rebuilt) still renders emoji format icons inside the new Exports screen — legacy component, S14 re-home should swap to `Icon`.
+- Statistics/Settings internals still zinc-styled on the new `ne-bg0` page background — acceptable in both themes; full reskin was out of scope.
 
 ### SESSION-11 (2026-07-07)
 

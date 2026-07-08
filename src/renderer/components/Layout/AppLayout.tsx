@@ -31,6 +31,7 @@ import { LibraryView } from '../Library/LibraryView';
 import { WorkspaceView } from '../Workbench/WorkspaceView';
 import { CommandPalette } from '../Palette/CommandPalette';
 import { ManuscriptView } from '../Manuscript/ManuscriptView';
+import { ExportsView } from '../Exports/ExportsView';
 import { usePaletteStore } from '../../stores/paletteStore';
 
 /**
@@ -105,9 +106,8 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'manuscript' ? '' : 'hidden'}`}>
         <ManuscriptView />
       </div>
-      {/* Streamlined Workspace placeholder — replaced in SESSION-12 */}
       <div className={`h-full ${currentView === 'exports' ? '' : 'hidden'}`}>
-        <div className="p-8 text-sm opacity-60">Exports — arrives in SESSION-12</div>
+        <ExportsView />
       </div>
     </>
   );
