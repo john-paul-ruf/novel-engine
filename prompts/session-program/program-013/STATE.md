@@ -19,7 +19,7 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 | 01 | Generate Release Notes | 1 | — (git, CHANGELOG) | done | 2026-07-08 | 60 commits since v0.7.0; RELEASE_NOTES.md written; suggested v0.8.0 (minor); no breaking changes |
 | 02 | Full Codebase Analysis for README | 2 | reads M01–M10 | done | 2026-07-08 | Artifact written; 12 new features, 15 phantom/stale claims found |
 | 03 | README Rewrite | 2 | — (README.md) | done | 2026-07-08 | Full rewrite; +9 feature sections, −5 phantom sections; screenshots refreshed |
-| 04 | Evaluation Migration + Design System | 3 | — (docs/) | pending | | Must precede 05 — rescues old index.html content |
+| 04 | Evaluation Migration + Design System | 3 | — (docs/) | done | 2026-07-08 | Migration already existed from v0.7.0 cycle; content parity verified vs pre-migration original; version badge → v0.8.0 |
 | 05 | Landing Page | 3 | — (docs/) | pending | | |
 | 06 | Architecture + Changelog Pages | 3 | — (docs/) | pending | | |
 | 07 | Press Kit + Contact Pages | 3 | — (docs/) | pending | | |
@@ -94,3 +94,12 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 - **New highlighted legal box "Your Words Are Yours"**: AGPL applies to application code only; manuscripts/exports are the author's exclusive property. Repeated in the License section. This addresses author AGPL/KDP provenance anxiety.
 - **All engineering content moved to `TECHNICAL.md` (repo root, new file)**: backends internals, context assembly, precise pipeline detection table, feature internals, building for distribution, project structure, tech stack, architecture, DB schema. README links to it from "For Developers".
 - **Website sessions (04–07) must mirror this framing**: writer-first voice, download-first hero, ten-books social proof up top, unsigned-install guidance, the "Your Words Are Yours" legal reassurance, and links to TECHNICAL.md for depth. The evaluation link target (evaluation.html) is unchanged.
+
+### SESSION-04 (2026-07-08) — Evaluation Migration + Design System
+
+- **Key discovery: the SESSION-04 premise was stale.** The 6-page site already exists — the evaluation was migrated from the old single-page `index.html` to `evaluation.html` in the **v0.7.0 cycle** (commit `a7a7c4b` "website build out"; current landing `index.html` dates from then too). Nothing was at risk of destruction; per the "partially built — don't rebuild what works" rule, this session verified instead of rebuilt.
+- **Content parity verified against the true original** (`git show a7a7c4b~1:docs/index.html`): all 10 titles, all 10 blended scores (9.4→7.0), verdict bar, disclosure note, legend, tier table, and every Claude/ChatGPT review sentence present verbatim. Only absent text is the old standalone footer link block, superseded by the shared footer (same links) per spec §3.2.
+- **Only change made: version badge `v0.7.0` → `v0.8.0`** in nav (line 171) and footer (line 448) — tag-based version per SESSION-01 quirk, NOT package.json's `0.2.0`.
+- **evaluation.html IS the canonical pattern for 05–07**: `:root` tokens match Step 4 byte-for-byte; sticky nav (brand + version badge + 6 links + GitHub icon + hamburger <760px, `.active` on current page); three-column `site-footer` with "No tracking. No cookies. No analytics."; breadcrumb; unique OG tags with per-page `og:url`. Zero `<script>` tags — mobile menu uses an inline `onclick` toggle. Google Fonts `<link>` is the one external resource (allowed by Step 4 typography).
+- **SESSION-05 may now overwrite `index.html`** — but note it is NOT the old evaluation page; it's the v0.7.0 landing page ("Build Books, Not Write Them"). 05 should treat it as the outgoing landing page to be replaced with the writer-first redesign. Existing `architecture/changelog/press/contact.html` likewise date from v0.7.0 — sessions 06/07 update rather than create, and must bump their badges to v0.8.0 too.
+- **Protected files untouched**: `docs/index.html`, `docs/og-image.png`, `docs/architecture/*.md` (git status clean apart from `evaluation.html`).
