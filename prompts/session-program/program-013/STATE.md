@@ -18,7 +18,7 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 |---|---------|-------|---------|--------|-----------|-------|
 | 01 | Generate Release Notes | 1 | — (git, CHANGELOG) | done | 2026-07-08 | 60 commits since v0.7.0; RELEASE_NOTES.md written; suggested v0.8.0 (minor); no breaking changes |
 | 02 | Full Codebase Analysis for README | 2 | reads M01–M10 | done | 2026-07-08 | Artifact written; 12 new features, 15 phantom/stale claims found |
-| 03 | README Rewrite | 2 | — (README.md) | pending | | |
+| 03 | README Rewrite | 2 | — (README.md) | done | 2026-07-08 | Full rewrite; +9 feature sections, −5 phantom sections; screenshots refreshed |
 | 04 | Evaluation Migration + Design System | 3 | — (docs/) | pending | | Must precede 05 — rescues old index.html content |
 | 05 | Landing Page | 3 | — (docs/) | pending | | |
 | 06 | Architecture + Changelog Pages | 3 | — (docs/) | pending | | |
@@ -76,4 +76,14 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 - **Artifact:** `prompts/session-program/program-013/artifacts/readme-analysis.md` (15 sections, all claims file-cited). No repo files modified.
 - **New features discovered: 12** (multi-provider backends, streamlined UI shell, tracked editing, version-history-everywhere, Chapter Deep Dive, dual model pickers, Fable probe, multi-call orchestration, back-matter chapters, build ZIP export, context diagnostics, misc).
 - **Phantom/stale README claims found: 15** — biggest: Sidebar Bookshelf / Five-Tab Files View / Dashboard / Reading Mode views no longer exist (replaced by Library/Workspace/Manuscript); all 12 README screenshots reference deleted files (9 new 2026-07-08 screenshots exist in `screenshots/`); file count is 187 not 170; stores are 25 not 23; DB tables are 8 not 7; Hot Take is NOT pinned to Opus; Wrangler is not pinned to Sonnet.
+- *(see SESSION-03 notes below for what the README now claims)*
 - **Surprises:** (1) The "Wrangler two-call context pattern" is NOT implemented — context assembly is deterministic ContextBuilder + turn compaction; the only Wrangler call is revision-plan parsing (WRANGLER-PARSE.md via loadRaw; registry quirk: AGENT_REGISTRY points to nonexistent WRANGLER.md). (2) Preservation spec mismatch: README has NO "# Heads up" or "# Questions, comments, or rants?" sections — it has `# Dedication` + `# Foreword` (both captured verbatim in the artifact); the Testers-Needed blockquote carries the contact email. (3) BuildService produces MD+DOCX+EPUB3 only — no PDF despite the build phase description. (4) There are 9 registry agents (7 creative + Wrangler + Helper) — keep "seven agents" language for the editorial team only.
+
+### SESSION-03 (2026-07-08) — README Rewrite
+
+- **README.md fully rewritten** (verified against the SESSION-02 artifact; preserved `# Dedication` + `# Foreword` byte-identical — git diff first hunk starts at line 25; all local links verified to resolve).
+- **Added feature sections (9):** Multi-Provider AI Backends, The Streamlined Workspace, Tracked Chapter Editing, Chapter Deep Dive, Live Activity Monitor (reframed), version-history-everywhere (merged into File Version History), back matter + updated Book Management, multi-call orchestration (in providers section), refreshed onboarding flow (Provider Setup step).
+- **Removed phantom sections (5):** Sidebar Bookshelf, Five-Tab Files View, Book Overview Dashboard, Reading Mode (folded into Manuscript), About.json Editor. Fixed model claims: Hot Take no longer "always Opus"; Wrangler no longer "Claude Sonnet".
+- **Screenshots:** hero + 6-image gallery using the new 2026-07-08 screenshots (Workspace hero; Library, Command Palette, Manuscript reader, Manuscript editor, Providers, Model Selection). Appearance + Profile shots unused.
+- **Corrected counts:** 187 TS/TSX files, 25 stores, 8 DB tables. Tech stack adds Fontsource fonts, undici, Pandoc 3.6.4, Codex/Ollama/llama-server backends. No version number quoted anywhere (About panel says v0.1.0, package.json 0.2.0, tag v0.8.0 — intentionally avoided).
+- **For the website sessions (04–07):** the app's five surfaces are Library / Workspace / Manuscript / Exports / Statistics+Settings; onboarding step 2 is now "Provider Setup" (Claude + Codex detection); prerequisites = "at least one AI backend" (Claude CLI, Codex CLI, Ollama, llama-server, OpenAI-compatible); build outputs are MD/DOCX/EPUB (no PDF); book list for the Foreword/site is the 10 titles in README lines 8–18; evaluation link points at john-paul-ruf.github.io/novel-engine/evaluation.html (SESSION-04 must create this page).
