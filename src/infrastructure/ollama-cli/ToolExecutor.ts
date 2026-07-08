@@ -22,15 +22,21 @@ export type ToolResult = {
 /**
  * ToolExecutor — Executes tool calls from Ollama's function-calling API.
  *
- * All file operations are sandboxed to the book's working directory.
- * Path traversal attempts (e.g. "../../etc/passwd") are rejected.
+ * All file operations are sandboxed to the working directory plus any
+ * additional allowed roots. Path traversal attempts (e.g. "../../etc/passwd")
+ * are rejected.
  *
  * Supported tools: Read, Write, Edit, LS.
  */
 export class ToolExecutor {
   constructor(
-    /** Absolute path to the book's root directory. */
+    /** Absolute path to the working directory — base for resolving relative paths. */
     private readonly bookDir: string,
+    /**
+     * Additional absolute roots that tool paths may target (e.g. the books
+     * directory, so Pitch Room agents can scaffold new book folders).
+     */
+    private readonly additionalRoots: string[] = [],
   ) {}
 
   /**
@@ -170,13 +176,20 @@ export class ToolExecutor {
   // ── Safety helpers ────────────────────────────────────────────────
 
   /**
-   * Resolve a relative path within the book directory.
-   * Rejects any path that would escape the sandbox.
+   * Resolve a path against the working directory and verify it stays within
+   * an allowed root (the working directory or any additional root).
    */
-  private resolveSafe(relativePath: string): string {
-    const resolved = path.resolve(this.bookDir, relativePath);
-    if (!resolved.startsWith(this.bookDir)) {
-      throw new Error(`Path traversal blocked: "${relativePath}" resolves outside the book directory`);
+  private resolveSafe(inputPath: string): string {
+    const resolved = path.resolve(this.bookDir, inputPath);
+    const roots = [this.bookDir, ...this.additionalRoots];
+    const allowed = roots.some((root) => {
+      const rel = path.relative(root, resolved);
+      return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+    });
+    if (!allowed) {
+      throw new Error(
+        `Path traversal blocked: "${inputPath}" resolves outside the allowed directories`,
+      );
     }
     return resolved;
   }

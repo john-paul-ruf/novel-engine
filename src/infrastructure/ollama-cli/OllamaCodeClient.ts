@@ -321,7 +321,7 @@ export class OllamaCodeClient implements IModelProvider {
     const bookDir = bookSlug
       ? path.join(this.booksDir, bookSlug)
       : (params.workingDir ?? this.booksDir);
-    const toolExecutor = new ToolExecutor(bookDir);
+    const toolExecutor = new ToolExecutor(bookDir, [this.booksDir]);
 
     const _totalChars = apiMessages.reduce((s, m) => s + m.content.length, 0);
     console.log(
