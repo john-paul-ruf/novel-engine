@@ -4,6 +4,8 @@ import { Icon } from '../common/Icon';
 import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
 import { usePaletteStore } from '../../stores/paletteStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { PIPELINE_PHASES } from '@domain/constants';
 
 const isMac = navigator.userAgent.includes('Macintosh');
 
@@ -27,7 +29,14 @@ const VIEW_LABELS: Record<string, string> = {
 function Breadcrumb(): React.ReactElement {
   const currentView = useViewStore((s) => s.currentView);
   const bookTitle = useBookStore((s) => s.books.find((b) => b.slug === s.activeSlug)?.title);
-  const label = VIEW_LABELS[currentView] ?? '';
+  const selectedPhaseId = useWorkspaceStore((s) => s.selectedPhaseId);
+
+  // In the Workspace the breadcrumb shows the selected phase: "{Book} / {Phase}"
+  const phaseLabel =
+    currentView === 'workspace' && selectedPhaseId
+      ? PIPELINE_PHASES.find((p) => p.id === selectedPhaseId)?.label ?? null
+      : null;
+  const label = phaseLabel ?? VIEW_LABELS[currentView] ?? '';
 
   if (currentView === 'library' || !bookTitle) {
     return <span className="text-xs font-semibold text-ne-ink">{label}</span>;

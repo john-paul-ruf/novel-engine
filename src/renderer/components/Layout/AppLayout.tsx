@@ -28,6 +28,7 @@ import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 import { IconRail } from '../Rail/IconRail';
 import { LibraryView } from '../Library/LibraryView';
+import { WorkspaceView } from '../Workbench/WorkspaceView';
 import { CommandPalette } from '../Palette/CommandPalette';
 import { usePaletteStore } from '../../stores/paletteStore';
 
@@ -97,10 +98,10 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'library' ? '' : 'hidden'}`}>
         <LibraryView />
       </div>
-      {/* Streamlined Workspace placeholders — replaced in Phase B/C sessions */}
       <div className={`h-full ${currentView === 'workspace' ? '' : 'hidden'}`}>
-        <div className="p-8 text-sm opacity-60">Workspace — arrives in SESSION-08</div>
+        <WorkspaceView />
       </div>
+      {/* Streamlined Workspace placeholders — replaced in Phase B/C sessions */}
       <div className={`h-full ${currentView === 'manuscript' ? '' : 'hidden'}`}>
         <div className="p-8 text-sm opacity-60">Manuscript — arrives in SESSION-11</div>
       </div>

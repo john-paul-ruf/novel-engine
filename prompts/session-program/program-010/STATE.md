@@ -20,7 +20,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 05 | Status bar + activity drawer | M10 | done | 2026-07-07 | Bottom status bar + drawer live; cost-today deferred (session tokens shown); also touched useVerticalResize (direction:'up') |
 | 06 | Library view (bookshelf) | M10 | done | 2026-07-07 | Shelf grid + modals live; reuses ImportChoiceModal/AboutJsonViewer; SeriesModal + import wizards still mounted via BookPanel (S14 must re-home) |
 | 07 | Pipeline spine panel | M10 | done | 2026-07-07 | Spine + workspaceStore + stages built; NOT yet mounted (S08 mounts it in the workbench); tsc + boot verified via temp mount |
-| 08 | Workbench shell + phase header | M10 | pending | — | |
+| 08 | Workbench shell + phase header | M10 | done | 2026-07-07 | WorkspaceView live (spine + header + temp body); also touched PipelineSpine (usePhaseAction extraction per §2) + TitleBar (phase breadcrumb per verification) |
 | 09 | Split pane — chat + companion shell | M10 | pending | — | |
 | 10 | Companion content tabs | M10 | pending | — | |
 | 11 | Manuscript view (read + edit) | M10 | pending | — | |
@@ -78,6 +78,23 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-08 (2026-07-07)
+
+**Built:** `Workbench/WorkspaceView.tsx` (spine + workbench column; locked-phase card with "Unlocks after {prev}"; temp body panel until S09), `Workbench/PhaseHeader.tsx` (`data-tour="phase-header"`; serif phase name + `{Agent} — {Role}` from AGENT_REGISTRY + agentColor dot; artifact chips; primary action right), `Workbench/usePhaseConversations.ts`. AppLayout `workspace` placeholder replaced — **the spine is now mounted and workspaceStore subscriptions are live.**
+
+**`usePhaseConversations(phaseId)` contract (for S09):** returns `{ conversations, activeConversation, selectConversation(id), createConversation() }`. **Conversations ARE phase-tagged** (`Conversation.pipelinePhase: PipelinePhaseId | null`) — scoping is `agentName === phase.agent && pipelinePhase === phase.id`, sorted by `updatedAt` desc; chatStore already holds only the active book's conversations. `activeConversation` is chatStore's active conversation ONLY if it belongs to the phase (else null). Auto-activation of the most recent conversation happens ONLY while `currentView === 'workspace'` (guard prevents hijacking the legacy chat view). `createConversation()` creates a phase-tagged conversation with the phase's agent — S09 renders the "+ New conversation" affordance. WorkspaceView passes `null` for locked phases (no auto-activation).
+
+**Beyond the file table (both justified):**
+- `PipelineSpine/usePhaseAction.ts` (new) + `PipelineSpine.tsx` (refactor): the S07 CurrentPhaseCard logic was extracted into the shared `usePhaseAction(phase | null, activeSlug)` hook per this session's §2 ("share one usePhaseAction() helper with S07"). Returns `{ primary, micro, error, busy, confirming, isPending, isFirstDraft, isRevisionQueuePhase, autoDraftRunning, stopAutoDraft, completeRevisionAction, openRevisionQueue }`. Card and header both consume it; passing `phase = null` yields an inert state (header does this for non-current phases).
+- `Layout/TitleBar.tsx`: Breadcrumb shows "{Book} / {Phase label}" in the workspace view (verification item), falling back to "Workspace" when no phase is selected.
+
+**Artifact chips:** file lists = `PHASE_INPUT_ARTIFACTS` (local map in PhaseHeader for first-draft/revision/mechanical-fixes — inputs per session example) else `PHASE_OUTPUT_FILES` from `@domain/constants`; capped at 4; existence via `files.exists`; green check when present; **click is a no-op with tooltip until S10 wires companion opening** (tooltip says so). `build` has no chips (dist path is slug-dependent; nothing sensible in the constants).
+
+**Warnings:**
+- Header primary action renders ONLY when the selected phase IS the pipeline's current phase; otherwise a "Go to current phase" ghost button (per spec).
+- `usePhaseAction` is instantiated twice when the current phase is selected (spine card + header) — the two instances have independent `confirming`/`error` local state; harmless (actions are store-backed) but arm-to-confirm must be completed on the same button.
+- Artifact chips for phases with 2 output files (revision plans) show both; pitch/scaffold show their single output — if S10 wants richer input lists, extend `PHASE_INPUT_ARTIFACTS`.
 
 ### SESSION-07 (2026-07-07)
 
