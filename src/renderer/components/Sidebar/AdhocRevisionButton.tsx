@@ -4,6 +4,18 @@ import { useChatStore } from '../../stores/chatStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { Tooltip } from '../common/Tooltip';
 
+/**
+ * Open the shared revision queue modal (RevisionQueueModal, mounted in
+ * AppLayout) for the active book. Used by the command palette; SESSION-13
+ * unifies the button below onto this same path.
+ * No-ops when there is no active book.
+ */
+export function openAdhocRevisions(): void {
+  const { activeSlug } = useBookStore.getState();
+  if (!activeSlug) return;
+  useRevisionQueueStore.getState().openModal(activeSlug);
+}
+
 export function AdhocRevisionButton({ compact = false }: { compact?: boolean } = {}): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
   const isStreaming = useChatStore((s) => s.isStreaming);

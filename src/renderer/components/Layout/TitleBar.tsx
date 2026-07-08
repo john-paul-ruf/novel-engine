@@ -3,6 +3,7 @@ import { Tooltip } from '../common/Tooltip';
 import { Icon } from '../common/Icon';
 import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
+import { usePaletteStore } from '../../stores/paletteStore';
 
 const isMac = navigator.userAgent.includes('Macintosh');
 
@@ -54,14 +55,11 @@ function WordCount(): React.ReactElement | null {
   );
 }
 
-/**
- * ⌘K pill — opens the command palette. Until SESSION-04 lands, this
- * dispatches the `ne:open-palette` window event (no dead import).
- */
+/** ⌘K pill — opens the command palette. */
 function CommandPill(): React.ReactElement {
   return (
     <button
-      onClick={() => window.dispatchEvent(new CustomEvent('ne:open-palette'))}
+      onClick={() => usePaletteStore.getState().open()}
       className="no-drag flex items-center gap-1.5 rounded-md border border-ne-line bg-ne-bg2 px-2 py-[3px] text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass hover:text-ne-ink"
     >
       <Icon name="search" size={12} strokeWidth={2} />

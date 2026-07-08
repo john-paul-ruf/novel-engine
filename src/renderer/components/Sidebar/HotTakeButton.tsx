@@ -5,13 +5,32 @@ import { useViewStore } from '../../stores/viewStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
 import { Tooltip } from '../common/Tooltip';
 
+/**
+ * Start a Hot Take session for the active book and navigate to chat.
+ * Shared by the sidebar button and the command palette — one code path.
+ * No-ops when there is no active book or a stream is already running.
+ */
+export async function startHotTake(): Promise<void> {
+  const { activeSlug } = useBookStore.getState();
+  const { isStreaming, loadConversations, setActiveConversation, attachToExternalStream } =
+    useChatStore.getState();
+  if (!activeSlug || isStreaming) return;
+
+  try {
+    const { conversationId, callId } = await window.novelEngine.hotTake.start(activeSlug);
+
+    await loadConversations(activeSlug);
+    await setActiveConversation(conversationId);
+    attachToExternalStream(callId, conversationId);
+    useViewStore.getState().navigate('chat');
+  } catch (error) {
+    console.error('Failed to start hot take:', error);
+  }
+}
+
 export function HotTakeButton({ compact = false }: { compact?: boolean } = {}): React.ReactElement | null {
   const activeSlug = useBookStore((s) => s.activeSlug);
   const isStreaming = useChatStore((s) => s.isStreaming);
-  const loadConversations = useChatStore((s) => s.loadConversations);
-  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
-  const attachToExternalStream = useChatStore((s) => s.attachToExternalStream);
-  const navigate = useViewStore((s) => s.navigate);
   const fileRevision = useFileChangeStore((s) => s.revision);
   const [hasChapters, setHasChapters] = useState(false);
 
@@ -28,20 +47,9 @@ export function HotTakeButton({ compact = false }: { compact?: boolean } = {}): 
     }).catch(() => setHasChapters(false));
   }, [activeSlug, fileRevision]);
 
-  const handleClick = useCallback(async () => {
-    if (!activeSlug || isStreaming) return;
-
-    try {
-      const { conversationId, callId } = await window.novelEngine.hotTake.start(activeSlug);
-
-      await loadConversations(activeSlug);
-      await setActiveConversation(conversationId);
-      attachToExternalStream(callId, conversationId);
-      navigate('chat');
-    } catch (error) {
-      console.error('Failed to start hot take:', error);
-    }
-  }, [activeSlug, isStreaming, loadConversations, setActiveConversation, attachToExternalStream, navigate]);
+  const handleClick = useCallback(() => {
+    void startHotTake();
+  }, []);
 
   if (!activeSlug || !hasChapters) return null;
 

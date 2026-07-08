@@ -9,6 +9,8 @@ type BookState = {
   archivedBooks: BookSummary[];
   activeSlug: string;
   totalWordCount: number;
+  /** Chapters of the active book (slug + word count), refreshed with the word count. */
+  chapters: { slug: string; wordCount: number }[];
   loading: boolean;
   loadBooks: () => Promise<void>;
   setActiveBook: (slug: string) => Promise<void>;
@@ -48,6 +50,7 @@ export const useBookStore = create<BookState>((set, get) => ({
   archivedBooks: [],
   activeSlug: '',
   totalWordCount: 0,
+  chapters: [],
   loading: false,
 
   loadBooks: async () => {
@@ -104,7 +107,7 @@ export const useBookStore = create<BookState>((set, get) => ({
   refreshWordCount: async () => {
     const { activeSlug, books } = get();
     if (!activeSlug) {
-      set({ totalWordCount: 0 });
+      set({ totalWordCount: 0, chapters: [] });
       return;
     }
 
@@ -117,7 +120,7 @@ export const useBookStore = create<BookState>((set, get) => ({
         b.slug === activeSlug ? { ...b, wordCount: total } : b
       );
 
-      set({ totalWordCount: total, books: updatedBooks });
+      set({ totalWordCount: total, books: updatedBooks, chapters });
     } catch (error) {
       console.error('Failed to refresh word count:', error);
     }

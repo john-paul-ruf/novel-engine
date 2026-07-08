@@ -16,7 +16,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 01 | Design tokens & typography foundation | M10 | done | 2026-07-07 | Additive only — tokens + fonts + agentColors.ts; no existing component touched |
 | 02 | viewStore v5 — new view routing | M10 | done | 2026-07-07 | ViewId extended, persist v5 migration forwards legacy views, placeholders mounted, `navigateToPhase` exported |
 | 03 | Icon rail + title bar breadcrumb | M10 | done | 2026-07-07 | Rail + breadcrumb + ⌘K pill live; Sidebar lost bottom-nav only; legacy views now reachable only via in-app links until S05/S08 |
-| 04 | Command palette + action registry | M10 | pending | — | |
+| 04 | Command palette + action registry | M10 | done | 2026-07-07 | Palette + registry live; ⌘K/Ctrl+K global; also touched bookStore (chapters cache) + both Sidebar button files (trigger extraction per §2) |
 | 05 | Status bar + activity drawer | M10 | pending | — | |
 | 06 | Library view (bookshelf) | M10 | pending | — | |
 | 07 | Pipeline spine panel | M10 | pending | — | |
@@ -78,6 +78,25 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-04 (2026-07-07)
+
+**Built:** `stores/paletteStore.ts` (open/query state + registry + built-ins), `Palette/CommandPalette.tsx` (590px overlay, grouped results, full keyboard support), `PaletteManager` in AppLayout (⌘K/Ctrl+K toggle, Escape close, `ne:open-palette` listener kept as fallback), TitleBar pill now calls `usePaletteStore.getState().open()` directly.
+
+**Registry API for S06/S11/S13 (from `stores/paletteStore.ts`):**
+- `usePaletteStore.getState().registerItems(items: PaletteItem[])` — append static items (call once at module scope).
+- `usePaletteStore.getState().registerProvider(fn: () => PaletteItem[])` — dynamic items, re-evaluated on every palette render (cheap sync reads of other stores only).
+- `PaletteItem = { id, group: 'Actions'|'Phases'|'Chapters'|'Books'|'Navigate', label, hint?, icon?: IconName, color?, keywords?, enabled?: () => boolean, run: () => void | Promise<void> }`. Groups render in that fixed order. `enabled()` false → dimmed + unrunnable. CommandPalette closes itself BEFORE invoking `run()`.
+- 'Books' group is registered by nobody yet — reserved for S06.
+
+**Beyond the file table (justified):**
+- `stores/bookStore.ts`: added `chapters: {slug, wordCount}[]` — populated by `refreshWordCount()` (data was already fetched, now cached; cleared when no active book). The palette Chapters provider reads it.
+- `HotTakeButton.tsx`: exports `startHotTake()` — button + palette share one path (per §2).
+- `AdhocRevisionButton.tsx`: exports `openAdhocRevisions()` → `useRevisionQueueStore.openModal(activeSlug)` (the shared RevisionQueueModal in AppLayout). NOTE: the legacy button still opens its own local blocking modal (deprecated RevisionQueueView) — deliberately untouched to avoid behavior change; S13 should unify both onto `openAdhocRevisions()`.
+
+**Warnings:**
+- Palette Hot Take `enabled()` checks activeSlug + !isStreaming but NOT the button's async `hasChapters` check; `startHotTake` itself is safe (backend errors are caught + logged).
+- Phases/Chapters providers read `pipelineStore.phases` / `bookStore.chapters` — both empty until a book is active and loaded; provider items simply don't appear.
 
 ### SESSION-03 (2026-07-07)
 

@@ -26,6 +26,8 @@ import { useRightPanelStore } from '../../stores/rightPanelStore';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 import { IconRail } from '../Rail/IconRail';
+import { CommandPalette } from '../Palette/CommandPalette';
+import { usePaletteStore } from '../../stores/paletteStore';
 
 /**
  * Keeps the stream listener alive for the entire app lifecycle,
@@ -107,6 +109,33 @@ function ViewContent(): React.ReactElement {
   );
 }
 
+/**
+ * Global command palette keybinding: ⌘K/Ctrl+K toggles, Escape closes.
+ * Also honors the `ne:open-palette` CustomEvent (TitleBar pill fallback).
+ */
+function PaletteManager(): null {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        usePaletteStore.getState().toggle();
+      } else if (e.key === 'Escape' && usePaletteStore.getState().isOpen) {
+        usePaletteStore.getState().close();
+      }
+    };
+    const onOpenEvent = (): void => usePaletteStore.getState().open();
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('ne:open-palette', onOpenEvent);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('ne:open-palette', onOpenEvent);
+    };
+  }, []);
+
+  return null;
+}
+
 /** Hydrates the tour store from settings on app mount. */
 function TourManager(): null {
   const settings = useSettingsStore((s) => s.settings);
@@ -161,6 +190,8 @@ export function AppLayout(): React.ReactElement {
         {isCliPanelOpen && <CliActivityPanel />}
       </div>
       {isModalOpen && <ChatModal />}
+      <CommandPalette />
+      <PaletteManager />
       <RevisionQueueModal />
       <CliActivityListener />
       <HelperPanel />
