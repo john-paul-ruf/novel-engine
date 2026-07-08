@@ -1864,3 +1864,26 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-08] — Codex final-output fallback and diagnostics
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now passes `--output-last-message` to `codex exec` and reads the temporary final-message file when JSON stdout closes cleanly without assistant text. Clean no-output failures now include a bounded parsed event tail, making Codex clean exits easier to diagnose when fallback output is unavailable.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added temp final-message file lifecycle, fallback text emission before clean-exit error handling, and parsed Codex event-tail diagnostics.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented Codex `--output-last-message` usage, fallback cleanup, and event-tail diagnostics.
+- `./prompts/session-program/program-016/STATE.md` — Marked SESSION-01 complete with verification notes.
+
+### Fixed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Recovers assistant text from Codex's final-message file when JSON events omit streamed assistant text.
+
+### Architecture Impact
+- CLI invocation behavior: `./src/infrastructure/codex-cli/CodexCliClient.ts` now adds `--output-last-message <tempFile>` to `codex exec` calls.
+- No new IPC channels, renderer stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None

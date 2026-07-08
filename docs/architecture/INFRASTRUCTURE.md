@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-08 (program-015 SESSION-01)
+> Last updated: 2026-07-08 (program-016 SESSION-01)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -108,12 +108,13 @@ Key behavior:
 - Model discovery reads `~/.codex/models_cache.json` defensively, then falls back to built-in `gpt-5.3-codex`
 - Builds an explicit workspace plan before spawn: active-book `cwd` for book conversations, `booksDir` for root calls, or the caller-provided `workingDir`
 - Validates the planned working directory exists before spawning `codex`; missing paths emit an `error` stream event and abort launch
-- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`
+- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --output-last-message <tempFile>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`
 - Falls back to `-c 'sandbox_workspace_write.writable_roots=["<booksDir>"]'` for older Codex CLI installs without `--add-dir` (verified against codex-cli 0.27.0 via `codex debug seatbelt`), so the books root is always writable
+- Reads the temporary `--output-last-message` file on clean close when JSON stdout contained no assistant text, emits that fallback as `textDelta`, then deletes the temp directory
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses JSONL in `--json` mode; non-JSON stdout is captured as bounded diagnostics instead of assistant text
 - Emits native Codex error JSON as `StreamEvent { type: 'error' }` and rejects the run when the process closes
-- Converts clean no-output/no-usage exits into diagnostic `error` events with exit code, signal, elapsed time, workspace mode, JSON event count, last status, stderr tail, and stdout tail
+- Converts clean no-output/no-usage exits into diagnostic `error` events with exit code, signal, elapsed time, workspace mode, JSON event count, parsed event tail, last status, stderr tail, and stdout tail
 - Preserves synthetic `done` only when assistant text streamed but Codex omitted `turn.completed.usage`; token counts are estimated with `CHARS_PER_TOKEN`
 - Uses `turn.completed.usage` when available
 - Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s

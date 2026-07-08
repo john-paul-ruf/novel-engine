@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { execFile } from 'node:child_process';
+import os from 'node:os';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { nanoid } from 'nanoid';
@@ -153,6 +154,7 @@ export class CodexCliClient implements IModelProvider {
 
     const startedAt = Date.now();
     let parsedJsonEventCount = 0;
+    let parsedJsonEventTail: string[] = [];
     let nonJsonStdoutTail = '';
     let lastStatusMessage = '';
     let terminalErrorMessage = '';
@@ -230,6 +232,26 @@ export class CodexCliClient implements IModelProvider {
       throw new Error(message);
     }
 
+    const outputDir = mkdtempSync(path.join(os.tmpdir(), 'novel-engine-codex-'));
+    const outputLastMessagePath = path.join(outputDir, 'last-message.txt');
+
+    const readFallbackOutput = (): string => {
+      try {
+        if (!existsSync(outputLastMessagePath)) return '';
+        return readFileSync(outputLastMessagePath, 'utf-8').trim();
+      } catch {
+        return '';
+      }
+    };
+
+    const cleanupOutputFile = () => {
+      try {
+        rmSync(outputDir, { recursive: true, force: true });
+      } catch {
+        // Best-effort temp cleanup.
+      }
+    };
+
     const args = [
       'exec',
       '--json',
@@ -238,6 +260,7 @@ export class CodexCliClient implements IModelProvider {
       '--skip-git-repo-check',
       '--cd', workspacePlan.argsCwd,
       ...workspacePlan.extraArgs,
+      '--output-last-message', outputLastMessagePath,
       '-',
     ];
 
@@ -271,6 +294,7 @@ export class CodexCliClient implements IModelProvider {
 
       const cleanup = () => {
         flushBatch();
+        cleanupOutputFile();
         if (conversationId) {
           this.activeProcesses.delete(conversationId);
           this.streamBookMap.delete(conversationId);
@@ -293,6 +317,9 @@ export class CodexCliClient implements IModelProvider {
 
       const applyLineResult = (result: CodexLineResult) => {
         if (result.parsedJson) parsedJsonEventCount += 1;
+        if (result.eventSummary) {
+          parsedJsonEventTail = [...parsedJsonEventTail, result.eventSummary].slice(-12);
+        }
         if (result.nonJsonText) nonJsonStdoutTail = this.appendTail(nonJsonStdoutTail, `${result.nonJsonText}\n`);
         if (result.statusMessage) lastStatusMessage = result.statusMessage;
         if (result.errorMessage) terminalErrorMessage = result.errorMessage;
@@ -317,6 +344,11 @@ export class CodexCliClient implements IModelProvider {
           applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock));
         }
         closeTextBlock();
+        const fallbackText = readFallbackOutput();
+        if (fallbackText && outputTextLength === 0) {
+          emitText(fallbackText);
+          closeTextBlock();
+        }
 
         const elapsedMs = Date.now() - startedAt;
         const stderr = stderrBuffer.trim();
@@ -331,6 +363,7 @@ export class CodexCliClient implements IModelProvider {
               elapsedMs,
               workspaceMode: workspacePlan.mode,
               parsedJsonEventCount,
+              parsedJsonEventTail,
               lastStatusMessage,
               stderr,
               stdoutTail,
@@ -348,6 +381,7 @@ export class CodexCliClient implements IModelProvider {
               elapsedMs,
               workspaceMode: workspacePlan.mode,
               parsedJsonEventCount,
+              parsedJsonEventTail,
               lastStatusMessage,
               stderr,
               stdoutTail,
@@ -385,6 +419,7 @@ export class CodexCliClient implements IModelProvider {
             elapsedMs,
             workspaceMode: workspacePlan.mode,
             parsedJsonEventCount,
+            parsedJsonEventTail,
             lastStatusMessage,
             stderr,
             stdoutTail,
@@ -423,12 +458,14 @@ export class CodexCliClient implements IModelProvider {
       return { ...emptyResult, nonJsonText: line };
     }
 
+    const eventSummary = this.summarizeCodexEvent(parsed);
     const errorMessage = this.extractError(parsed);
     if (errorMessage) {
       closeTextBlock();
       onEvent({ type: 'error', message: errorMessage });
       return {
         parsedJson: true,
+        eventSummary,
         errorMessage,
         emittedText: false,
         emittedUsageDone: false,
@@ -456,6 +493,7 @@ export class CodexCliClient implements IModelProvider {
       });
       return {
         parsedJson: true,
+        eventSummary,
         emittedText: Boolean(text),
         emittedUsageDone: true,
       };
@@ -468,6 +506,7 @@ export class CodexCliClient implements IModelProvider {
 
     return {
       parsedJson: true,
+      eventSummary,
       statusMessage: statusMessage || undefined,
       emittedText: Boolean(text),
       emittedUsageDone: false,
@@ -479,6 +518,17 @@ export class CodexCliClient implements IModelProvider {
     return next.length > maxChars ? next.slice(next.length - maxChars) : next;
   }
 
+  private summarizeCodexEvent(event: Record<string, unknown>): string {
+    const type = this.getString(event, 'type') ?? 'unknown';
+    const item = event.item;
+    if (this.isRecord(item)) {
+      const itemType = this.getString(item, 'type');
+      const toolName = this.getString(item, 'name') ?? this.getString(item, 'tool_name');
+      return [type, itemType, toolName].filter(Boolean).join(':');
+    }
+    return type;
+  }
+
   private buildCodexExitMessage(params: {
     summary: string;
     code: number | null;
@@ -486,6 +536,7 @@ export class CodexCliClient implements IModelProvider {
     elapsedMs: number;
     workspaceMode: CodexWorkspacePlan['mode'];
     parsedJsonEventCount: number;
+    parsedJsonEventTail: string[];
     lastStatusMessage: string;
     stderr: string;
     stdoutTail: string;
@@ -498,6 +549,9 @@ export class CodexCliClient implements IModelProvider {
       `workspaceMode=${params.workspaceMode}`,
       `jsonEvents=${params.parsedJsonEventCount}`,
     ];
+    if (params.parsedJsonEventTail.length > 0) {
+      parts.push(`eventTail=${params.parsedJsonEventTail.join(' > ')}`);
+    }
     if (params.lastStatusMessage) parts.push(`lastStatus=${params.lastStatusMessage}`);
     if (params.stderr) parts.push(`stderr=${params.stderr}`);
     if (params.stdoutTail) parts.push(`stdout=${params.stdoutTail}`);
@@ -622,6 +676,7 @@ export class CodexCliClient implements IModelProvider {
 
 type CodexLineResult = {
   parsedJson: boolean;
+  eventSummary?: string;
   nonJsonText?: string;
   statusMessage?: string;
   errorMessage?: string;
