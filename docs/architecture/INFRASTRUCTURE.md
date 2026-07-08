@@ -109,7 +109,7 @@ Key behavior:
 - Builds an explicit workspace plan before spawn: active-book `cwd` for book conversations, `booksDir` for root calls, or the caller-provided `workingDir`
 - Validates the planned working directory exists before spawning `codex`; missing paths emit an `error` stream event and abort launch
 - Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`
-- Falls back to active-book-only workspace access for older Codex CLI installs, logging the fallback and emitting a `status` stream event before spawn
+- Falls back to `-c 'sandbox_workspace_write.writable_roots=["<booksDir>"]'` for older Codex CLI installs without `--add-dir` (verified against codex-cli 0.27.0 via `codex debug seatbelt`), so the books root is always writable
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses `item.completed` assistant messages from JSONL and falls back to plain stdout text lines
 - Uses `turn.completed.usage` when available; otherwise estimates tokens with `CHARS_PER_TOKEN`
@@ -122,8 +122,9 @@ Key behavior:
 |------|---------|
 | `OllamaCodeClient.ts` | Implements `IModelProvider`. Uses Ollama `/api/chat` for streaming text, thinking, and tool-use loops. |
 | `OllamaCliRunner.ts` | Wraps the local `ollama` command for CLI detection, model listing, model context inspection, `ollama serve` lifecycle, and smoke tests. |
-| `ToolExecutor.ts` | Executes Ollama tool calls against the active book directory. |
-| `tools.ts` | Ollama tool schema definitions and tool-call types. |
+| `ToolExecutor.ts` | Executes Ollama tool calls sandboxed to the working directory plus additional allowed roots (constructor: `(bookDir, additionalRoots = [])` — clients pass the books dir for Pitch Room scaffolding). |
+| `BashEmulator.ts` | Emulates the whitelisted Bash commands (mkdir/cat/mv/cp/ls/find/wc/rm/rmdir) with Node fs APIs — no shell spawned, metacharacters rejected, paths sandboxed via `ToolExecutor.resolveSafe`. |
+| `tools.ts` | Ollama tool schema definitions and tool-call types (Read, Write, Edit, LS, Bash — full Claude CLI parity). |
 | `contextCompactor.ts` | Compacts tool context for long Ollama agent loops. |
 | `index.ts` | Barrel export |
 
