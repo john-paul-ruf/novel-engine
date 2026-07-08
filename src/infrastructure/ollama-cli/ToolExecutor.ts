@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { OllamaToolCall } from './tools';
 import { WRITE_TOOLS } from './tools';
+import { BashEmulator } from './BashEmulator';
 
 /**
  * Result of executing a single tool call.
@@ -26,7 +27,8 @@ export type ToolResult = {
  * additional allowed roots. Path traversal attempts (e.g. "../../etc/passwd")
  * are rejected.
  *
- * Supported tools: Read, Write, Edit, LS.
+ * Supported tools: Read, Write, Edit, LS, Bash (whitelisted commands
+ * emulated by BashEmulator).
  */
 export class ToolExecutor {
   constructor(
@@ -38,6 +40,13 @@ export class ToolExecutor {
      */
     private readonly additionalRoots: string[] = [],
   ) {}
+
+  private bashEmulator?: BashEmulator;
+
+  private getBashEmulator(): BashEmulator {
+    this.bashEmulator ??= new BashEmulator((p) => this.resolveSafe(p));
+    return this.bashEmulator;
+  }
 
   /**
    * Execute a tool call and return the result.
@@ -58,6 +67,8 @@ export class ToolExecutor {
           return await this.executeEdit(args);
         case 'LS':
           return await this.executeLS(args);
+        case 'Bash':
+          return await this.executeBash(args);
         default:
           return {
             toolName: name,
@@ -169,6 +180,18 @@ export class ToolExecutor {
       filePath: dirPath,
       isWrite: false,
       content: listing || '(empty directory)',
+      isError: false,
+    };
+  }
+
+  private async executeBash(args: Record<string, unknown>): Promise<ToolResult> {
+    const command = this.requireString(args, 'command', 'cmd', 'script');
+    const result = await this.getBashEmulator().run(command);
+    return {
+      toolName: 'Bash',
+      filePath: result.filePath,
+      isWrite: result.isWrite,
+      content: result.output || '(no output)',
       isError: false,
     };
   }

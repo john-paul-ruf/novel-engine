@@ -25,7 +25,7 @@ Bash(mkdir/cat/mv/cp/ls/find/wc/rm/rmdir).
 | 02 | Provider-agnostic PITCH-ROOM.md build instructions | M04 | done | 2026-07-08 | Content-only edit; Bash now optional, failure-reporting added |
 | 03 | "Promote to Book" button fallback | M10 | done | 2026-07-08 | Manual GUI smoke deferred to end-to-end check |
 | 04 | BashEmulator — sandboxed coreutils module | M11 | done | 2026-07-08 | Module unreferenced until 05, compiles + barrel-exported |
-| 05 | Wire Bash tool into local-provider agent loop | M11, M12 | pending | — | Requires 04; llama-server picks it up with no edits |
+| 05 | Wire Bash tool into local-provider agent loop | M11, M12 | done | 2026-07-08 | llama-server picked it up with zero edits, as designed |
 | 06 | Codex writable_roots sandbox fallback | M13 | pending | — | Parallel-safe; verified against codex-cli 0.27.0 |
 
 ## Dependency Graph
@@ -147,3 +147,16 @@ Header button → `window.novelEngine.pitchRoom.promote(convId)` → IPC `pitchR
   returns its `isWrite` literal directly (the set would have been dead code). SESSION-05
   must use `BashResult.isWrite` dynamically (per Design Decision 7), never a static set.
 - `filePath` is reported as originally given (dest for `mv`/`cp`, last path otherwise).
+
+### SESSION-05 (2026-07-08)
+
+- `Bash` added to `OLLAMA_TOOLS` and dispatched in `ToolExecutor.executeBash` via a
+  lazily-created `BashEmulator` bound to `resolveSafe`. Local providers now have full
+  Claude-CLI tool parity: Read, Write, Edit, LS, Bash(mkdir/cat/mv/cp/ls/find/wc/rm/rmdir).
+- `Bash` intentionally NOT in `WRITE_TOOLS` (write-ness is per-command via
+  `ToolResult.isWrite`); pre-execution stage inference shows `reading` for Bash writes —
+  accepted cosmetic trade-off (Design Decision 7).
+- Errors thrown by `BashEmulator` (including from the `Bash` error path, where the catch
+  reports `isWrite: false`) reach the model as tool errors with `toolName: 'Bash'`.
+- Manual smoke against a live Ollama model (`ls .`, `mkdir` under books, pipe rejection)
+  still needs a human pass; no model-specific argument malformations observed yet.

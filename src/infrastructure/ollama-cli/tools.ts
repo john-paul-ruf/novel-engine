@@ -1,8 +1,9 @@
 /**
  * Tool definitions for the Ollama function-calling API.
  *
- * These match the subset of tools that ClaudeCodeClient exposes via
- * `--allowedTools` — Read, Write, Edit, LS, and limited Bash commands.
+ * These fully match the tool set that ClaudeCodeClient exposes via
+ * `--allowedTools` — Read, Write, Edit, LS, and Bash limited to
+ * mkdir/cat/mv/cp/ls/find/wc/rm/rmdir (emulated by BashEmulator).
  *
  * Ollama uses the OpenAI-compatible tool schema format:
  * https://ollama.com/blog/tool-support
@@ -122,6 +123,27 @@ export const OLLAMA_TOOLS: OllamaToolDefinition[] = [
           },
         },
         required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'Bash',
+      description:
+        'Run a single shell command. Only these commands are allowed: mkdir, cat, mv, cp, '
+        + 'ls, find, wc, rm, rmdir. No pipes (|), redirection (>), or command chaining '
+        + '(&&, ;). Paths may be relative to the working directory or absolute paths '
+        + 'inside the books directory. Example: "mkdir -p chapters/02-midnight".',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: {
+            type: 'string',
+            description: 'The command to run (e.g. "ls chapters/", "mv draft.md source/pitch.md")',
+          },
+        },
+        required: ['command'],
       },
     },
   },
