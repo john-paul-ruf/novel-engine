@@ -4,6 +4,27 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-02] — Increase context ceiling + add compaction for Ollama/llama-server
+
+### Summary
+
+Large-context models (e.g., `kimi-k2.6:cloud` with 262K tokens) were hitting the 125K hard `MAX_CALL_CONTEXT_TOKENS` cap and the 90% context-ceiling in `OllamaCodeClient`/`LlamaServerClient`, causing the agent loop to break mid-task. Raised the global cap to 250K, softened the ceiling to 98%, added proactive compaction of old tool results at the 80% threshold, and integrated `compactToolHistory` from `contextCompactor` (was never imported) so the loop only stops after compaction fails.
+
+### Changed
+- `src/domain/constants.ts` — `MAX_CALL_CONTEXT_TOKENS` raised from `125_000` to `250_000`
+- `src/infrastructure/ollama-cli/OllamaCodeClient.ts` — `contextCeiling` raised from 90% to 98%; added 80% compaction threshold that triggers `compactToolHistory` before hard-ceiling check
+- `src/infrastructure/llama-server/LlamaServerClient.ts` — same ceiling/compaction changes as OllamaCodeClient
+- `src/infrastructure/ollama-cli/contextCompactor.ts` — now imported by both OllamaCodeClient and LlamaServerClient
+
+### Architecture Impact
+- `MAX_CALL_CONTEXT_TOKENS` increased to 250K to match modern large-context models.
+- Both Ollama and llama-server agents now compact old tool results and assistant messages when context exceeds 80% of window, rather than breaking at 90%.
+
+### Migration Notes
+None
+
+---
+
 ## [2026-03-29] — Architecture Engine readme
 
 ### Summary
