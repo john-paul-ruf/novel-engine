@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novel Engine — Streamlined Workspace Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#131110; --bg1:#191613; --bg2:#201c18; --bg3:#27221d;
+    --line:#2b2620; --line-soft:#241f1a;
+    --ink:#ece4d6; --ink-dim:#a89e8f; --ink-faint:#6f675a;
+    --brass:#c9a25c; --brass-hi:#e8c988; --brass-dim:rgba(201,162,92,.16);
+    --green:#7fbf8a;
+    --spark:#d4a24e; --verity:#a78bda; --ghostlight:#6cc3d5; --lumen:#7fbf8a;
+    --sable:#d98a9e; --forge:#d99162; --quill:#7da2d9;
+    --mono:'JetBrains Mono',monospace; --ui:'Inter',sans-serif; --serif:'Fraunces',serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:var(--ui); background:#0c0a09 url('assets/paper-grain.png'); background-blend-mode:overlay;
+    color:var(--ink); font-size:13px; overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;background:var(--bg0)}
+
+  /* ============ TITLE BAR ============ */
+  .titlebar{
+    height:38px;flex:0 0 38px;display:flex;align-items:center;gap:12px;
+    background:var(--bg1);border-bottom:1px solid var(--line);padding:0 12px;user-select:none;
+  }
+  .traffic{display:flex;gap:8px;width:120px}
+  .traffic span{width:12px;height:12px;border-radius:50%}
+  .traffic .r{background:#e5564f}.traffic .y{background:#e0a63a}.traffic .g{background:#59b756}
+  .crumb{flex:1;text-align:center;font-size:12px;color:var(--ink-dim);letter-spacing:.01em}
+  .crumb b{color:var(--ink);font-weight:600}
+  .crumb .sep{margin:0 7px;color:var(--ink-faint)}
+  .titlebar-right{display:flex;align-items:center;gap:10px;width:230px;justify-content:flex-end}
+  .wordcount{font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .cmdk-pill{
+    display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-dim);
+    border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--bg2);cursor:pointer;
+    transition:border-color .15s,color .15s;
+  }
+  .cmdk-pill:hover{border-color:var(--brass);color:var(--ink)}
+  .cmdk-pill kbd{font-family:var(--mono);font-size:10px;color:var(--ink-faint);background:var(--bg0);
+    border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+
+  .body{display:flex;flex:1;min-height:0}
+
+  /* ============ ICON RAIL ============ */
+  .rail{
+    width:56px;flex:0 0 56px;background:var(--bg1);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;
+  }
+  .rail .logo{
+    width:32px;height:32px;border-radius:8px;display:grid;place-items:center;margin-bottom:10px;
+    background:linear-gradient(140deg,#3a2f1e,#241d12);border:1px solid #4b3c22;color:var(--brass-hi);
+  }
+  .rail-btn{
+    position:relative;width:38px;height:38px;border:none;background:transparent;border-radius:9px;
+    display:grid;place-items:center;color:var(--ink-faint);cursor:pointer;transition:all .15s;
+  }
+  .rail-btn:hover{color:var(--ink-dim);background:var(--bg2)}
+  .rail-btn.active{color:var(--brass-hi);background:var(--brass-dim)}
+  .rail-btn.active::before{
+    content:'';position:absolute;left:-9px;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--brass);
+  }
+  .rail .spacer{flex:1}
+  .rail-btn .tip{
+    position:absolute;left:48px;top:50%;transform:translateY(-50%);white-space:nowrap;
+    background:#0e0c0a;border:1px solid var(--line);color:var(--ink);font-size:11px;padding:4px 9px;border-radius:6px;
+    opacity:0;pointer-events:none;transition:opacity .12s;z-index:60;
+  }
+  .rail-btn:hover .tip{opacity:1}
+  svg{display:block}
+
+  /* ============ VIEWS ============ */
+  .view{display:none;flex:1;min-width:0;min-height:0}
+  .view.active{display:flex}
+
+  /* ============ PIPELINE PANEL ============ */
+  .pipeline{
+    width:282px;flex:0 0 282px;background:var(--bg1);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .book-header{padding:16px 16px 14px;border-bottom:1px solid var(--line-soft)}
+  .book-header .row{display:flex;gap:12px;align-items:center}
+  .book-header img{width:38px;height:57px;object-fit:cover;border-radius:4px;border:1px solid var(--line);
+    box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  .book-title{font-family:var(--serif);font-size:16px;font-weight:500;letter-spacing:.01em}
+  .book-meta{display:flex;gap:8px;align-items:center;margin-top:4px}
+  .chip{
+    font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 7px;border-radius:20px;background:var(--brass-dim);color:var(--brass-hi);border:1px solid rgba(201,162,92,.3);
+  }
+  .book-meta .wc{font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .overall{margin-top:12px}
+  .overall .label{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin-bottom:5px}
+  .overall .bar{height:3px;border-radius:3px;background:var(--bg3);overflow:hidden}
+  .overall .bar i{display:block;height:100%;width:19%;border-radius:3px;
+    background:linear-gradient(90deg,var(--brass),var(--brass-hi))}
+
+  .spine-scroll{flex:1;overflow-y:auto;padding:10px 0 18px}
+  .stage-label{
+    font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--ink-faint);
+    padding:14px 16px 6px 52px;
+  }
+  .phase{
+    position:relative;display:flex;align-items:center;gap:10px;padding:7px 14px 7px 52px;cursor:pointer;
+    transition:background .12s;border:none;background:transparent;width:100%;text-align:left;font-family:var(--ui);
+  }
+  .phase:hover{background:rgba(255,255,255,.025)}
+  /* the spine line */
+  .phase::before{
+    content:'';position:absolute;left:29px;top:0;bottom:0;width:2px;
+    background:rgba(201,162,92,.28);
+  }
+  .phase[data-state="locked"]::before{background:var(--bg3)}
+  .phase[data-state="current"]::before{background:linear-gradient(180deg,rgba(201,162,92,.55),var(--bg3))}
+  .node{
+    position:absolute;left:22px;width:16px;height:16px;border-radius:50%;z-index:2;
+    display:grid;place-items:center;background:var(--bg1);
+  }
+  .phase[data-state="done"] .node{background:var(--brass);color:#191410;box-shadow:0 0 0 3px var(--bg1)}
+  .phase[data-state="current"] .node{
+    background:var(--brass-hi);box-shadow:0 0 0 3px var(--bg1),0 0 14px rgba(232,201,136,.7);animation:pulse 2.2s infinite;
+  }
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--bg1),0 0 8px rgba(232,201,136,.45)}
+    50%{box-shadow:0 0 0 3px var(--bg1),0 0 18px rgba(232,201,136,.85)}}
+  .phase[data-state="locked"] .node{border:2px solid var(--bg3);background:var(--bg1);box-shadow:0 0 0 3px var(--bg1)}
+  .phase-name{font-size:12.5px;color:var(--ink-dim);font-weight:500;flex:1;line-height:1.25}
+  .phase[data-state="done"] .phase-name{color:var(--ink)}
+  .phase[data-state="locked"] .phase-name{color:var(--ink-faint)}
+  .agent-chip{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-faint)}
+  .agent-chip i{width:6px;height:6px;border-radius:50%;display:inline-block}
+  .phase.selected{background:var(--brass-dim)}
+  .phase.selected .phase-name{color:var(--brass-hi)}
+
+  .phase-card{
+    margin:2px 12px 4px 44px;border:1px solid rgba(201,162,92,.35);background:linear-gradient(160deg,#262016,#1d1914);
+    border-radius:10px;padding:10px 12px;
+  }
+  .phase-card .micro{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-dim);margin-bottom:7px}
+  .phase-card .micro b{color:var(--brass-hi);font-weight:600}
+  .btn-primary{
+    display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+    background:linear-gradient(180deg,#d7ae66,#b98f47);color:#1c1509;font-weight:600;font-size:12px;
+    border:none;border-radius:7px;padding:7px 10px;cursor:pointer;font-family:var(--ui);
+    box-shadow:0 1px 6px rgba(201,162,92,.25);transition:filter .15s;
+  }
+  .btn-primary:hover{filter:brightness(1.08)}
+
+  /* ============ WORKBENCH ============ */
+  .workbench{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg0)}
+  .phase-header{
+    flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:12px 18px;
+    border-bottom:1px solid var(--line);background:var(--bg1);
+  }
+  .ph-id .name{font-family:var(--serif);font-size:17px;font-weight:500}
+  .ph-id .agent{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-dim);margin-top:2px}
+  .ph-id .agent i{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .artifacts{display:flex;gap:6px;flex:1;justify-content:center;flex-wrap:wrap}
+  .artifact{
+    display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--ink-dim);
+    border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--bg2);
+  }
+  .artifact svg{color:var(--green)}
+  .ph-action{flex:0 0 auto}
+  .ph-action .btn-primary{width:auto;padding:7px 14px}
+
+  .split{flex:1;display:flex;min-height:0}
+  .pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .pane.chat{flex:11}
+  .pane.companion{flex:10;border-left:1px solid var(--line)}
+  .divider{
+    flex:0 0 5px;cursor:col-resize;position:relative;background:transparent;
+  }
+  .divider::after{content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
+    width:3px;height:44px;border-radius:3px;background:var(--line)}
+  .divider:hover::after{background:var(--brass)}
+
+  .pane-head{
+    flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 14px;
+    border-bottom:1px solid var(--line-soft);background:rgba(255,255,255,.012);
+  }
+  .convo-chip{
+    display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-dim);cursor:pointer;
+    border:1px solid var(--line);background:var(--bg2);border-radius:7px;padding:4px 10px;transition:border-color .15s;
+  }
+  .convo-chip:hover{border-color:var(--brass)}
+  .convo-chip b{color:var(--ink);font-weight:500}
+  .pane-head .count{font-size:10.5px;color:var(--ink-faint)}
+
+  .messages{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .msg-user{
+    align-self:flex-end;max-width:70%;background:linear-gradient(160deg,#3a2e1b,#2e2415);
+    border:1px solid rgba(201,162,92,.3);color:var(--ink);padding:9px 13px;border-radius:13px 13px 4px 13px;
+    font-size:13px;line-height:1.5;
+  }
+  .msg-agent{max-width:86%;font-size:13.5px;line-height:1.65;color:var(--ink)}
+  .msg-agent .who{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--verity);margin-bottom:6px}
+  .msg-agent .who i{width:7px;height:7px;border-radius:50%;background:var(--verity)}
+  .msg-agent p{margin-bottom:8px}
+  .msg-agent p:last-child{margin-bottom:0}
+  .thinking{
+    max-width:86%;border:1px solid #3a3226;background:#1e1a13;border-radius:9px;overflow:hidden;
+  }
+  .thinking-head{
+    display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;font-size:11px;color:#c8a86a;user-select:none;
+  }
+  .thinking-head .tok{margin-left:auto;color:var(--ink-faint);font-family:var(--mono);font-size:10px}
+  .thinking-head .chev{transition:transform .18s;color:var(--ink-faint)}
+  .thinking.open .chev{transform:rotate(90deg)}
+  .thinking-body{display:none;padding:2px 12px 10px;font-size:11.5px;line-height:1.55;color:var(--ink-dim);font-style:italic}
+  .thinking.open .thinking-body{display:block}
+  .receipt{
+    display:flex;align-items:center;gap:9px;max-width:86%;border:1px solid var(--line);
+    background:var(--bg2);border-radius:9px;padding:8px 12px;
+  }
+  .receipt svg{color:var(--verity)}
+  .receipt .path{font-family:var(--mono);font-size:11px;color:var(--ink)}
+  .receipt .meta{font-size:10.5px;color:var(--ink-faint);margin-top:1px}
+
+  .chat-input{
+    flex:0 0 auto;padding:12px 16px 14px;border-top:1px solid var(--line-soft);background:var(--bg1);
+  }
+  .input-row{display:flex;gap:9px;align-items:flex-end}
+  .input-box{
+    flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+    color:var(--ink-faint);font-size:13px;min-height:38px;display:flex;align-items:center;cursor:text;
+  }
+  .input-box:hover{border-color:#3a342c}
+  .send{
+    width:38px;height:38px;flex:0 0 38px;border:none;border-radius:9px;cursor:pointer;
+    background:linear-gradient(180deg,#d7ae66,#b98f47);color:#1c1509;display:grid;place-items:center;
+  }
+  .input-meta{display:flex;gap:6px;margin-top:8px}
+  .meta-chip{
+    display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-faint);
+    border:1px solid var(--line);border-radius:6px;padding:2.5px 8px;background:var(--bg2);cursor:pointer;
+  }
+  .meta-chip:hover{color:var(--ink-dim);border-color:#3a342c}
+
+  /* companion pane */
+  .tabs{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+  .tab{
+    border:1px solid transparent;background:transparent;color:var(--ink-faint);font-size:11.5px;font-family:var(--ui);
+    padding:4px 10px;border-radius:7px;cursor:pointer;transition:all .12s;
+  }
+  .tab:hover{color:var(--ink-dim)}
+  .tab.active{background:var(--bg2);border-color:var(--line);color:var(--ink)}
+  .scrubber{display:flex;align-items:center;gap:5px}
+  .scrubber i{width:7px;height:7px;border-radius:50%;background:var(--bg3);cursor:pointer}
+  .scrubber i.done{background:var(--brass)}
+  .scrubber i.active{background:var(--brass-hi);box-shadow:0 0 7px rgba(232,201,136,.7)}
+  .prose-scroll{flex:1;overflow-y:auto;padding:26px 34px 60px}
+  .prose{max-width:62ch;margin:0 auto;font-family:var(--serif);font-size:16.5px;line-height:1.78;color:#e6ddcd;font-weight:340}
+  .prose h2{font-size:13px;font-family:var(--ui);font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--brass);margin-bottom:6px}
+  .prose h1{font-size:26px;font-weight:500;margin-bottom:22px;letter-spacing:.005em}
+  .prose p{margin-bottom:16px;text-indent:1.4em}
+  .prose p:first-of-type{text-indent:0}
+  .companion-alt{display:none}
+  .outline-list{max-width:62ch;margin:0 auto;font-size:13px}
+  .outline-list .scene{border-left:2px solid var(--line);padding:8px 0 8px 14px;margin-bottom:6px}
+  .outline-list .scene b{display:block;color:var(--ink);font-weight:600;margin-bottom:2px}
+  .outline-list .scene span{color:var(--ink-dim);line-height:1.5}
+  .bible dt{font-weight:600;color:var(--brass-hi);margin-top:14px;font-size:12px;letter-spacing:.03em}
+  .bible dd{color:var(--ink-dim);line-height:1.6;margin-top:3px;font-size:13px}
+  .bible{max-width:62ch;margin:0 auto}
+
+  /* ============ STATUS BAR + DRAWER ============ */
+  .statusbar{
+    flex:0 0 28px;display:flex;align-items:center;gap:14px;padding:0 14px;
+    background:var(--bg1);border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);user-select:none;
+  }
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 1.6s infinite;display:inline-block}
+  @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.35}}
+  .statusbar .task{display:flex;align-items:center;gap:8px}
+  .statusbar .task .path{font-family:var(--mono);font-size:10.5px;color:var(--ink)}
+  .statusbar .elapsed{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)}
+  .statusbar .fill{flex:1}
+  .statusbar .costs{font-variant-numeric:tabular-nums;color:var(--ink-faint)}
+  .drawer-toggle{
+    display:flex;align-items:center;gap:6px;border:none;background:transparent;color:var(--ink-dim);
+    font-size:11px;cursor:pointer;font-family:var(--ui);padding:3px 6px;border-radius:5px;
+  }
+  .drawer-toggle:hover{background:var(--bg2);color:var(--ink)}
+  .drawer-toggle .chev{transition:transform .2s}
+  .app.drawer-open .drawer-toggle .chev{transform:rotate(180deg)}
+  .drawer{
+    flex:0 0 0;height:0;overflow:hidden;background:#151210;border-top:1px solid var(--line);
+    transition:flex-basis .22s ease,height .22s ease;display:flex;flex-direction:column;
+  }
+  .app.drawer-open .drawer{flex-basis:208px;height:208px}
+  .drawer-head{display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:1px solid var(--line-soft)}
+  .drawer-head .title{font-size:10.5px;font-weight:700;letter-spacing:.1em;color:var(--ink-dim)}
+  .drawer-head select{
+    background:var(--bg2);border:1px solid var(--line);color:var(--ink-dim);font-size:10.5px;border-radius:5px;
+    padding:2px 6px;font-family:var(--ui);
+  }
+  .drawer-head .live{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green)}
+  .log{flex:1;overflow-y:auto;padding:6px 0;font-family:var(--mono);font-size:10.8px}
+  .log-row{display:flex;gap:12px;padding:2.5px 16px;color:var(--ink-dim);white-space:nowrap}
+  .log-row:hover{background:rgba(255,255,255,.02)}
+  .log-row .t{color:var(--ink-faint)}
+  .log-row .type{width:74px;flex:0 0 74px;font-weight:500}
+  .type.think{color:#c8a86a}.type.tool{color:var(--ghostlight)}.type.write{color:var(--verity)}
+  .type.text{color:var(--ink-dim)}.type.done{color:var(--green)}.type.start{color:var(--forge)}
+
+  /* ============ LIBRARY VIEW ============ */
+  .library{flex-direction:column;overflow-y:auto;padding:52px 64px}
+  .library h1{font-family:var(--serif);font-size:33px;font-weight:400;letter-spacing:.005em}
+  .library .sub{color:var(--ink-faint);margin-top:7px;font-size:13px}
+  .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:22px;margin-top:38px;max-width:1180px}
+  .book-card{
+    border:1px solid var(--line);background:var(--bg1);border-radius:13px;padding:16px;cursor:pointer;
+    transition:transform .16s,border-color .16s,box-shadow .16s;
+  }
+  .book-card:hover{transform:translateY(-3px);border-color:rgba(201,162,92,.5);box-shadow:0 10px 34px rgba(0,0,0,.45)}
+  .book-card img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:7px;border:1px solid var(--line);
+    box-shadow:0 6px 18px rgba(0,0,0,.5)}
+  .book-card .t{font-family:var(--serif);font-size:16.5px;margin-top:13px;font-weight:500}
+  .book-card .phase-line{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:11px;color:var(--ink-dim)}
+  .book-card .bar{height:3px;border-radius:3px;background:var(--bg3);margin-top:9px;overflow:hidden}
+  .book-card .bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--brass),var(--brass-hi))}
+  .book-card .wc{font-size:11px;color:var(--ink-faint);margin-top:8px;font-variant-numeric:tabular-nums;display:flex;justify-content:space-between}
+  .book-card .resume{color:var(--brass-hi);font-weight:600;opacity:0;transition:opacity .15s}
+  .book-card:hover .resume{opacity:1}
+  .ghost-card{
+    border:1.5px dashed #37312a;border-radius:13px;display:flex;flex-direction:column;gap:10px;align-items:center;
+    justify-content:center;color:var(--ink-faint);cursor:pointer;min-height:200px;background:transparent;font-family:var(--ui);
+    font-size:12.5px;transition:all .15s;text-align:center;padding:16px;
+  }
+  .ghost-card:hover{border-color:var(--brass);color:var(--brass-hi);background:rgba(201,162,92,.04)}
+  .ghost-card b{font-weight:600;font-size:13px}
+  .ghost-card span{line-height:1.45;max-width:170px}
+  .lib-recent{margin-top:44px;font-size:12px;color:var(--ink-faint)}
+  .lib-recent b{color:var(--ink-dim);font-weight:500}
+
+  /* ============ MANUSCRIPT VIEW ============ */
+  .man-wrap{flex:1;display:flex;min-height:0}
+  .chapter-rail{
+    width:236px;flex:0 0 236px;border-right:1px solid var(--line);background:var(--bg1);
+    display:flex;flex-direction:column;padding:14px 0;
+  }
+  .chapter-rail .h{font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--ink-faint);padding:0 16px 10px}
+  .chap{
+    display:flex;align-items:center;gap:10px;padding:9px 16px;border:none;background:transparent;width:100%;
+    text-align:left;cursor:pointer;font-family:var(--ui);transition:background .12s;
+  }
+  .chap:hover{background:rgba(255,255,255,.025)}
+  .chap.active{background:var(--brass-dim)}
+  .chap .n{font-family:var(--serif);font-size:14px;color:var(--ink-faint);width:16px}
+  .chap.active .n{color:var(--brass-hi)}
+  .chap .info{flex:1}
+  .chap .info b{display:block;font-size:12.5px;font-weight:500;color:var(--ink-dim)}
+  .chap.active .info b{color:var(--ink)}
+  .chap .info span{font-size:10.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .pill{
+    font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 6px;border-radius:4px;
+    background:rgba(212,162,78,.14);color:var(--spark);border:1px solid rgba(212,162,78,.3);
+  }
+  .man-main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .man-toolbar{display:flex;align-items:center;padding:10px 22px;border-bottom:1px solid var(--line-soft);gap:14px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{
+    border:none;background:transparent;color:var(--ink-faint);font-size:11px;padding:4.5px 13px;cursor:pointer;font-family:var(--ui);
+  }
+  .seg button.active{background:var(--bg2);color:var(--ink)}
+  .man-toolbar .pos{margin-left:auto;font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .man-scroll{flex:1;overflow-y:auto;padding:48px 40px 90px}
+
+  /* ============ COMMAND PALETTE ============ */
+  .palette-backdrop{
+    position:fixed;inset:0;background:rgba(8,6,4,.6);backdrop-filter:blur(3px);z-index:100;
+    display:none;align-items:flex-start;justify-content:center;padding-top:12vh;
+  }
+  .palette-backdrop.open{display:flex}
+  .palette{
+    width:590px;max-width:92vw;background:#1c1915;border:1px solid #3a3226;border-radius:13px;
+    box-shadow:0 26px 80px rgba(0,0,0,.7);overflow:hidden;animation:pop .14s ease;
+  }
+  @keyframes pop{from{transform:scale(.97) translateY(-6px);opacity:0}to{transform:none;opacity:1}}
+  .palette .search{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .palette .search input{
+    flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-size:14px;font-family:var(--ui);
+  }
+  .palette .search input::placeholder{color:var(--ink-faint)}
+  .palette .groups{max-height:46vh;overflow-y:auto;padding:6px 0 8px}
+  .pgroup{font-size:9.5px;font-weight:700;letter-spacing:.13em;color:var(--ink-faint);padding:12px 16px 5px}
+  .pitem{
+    display:flex;align-items:center;gap:11px;padding:7.5px 16px;cursor:pointer;font-size:13px;color:var(--ink-dim);
+  }
+  .pitem:hover,.pitem.hot{background:var(--brass-dim);color:var(--ink)}
+  .pitem svg{color:var(--ink-faint);flex:0 0 auto}
+  .pitem:hover svg,.pitem.hot svg{color:var(--brass-hi)}
+  .pitem .hint{margin-left:auto;font-size:10.5px;color:var(--ink-faint)}
+  .pitem .adot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .palette .foot{
+    display:flex;gap:16px;padding:8px 16px;border-top:1px solid var(--line);font-size:10.5px;color:var(--ink-faint);
+  }
+  .palette .foot kbd{font-family:var(--mono);font-size:9.5px;background:var(--bg0);border:1px solid var(--line);
+    border-radius:4px;padding:1px 5px;margin-right:5px}
+
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#2e2922;border-radius:9px;border:2px solid var(--bg0)}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- TITLE BAR -->
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="crumb" id="crumb"><b>The Best Burger</b><span class="sep">/</span>First Draft</div>
+    <div class="titlebar-right">
+      <span class="wordcount" id="tb-words">5,164 words</span>
+      <div class="cmdk-pill" onclick="openPalette()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Search <kbd>⌘K</kbd>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- ICON RAIL -->
+    <nav class="rail">
+      <div class="logo">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 4 8.5 15.5M20 4c-1 5-2.5 9.5-6 13-2.2 2.2-5.5 3-8 3 0-2.5.8-5.8 3-8C12.5 8.5 15 6 20 4Z"/><path d="M6 20c.5-2 1.5-3.5 3-4.5"/></svg>
+      </div>
+      <button class="rail-btn" data-view="library" onclick="setView('library')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4v16M9 4v16M14 5l4.5 15"/><path d="M4 4h5M4 20h5"/></svg>
+        <span class="tip">Library</span>
+      </button>
+      <button class="rail-btn active" data-view="workspace" onclick="setView('workspace')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+        <span class="tip">Workspace — pipeline &amp; agent chat</span>
+      </button>
+      <button class="rail-btn" data-view="manuscript" onclick="setView('manuscript')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4c3-1.5 5.5-1.5 8 0v16c-2.5-1.5-5-1.5-8 0V4ZM22 4c-3-1.5-5.5-1.5-8 0v16c2.5-1.5 5-1.5 8 0V4Z"/></svg>
+        <span class="tip">Manuscript — read &amp; edit</span>
+      </button>
+      <button class="rail-btn">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m7.5 4.27 9 5.15M21 8l-9-5-9 5v8l9 5 9-5V8ZM3.3 7l8.7 5 8.7-5M12 22V12"/></svg>
+        <span class="tip">Exports — DOCX · EPUB · PDF</span>
+      </button>
+      <div class="spacer"></div>
+      <button class="rail-btn">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>
+        <span class="tip">Statistics — tokens, cost, word charts</span>
+      </button>
+      <button class="rail-btn">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        <span class="tip">Settings</span>
+      </button>
+    </nav>
+
+    <!-- ================= LIBRARY VIEW ================= -->
+    <section class="view library" id="view-library">
+      <h1>Your bookshelf</h1>
+      <div class="sub">Three books · 87,574 words in production</div>
+      <div class="shelf">
+        <div class="book-card" onclick="setView('workspace')">
+          <img src="assets/cover-best-burger.png" alt="The Best Burger cover">
+          <div class="t">The Best Burger</div>
+          <div class="phase-line"><span class="chip">Drafting</span> Phase 3 of 14</div>
+          <div class="bar"><i style="width:19%"></i></div>
+          <div class="wc"><span>5,164 words</span><span class="resume">Resume →</span></div>
+        </div>
+        <div class="book-card">
+          <img src="assets/cover-last-compiler.png" alt="The Last Compiler cover">
+          <div class="t">The Last Compiler</div>
+          <div class="phase-line"><span class="chip" style="background:rgba(127,191,138,.12);color:var(--lumen);border-color:rgba(127,191,138,.3)">Published</span> Phase 14 of 14</div>
+          <div class="bar"><i style="width:100%;background:var(--lumen)"></i></div>
+          <div class="wc"><span>82,410 words</span><span class="resume">Open →</span></div>
+        </div>
+        <div class="book-card">
+          <img src="assets/cover-reset.png" alt="Reset cover">
+          <div class="t">Reset</div>
+          <div class="phase-line"><span class="chip" style="background:rgba(255,255,255,.06);color:var(--ink-dim);border-color:var(--line)">Conceiving</span> Phase 1 of 14</div>
+          <div class="bar"><i style="width:4%"></i></div>
+          <div class="wc"><span>0 words</span><span class="resume">Resume →</span></div>
+        </div>
+        <button class="ghost-card">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+          <b>New Book</b>
+          <span>Start from a pitch, an import, or a blank scaffold</span>
+        </button>
+        <button class="ghost-card">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.7.5 1.2 1.3 1.4 2.1h4.2c.2-.8.7-1.6 1.4-2.1A6 6 0 0 0 12 3Z"/></svg>
+          <b>Pitch an idea with Spark</b>
+          <span>Free brainstorming — nothing is committed until you say so</span>
+        </button>
+      </div>
+      <div class="lib-recent">Recent — <b>Verity</b> wrote <b>chapters/04-the-pastors-office/draft.md</b> in The Best Burger, 20 minutes ago</div>
+    </section>
+
+    <!-- ================= WORKSPACE VIEW ================= -->
+    <section class="view active" id="view-workspace">
+      <!-- PIPELINE PANEL -->
+      <aside class="pipeline">
+        <div class="book-header">
+          <div class="row">
+            <img src="assets/cover-best-burger.png" alt="">
+            <div>
+              <div class="book-title">The Best Burger</div>
+              <div class="book-meta"><span class="chip">Drafting</span><span class="wc">5,164 w</span></div>
+            </div>
+          </div>
+          <div class="overall">
+            <div class="label"><span>Pipeline</span><span>Phase 3 of 14</span></div>
+            <div class="bar"><i></i></div>
+          </div>
+        </div>
+        <div class="spine-scroll" id="spine"></div>
+      </aside>
+
+      <!-- WORKBENCH -->
+      <div class="workbench">
+        <div class="phase-header">
+          <div class="ph-id">
+            <div class="name" id="ph-name">First Draft</div>
+            <div class="agent"><i id="ph-agent-dot" style="background:var(--verity)"></i><span id="ph-agent">Verity — Ghostwriter</span></div>
+          </div>
+          <div class="artifacts" id="ph-artifacts">
+            <span class="artifact"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>voice-profile.md</span>
+            <span class="artifact"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>scene-outline.md</span>
+            <span class="artifact"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>story-bible.md</span>
+          </div>
+          <div class="ph-action">
+            <button class="btn-primary" id="ph-action">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5v15l13-7.5-13-7.5Z"/></svg>
+              <span id="ph-action-label">Continue Auto Draft</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="split">
+          <!-- CHAT PANE -->
+          <div class="pane chat">
+            <div class="pane-head">
+              <div class="convo-chip">
+                <i style="width:7px;height:7px;border-radius:50%;background:var(--verity);display:inline-block"></i>
+                <b>Verity: build this book out</b>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <span class="count">2 conversations in this phase</span>
+            </div>
+            <div class="messages">
+              <div class="msg-user">build this book out please</div>
+              <div class="thinking" id="thinking" onclick="this.classList.toggle('open')">
+                <div class="thinking-head">
+                  <svg class="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+                  Thinking
+                  <span class="tok">~334 tokens</span>
+                </div>
+                <div class="thinking-body">The user has approved the pitch and wants the full build. I should work from the scene outline and voice profile — dry, precise comic register, short declaratives with sudden turns. Draft chapters in order, keep the motif ledger updated as the burger imagery recurs…</div>
+              </div>
+              <div class="msg-agent">
+                <div class="who"><i></i>Verity · Ghostwriter</div>
+                <p>Building out <em>The Best Burger</em> now. Your voice profile is locked in — dry, precise, warm without being cute — and the scene outline gives me twelve chapters across three movements: routine, rupture, reckoning.</p>
+                <p>I've drafted the first movement. Chapter 4 ends on Pastor Mike's unraveling, which lands the "slow, slow, crack, flood" acceleration we planned.</p>
+              </div>
+              <div class="receipt">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg>
+                <div>
+                  <div class="path">chapters/04-the-pastors-office/draft.md</div>
+                  <div class="meta">Wrote 1,505 words · just now</div>
+                </div>
+              </div>
+              <div class="msg-agent">
+                <div class="who"><i></i>Verity · Ghostwriter</div>
+                <p>Four chapters, 5,164 words. Want me to keep auto-drafting into the second movement, or would you like a first read of these before I continue?</p>
+              </div>
+            </div>
+            <div class="chat-input">
+              <div class="input-row">
+                <div class="input-box">Message Verity…</div>
+                <button class="send"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg></button>
+              </div>
+              <div class="input-meta">
+                <span class="meta-chip"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.5h6c0-1.2.4-2 1-2.5A6 6 0 0 0 12 3Z"/><path d="M9 18h6M10 21h4"/></svg>Thinking: Off</span>
+                <span class="meta-chip">@ Attach file</span>
+                <span class="meta-chip">Quick actions ▾</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- COMPANION PANE -->
+          <div class="pane companion">
+            <div class="pane-head">
+              <div class="tabs" id="comp-tabs">
+                <button class="tab active" data-comp="ch4" onclick="setComp('ch4',this)">Ch 4 — The Pastor's Office</button>
+                <button class="tab" data-comp="outline" onclick="setComp('outline',this)">Outline</button>
+                <button class="tab" data-comp="bible" onclick="setComp('bible',this)">Story Bible</button>
+                <button class="tab" data-comp="motifs" onclick="setComp('motifs',this)">Motifs</button>
+              </div>
+              <div class="scrubber"><i class="done"></i><i class="done"></i><i class="done"></i><i class="active"></i><i></i><i></i></div>
+            </div>
+            <div class="prose-scroll">
+              <div class="comp-panel" id="comp-ch4">
+                <div class="prose">
+                  <h2>Chapter Four</h2>
+                  <h1>The Pastor's Office</h1>
+                  <p>Pastor Mike's office smelled like coffee and certainty, which Dave suspected were the two load-bearing substances of the entire operation. He had made the appointment under the pretense of "spiritual questions," which was true the way "some assembly required" was true of a jet engine.</p>
+                  <p>"Dave," Pastor Mike said, in the voice he used for hospital visits. "How's Sarah? How are things at the office?"</p>
+                  <p>"I ate a burger on Tuesday," Dave said, "and I haven't been able to stop being alive since."</p>
+                  <p>There was a pause of the kind that reorganizes a room. Pastor Mike set down his mug with the care of a man defusing something. Dave watched him reach for the shelf of answers he had been stocking for thirty years, and watched him find — visibly, for the first time in Dave's presence — that the shelf was further away than he remembered.</p>
+                </div>
+              </div>
+              <div class="comp-panel companion-alt" id="comp-outline">
+                <div class="outline-list">
+                  <div class="scene"><b>Ch 1 · The Routine</b><span>Establish Dave's fifteen-year Tuesday. Comfortable surrender as character. Food truck decision at the end.</span></div>
+                  <div class="scene"><b>Ch 2 · The Burger</b><span>The transcendent bite. Involuntary presence. Dave cries in his cubicle and doesn't know the word for why.</span></div>
+                  <div class="scene"><b>Ch 3 · The Questions Begin</b><span>Dave interrogates coworkers about whether they ever feel truly alive. HR becomes gently involved.</span></div>
+                  <div class="scene"><b>Ch 4 · The Pastor's Office</b><span>Dave asks a professional believer a sincere question and watches the certainty wobble. First domino outward.</span></div>
+                  <div class="scene" style="opacity:.45"><b>Ch 5 · Sarah Notices</b><span>Second movement opens. The marriage as a shared routine that one partner has woken up inside of.</span></div>
+                </div>
+              </div>
+              <div class="comp-panel companion-alt" id="comp-bible">
+                <dl class="bible">
+                  <dt>Dave Morrison</dt><dd>47. Insurance claims. A man of comfortable surrender whose life is a well-run museum of decisions made once, long ago. Wants nothing until the burger teaches him wanting.</dd>
+                  <dt>Sarah Morrison</dt><dd>Third-grade teacher. Loves Dave the way you love a reliable bridge. Her arc mirrors his at one chapter's delay.</dd>
+                  <dt>Pastor Mike</dt><dd>Professional believer, thirty years in. Dave's sincerity is the first question he cannot catch.</dd>
+                  <dt>The Burger</dt><dd>Never described directly after Chapter 2. It is an event, not a food.</dd>
+                </dl>
+              </div>
+              <div class="comp-panel companion-alt" id="comp-motifs">
+                <dl class="bible">
+                  <dt>Coffee rituals</dt><dd>Ch 1, Ch 4 — measured control; later chapters should let the measurements slip.</dd>
+                  <dt>Soothing voices / terrible news</dt><dd>Ch 1 (NPR), Ch 4 (hospital voice) — institutional calm as anesthesia.</dd>
+                  <dt>Forty-seven seconds</dt><dd>Ch 1 — recurs whenever Dave performs patience he no longer feels.</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MANUSCRIPT VIEW ================= -->
+    <section class="view" id="view-manuscript">
+      <div class="man-wrap">
+        <aside class="chapter-rail">
+          <div class="h">CHAPTERS</div>
+          <button class="chap active" onclick="setChap(this,1)"><span class="n">1</span><span class="info"><b>The Routine</b><span>1,143 words</span></span><span class="pill">DRAFT</span></button>
+          <button class="chap" onclick="setChap(this,2)"><span class="n">2</span><span class="info"><b>The Burger</b><span>1,309 words</span></span><span class="pill">DRAFT</span></button>
+          <button class="chap" onclick="setChap(this,3)"><span class="n">3</span><span class="info"><b>The Questions Begin</b><span>1,207 words</span></span><span class="pill">DRAFT</span></button>
+          <button class="chap" onclick="setChap(this,4)"><span class="n">4</span><span class="info"><b>The Pastor's Office</b><span>1,505 words</span></span><span class="pill">DRAFT</span></button>
+        </aside>
+        <div class="man-main">
+          <div class="man-toolbar">
+            <div class="seg">
+              <button class="active" onclick="seg(this)">Reader</button>
+              <button onclick="seg(this)">Editor</button>
+            </div>
+            <span class="pos" id="man-pos">Chapter 1 of 4 · 5,164 words</span>
+          </div>
+          <div class="man-scroll">
+            <div class="prose" id="man-prose"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- STATUS BAR + DRAWER -->
+  <div class="drawer" id="drawer">
+    <div class="drawer-head">
+      <span class="title">ACTIVITY</span>
+      <select><option>All agents</option><option>Verity</option><option>Ghostlight</option><option>Forge</option></select>
+      <span class="live"><span class="live-dot"></span>Live</span>
+      <span style="flex:1"></span>
+      <span style="font-size:10.5px;color:var(--ink-faint)">17 events · session 33.0s</span>
+    </div>
+    <div class="log">
+      <div class="log-row"><span class="t">18:28:46</span><span class="type start">agent</span><span>Verity call started (Opus) — First Draft phase</span></div>
+      <div class="log-row"><span class="t">18:28:48</span><span class="type think">thinking</span><span>Extended thinking started</span></div>
+      <div class="log-row"><span class="t">18:28:51</span><span class="type think">thinking</span><span>Thinking complete (~334 tokens est.)</span></div>
+      <div class="log-row"><span class="t">18:28:52</span><span class="type tool">read</span><span>Read → source/scene-outline.md</span></div>
+      <div class="log-row"><span class="t">18:28:53</span><span class="type tool">read</span><span>Read → chapters/03-the-questions-begin/draft.md</span></div>
+      <div class="log-row"><span class="t">18:28:58</span><span class="type text">stream</span><span>Response text streaming (~62 tokens est.)</span></div>
+      <div class="log-row"><span class="t">18:29:04</span><span class="type write">write</span><span>Write → chapters/04-the-pastors-office/draft.md (1,505 words)</span></div>
+      <div class="log-row"><span class="t">18:29:05</span><span class="type write">write</span><span>Update → source/motif-ledger.json (+2 motifs)</span></div>
+      <div class="log-row"><span class="t">18:29:06</span><span class="type done">done</span><span>Write confirmed · pipeline-state.json advanced (4/12 chapters)</span></div>
+    </div>
+  </div>
+  <div class="statusbar">
+    <span class="task"><span class="live-dot"></span>Verity · writing <span class="path">chapters/04-the-pastors-office/draft.md</span><span class="elapsed">12.4s</span></span>
+    <span class="fill"></span>
+    <span class="costs">1,014 tokens · $0.42 today</span>
+    <button class="drawer-toggle" onclick="document.getElementById('app').classList.toggle('drawer-open')">
+      <svg class="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+      Activity
+    </button>
+  </div>
+
+  <!-- COMMAND PALETTE -->
+  <div class="palette-backdrop" id="palette" onclick="if(event.target===this)closePalette()">
+    <div class="palette">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--ink-faint)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="palette-input" placeholder="Jump to a phase, chapter, or action…">
+      </div>
+      <div class="groups">
+        <div class="pgroup">ACTIONS</div>
+        <div class="pitem hot" onclick="closePalette();setView('workspace')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5v15l13-7.5-13-7.5Z"/></svg>
+          Continue Auto Draft — Chapter 5<span class="hint">↵</span>
+        </div>
+        <div class="pitem" onclick="closePalette()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+          Hot Take — quick reader reaction from Ghostlight
+        </div>
+        <div class="pitem" onclick="closePalette()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg>
+          Ad Hoc Revision — queue targeted fixes
+        </div>
+        <div class="pitem" onclick="closePalette()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
+          Export manuscript as DOCX
+        </div>
+        <div class="pgroup">PHASES</div>
+        <div class="pitem" onclick="closePalette();setView('workspace');selectPhase('first-read')">
+          <span class="adot" style="background:var(--ghostlight)"></span>First Read — Ghostlight<span class="hint">phase 4</span>
+        </div>
+        <div class="pitem" onclick="closePalette();setView('workspace');selectPhase('structural')">
+          <span class="adot" style="background:var(--lumen)"></span>Structural Assessment — Lumen<span class="hint">phase 5</span>
+        </div>
+        <div class="pgroup">CHAPTERS</div>
+        <div class="pitem" onclick="closePalette();setView('manuscript')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4c3-1.5 5.5-1.5 8 0v16c-2.5-1.5-5-1.5-8 0V4ZM22 4c-3-1.5-5.5-1.5-8 0v16c2.5-1.5 5-1.5 8 0V4Z"/></svg>
+          Ch 2 — The Burger<span class="hint">1,309 words</span>
+        </div>
+      </div>
+      <div class="foot">
+        <span><kbd>↑↓</kbd>navigate</span><span><kbd>↵</kbd>select</span><span><kbd>esc</kbd>close</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- data ---------- */
+const AGENTS = {
+  spark:      {name:'Spark',      role:'Story Pitch',          c:'var(--spark)'},
+  verity:     {name:'Verity',     role:'Ghostwriter',          c:'var(--verity)'},
+  ghostlight: {name:'Ghostlight', role:'First Reader',         c:'var(--ghostlight)'},
+  lumen:      {name:'Lumen',      role:'Developmental Editor', c:'var(--lumen)'},
+  forge:      {name:'Forge',      role:'Task Master',          c:'var(--forge)'},
+  sable:      {name:'Sable',      role:'Copy Editor',          c:'var(--sable)'},
+  quill:      {name:'Quill',      role:'Publisher',            c:'var(--quill)'},
+};
+const PHASES = [
+  {id:'pitch',      stage:'CONCEIVE', name:'Story Pitch',           agent:'spark',      state:'done',    action:'Revisit Pitch'},
+  {id:'scaffold',   stage:null,       name:'Story Scaffold',        agent:'verity',     state:'done',    action:'Open Scaffold'},
+  {id:'draft',      stage:'DRAFT',    name:'First Draft',           agent:'verity',     state:'current', action:'Continue Auto Draft'},
+  {id:'first-read', stage:'ASSESS',   name:'First Read',            agent:'ghostlight', state:'locked',  action:'Start First Read'},
+  {id:'structural', stage:null,       name:'Structural Assessment', agent:'lumen',      state:'locked',  action:'Run Assessment'},
+  {id:'rev-plan',   stage:'REVISE',   name:'Revision Plan',         agent:'forge',      state:'locked',  action:'Build Revision Plan'},
+  {id:'revision',   stage:null,       name:'Revision',              agent:'verity',     state:'locked',  action:'Start Revision'},
+  {id:'read-2',     stage:null,       name:'Second Read',           agent:'ghostlight', state:'locked',  action:'Start Second Read'},
+  {id:'assess-2',   stage:null,       name:'Second Assessment',     agent:'lumen',      state:'locked',  action:'Run Assessment'},
+  {id:'copy-edit',  stage:null,       name:'Copy Edit',             agent:'sable',      state:'locked',  action:'Start Copy Edit'},
+  {id:'fix-plan',   stage:null,       name:'Fix Planning',          agent:'forge',      state:'locked',  action:'Plan Fixes'},
+  {id:'mech',       stage:null,       name:'Mechanical Fixes',      agent:'verity',     state:'locked',  action:'Apply Fixes'},
+  {id:'build',      stage:'SHIP',     name:'Build',                 agent:'quill',      state:'locked',  action:'Run Build'},
+  {id:'publish',    stage:null,       name:'Publish & Audit',       agent:'quill',      state:'locked',  action:'Run Audit'},
+];
+
+/* ---------- pipeline spine ---------- */
+const spine = document.getElementById('spine');
+PHASES.forEach(p => {
+  if (p.stage) {
+    const s = document.createElement('div');
+    s.className = 'stage-label'; s.textContent = p.stage;
+    spine.appendChild(s);
+  }
+  const a = AGENTS[p.agent];
+  const btn = document.createElement('button');
+  btn.className = 'phase' + (p.state === 'current' ? ' selected' : '');
+  btn.dataset.state = p.state; btn.dataset.id = p.id;
+  btn.innerHTML = `
+    <span class="node">${p.state === 'done'
+      ? '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#191410" stroke-width="3.4"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span>
+    <span class="phase-name">${p.name}</span>
+    <span class="agent-chip"><i style="background:${a.c}"></i>${a.name}</span>`;
+  btn.onclick = () => selectPhase(p.id);
+  spine.appendChild(btn);
+  if (p.state === 'current') {
+    const card = document.createElement('div');
+    card.className = 'phase-card';
+    card.innerHTML = `
+      <div class="micro"><span>Auto Draft running</span><b>4 / 12 chapters</b></div>
+      <button class="btn-primary">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5v15l13-7.5-13-7.5Z"/></svg>
+        Continue Auto Draft
+      </button>`;
+    spine.appendChild(card);
+  }
+});
+
+function selectPhase(id){
+  const p = PHASES.find(x => x.id === id), a = AGENTS[p.agent];
+  document.querySelectorAll('.phase').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+  document.getElementById('ph-name').textContent = p.name;
+  document.getElementById('ph-agent').textContent = `${a.name} — ${a.role}`;
+  document.getElementById('ph-agent-dot').style.background = a.c;
+  document.getElementById('ph-action-label').textContent = p.action;
+  document.getElementById('crumb').innerHTML = `<b>The Best Burger</b><span class="sep">/</span>${p.name}`;
+}
+
+/* ---------- view switching ---------- */
+function setView(v){
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === 'view-' + v));
+  document.querySelectorAll('.rail-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  const crumb = document.getElementById('crumb');
+  document.getElementById('tb-words').style.visibility = (v === 'library') ? 'hidden' : 'visible';
+  if (v === 'library') crumb.innerHTML = '<b>Library</b>';
+  if (v === 'manuscript') crumb.innerHTML = '<b>The Best Burger</b><span class="sep">/</span>Manuscript';
+  if (v === 'workspace') crumb.innerHTML = '<b>The Best Burger</b><span class="sep">/</span>' + document.getElementById('ph-name').textContent;
+}
+
+/* ---------- companion tabs ---------- */
+function setComp(id, btn){
+  document.querySelectorAll('#comp-tabs .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.comp-panel').forEach(p => p.style.display = (p.id === 'comp-' + id) ? 'block' : 'none');
+}
+
+/* ---------- manuscript ---------- */
+const CHAPTERS = {
+  1:{t:'The Routine', n:'Chapter One', pos:'Chapter 1 of 4 · 1,143 words', paras:[
+    `Dave Morrison's Tuesday morning arrived exactly as Tuesday mornings had for the past fifteen years: with the aggressive cheerfulness of NPR announcers delivering terrible news in soothing voices. He lay in bed for the regulation forty-seven seconds—not long enough to be late, not short enough to seem eager—before rolling toward the nightstand to silence the alarm.`,
+    `The coffee maker had been primed the night before, of course. Tuesday meant Colombian medium roast, measured to the exact tablespoon that produced optimal wake-up-without-jitters ratios. Sarah had left early for a field trip with her third-graders, so Dave performed his morning routine in the particular quiet of a house designed for two people but occupied by one.`,
+    `Shower: six minutes, same brand of soap for eight years because changing soap seemed like the kind of decision that required more emotional energy than he possessed. Dress: khakis, blue button-down (Tuesday was always blue), brown leather shoes that had molded to his feet through years of comfortable surrender.`,
+    `The face in the bathroom mirror looked back at him with polite recognition, as if they were acquaintances who passed each other in a hallway every day and had long ago agreed that nodding was enough.`]},
+  2:{t:'The Burger', n:'Chapter Two', pos:'Chapter 2 of 4 · 1,309 words', paras:[
+    `The food truck should not have been there. Food trucks belonged to the category of things other people did, like rock climbing and feelings. But the line at the deli stretched out the door, and Dave had exactly thirty-one minutes, and the truck's chalkboard said, simply, BURGERS, with a confidence that Dave would later describe to three separate professionals as "unsettling."`,
+    `He ordered the burger. There was no menu beyond the one word, which eliminated the paralysis of choice that usually governed his lunches. The man in the truck did not ask his name. He looked at Dave the way a doctor looks at an X-ray, and began to cook.`,
+    `The first bite happened to Dave more than Dave happened to it. Somewhere between the second and third bite, without permission, he became aware of being alive—not in the abstract, actuarial sense in which he processed the concept at work, but specifically: this body, this parking lot, this improbable Tuesday light coming off the windshields.`,
+    `He finished the burger in the kind of silence usually reserved for churches, and then he went back to his cubicle and cried for four minutes, and did not know the word for why.`]},
+  3:{t:'The Questions Begin', n:'Chapter Three', pos:'Chapter 3 of 4 · 1,207 words', paras:[
+    `By Thursday, Dave had asked eleven coworkers whether they ever felt truly alive, which, at an insurance company, is the kind of question that gets minuted. He did not mean anything by it, which made it worse. A man with an agenda can be managed. A man with a sincere question is a fire alarm you cannot locate.`,
+    `Janet from Claims said, "Like, cardio?" and Dave had nodded politely and written her answer in the small notebook he had begun to carry, which was itself a development his team lead flagged in an email with the subject line "Quick check-in :)".`,
+    `The meeting with HR was conducted in the Serenity Room, a converted supply closet with one plant and a poster about integrity. Dave answered every question honestly, which was the one strategy for which the process had no protocol.`]},
+  4:{t:'The Pastor’s Office', n:'Chapter Four', pos:'Chapter 4 of 4 · 1,505 words', paras:[
+    `Pastor Mike's office smelled like coffee and certainty, which Dave suspected were the two load-bearing substances of the entire operation. He had made the appointment under the pretense of "spiritual questions," which was true the way "some assembly required" was true of a jet engine.`,
+    `"Dave," Pastor Mike said, in the voice he used for hospital visits. "How's Sarah? How are things at the office?"`,
+    `"I ate a burger on Tuesday," Dave said, "and I haven't been able to stop being alive since."`,
+    `There was a pause of the kind that reorganizes a room. Pastor Mike set down his mug with the care of a man defusing something. Dave watched him reach for the shelf of answers he had been stocking for thirty years, and watched him find — visibly, for the first time in Dave's presence — that the shelf was further away than he remembered.`]},
+};
+function renderChap(n){
+  const c = CHAPTERS[n];
+  document.getElementById('man-prose').innerHTML =
+    `<h2>${c.n}</h2><h1>${c.t}</h1>` + c.paras.map(p => `<p>${p}</p>`).join('');
+  document.getElementById('man-pos').textContent = c.pos;
+}
+function setChap(btn, n){
+  document.querySelectorAll('.chap').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderChap(n);
+  document.querySelector('.man-scroll').scrollTop = 0;
+}
+renderChap(1);
+
+function seg(btn){
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ---------- command palette ---------- */
+const palette = document.getElementById('palette');
+function openPalette(){ palette.classList.add('open'); document.getElementById('palette-input').focus(); }
+function closePalette(){ palette.classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){ e.preventDefault();
+    palette.classList.contains('open') ? closePalette() : openPalette(); }
+  if (e.key === 'Escape') closePalette();
+});
+</script>
+</body>
+</html>

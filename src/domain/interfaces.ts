@@ -10,6 +10,7 @@ import type {
   BookStatistics,
   BookSummary,
   BuildResult,
+  ChapterEditStatus,
   ContextDiagnostics,
   Conversation,
   ConversationPurpose,
@@ -136,6 +137,9 @@ export interface IDatabaseService {
   getFileVersion(id: number): FileVersion | null;
 
   getLatestFileVersion(bookSlug: string, filePath: string): FileVersionSummary | null;
+
+  /** Latest snapshot of a file authored by the given source (full content), or null. */
+  getLatestFileVersionBySource(bookSlug: string, filePath: string, source: FileVersionSource): FileVersion | null;
 
   listFileVersions(bookSlug: string, filePath: string, limit: number, offset: number): FileVersionSummary[];
 
@@ -709,6 +713,16 @@ export interface IVersionService {
    * Keeps the most recent `keepCount` versions. Returns the number deleted.
    */
   pruneVersions(bookSlug: string, keepCount?: number): Promise<number>;
+
+  /**
+   * Diff from the latest agent-authored snapshot (baseline) to the file's current
+   * disk content. Returns null when no agent baseline exists, the file is missing,
+   * or content is identical to the baseline.
+   */
+  getUserEditsSinceAgentBaseline(bookSlug: string, filePath: string): Promise<FileDiff | null>;
+
+  /** Pending user-edit status for every body-chapter draft in the book. */
+  getChapterEditStatuses(bookSlug: string): Promise<ChapterEditStatus[]>;
 }
 
 export interface IManuscriptImportService {

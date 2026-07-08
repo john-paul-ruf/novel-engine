@@ -55,6 +55,7 @@ export class DatabaseService implements IDatabaseService {
   private stmtInsertFileVersion: Database.Statement;
   private stmtGetFileVersion: Database.Statement;
   private stmtGetLatestFileVersion: Database.Statement;
+  private stmtGetLatestFileVersionBySource: Database.Statement;
   private stmtListFileVersions: Database.Statement;
   private stmtCountFileVersions: Database.Statement;
   private stmtGetVersionedFilePaths: Database.Statement;
@@ -195,6 +196,13 @@ export class DatabaseService implements IDatabaseService {
       SELECT id, book_slug, file_path, content_hash, byte_size, source, created_at
       FROM file_versions
       WHERE book_slug = ? AND file_path = ?
+      ORDER BY id DESC LIMIT 1
+    `);
+
+    this.stmtGetLatestFileVersionBySource = this.db.prepare(`
+      SELECT id, book_slug, file_path, content, content_hash, byte_size, source, created_at
+      FROM file_versions
+      WHERE book_slug = ? AND file_path = ? AND source = ?
       ORDER BY id DESC LIMIT 1
     `);
 
@@ -532,6 +540,17 @@ export class DatabaseService implements IDatabaseService {
     return row ? this.mapFileVersionSummary(row) : null;
   }
 
+  getLatestFileVersionBySource(
+    bookSlug: string,
+    filePath: string,
+    source: FileVersionSource,
+  ): FileVersion | null {
+    const row = this.stmtGetLatestFileVersionBySource.get(bookSlug, filePath, source) as
+      | Record<string, unknown>
+      | undefined;
+    return row ? this.mapFileVersion(row) : null;
+  }
+
   listFileVersions(bookSlug: string, filePath: string, limit: number, offset: number): FileVersionSummary[] {
     const rows = this.stmtListFileVersions.all(bookSlug, filePath, limit, offset) as Record<string, unknown>[];
     return rows.map((r) => this.mapFileVersionSummary(r));
@@ -543,15 +562,23 @@ export class DatabaseService implements IDatabaseService {
   }
 
   deleteFileVersionsBeyondLimit(bookSlug: string, filePath: string, keepCount: number): number {
+    // The latest 'agent' snapshot is pinned: it is the baseline that user edits
+    // are diffed against, so it must survive pruning even beyond the keep limit.
     const stmt = this.db.prepare(`
       DELETE FROM file_versions
-      WHERE book_slug = ? AND file_path = ? AND id NOT IN (
-        SELECT id FROM file_versions
-        WHERE book_slug = ? AND file_path = ?
-        ORDER BY id DESC LIMIT ?
-      )
+      WHERE book_slug = ? AND file_path = ?
+        AND id NOT IN (
+          SELECT id FROM file_versions
+          WHERE book_slug = ? AND file_path = ?
+          ORDER BY id DESC LIMIT ?
+        )
+        AND id != COALESCE((
+          SELECT id FROM file_versions
+          WHERE book_slug = ? AND file_path = ? AND source = 'agent'
+          ORDER BY id DESC LIMIT 1
+        ), -1)
     `);
-    const info = stmt.run(bookSlug, filePath, bookSlug, filePath, keepCount);
+    const info = stmt.run(bookSlug, filePath, bookSlug, filePath, keepCount, bookSlug, filePath);
     return info.changes;
   }
 

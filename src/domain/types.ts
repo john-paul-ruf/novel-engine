@@ -512,6 +512,16 @@ export type FileVersion = {
 
 export type FileVersionSummary = Omit<FileVersion, 'content'>;
 
+/** Per-chapter pending user-edit status, derived from the agent-baseline diff. */
+export type ChapterEditStatus = {
+  chapterSlug: string;        // e.g. "02-the-notebook"
+  filePath: string;           // "chapters/02-the-notebook/draft.md"
+  hasUserEdits: boolean;      // disk content differs from latest agent snapshot
+  addedLines: number;         // 0 when hasUserEdits is false
+  removedLines: number;       // 0 when hasUserEdits is false
+  lastUserEditAt: string | null; // ISO date of latest 'user' snapshot, if any
+};
+
 export type DiffLineType = 'add' | 'remove' | 'context';
 
 export type DiffLine = {

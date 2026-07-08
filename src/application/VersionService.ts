@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { structuredPatch } from 'diff';
 import type { IDatabaseService, IFileSystemService, IVersionService } from '@domain/interfaces';
 import type {
+  ChapterEditStatus,
   DiffHunk,
   DiffLine,
   DiffLineType,
@@ -157,6 +158,94 @@ export class VersionService implements IVersionService {
       totalDeleted += this.db.deleteFileVersionsBeyondLimit(bookSlug, filePath, keepCount);
     }
     return totalDeleted;
+  }
+
+  async getUserEditsSinceAgentBaseline(
+    bookSlug: string,
+    filePath: string,
+  ): Promise<FileDiff | null> {
+    const baseline = this.db.getLatestFileVersionBySource(bookSlug, filePath, 'agent');
+    if (!baseline) return null;
+
+    let current: string;
+    try {
+      current = await this.fs.readFile(bookSlug, filePath);
+    } catch {
+      return null; // file deleted — nothing to report
+    }
+
+    const currentHash = this.hashContent(current);
+    if (currentHash === baseline.contentHash) return null;
+
+    const hunks = this.computeDiff(baseline.content, current, filePath);
+
+    let totalAdditions = 0;
+    let totalDeletions = 0;
+    for (const hunk of hunks) {
+      for (const line of hunk.lines) {
+        if (line.type === 'add') totalAdditions++;
+        if (line.type === 'remove') totalDeletions++;
+      }
+    }
+
+    // Synthetic summary for "current disk content" — id: -1 sentinel because the
+    // disk state may not correspond to a stored snapshot.
+    const latestUser = this.db.getLatestFileVersionBySource(bookSlug, filePath, 'user');
+    const newVersion: FileVersionSummary = {
+      id: -1,
+      bookSlug,
+      filePath,
+      contentHash: currentHash,
+      byteSize: Buffer.byteLength(current, 'utf-8'),
+      source: 'user',
+      createdAt: latestUser?.createdAt ?? baseline.createdAt,
+    };
+
+    return {
+      oldVersion: this.toSummary(baseline),
+      newVersion,
+      hunks,
+      totalAdditions,
+      totalDeletions,
+    };
+  }
+
+  async getChapterEditStatuses(bookSlug: string): Promise<ChapterEditStatus[]> {
+    let entries;
+    try {
+      entries = await this.fs.listDirectory(bookSlug, 'chapters');
+    } catch {
+      return []; // no chapters directory — nothing to report
+    }
+
+    // Body-chapter drafts only: NN-slug directories with number >= 2
+    // (mirrors isVerityDraft in ManuscriptView.tsx).
+    const chapterDirs = entries.filter((entry) => {
+      if (!entry.isDirectory) return false;
+      const match = /^(\d+)-/.exec(entry.name);
+      return match !== null && parseInt(match[1], 10) >= 2;
+    });
+
+    const statuses: ChapterEditStatus[] = [];
+    for (const dir of chapterDirs) {
+      const filePath = `chapters/${dir.name}/draft.md`;
+      try {
+        const diff = await this.getUserEditsSinceAgentBaseline(bookSlug, filePath);
+        const latestUser = this.db.getLatestFileVersionBySource(bookSlug, filePath, 'user');
+        statuses.push({
+          chapterSlug: dir.name,
+          filePath,
+          hasUserEdits: diff !== null,
+          addedLines: diff?.totalAdditions ?? 0,
+          removedLines: diff?.totalDeletions ?? 0,
+          lastUserEditAt: latestUser?.createdAt ?? null,
+        });
+      } catch (error) {
+        console.error(`Failed to compute edit status for ${bookSlug}/${filePath}:`, error);
+        // Skip this chapter — one bad chapter must not fail the whole list.
+      }
+    }
+    return statuses;
   }
 
   // ── Private Helpers ───────────────────────────────────────────────

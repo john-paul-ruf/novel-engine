@@ -1,0 +1,109 @@
+# State Tracker — Novel Engine / tracked-chapter-editing
+
+## Program / Feature / Intent / Sessions
+
+- **Program:** Novel Engine
+- **Feature:** tracked-chapter-editing
+- **Intent:** Let the user edit Verity-authored chapter drafts directly in the Manuscript
+  editor, with every change tracked (versioned + attributed) and surfaced to the AI so
+  Verity preserves author edits by default on subsequent revisions.
+- **Sessions:** 6
+- **Input:** `input-files/tracked-chapter-editing-proposal.md`
+
+## Session Status
+
+| # | Session | Modules | Status | Completed | Notes |
+|---|---------|---------|--------|-----------|-------|
+| 01 | Baseline-diff foundation (types, DB query, VersionService API, prune pinning) | M01, M03, M08 | done | 2026-07-08 | Implemented exactly per spec; prune SQL verified against in-memory SQLite |
+| 02 | IPC handlers + preload bridge | M09 | pending | — | |
+| 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | pending | — | |
+| 04 | Rail EDITED badges + discard-my-edits flow | M10 | pending | — | |
+| 05 | Author-edits context injection for Verity | M08, M09 | pending | — | |
+| 06 | Agent-activity guard + external-change reload | M10 | pending | — | |
+
+(Status: pending | in-progress | done | blocked | skipped)
+
+## Dependency Graph
+
+```
+SESSION-01 ──► SESSION-02 ──► SESSION-03 ──► SESSION-04
+     │                              └──────► SESSION-06
+     └────────► SESSION-05
+```
+
+- 01 has no dependencies.
+- 02 and 05 both depend only on 01 (parallel-eligible; different files except
+  `src/domain/interfaces.ts` — run 02 first if executing serially).
+- 03 depends on 02; 04 depends on 02+03; 06 depends on 03.
+
+## Architecture Reference (feature-specific)
+
+Full config in `FORGE-CONFIG.md`. Feature-relevant facts:
+
+- **Attribution already exists**: `files:write` IPC snapshots as `'user'`
+  (`src/main/ipc/handlers.ts:342`); the book watcher snapshots agent writes as `'agent'`
+  (`src/main/index.ts:702`). No changes needed to attribution.
+- **Baseline model**: latest `source='agent'` snapshot per file = baseline; user delta =
+  diff(baseline → disk). Self-resetting when Verity rewrites the file.
+- **Tracked file scope**: `chapters/(\d+)-*/draft.md` with number ≥ 2 — mirrors
+  `isVerityDraft()` (`src/renderer/components/Manuscript/ManuscriptView.tsx:14`).
+- **ContextBuilder consumers that need the author-edits section**: `ChatService`,
+  `MultiCallOrchestrator`, `RevisionQueueService`. (`SourceGenerationService` excluded —
+  it never revises chapters.)
+- **Composition-root ordering hazard**: `VersionService` is constructed at
+  `src/main/index.ts:627`, after `ChatService` (615) and `RevisionQueueService` (618) —
+  SESSION-05 must move it up.
+
+## Scope Summary (modules affected)
+
+| ID | Module | Touch |
+|----|--------|-------|
+| M01 | domain | `ChapterEditStatus` type; `IDatabaseService` + `IVersionService` methods |
+| M03 | database | Latest-by-source query; baseline-pinning prune SQL |
+| M08 | application | `VersionService` (3 new methods), `ContextBuilder` (1 param), 3 service injections |
+| M09 | main/ipc | 2 IPC handlers, 2 preload methods, composition-root reorder |
+| M10 | renderer | `ManuscriptView`, `ChapterRail`, `FileEditor` (disabled prop), new `UserEditsDiffModal` |
+
+## Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Derive user edits from version history (no new storage) | Zero drift risk; reuses dedup/diff/revert; only cost is pinning the agent baseline during prune |
+| Pin latest `agent` snapshot in prune SQL | `keepCount=50` could otherwise delete the baseline on heavily-edited files |
+| Preserve-by-default policy in Verity's context | Safest default for authors; wording-only change if policy evolves |
+| Chapters only (N ≥ 2 body drafts) | Matches the existing read-only scope; source files already freely editable |
+| EDITED chip replaces DRAFT chip (not additive) | Single badge per row keeps the rail scannable |
+| Guard = disable editor during any active CLI call for the book | Coarse but safe; avoids races with unmount-autosave in `FileEditor` |
+| Synthetic `id: -1` version summary for "current disk content" | Lets `FileDiff` represent baseline→disk without storing a snapshot |
+| 120 diff-lines cap per chapter in the context section | Bounds token cost on heavily-edited chapters; agent can Read the file for full text |
+
+## Handoff Notes
+
+(Agents append here after each session: what was done, deviations, gotchas for the next session.)
+
+### SESSION-01 (2026-07-08)
+
+**Done.** New public APIs (exact names, for SESSION-02/05):
+
+- `ChapterEditStatus` type in `src/domain/types.ts` (after `FileVersionSummary`):
+  `{ chapterSlug, filePath, hasUserEdits, addedLines, removedLines, lastUserEditAt }`.
+- `IDatabaseService.getLatestFileVersionBySource(bookSlug, filePath, source): FileVersion | null`
+  — returns **full** `FileVersion` (content included), implemented in `DatabaseService`
+  via new prepared statement `stmtGetLatestFileVersionBySource`.
+- `IVersionService.getUserEditsSinceAgentBaseline(bookSlug, filePath): Promise<FileDiff | null>`
+  — null when no agent baseline / file missing / content identical.
+- `IVersionService.getChapterEditStatuses(bookSlug): Promise<ChapterEditStatus[]>`
+  — every body chapter (dir matches `/^(\d+)-/`, number ≥ 2), per-chapter try/catch skip.
+
+**Synthetic-summary shape (no deviation):** `newVersion` in the baseline diff uses
+`id: -1` sentinel, `source: 'user'`, `createdAt: latestUser?.createdAt ?? baseline.createdAt`.
+
+**Prune pinning:** `deleteFileVersionsBeyondLimit` now passes `bookSlug, filePath` a third
+time (`stmt.run(bookSlug, filePath, bookSlug, filePath, keepCount, bookSlug, filePath)`).
+Verified via sqlite3 CLI: latest `agent` row survives `keepCount=1`; `COALESCE(..., -1)`
+doesn't block pruning for files with no agent history.
+
+**Gotchas:** `better-sqlite3` in `node_modules` is compiled for Electron's ABI
+(MODULE_VERSION 130) — plain `node` scripts can't load it; use the `sqlite3` CLI or the
+running app for DB checks. `getChapterEditStatuses` fetches the latest `user` snapshot
+separately per chapter so `lastUserEditAt` is populated even when `hasUserEdits` is false.
