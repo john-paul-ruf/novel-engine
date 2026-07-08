@@ -18,7 +18,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 03 | Icon rail + title bar breadcrumb | M10 | done | 2026-07-07 | Rail + breadcrumb + ⌘K pill live; Sidebar lost bottom-nav only; legacy views now reachable only via in-app links until S05/S08 |
 | 04 | Command palette + action registry | M10 | done | 2026-07-07 | Palette + registry live; ⌘K/Ctrl+K global; also touched bookStore (chapters cache) + both Sidebar button files (trigger extraction per §2) |
 | 05 | Status bar + activity drawer | M10 | done | 2026-07-07 | Bottom status bar + drawer live; cost-today deferred (session tokens shown); also touched useVerticalResize (direction:'up') |
-| 06 | Library view (bookshelf) | M10 | pending | — | |
+| 06 | Library view (bookshelf) | M10 | done | 2026-07-07 | Shelf grid + modals live; reuses ImportChoiceModal/AboutJsonViewer; SeriesModal + import wizards still mounted via BookPanel (S14 must re-home) |
 | 07 | Pipeline spine panel | M10 | pending | — | |
 | 08 | Workbench shell + phase header | M10 | pending | — | |
 | 09 | Split pane — chat + companion shell | M10 | pending | — | |
@@ -78,6 +78,25 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-06 (2026-07-07)
+
+**Built:** `Library/LibraryView.tsx` (header + actions, standalone shelf grid with ghost cards at grid end, one titled section per series, recent line, all modals) and `Library/BookCard.tsx` (2:3 cover w/ click-to-change + pencil overlay, serif title, status chip, `Phase N of 14` + progress bar, word count, hover "Resume →"/"Open →", ⋯ overflow menu → Book info / Archive). AppLayout `library` placeholder replaced.
+
+**Phase data:** LibraryView fills `pipelineStore.cache` via `loadPipeline(slug)` for every UNCACHED book; BookCard derives phase from `cache[slug]`: current = `activePhase` index + 1 (same source PipelineTracker/Dashboard use), bar width = completed/total, lumen bar+chip at 100%/final/published. Cached entries are not re-fetched by Library — the active book stays fresh via the existing `setActiveBook → loadPipeline` path.
+
+**Reused, not rebuilt:** `ImportChoiceModal` (rendered locally), `AboutJsonViewer` + `useOpenSpark` (hosted in a Book-info modal). **NOT re-mounted here:** `SeriesModal`, `ImportWizard`, `ImportSeriesWizard`, `PitchPreviewModal` — they stay mounted inside BookPanel (always-rendered Sidebar) and Library only triggers their stores (`openModal('list')`, `startImport()`, `startSeriesImport()`). **S14: when deleting BookPanel, re-home those four mounts (AppLayout is the natural place) or series/import flows lose their UI.**
+
+**Duplicated from BookPanel (deliberately, so S14 can delete BookPanel wholesale — Library imports nothing from it):** series-grouping memos (`bookToSeries` + `seriesGroups/standaloneBooks`), NewBookModal, ArchiveConfirmModal, archived-books list (as `ArchivedBooksModal`) — all restyled with `ne-*` tokens, no emoji.
+
+**Palette (S04 registry):** provider for 'Books' group (one item per book: activate + `navigate('workspace')`), plus static 'New Book' and 'Import…' items in the same group — they `navigate('library')` then open the Library modals via module-level callbacks assigned while LibraryView is mounted (always, given ViewContent mounts all views).
+
+**Deliberate behavior choices (vs BookPanel):** card click / New Book create end on `navigate('workspace')` (overrides `setActiveBook`'s internal `navigate('dashboard')`); restoring an archived book ends on `navigate('library')` so the restored card is visible (BookPanel landed on dashboard).
+
+**Warnings:**
+- `subscribeToDirectoryChanges()` is now subscribed twice (BookPanel + LibraryView) until S14 — directory changes trigger two `loadBooks()` calls; harmless/idempotent, S14 resolves by deleting BookPanel.
+- Book-info "Edit JSON" activates the target book first, then opens the LEGACY files view (`navigate('files', { filePath: 'about.json', fileViewMode: 'editor' })`) — S11/S14 should re-route when files view is displaced.
+- Recent line renders only when `dashboardStore.data` matches the active book (LibraryView triggers `load` when stale) and there is at least one recent file; otherwise omitted per session spec.
 
 ### SESSION-05 (2026-07-07)
 

@@ -27,6 +27,7 @@ import { useRightPanelStore } from '../../stores/rightPanelStore';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 import { IconRail } from '../Rail/IconRail';
+import { LibraryView } from '../Library/LibraryView';
 import { CommandPalette } from '../Palette/CommandPalette';
 import { usePaletteStore } from '../../stores/paletteStore';
 
@@ -93,10 +94,10 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'reading' ? '' : 'hidden'}`}>
         <ReadingModeView />
       </div>
-      {/* Streamlined Workspace placeholders — replaced in Phase B/C sessions */}
       <div className={`h-full ${currentView === 'library' ? '' : 'hidden'}`}>
-        <div className="p-8 text-sm opacity-60">Library — arrives in SESSION-06</div>
+        <LibraryView />
       </div>
+      {/* Streamlined Workspace placeholders — replaced in Phase B/C sessions */}
       <div className={`h-full ${currentView === 'workspace' ? '' : 'hidden'}`}>
         <div className="p-8 text-sm opacity-60">Workspace — arrives in SESSION-08</div>
       </div>
