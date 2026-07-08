@@ -18,9 +18,56 @@ type ChatInputProps = {
   defaultThinkingBudget: number;
   /** Called when the user adjusts the thinking budget slider. */
   onThinkingBudgetChange: (value: number) => void;
+  /**
+   * Workbench mode: the full-width slider row becomes a "Thinking: …" chip
+   * with a popover, and quick actions render as a chip menu. Default false —
+   * the legacy chat view is unaffected.
+   */
+  compact?: boolean;
 };
 
-export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOnly = false, thinkingBudget, defaultThinkingBudget, onThinkingBudgetChange }: ChatInputProps): React.ReactElement {
+/** Chip that opens a popover hosting the existing ThinkingBudgetSlider. */
+function ThinkingChip({
+  value,
+  defaultValue,
+  onChange,
+  disabled,
+}: {
+  value: number;
+  defaultValue: number;
+  onChange: (value: number) => void;
+  disabled: boolean;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+        className="rounded-full border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+        title="Adjust how much the agent reasons before responding"
+      >
+        {value === 0 ? 'Thinking: Off' : `Thinking: ${value / 1000}K`} ▾
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute bottom-full left-0 z-50 mb-2 w-72 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 shadow-lg">
+            <ThinkingBudgetSlider
+              value={value}
+              defaultValue={defaultValue}
+              onChange={onChange}
+              disabled={disabled}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOnly = false, thinkingBudget, defaultThinkingBudget, onThinkingBudgetChange, compact = false }: ChatInputProps): React.ReactElement {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -75,8 +122,29 @@ export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOn
   const showQuickActions = !readOnly && agentName;
 
   return (
-    <div data-tour="chat-input" className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
-      {!readOnly && (
+    <div
+      data-tour="chat-input"
+      className={`border-t border-zinc-200 dark:border-zinc-800 ${compact ? 'px-4 py-3' : 'px-6 py-4'}`}
+    >
+      {!readOnly && compact && (
+        <div className="mb-2 flex items-center gap-1.5">
+          <ThinkingChip
+            value={thinkingBudget}
+            defaultValue={defaultThinkingBudget}
+            onChange={onThinkingBudgetChange}
+            disabled={disabled}
+          />
+          {showQuickActions && (
+            <QuickActions
+              agentName={agentName}
+              onSelect={handleQuickAction}
+              disabled={disabled}
+              compact
+            />
+          )}
+        </div>
+      )}
+      {!readOnly && !compact && (
         <ThinkingBudgetSlider
           value={thinkingBudget}
           defaultValue={defaultThinkingBudget}
@@ -85,7 +153,7 @@ export function ChatInput({ onSend, disabled, lockedAgentName, agentName, readOn
         />
       )}
       <div className="flex items-end gap-3">
-        {showQuickActions && (
+        {!compact && showQuickActions && (
           <QuickActions
             agentName={agentName}
             onSelect={handleQuickAction}

@@ -21,7 +21,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 06 | Library view (bookshelf) | M10 | done | 2026-07-07 | Shelf grid + modals live; reuses ImportChoiceModal/AboutJsonViewer; SeriesModal + import wizards still mounted via BookPanel (S14 must re-home) |
 | 07 | Pipeline spine panel | M10 | done | 2026-07-07 | Spine + workspaceStore + stages built; NOT yet mounted (S08 mounts it in the workbench); tsc + boot verified via temp mount |
 | 08 | Workbench shell + phase header | M10 | done | 2026-07-07 | WorkspaceView live (spine + header + temp body); also touched PipelineSpine (usePhaseAction extraction per §2) + TitleBar (phase breadcrumb per verification) |
-| 09 | Split pane — chat + companion shell | M10 | pending | — | |
+| 09 | Split pane — chat + companion shell | M10 | done | 2026-07-07 | Split workbench live; also touched QuickActions.tsx (compact chip trigger per §3) |
 | 10 | Companion content tabs | M10 | pending | — | |
 | 11 | Manuscript view (read + edit) | M10 | pending | — | |
 | 12 | Exports, Statistics, Settings routing | M10 | pending | — | |
@@ -78,6 +78,23 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-09 (2026-07-07)
+
+**Built:** `Workbench/SplitPane.tsx`, `Workbench/ChatPane.tsx`, `Workbench/CompanionPane.tsx`; WorkspaceView body = `SplitPane(left=ChatPane, right=CompanionPane)` (locked-phase card behavior kept; no-book state kept). `ChatInput.tsx` gained `compact` mode; `QuickActions.tsx` gained `compact` chip trigger (beyond file table, required by §3 — menu code untouched).
+
+**SplitPane props:** `{ left, right: React.ReactNode }`. Ratio drag 30–70%, persisted at `novel-engine:workbench-split` (number 0–1); default 0.52. Double-click divider resets. Chevron button on divider collapses/expands the companion (persisted at `novel-engine:workbench-split-collapsed`); **the collapsed pane stays MOUNTED (hidden) to preserve tab state**. Ratio logic is inline in SplitPane (single consumer — no separate hook).
+
+**ChatPane props:** `{ phase: PipelinePhase | null }`. Owns `usePhaseConversations(phase.id)` (the auto-activation now runs from here — removed from WorkspaceView, single instance... note ConversationChip inside ChatPane calls the hook a second time; both instances are identical and the activation effect is idempotent). Pane header = ConversationChip (title + count + menu: conversations w/ relative time + "+ New conversation") — replaces ConversationList in the workspace. Body = existing `MessageList` (hideStreaming when read-only); footer = `ChatInput compact`. `data-tour="chat-view"` on pane root, `data-tour="chat-input"` comes from ChatInput itself.
+
+**Lifted from ChatView (S14 may delete this chrome from ChatView safely):** default-thinking-budget derivation (settings + AGENT_REGISTRY), thinking budget state + reset-on-agent-change, `__HOT_TAKE__` send interception, interrupted-session banner (restyled with ne tokens), read-only rule. **NOT lifted (still ONLY in ChatView until S14 re-homes):** `payload.conversationId` deep-link effect, `loadConversations(activeSlug)` on book change (BookPanel also does this), EmptyState agent picker. ChatPane's read-only check derives from the SELECTED PHASE's status (equivalent to ChatView's conversation-phase rule since the pane's conversations are phase-tagged).
+
+**Compact-mode contract (`ChatInput`):** `compact?: boolean` (default false — legacy chat view renders the original full-width slider + square quick-actions button). Compact: chips row above the textarea — `Thinking: Off|NK ▾` chip opens a popover hosting the UNCHANGED ThinkingBudgetSlider; `Quick actions ▾` chip = QuickActions with `compact` (same menu/handlers).
+
+**Warnings:**
+- `data-tour="chat-view"` / `"chat-input"` / `"quick-actions"` now exist TWICE in the DOM (hidden legacy ChatView + workspace pane). Tours querySelector the first match — S14 must retarget tour selectors when rewriting tours.
+- MessageList + StreamingMessage render twice during streams (hidden ChatView + ChatPane) until S14 — functional, minor duplicate work.
+- ChatPane renders MessageList only when the phase's own conversation is active (hook-scoped); a foreign active conversation shows the pane's empty state instead of leaking another phase's messages.
 
 ### SESSION-08 (2026-07-07)
 

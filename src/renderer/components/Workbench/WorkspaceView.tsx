@@ -2,8 +2,10 @@ import type { PipelinePhase } from '@domain/types';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { PipelineSpine } from '../PipelineSpine/PipelineSpine';
+import { ChatPane } from './ChatPane';
+import { CompanionPane } from './CompanionPane';
 import { PhaseHeader } from './PhaseHeader';
-import { usePhaseConversations } from './usePhaseConversations';
+import { SplitPane } from './SplitPane';
 
 /** Quiet card shown when the selected phase is still locked. */
 function LockedPhaseCard({
@@ -31,8 +33,8 @@ function LockedPhaseCard({
 
 /**
  * The Workspace view: PipelineSpine (left) + workbench column (right).
- * The workbench body is a temporary panel — the split chat/companion
- * arrives in SESSION-09.
+ * The workbench body is the chat ‖ companion split. ChatPane owns the
+ * phase↔conversation wiring (auto-activation) via usePhaseConversations.
  */
 export function WorkspaceView(): React.ReactElement {
   const phases = usePipelineStore((s) => s.phases);
@@ -42,12 +44,6 @@ export function WorkspaceView(): React.ReactElement {
   const selectedIdx = selectedPhase ? phases.findIndex((p) => p.id === selectedPhase.id) : -1;
   const previousLabel = selectedIdx > 0 ? phases[selectedIdx - 1].label : null;
 
-  // Phase↔conversation wiring: activates the phase's latest conversation
-  // while the workspace is open. Locked phases don't activate anything.
-  usePhaseConversations(
-    selectedPhase && selectedPhase.status !== 'locked' ? selectedPhase.id : null,
-  );
-
   return (
     <div className="flex h-full min-h-0 bg-ne-bg0">
       <PipelineSpine />
@@ -56,12 +52,12 @@ export function WorkspaceView(): React.ReactElement {
         <div className="min-h-0 flex-1">
           {selectedPhase?.status === 'locked' ? (
             <LockedPhaseCard phase={selectedPhase} previousLabel={previousLabel} />
-          ) : (
+          ) : phases.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-ne-ink-faint">
-              {phases.length === 0
-                ? 'Select a book in the Library to begin'
-                : 'Chat workbench arrives in SESSION-09'}
+              Select a book in the Library to begin
             </div>
+          ) : (
+            <SplitPane left={<ChatPane phase={selectedPhase} />} right={<CompanionPane />} />
           )}
         </div>
       </div>

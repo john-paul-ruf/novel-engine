@@ -9,6 +9,8 @@ type QuickActionsProps = {
   agentName: CreativeAgentName;
   onSelect: (prompt: string) => void;
   disabled: boolean;
+  /** Workbench chip trigger instead of the square icon button. Menu unchanged. */
+  compact?: boolean;
 };
 
 function tabClass(active: boolean): string {
@@ -19,7 +21,7 @@ function tabClass(active: boolean): string {
   }`;
 }
 
-export function QuickActions({ agentName, onSelect, disabled }: QuickActionsProps): React.ReactElement {
+export function QuickActions({ agentName, onSelect, disabled, compact = false }: QuickActionsProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'builtin' | 'saved'>('builtin');
   const menuRef = useRef<HTMLDivElement>(null);
@@ -103,26 +105,38 @@ export function QuickActions({ agentName, onSelect, disabled }: QuickActionsProp
   return (
     <div data-tour="quick-actions" className="relative">
       <Tooltip content="Quick actions and saved prompts" placement="top">
-        <button
-          ref={buttonRef}
-          onClick={() => setOpen((prev) => !prev)}
-          disabled={disabled}
-          title="Quick actions"
-          className="flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-3 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="h-5 w-5"
+        {compact ? (
+          <button
+            ref={buttonRef}
+            onClick={() => setOpen((prev) => !prev)}
+            disabled={disabled}
+            title="Quick actions"
+            className="rounded-full border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <path
-              fillRule="evenodd"
-              d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
+            Quick actions ▾
+          </button>
+        ) : (
+          <button
+            ref={buttonRef}
+            onClick={() => setOpen((prev) => !prev)}
+            disabled={disabled}
+            title="Quick actions"
+            className="flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-3 text-sm text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-5 w-5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        )}
       </Tooltip>
 
       {open && (
