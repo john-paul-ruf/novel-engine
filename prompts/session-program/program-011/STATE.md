@@ -16,7 +16,7 @@
 |---|---------|---------|--------|-----------|-------|
 | 01 | Baseline-diff foundation (types, DB query, VersionService API, prune pinning) | M01, M03, M08 | done | 2026-07-08 | Implemented exactly per spec; prune SQL verified against in-memory SQLite |
 | 02 | IPC handlers + preload bridge | M09 | done | 2026-07-08 | Typecheck clean; DevTools smoke test deferred to SESSION-03 manual pass |
-| 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | pending | — | |
+| 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | done | 2026-07-08 | Typecheck clean; manual UI flows pending final pass |
 | 04 | Rail EDITED badges + discard-my-edits flow | M10 | pending | — | |
 | 05 | Author-edits context injection for Verity | M08, M09 | done | 2026-07-08 | Typecheck clean; live context inspection deferred to final manual pass |
 | 06 | Agent-activity guard + external-change reload | M10 | pending | — | |
@@ -140,6 +140,25 @@ chapter** (`AUTHOR_EDITS_MAX_DIFF_LINES` in `src/application/VersionService.ts`)
 absent for non-Verity agents and unedited books) deferred to the final manual pass.
 **Gotcha:** `MultiCallOrchestrator` rebuilds the section per non-lightweight step — cheap
 (SQLite + small diffs) and keeps it fresh if the user edits mid-run.
+
+### SESSION-03 (2026-07-08)
+
+**Done.** For SESSIONs 04/06:
+
+- Flag name: **`isTrackedDraft`** (`ManuscriptView.tsx`, replaces `editorReadOnly`) —
+  means "show tracked-edit UI", editing is enabled.
+- Modal file: **`src/renderer/components/Manuscript/UserEditsDiffModal.tsx`** — props
+  `{ bookSlug, filePath, chapterTitle, onClose }`; fetches via
+  `versions.getUserEdits`; Escape + overlay-click close; `DiffViewer` body.
+- Banner renders above `FileEditor` inside the `mode === 'editor'` branch, guarded on
+  `isTrackedDraft && editorPath` — this is the banner slot SESSION-06's guard layers onto.
+- `showUserEdits` state reset on book switch; modal render guarded on
+  `showUserEdits && isTrackedDraft && editorPath`, next to `FindReplaceModal`.
+- `ReadOnlyDraft` component and its render branch deleted; editor-content effect no longer
+  skips tracked drafts.
+
+**Deviation:** `FindReplaceModal` has no Escape handler to mirror — the new modal implements
+Escape itself (window keydown listener). Manual UI verification deferred to final pass.
 
 **Gotchas:** `better-sqlite3` in `node_modules` is compiled for Electron's ABI
 (MODULE_VERSION 130) — plain `node` scripts can't load it; use the `sqlite3` CLI or the

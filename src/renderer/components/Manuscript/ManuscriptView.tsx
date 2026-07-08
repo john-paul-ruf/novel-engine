@@ -9,8 +9,9 @@ import { FindReplaceModal } from '../Files/FindReplaceModal';
 import { Icon } from '../common/Icon';
 import { ProseViewer, useBookFile } from '../common/ProseViewer';
 import { ChapterRail, useChapterList } from './ChapterRail';
+import { UserEditsDiffModal } from './UserEditsDiffModal';
 
-/** Verity-authored chapter drafts (body chapters 02+) are read-only in the UI. */
+/** Verity-authored chapter drafts (body chapters 02+) get tracked-edit UI: every change is versioned and surfaced to Verity. */
 function isVerityDraft(path: string): boolean {
   const match = path.match(/^chapters\/(\d+)-[^/]+\/draft\.md$/);
   return match !== null && parseInt(match[1], 10) >= 2;
@@ -100,6 +101,7 @@ export function ManuscriptView(): React.ReactElement {
   /** Editor file override (notes.md, Explorer "Edit" payloads); null = selected draft. */
   const [fileOverride, setFileOverride] = useState<string | null>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [showUserEdits, setShowUserEdits] = useState(false);
 
   const bookRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +124,7 @@ export function ManuscriptView(): React.ReactElement {
     setFileOverride(null);
     setScope('chapter');
     setShowFindReplace(false);
+    setShowUserEdits(false);
   }, [activeSlug]);
 
   // Deep links: chapterSlug / manuscriptMode / filePath (Explorer "Edit").
@@ -229,10 +232,11 @@ export function ManuscriptView(): React.ReactElement {
 
   // ── Editor content (loaded once per file — not revision-driven) ────────────
   const [editorContent, setEditorContent] = useState<string | null>(null);
-  const editorReadOnly = editorPath !== null && isVerityDraft(editorPath);
+  /** Tracked-edit UI for Verity drafts — editable, with every change versioned. */
+  const isTrackedDraft = editorPath !== null && isVerityDraft(editorPath);
 
   useEffect(() => {
-    if (mode !== 'editor' || !editorPath || !activeSlug || editorReadOnly) {
+    if (mode !== 'editor' || !editorPath || !activeSlug) {
       setEditorContent(null);
       return;
     }
@@ -249,7 +253,7 @@ export function ManuscriptView(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [mode, editorPath, activeSlug, editorReadOnly]);
+  }, [mode, editorPath, activeSlug]);
 
   if (!activeSlug) {
     return (
@@ -359,19 +363,21 @@ export function ManuscriptView(): React.ReactElement {
 
         {mode === 'editor' && (
           <div className="flex min-h-0 flex-1 flex-col">
-            {editorReadOnly && editorPath ? (
-              <>
-                <div className="flex shrink-0 items-center gap-2 border-b border-ne-spark/30 bg-ne-spark/10 px-6 py-2">
-                  <p className="text-xs text-ne-ink-dim">
-                    <strong className="text-ne-ink">Verity's draft — read-only.</strong>{' '}
-                    To revise this chapter, ask Verity in the Workspace chat.
-                  </p>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-10 py-12 pb-24">
-                  <ReadOnlyDraft activeSlug={activeSlug} path={editorPath} />
-                </div>
-              </>
-            ) : editorPath && editorContent !== null ? (
+            {isTrackedDraft && editorPath && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-ne-spark/30 bg-ne-spark/10 px-6 py-2">
+                <p className="min-w-0 flex-1 text-xs text-ne-ink-dim">
+                  <strong className="text-ne-ink">You're editing Verity's draft.</strong>{' '}
+                  Every change is tracked and shared with Verity on her next revision.
+                </p>
+                <button
+                  onClick={() => setShowUserEdits(true)}
+                  className="shrink-0 rounded-md border border-ne-line bg-ne-bg2 px-2.5 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+                >
+                  View my changes
+                </button>
+              </div>
+            )}
+            {editorPath && editorContent !== null ? (
               <FileEditor
                 key={editorPath}
                 filePath={editorPath}
@@ -394,14 +400,14 @@ export function ManuscriptView(): React.ReactElement {
       </div>
 
       {showFindReplace && <FindReplaceModal onClose={() => setShowFindReplace(false)} />}
+      {showUserEdits && isTrackedDraft && editorPath && (
+        <UserEditsDiffModal
+          bookSlug={activeSlug}
+          filePath={editorPath}
+          chapterTitle={selectedChapter?.title ?? selectedSlug ?? ''}
+          onClose={() => setShowUserEdits(false)}
+        />
+      )}
     </div>
   );
-}
-
-/** Read-only prose body for Verity drafts opened in editor mode. */
-function ReadOnlyDraft({ activeSlug, path }: { activeSlug: string; path: string }): React.ReactElement {
-  const { content, loading, error } = useBookFile(activeSlug, path);
-  if (error) return <div className="pt-8 text-center text-sm text-ne-ink-faint">{error}</div>;
-  if (loading) return <div className="pt-8 text-center text-sm text-ne-ink-faint">Loading…</div>;
-  return <ProseViewer content={content} wide />;
 }
