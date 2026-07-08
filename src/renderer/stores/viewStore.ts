@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type ViewId = 'dashboard' | 'onboarding' | 'chat' | 'files' | 'build' | 'settings' | 'statistics' | 'pitch-room' | 'reading';
+type LegacyViewId = 'dashboard' | 'chat' | 'files' | 'build' | 'reading';
+type ViewId =
+  | 'library' | 'workspace' | 'manuscript' | 'exports'        // new primary
+  | 'settings' | 'statistics' | 'pitch-room' | 'onboarding'   // carried over
+  | LegacyViewId;                                             // removed in SESSION-14
 
 export type FileViewMode = 'browser' | 'reader' | 'editor';
 
@@ -10,6 +14,19 @@ type ViewPayload = {
   fileViewMode?: FileViewMode;
   fileBrowserPath?: string;
   conversationId?: string;
+  phaseId?: string;
+  chapterSlug?: string;
+  manuscriptMode?: 'reader' | 'editor';
+};
+
+// Persisted legacy views are rewritten forward so users land in the new UI
+// after updating. The legacy views themselves stay routable until SESSION-14.
+const LEGACY_VIEW_FORWARD: Record<LegacyViewId, ViewId> = {
+  dashboard: 'workspace',
+  chat: 'workspace',
+  reading: 'manuscript',
+  build: 'exports',
+  files: 'manuscript',
 };
 
 type ViewState = {
@@ -37,16 +54,16 @@ export const useViewStore = create<ViewState>()(
     }),
     {
       name: 'novel-engine-view',
-      version: 4,
+      version: 5,
       migrate: (persistedState: unknown) => {
         const state = persistedState as Partial<ViewState>;
-        if ((state.currentView as string) === 'motif-ledger') {
-          return { ...state, currentView: 'files' as ViewId };
-        }
-        if ((state.currentView as string) === 'revision-queue') {
-          return { ...state, currentView: 'dashboard' as ViewId };
-        }
-        return state;
+        // v4 cases — removed views map to their old replacements first
+        let view = state.currentView as string;
+        if (view === 'motif-ledger') view = 'files';
+        if (view === 'revision-queue') view = 'dashboard';
+        // v5 — persisted legacy views land in the new UI
+        const forwarded = LEGACY_VIEW_FORWARD[view as LegacyViewId];
+        return { ...state, currentView: (forwarded ?? view) as ViewId };
       },
       partialize: (state) => ({
         currentView: state.currentView,
@@ -55,3 +72,8 @@ export const useViewStore = create<ViewState>()(
     },
   ),
 );
+
+/** Deep-link into the workspace at a specific pipeline phase. */
+export function navigateToPhase(phaseId: string): void {
+  useViewStore.getState().navigate('workspace', { phaseId });
+}

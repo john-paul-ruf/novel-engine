@@ -14,7 +14,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Design tokens & typography foundation | M10 | done | 2026-07-07 | Additive only — tokens + fonts + agentColors.ts; no existing component touched |
-| 02 | viewStore v5 — new view routing | M10 | pending | — | |
+| 02 | viewStore v5 — new view routing | M10 | done | 2026-07-07 | ViewId extended, persist v5 migration forwards legacy views, placeholders mounted, `navigateToPhase` exported |
 | 03 | Icon rail + title bar breadcrumb | M10 | pending | — | |
 | 04 | Command palette + action registry | M10 | pending | — | |
 | 05 | Status bar + activity drawer | M10 | pending | — | |
@@ -78,6 +78,27 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-02 (2026-07-07)
+
+**Built:** `viewStore.ts` v5 routing + four placeholder mounts in `AppLayout.tsx` `ViewContent` (hidden-unless-active pattern, replaced by S06/S08/S11/S12).
+
+**Final ViewId union (verbatim, for S03/S04/S07/S11):**
+```ts
+type LegacyViewId = 'dashboard' | 'chat' | 'files' | 'build' | 'reading';
+type ViewId =
+  | 'library' | 'workspace' | 'manuscript' | 'exports'        // new primary
+  | 'settings' | 'statistics' | 'pitch-room' | 'onboarding'   // carried over
+  | LegacyViewId;                                             // removed in SESSION-14
+```
+
+**ViewPayload fields (verbatim):** `filePath?: string`, `fileViewMode?: FileViewMode`, `fileBrowserPath?: string`, `conversationId?: string`, `phaseId?: string`, `chapterSlug?: string`, `manuscriptMode?: 'reader' | 'editor'`.
+
+**Exports:** `useViewStore`, `FileViewMode`, and `navigateToPhase(phaseId: string)` (thin wrapper → `navigate('workspace', { phaseId })` — use it from palette/spine to avoid circular store imports). The `ViewId` type itself is NOT exported (matches pre-existing style; `Sidebar.tsx` declares a local subset). If a later session needs the type, export it then.
+
+**Migration:** persist v5. v≤4 persisted state forwards `dashboard|chat → workspace`, `reading → manuscript`, `build|files → exports/manuscript` (`build → exports`, `files → manuscript`); old v4 cases (`motif-ledger`, `revision-queue`) still chain through first. Legacy views remain routable via the sidebar — only *persisted* state is rewritten.
+
+**Warnings:** Fresh installs still default to `currentView: 'dashboard'` (unchanged on purpose — onboarding/default flow is S14's concern).
 
 ### SESSION-01 (2026-07-07)
 

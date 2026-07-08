@@ -89,6 +89,19 @@ function ViewContent(): React.ReactElement {
       <div className={`h-full ${currentView === 'reading' ? '' : 'hidden'}`}>
         <ReadingModeView />
       </div>
+      {/* Streamlined Workspace placeholders — replaced in Phase B/C sessions */}
+      <div className={`h-full ${currentView === 'library' ? '' : 'hidden'}`}>
+        <div className="p-8 text-sm opacity-60">Library — arrives in SESSION-06</div>
+      </div>
+      <div className={`h-full ${currentView === 'workspace' ? '' : 'hidden'}`}>
+        <div className="p-8 text-sm opacity-60">Workspace — arrives in SESSION-08</div>
+      </div>
+      <div className={`h-full ${currentView === 'manuscript' ? '' : 'hidden'}`}>
+        <div className="p-8 text-sm opacity-60">Manuscript — arrives in SESSION-11</div>
+      </div>
+      <div className={`h-full ${currentView === 'exports' ? '' : 'hidden'}`}>
+        <div className="p-8 text-sm opacity-60">Exports — arrives in SESSION-12</div>
+      </div>
     </>
   );
 }
