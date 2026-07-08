@@ -10,6 +10,7 @@ import { FileEditor } from '../Files/FileEditor';
 import { FindReplaceModal } from '../Files/FindReplaceModal';
 import { Icon } from '../common/Icon';
 import { ProseViewer, useBookFile } from '../common/ProseViewer';
+import { VersionHistoryModal } from '../common/VersionHistoryModal';
 import { ChapterRail, useChapterList } from './ChapterRail';
 import { UserEditsDiffModal } from './UserEditsDiffModal';
 
@@ -104,6 +105,7 @@ export function ManuscriptView(): React.ReactElement {
   const [fileOverride, setFileOverride] = useState<string | null>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showUserEdits, setShowUserEdits] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const bookRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +130,11 @@ export function ManuscriptView(): React.ReactElement {
     setShowFindReplace(false);
     setShowUserEdits(false);
   }, [activeSlug]);
+
+  // Chapter or book switch → close the history modal (its file changes underneath).
+  useEffect(() => {
+    setShowHistoryModal(false);
+  }, [selectedSlug, activeSlug]);
 
   // Deep links: chapterSlug / manuscriptMode / filePath (Explorer "Edit").
   useEffect(() => {
@@ -371,6 +378,16 @@ export function ManuscriptView(): React.ReactElement {
               : selectedChapter?.title ?? ''}
             {bodyWordCount > 0 && ` · ${bodyWordCount.toLocaleString()} words`}
           </span>
+          {mode === 'reader' && scope === 'chapter' && draftPath && (
+            <button
+              onClick={() => setShowHistoryModal(true)}
+              title="Version history"
+              className="flex items-center gap-1 rounded-md border border-ne-line bg-ne-bg2 px-2 py-1 text-[11px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink"
+            >
+              <Icon name="history" size={10} strokeWidth={2} />
+              History
+            </button>
+          )}
           <button
             onClick={() => setShowFindReplace(true)}
             title="Find & Replace"
@@ -496,6 +513,13 @@ export function ManuscriptView(): React.ReactElement {
           chapterTitle={selectedChapter?.title ?? selectedSlug ?? ''}
           onClose={() => setShowUserEdits(false)}
           onReverted={() => setEditorReloadKey((k) => k + 1)}
+        />
+      )}
+      {showHistoryModal && activeSlug && draftPath && (
+        <VersionHistoryModal
+          bookSlug={activeSlug}
+          filePath={draftPath}
+          onClose={() => setShowHistoryModal(false)}
         />
       )}
     </div>

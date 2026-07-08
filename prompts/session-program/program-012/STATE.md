@@ -17,7 +17,7 @@
 | 01 | Retheme version-history surfaces (DiffViewer, VersionHistoryPanel, FileEditor, UserEditsDiffModal remnants) | M10 | done | 2026-07-08 | Pure className swap (66 lines). Save button uses `text-ne-bg0` (LibraryView precedent) instead of `text-white`. Preview pane prose themed via `--tw-prose-*` vars → `ne-*` tokens. |
 | 02 | Reusable VersionHistoryModal (common component) | M10 | done | 2026-07-08 | `frameless` prop was needed on `VersionHistoryPanel` (drops `border-l border-ne-line`, defaults to current behavior). |
 | 03 | History buttons in companion tabs (Sources, Explorer, Chapter, Reports) | M10 | done | 2026-07-08 | Existing `history` icon reused (no `clock` glyph added). Additive-only wiring, 83 insertions, no `onReverted` anywhere. |
-| 04 | History in Manuscript reader mode + final audit | M10 | pending | — | — |
+| 04 | History in Manuscript reader mode + final audit | M10 | done | 2026-07-08 | Reader-toolbar History button (chapter scope only) + modal. Zinc audit clean in scope; 4 out-of-scope Files/ components logged as follow-up. Runtime manual checklist pending human pass. |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -126,3 +126,30 @@ SESSION-01 ──► SESSION-02 ──► SESSION-03
     viewer branch.
 - **For SESSION-04:** Manuscript reader host still pending; manual visual pass for
   SESSION-01/03 surfaces folded into the final audit checklist.
+
+### SESSION-04 (2026-07-08)
+
+- **Landed:** History button in the Manuscript reader toolbar — renders only when
+  `mode === 'reader' && scope === 'chapter' && draftPath` (full-book scope gets none).
+  Opens `VersionHistoryModal` on the chapter's `draft.md`; no `onReverted` (reader flows
+  through `useBookFile`, confirmed at `ManuscriptView.tsx` chapterFile hook).
+- **Reset behavior:** one effect on `[selectedSlug, activeSlug]` closes the modal on
+  chapter *or* book switch (book switch nulls `selectedSlug`, so both paths are covered;
+  a second reset in the book-switch effect would have been redundant).
+- **Icon:** reused the `history` glyph, same as SESSION-03 (session text said "clock" —
+  no clock glyph exists; `history` is the established one).
+- **Tracked-edit interplay (static verification):** `ChapterRail` refetches
+  `getChapterEditStatuses` on every `fileChangeStore.revision` bump, and revert writes
+  the file → watcher fires → badges refresh. Reverts snapshot with source `'revert'`
+  and will surface as user-attributed changes vs. the agent baseline — as designed.
+  **Runtime confirmation still needed** (manual checklist below).
+- **Final zinc audit:** in-scope files all clean. Out-of-scope zinc leftovers in
+  `src/renderer/components/Files/` (follow-up, do not block):
+  `FindReplaceModal.tsx`, `DeleteConfirmModal.tsx`, `AboutJsonViewer.tsx`, `FileBrowser.tsx`.
+- **Manual pass checklist (human, `npm start`):**
+  1. Manuscript → Reader (chapter) → History → select version → diff renders → revert → reader refreshes.
+  2. Full-book reader scope shows no History button.
+  3. Revert a Verity draft from Reader → chapter-rail EDITED badge + "View my changes" show the revert as a user change, no crash.
+  4. Editor mode's split-pane History still works (regression).
+  5. Sources / Explorer (incl. Verity draft, no Edit button) / Chapter / Reports tabs each open the modal; Escape + backdrop-click close it.
+  6. SESSION-01 retheme: panel, badges, diff colors, revert flow in parchment/brass; check both light and dark themes.
