@@ -23,7 +23,7 @@ Bash(mkdir/cat/mv/cp/ls/find/wc/rm/rmdir).
 |---|---------|---------|--------|-----------|-------|
 | 01 | Widen ToolExecutor sandbox to books root | M11, M12 | done | 2026-07-08 | `additionalRoots: string[] = []` added to constructor; both clients pass `[this.booksDir]` |
 | 02 | Provider-agnostic PITCH-ROOM.md build instructions | M04 | done | 2026-07-08 | Content-only edit; Bash now optional, failure-reporting added |
-| 03 | "Promote to Book" button fallback | M10 | pending | — | Parallel-safe |
+| 03 | "Promote to Book" button fallback | M10 | done | 2026-07-08 | Manual GUI smoke deferred to end-to-end check |
 | 04 | BashEmulator — sandboxed coreutils module | M11 | pending | — | Requires 01; module unused until 05 |
 | 05 | Wire Bash tool into local-provider agent loop | M11, M12 | pending | — | Requires 04; llama-server picks it up with no edits |
 | 06 | Codex writable_roots sandbox fallback | M13 | pending | — | Parallel-safe; verified against codex-cli 0.27.0 |
@@ -120,3 +120,16 @@ Header button → `window.novelEngine.pitchRoom.promote(convId)` → IPC `pitchR
   report Write failures and point at the "Promote to Book" button (added in SESSION-03).
 - Session prompt said the `{{BOOKS_PATH}}` count was 4; the actual pre-edit count was 6 —
   unchanged by the edit, which is the real invariant. No placeholders touched.
+
+### SESSION-03 (2026-07-08)
+
+- `pitchRoomStore` gained `hasPitch`/`isPromoting` state and
+  `refreshDraftStatus`/`promoteActivePitch` actions; refresh runs after
+  `setActiveConversation`, both `ensureConversation` branches, and stream `onDone`.
+- Header button in `PitchRoomView` promotes then `loadBooks()` + `setActiveBook(slug)`
+  (which navigates to workspace).
+- Chat promotion (01/02) and the button coexist: if Spark scaffolds directly, the draft
+  keeps its `pitch.md` and the button remains until the draft is shelved/discarded —
+  acceptable; future UX polish could hide it once a matching book exists.
+- Manual smoke (button appears after Spark writes `source/pitch.md`, promote → book active,
+  draft leaves the rail) still needs a human `npm start` pass.

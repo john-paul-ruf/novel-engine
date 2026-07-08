@@ -14,6 +14,10 @@ type PitchRoomState = {
   thinkingBuffer: string;
   statusMessage: string;
   loading: boolean;
+  /** Whether the active draft has a written source/pitch.md (promotable). */
+  hasPitch: boolean;
+  /** True while a promotion IPC call is in flight. */
+  isPromoting: boolean;
 
   // Actions
   loadConversations: () => Promise<void>;
@@ -22,6 +26,13 @@ type PitchRoomState = {
   deleteConversation: (conversationId: string) => Promise<void>;
   ensureConversation: () => Promise<void>;
   sendMessage: (content: string, thinkingBudgetOverride?: number) => Promise<void>;
+  /** Re-check whether the active conversation's draft contains a pitch. */
+  refreshDraftStatus: () => Promise<void>;
+  /**
+   * Promote the active draft to a real book via the pitchRoom:promote IPC.
+   * Returns the new book slug, or null on failure.
+   */
+  promoteActivePitch: () => Promise<string | null>;
 
   _activeCallId: string | null;
   _cleanupListener: (() => void) | null;
@@ -40,6 +51,8 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
   thinkingBuffer: '',
   statusMessage: '',
   loading: false,
+  hasPitch: false,
+  isPromoting: false,
   _activeCallId: null,
   _cleanupListener: null,
 
@@ -58,6 +71,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
       const messages = await window.novelEngine.chat.getMessages(conversationId);
       const conversation = get().conversations.find((c) => c.id === conversationId) ?? null;
       set({ activeConversation: conversation, messages });
+      await get().refreshDraftStatus();
     } catch (error) {
       console.error('Failed to switch pitch room conversation:', error);
     }
@@ -75,6 +89,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
         conversations: [conversation, ...state.conversations],
         activeConversation: conversation,
         messages: [],
+        hasPitch: false,
       }));
     } catch (error) {
       console.error('Failed to create new pitch room conversation:', error);
@@ -125,6 +140,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
           messages,
           loading: false,
         });
+        await get().refreshDraftStatus();
       } else {
         // Create the first pitch room conversation
         const conversation = await window.novelEngine.chat.createConversation({
@@ -139,6 +155,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
           messages: [],
           loading: false,
         });
+        await get().refreshDraftStatus();
       }
     } catch (error) {
       console.error('Failed to ensure pitch room conversation:', error);
@@ -203,6 +220,33 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
     }
   },
 
+  refreshDraftStatus: async () => {
+    const { activeConversation } = get();
+    if (!activeConversation) { set({ hasPitch: false }); return; }
+    try {
+      const draft = await window.novelEngine.pitchRoom.getDraft(activeConversation.id);
+      set({ hasPitch: draft?.hasPitch ?? false });
+    } catch (error) {
+      console.error('Failed to refresh pitch draft status:', error);
+      set({ hasPitch: false });
+    }
+  },
+
+  promoteActivePitch: async () => {
+    const { activeConversation, isPromoting } = get();
+    if (!activeConversation || isPromoting) return null;
+    set({ isPromoting: true });
+    try {
+      const meta = await window.novelEngine.pitchRoom.promote(activeConversation.id);
+      set({ isPromoting: false, hasPitch: false });
+      return meta.slug;
+    } catch (error) {
+      console.error('Failed to promote pitch to book:', error);
+      set({ isPromoting: false });
+      return null;
+    }
+  },
+
   initStreamListener: () => {
     const { _cleanupListener } = get();
     if (_cleanupListener) return; // Already initialized
@@ -263,6 +307,7 @@ export const usePitchRoomStore = create<PitchRoomState>((set, get) => ({
             statusMessage: '',
             _activeCallId: null,
           });
+          usePitchRoomStore.getState().refreshDraftStatus();
         }).catch((error) => {
           console.error('Failed to reload messages after done:', error);
           if (usePitchRoomStore.getState().activeConversation?.id === doneConversationId) {

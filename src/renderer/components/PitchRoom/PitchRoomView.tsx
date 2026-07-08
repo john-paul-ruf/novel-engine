@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { AGENT_REGISTRY } from '@domain/constants';
 import { randomPitchRoomFlavor } from '@domain/statusMessages';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
+import { useBookStore } from '../../stores/bookStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useViewStore } from '../../stores/viewStore';
 import { PitchRail } from './PitchRail';
@@ -151,6 +152,9 @@ export function PitchRoomView(): React.ReactElement {
   const messages = usePitchRoomStore((s) => s.messages);
   const isStreaming = usePitchRoomStore((s) => s.isStreaming);
   const sendMessage = usePitchRoomStore((s) => s.sendMessage);
+  const hasPitch = usePitchRoomStore((s) => s.hasPitch);
+  const isPromoting = usePitchRoomStore((s) => s.isPromoting);
+  const promoteActivePitch = usePitchRoomStore((s) => s.promoteActivePitch);
 
   const enableThinking = useSettingsStore((s) => s.settings?.enableThinking ?? false);
   const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
@@ -177,6 +181,14 @@ export function PitchRoomView(): React.ReactElement {
     },
     [sendMessage, thinkingBudget, defaultThinkingBudget],
   );
+
+  const handlePromote = useCallback(async () => {
+    const slug = await promoteActivePitch();
+    if (slug) {
+      await useBookStore.getState().loadBooks();
+      await useBookStore.getState().setActiveBook(slug); // navigates to workspace
+    }
+  }, [promoteActivePitch]);
 
   // Auto-create or load pitch room conversations on mount
   useEffect(() => {
@@ -263,6 +275,17 @@ export function PitchRoomView(): React.ReactElement {
             )}
           </p>
         </div>
+        {hasPitch && (
+          <button
+            onClick={handlePromote}
+            disabled={isStreaming || isPromoting}
+            className="ml-auto shrink-0 rounded-md bg-amber-500/90 px-3 py-1.5 text-xs font-semibold
+                       text-zinc-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
+            title="Create a real book from this pitch"
+          >
+            {isPromoting ? 'Promoting…' : 'Promote to Book →'}
+          </button>
+        )}
       </div>
 
       {/* Messages */}
