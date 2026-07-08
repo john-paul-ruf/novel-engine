@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { agentColor } from '../common/agentColors';
 import { Icon } from '../common/Icon';
 import { usePhaseAction } from '../PipelineSpine/usePhaseAction';
+import { openCompanionDoc } from './CompanionPane';
 
 /**
  * Key INPUT artifacts for phases whose outputs aren't single files.
@@ -99,27 +100,31 @@ export function PhaseHeader({ phase }: { phase: PipelinePhase | null }): React.R
         </div>
       </div>
 
-      {/* Artifact chips — click opens in the companion pane (wired in S10) */}
+      {/* Artifact chips — click opens the doc in the companion pane */}
       <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5">
         {artifacts.map((artifact) => {
           const name = artifact.path.split('/').pop() ?? artifact.path;
           return (
-            <span
+            <button
               key={artifact.path}
+              onClick={artifact.exists ? () => openCompanionDoc(artifact.path) : undefined}
+              disabled={!artifact.exists}
               title={
                 artifact.exists
-                  ? `${artifact.path} — opens in the companion pane (SESSION-10)`
+                  ? `${artifact.path} — open in the companion pane`
                   : `${artifact.path} — not written yet`
               }
               className={`flex items-center gap-1.5 rounded-md border border-ne-line bg-ne-bg2 px-2 py-[3px] font-ne-mono text-[10px] ${
-                artifact.exists ? 'text-ne-ink-dim' : 'text-ne-ink-faint opacity-70'
+                artifact.exists
+                  ? 'text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink'
+                  : 'cursor-default text-ne-ink-faint opacity-70'
               }`}
             >
               {artifact.exists && (
                 <Icon name="check" size={10} strokeWidth={2.4} className="text-ne-lumen" />
               )}
               {name}
-            </span>
+            </button>
           );
         })}
       </div>

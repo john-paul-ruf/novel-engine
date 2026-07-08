@@ -22,7 +22,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 07 | Pipeline spine panel | M10 | done | 2026-07-07 | Spine + workspaceStore + stages built; NOT yet mounted (S08 mounts it in the workbench); tsc + boot verified via temp mount |
 | 08 | Workbench shell + phase header | M10 | done | 2026-07-07 | WorkspaceView live (spine + header + temp body); also touched PipelineSpine (usePhaseAction extraction per §2) + TitleBar (phase breadcrumb per verification) |
 | 09 | Split pane — chat + companion shell | M10 | done | 2026-07-07 | Split workbench live; also touched QuickActions.tsx (compact chip trigger per §3) |
-| 10 | Companion content tabs | M10 | pending | — | |
+| 10 | Companion content tabs | M10 | done | 2026-07-07 | All 5 tabs live; ProseViewer + useBookFile shared; also touched PhaseHeader (chip wiring per §6); Motifs embeds MotifLedgerView lazily (mount-on-first-visit) |
 | 11 | Manuscript view (read + edit) | M10 | pending | — | |
 | 12 | Exports, Statistics, Settings routing | M10 | pending | — | |
 | 13 | Pitch Room + palette-launched actions | M10 | pending | — | |
@@ -78,6 +78,22 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-10 (2026-07-07)
+
+**Built:** `Workbench/companion/{ChapterTab, SourcesTab, ReportsTab, ExplorerTab}.tsx`, `common/ProseViewer.tsx`; CompanionPane placeholders replaced. Motifs tab embeds `<MotifLedgerView />` directly (no MotifsTab file, per session §5). PhaseHeader chips wired (beyond file table, required by §6).
+
+**`ProseViewer` (`common/ProseViewer.tsx`) — for S11:** `{ content: string; raw?: boolean }`. Markdown via marked + literary arbitrary-variant classes (serif 16.5px / 1.78 / 62ch / indent-1.4em, mock-faithful h1/h2 treatment); `raw` renders mono `<pre>` (JSON/non-md). Caller owns the scroll container. Same file also exports **`useBookFile(bookSlug, path | null)`** → `{ content, loading, error }`: reads via `files.read`, re-reads on every `fileChangeStore.revision` bump (this is how Verity's writes stream into the Chapter tab — `chat:filesChanged` → notifyChange), keeps previous content on screen during same-file refreshes, clears immediately on file/book switch. FilesView's MarkdownViewer untouched (S14 deletes it).
+
+**Chip→tab routing contract (for S13/S14):** `openCompanionDoc(path)` exported from `Workbench/CompanionPane.tsx`. Source docs (pitch/scene-outline/story-bible/voice-profile) → Sources tab; everything else → Reports tab. Sets `workspaceStore.companionTab` then delivers `{tab, path, nonce}` to the mounted CompanionPane via a module-level callback; **no-op when CompanionPane isn't mounted** (locked phase, no book) and does NOT auto-expand a collapsed companion pane (SplitPane collapse state is internal — chips clicked while collapsed switch the hidden tab silently; candidate S11/S14 polish).
+
+**Tab behaviors:** tabs mount on FIRST visit then stay mounted (hidden) — reading position/doc selection survive switches; MotifLedgerView + FileBrowser don't load/fetch until visited. Chapter: dropdown (bookStore.chapters, kept fresh by refreshWordCount on filesChanged) + scrubber dots (selected=glow, written=brass, empty=bg3); default = most-recently-modified draft from dashboardStore.recentFiles (falls back to last written chapter); footer "Open in Manuscript →" → `navigate('manuscript', {chapterSlug})`. Sources: 4-doc chip row + viewer; missing voice-profile hints at the ⌘K palette action (S13). Reports: inventory DUPLICATED from AgentOutputPanel (so S14 deletes Files/* wholesale); phase preselect = first `PHASE_OUTPUT_FILES[phase]` hit in the inventory, else `agentForPhase`'s first report; re-applies on every phase change. Explorer: breadcrumb + embedded FileBrowser; preview read-only in ProseViewer; Edit (hidden for Verity drafts) → `navigate('manuscript', {filePath, manuscriptMode:'editor'})` — S11 wires the receiving end.
+
+**Warnings:**
+- MotifLedgerView fits the pane (tab bar is overflow-x-auto) but registers a global ⌘S save handler while mounted — after the user visits Motifs, ⌘S saves a dirty ledger even from other companion tabs; if legacy FilesView's ledger tab is ALSO open the handler exists twice (double save call, guarded by isSaving). S14: single-mount the ledger.
+- ReportsTab preselect fires on phase change even if the target report doesn't exist yet (shows a clean "not yet generated" panel — informative by design).
+- Explorer delete (FileBrowser hover ✕) works inside the tab; its DeleteConfirmModal renders fine. Version-history affordances from SourcePanel/AgentOutputPanel were NOT carried into the compact tabs — still reachable via legacy Files view until S14 decides their new home.
+- Found `ProseViewer.tsx` pre-existing as an EMPTY staged stub (0 bytes, no commit) — overwritten with the real implementation.
 
 ### SESSION-09 (2026-07-07)
 
