@@ -394,6 +394,14 @@ export function registerIpcHandlers(services: {
     services.version.snapshotFile(bookSlug, filePath, source),
   );
 
+  ipcMain.handle('versions:getUserEdits', (_, bookSlug: string, filePath: string) =>
+    services.version.getUserEditsSinceAgentBaseline(bookSlug, filePath),
+  );
+
+  ipcMain.handle('versions:getChapterEditStatuses', (_, bookSlug: string) =>
+    services.version.getChapterEditStatuses(bookSlug),
+  );
+
   // === Conversations ===
 
   ipcMain.handle('chat:createConversation', (_, params: {

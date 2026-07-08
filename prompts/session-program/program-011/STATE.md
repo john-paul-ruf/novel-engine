@@ -15,7 +15,7 @@
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Baseline-diff foundation (types, DB query, VersionService API, prune pinning) | M01, M03, M08 | done | 2026-07-08 | Implemented exactly per spec; prune SQL verified against in-memory SQLite |
-| 02 | IPC handlers + preload bridge | M09 | pending | — | |
+| 02 | IPC handlers + preload bridge | M09 | done | 2026-07-08 | Typecheck clean; DevTools smoke test deferred to SESSION-03 manual pass |
 | 03 | Unlock editor + tracked-edit banner + "View my changes" modal | M10 | pending | — | |
 | 04 | Rail EDITED badges + discard-my-edits flow | M10 | pending | — | |
 | 05 | Author-edits context injection for Verity | M08, M09 | pending | — | |
@@ -102,6 +102,21 @@ Full config in `FORGE-CONFIG.md`. Feature-relevant facts:
 time (`stmt.run(bookSlug, filePath, bookSlug, filePath, keepCount, bookSlug, filePath)`).
 Verified via sqlite3 CLI: latest `agent` row survives `keepCount=1`; `COALESCE(..., -1)`
 doesn't block pruning for files with no agent history.
+
+### SESSION-02 (2026-07-08)
+
+**Done.** Bridge methods confirmed for SESSIONs 03/04/06:
+
+- `window.novelEngine.versions.getUserEdits(bookSlug, filePath): Promise<FileDiff | null>`
+  → `'versions:getUserEdits'`
+- `window.novelEngine.versions.getChapterEditStatuses(bookSlug): Promise<ChapterEditStatus[]>`
+  → `'versions:getChapterEditStatuses'`
+
+`ChapterEditStatus` added to the preload `@domain/types` type-import (`FileDiff` was already
+there). `NovelEngineAPI` is `typeof api`, so no separate type change was needed.
+
+**Deviation:** the `npm start` DevTools console check was deferred — run it as part of
+SESSION-03's manual verification (the modal exercises both methods end-to-end).
 
 **Gotchas:** `better-sqlite3` in `node_modules` is compiled for Electron's ABI
 (MODULE_VERSION 130) — plain `node` scripts can't load it; use the `sqlite3` CLI or the

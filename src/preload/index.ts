@@ -9,6 +9,7 @@ import type {
   BookMeta,
   BookSummary,
   BuildResult,
+  ChapterEditStatus,
   ContextDiagnostics,
   Conversation,
   ConversationPurpose,
@@ -168,6 +169,10 @@ const api = {
       ipcRenderer.invoke('versions:getCount', bookSlug, filePath),
     snapshot: (bookSlug: string, filePath: string, source: FileVersionSource): Promise<FileVersion | null> =>
       ipcRenderer.invoke('versions:snapshot', bookSlug, filePath, source),
+    getUserEdits: (bookSlug: string, filePath: string): Promise<FileDiff | null> =>
+      ipcRenderer.invoke('versions:getUserEdits', bookSlug, filePath),
+    getChapterEditStatuses: (bookSlug: string): Promise<ChapterEditStatus[]> =>
+      ipcRenderer.invoke('versions:getChapterEditStatuses', bookSlug),
   },
 
   // Chat
