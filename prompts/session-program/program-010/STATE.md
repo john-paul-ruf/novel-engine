@@ -25,7 +25,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 10 | Companion content tabs | M10 | done | 2026-07-07 | All 5 tabs live; ProseViewer + useBookFile shared; also touched PhaseHeader (chip wiring per §6); Motifs embeds MotifLedgerView lazily (mount-on-first-visit) |
 | 11 | Manuscript view (read + edit) | M10 | done | 2026-07-07 | Rail + Reader(chapter/full-book) + Editor live; also touched FilesView (deep-dive → shared hook per §1), ProseViewer (`wide`), hooks/useChapterDeepDive.ts (new, per §1) |
 | 12 | Exports, Statistics, Settings routing | M10 | done | 2026-07-07 | ExportsView live (spine build-phase target now real); BuildView exports hook+components; trivial ne reskin on Statistics header + Settings tab bar |
-| 13 | Pitch Room + palette-launched actions | M10 | pending | — | |
+| 13 | Pitch Room + palette-launched actions | M10 | done | 2026-07-07 | PitchRail + header quick actions + palette items live; also unified legacy AdhocRevisionButton onto shared modal (per S04 handoff) + extracted openVoiceSetup |
 | 14 | Legacy removal, tours, final audit | M10 | pending | — | |
 
 (Status: pending | in-progress | done | blocked | skipped)
@@ -78,6 +78,24 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-13 (2026-07-07)
+
+**Built:** `PitchRoom/PitchRail.tsx` (250px: "+ New Pitch", SESSIONS list w/ 2-click delete + relative time, SHELVED list w/ Preview/Restore/Delete inline confirms, "Shelve Current Pitch" footer — PitchHistory + ShelvedPitchesPanel content duplicated + ne/spark-restyled; originals untouched for S14 deletion). PitchRoomView is now two-column (rail + untouched Spark chat) with "← Library" in the header. Library pitch ghost card shows "{n} shelved" (pitchShelfStore loaded on LibraryView mount). Restore-from-shelf ends on `setActiveBook` → `navigate('workspace')`.
+
+**Shared trigger functions (the full set — S14 can delete the Sidebar button COMPONENTS; the palette/PhaseHeader import these exports, so re-home the functions when deleting the files):**
+- `startHotTake()` — `components/Sidebar/HotTakeButton.tsx` (S04; navigates to legacy `chat` — S14 re-route)
+- `openAdhocRevisions()` — `components/Sidebar/AdhocRevisionButton.tsx` (S04; **S13 unified the legacy button onto it too** — its private AdhocRevisionModal + the RevisionQueueView usage were deleted; `RevisionQueue/RevisionQueueView.tsx` is now referenced ONLY by the barrel `RevisionQueue/index.ts` → S14 deletes both view + export)
+- `openVoiceSetup()` — `components/Sidebar/VoiceSetupButton.tsx` (new this session; opens the `voice-setup` ChatModal)
+
+**PhaseHeader quick actions (`QuickActionChips`, stage via `STAGES`):** Hot Take on ASSESS/REVISE/SHIP ("post-draft"; disabled while streaming), Ad Hoc Revisions on REVISE, Set Up Voice Profile on DRAFT when `source/voice-profile.md` is missing (reuses the header's artifact-existence state — first-draft's input artifacts include it). All chips call the shared triggers above.
+
+**Palette adds:** `action-voice-setup` (Verity dot), `action-pitch-idea` (navigate pitch-room), `action-new-pitch` (navigate + `startNewConversation`, disabled while pitch streaming). `action-help` already existed (S04 — confirmed). Revision Queue reachability audit: palette ✓ / REVISE chip ✓ / spine card ✓ (usePhaseAction → same `revisionQueueStore.openModal`). ChatModal call-site audit: VoiceSetupButton + SettingsView — both intact.
+
+**Warnings:**
+- The legacy Sidebar still renders its own PitchHistory block when `currentView === 'pitch-room'` → sessions list appears TWICE (sidebar + rail) until S14 deletes the Sidebar conditional.
+- SourcesTab's S10 hint "Set up your voice profile from the command palette (⌘K)" is now real (`action-voice-setup`).
+- PitchPreviewModal remains mounted via BookPanel (S06) — PitchRail's Preview works through it; S14 must re-home that mount (with the other three) when deleting BookPanel.
 
 ### SESSION-12 (2026-07-07)
 

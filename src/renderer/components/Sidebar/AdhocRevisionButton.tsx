@@ -1,13 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 import { Tooltip } from '../common/Tooltip';
 
 /**
  * Open the shared revision queue modal (RevisionQueueModal, mounted in
- * AppLayout) for the active book. Used by the command palette; SESSION-13
- * unifies the button below onto this same path.
+ * AppLayout) for the active book. Shared by the command palette, the
+ * workbench phase-header quick action, and the legacy button below.
  * No-ops when there is no active book.
  */
 export function openAdhocRevisions(): void {
@@ -21,7 +22,6 @@ export function AdhocRevisionButton({ compact = false }: { compact?: boolean } =
   const isStreaming = useChatStore((s) => s.isStreaming);
   const fileRevision = useFileChangeStore((s) => s.revision);
   const [hasPlanFiles, setHasPlanFiles] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Check whether project-tasks.md or revision-prompts.md exist.
   // These are the files the wrangler processes — without them,
@@ -41,47 +41,27 @@ export function AdhocRevisionButton({ compact = false }: { compact?: boolean } =
       .catch(() => setHasPlanFiles(false));
   }, [activeSlug, fileRevision]);
 
-  const handleClose = useCallback(() => {
-    setIsModalOpen(false);
-  }, []);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!isModalOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsModalOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen]);
-
   if (!activeSlug) return null;
 
   const disabled = !hasPlanFiles || isStreaming;
 
   if (compact) {
     return (
-      <>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          disabled={disabled}
-          className="no-drag flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs text-orange-600 dark:text-orange-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-orange-700 dark:hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500" />
-          <span>Ad Hoc Revisions</span>
-        </button>
-        {isModalOpen && <AdhocRevisionModal onClose={handleClose} />}
-      </>
+      <button
+        onClick={openAdhocRevisions}
+        disabled={disabled}
+        className="no-drag flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs text-orange-600 dark:text-orange-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-orange-700 dark:hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500" />
+        <span>Ad Hoc Revisions</span>
+      </button>
     );
   }
 
   return (
-    <>
-      <Tooltip content="Start a one-off revision session outside the pipeline" placement="right">
+    <Tooltip content="Start a one-off revision session outside the pipeline" placement="right">
       <button
-        onClick={() => setIsModalOpen(true)}
+        onClick={openAdhocRevisions}
         disabled={disabled}
         title={
           !hasPlanFiles
@@ -106,75 +86,6 @@ export function AdhocRevisionButton({ compact = false }: { compact?: boolean } =
         </svg>
         <span>Ad Hoc Revisions</span>
       </button>
-      </Tooltip>
-
-      {isModalOpen && (
-        <AdhocRevisionModal onClose={handleClose} />
-      )}
-    </>
-  );
-}
-
-// ── Large blocking modal wrapping the RevisionQueueView ──────────────
-// Lazy-imported to avoid circular deps and keep the button file lean.
-
-import { RevisionQueueView } from '../RevisionQueue/RevisionQueueView';
-import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
-
-function AdhocRevisionModal({ onClose }: { onClose: () => void }): React.ReactElement {
-  const activeSlug = useBookStore((s) => s.activeSlug);
-  const isRunning = useRevisionQueueStore((s) => s.isRunning);
-
-  // Ensure the plan is loaded for this book when the modal opens
-  useEffect(() => {
-    if (!activeSlug) return;
-    const store = useRevisionQueueStore.getState();
-    if (!store.plan || store.plan.bookSlug !== activeSlug) {
-      store.switchToBook(activeSlug);
-    }
-  }, [activeSlug]);
-
-  // RevisionQueueView already calls useRevisionQueueEvents() internally
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={() => {
-        if (!isRunning) onClose();
-      }}
-    >
-      <div
-        className="flex w-[90vw] max-w-5xl h-[85vh] flex-col rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-          <div>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-              Ad Hoc Revisions
-            </h3>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Revision queue for the current book
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={isRunning}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 dark:text-zinc-400 transition-colors ${
-              isRunning
-                ? 'cursor-not-allowed opacity-30'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Body — full RevisionQueueView */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <RevisionQueueView />
-        </div>
-      </div>
-    </div>
+    </Tooltip>
   );
 }

@@ -4,6 +4,8 @@ import { AGENT_REGISTRY } from '@domain/constants';
 import { randomPitchRoomFlavor } from '@domain/statusMessages';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useViewStore } from '../../stores/viewStore';
+import { PitchRail } from './PitchRail';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
 import { ChatInput } from '../Chat/ChatInput';
@@ -225,11 +227,22 @@ export function PitchRoomView(): React.ReactElement {
   }, [isStreaming]);
 
   const sparkMeta = AGENT_REGISTRY.Spark;
+  const { navigate } = useViewStore();
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Clean header — Spark identity + active pitch title */}
+    <div className="flex h-full min-h-0">
+      {/* Sessions + shelved pitches rail */}
+      <PitchRail />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Clean header — back affordance + Spark identity + active pitch title */}
       <div className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 px-6 py-3">
+        <button
+          onClick={() => navigate('library')}
+          className="shrink-0 text-sm text-zinc-500 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          ← Library
+        </button>
         <div
           className="w-1 self-stretch rounded-full"
           style={{ backgroundColor: sparkMeta.color }}
@@ -273,6 +286,7 @@ export function PitchRoomView(): React.ReactElement {
         defaultThinkingBudget={defaultThinkingBudget}
         onThinkingBudgetChange={setThinkingBudget}
       />
+      </div>
     </div>
   );
 }

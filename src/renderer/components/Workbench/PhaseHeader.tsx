@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react';
 import type { PipelinePhase, PipelinePhaseId } from '@domain/types';
 import { AGENT_REGISTRY, PHASE_OUTPUT_FILES } from '@domain/constants';
 import { useBookStore } from '../../stores/bookStore';
+import { useChatStore } from '../../stores/chatStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { agentColor } from '../common/agentColors';
 import { Icon } from '../common/Icon';
+import type { IconName } from '../common/Icon';
 import { usePhaseAction } from '../PipelineSpine/usePhaseAction';
+import { STAGES } from '../PipelineSpine/stages';
+import { openAdhocRevisions } from '../Sidebar/AdhocRevisionButton';
+import { startHotTake } from '../Sidebar/HotTakeButton';
+import { openVoiceSetup } from '../Sidebar/VoiceSetupButton';
 import { openCompanionDoc } from './CompanionPane';
 
 /**
@@ -21,6 +27,11 @@ const PHASE_INPUT_ARTIFACTS: Partial<Record<PipelinePhaseId, string[]>> = {
 
 function artifactsForPhase(id: PipelinePhaseId): string[] {
   return (PHASE_INPUT_ARTIFACTS[id] ?? PHASE_OUTPUT_FILES[id] ?? []).slice(0, 4);
+}
+
+/** Spine stage a phase belongs to (CONCEIVE/DRAFT/ASSESS/REVISE/SHIP). */
+function stageForPhase(phaseId: PipelinePhaseId): string | null {
+  return STAGES.find((stage) => stage.phaseIds.includes(phaseId))?.label ?? null;
 }
 
 const PRIMARY_BTN_CLASS =
@@ -129,6 +140,9 @@ export function PhaseHeader({ phase }: { phase: PipelinePhase | null }): React.R
         })}
       </div>
 
+      {/* Contextual quick actions — one code path with their palette twins */}
+      <QuickActionChips phase={phase} artifacts={artifacts} />
+
       {/* Primary action */}
       <div className="flex shrink-0 items-center gap-2">
         {action.error && (
@@ -156,6 +170,88 @@ export function PhaseHeader({ phase }: { phase: PipelinePhase | null }): React.R
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Stage-driven quick actions (Hot Take / Ad Hoc Revisions / Voice Setup).
+ * Each chip calls the same exported trigger its palette twin uses.
+ */
+function QuickActionChips({
+  phase,
+  artifacts,
+}: {
+  phase: PipelinePhase | null;
+  artifacts: { path: string; exists: boolean }[];
+}): React.ReactElement | null {
+  const activeSlug = useBookStore((s) => s.activeSlug);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+
+  if (!phase || !activeSlug) return null;
+  const stage = stageForPhase(phase.id);
+
+  const chips: { key: string; label: string; icon: IconName; color: string; disabled: boolean; run: () => void }[] = [];
+
+  // ASSESS + post-draft stages: quick reader reaction.
+  if (stage === 'ASSESS' || stage === 'REVISE' || stage === 'SHIP') {
+    chips.push({
+      key: 'hot-take',
+      label: 'Hot Take',
+      icon: 'eye',
+      color: agentColor('Ghostlight'),
+      disabled: isStreaming,
+      run: () => void startHotTake(),
+    });
+  }
+
+  // REVISE stages: the shared revision queue modal.
+  if (stage === 'REVISE') {
+    chips.push({
+      key: 'adhoc-revisions',
+      label: 'Ad Hoc Revisions',
+      icon: 'history',
+      color: agentColor('Forge'),
+      disabled: false,
+      run: openAdhocRevisions,
+    });
+  }
+
+  // DRAFT stage without a voice profile: set one up with Verity.
+  const voiceProfileMissing = artifacts.some(
+    (a) => a.path === 'source/voice-profile.md' && !a.exists,
+  );
+  if (stage === 'DRAFT' && voiceProfileMissing) {
+    chips.push({
+      key: 'voice-setup',
+      label: 'Set Up Voice Profile',
+      icon: 'sparkles',
+      color: agentColor('Verity'),
+      disabled: false,
+      run: () => void openVoiceSetup(),
+    });
+  }
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          onClick={chip.run}
+          disabled={chip.disabled}
+          title={chip.label}
+          className="flex items-center gap-1.5 rounded-md border border-ne-line bg-ne-bg2 px-2 py-[4px] text-[10.5px] text-ne-ink-dim transition-colors hover:border-ne-brass/50 hover:text-ne-ink disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span
+            className="inline-block h-[6px] w-[6px] rounded-full"
+            style={{ background: chip.color }}
+          />
+          <Icon name={chip.icon} size={11} strokeWidth={2} />
+          {chip.label}
+        </button>
+      ))}
     </div>
   );
 }

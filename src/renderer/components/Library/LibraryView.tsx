@@ -8,6 +8,7 @@ import { useImportStore } from '../../stores/importStore';
 import { useSeriesImportStore } from '../../stores/seriesImportStore';
 import { useViewStore } from '../../stores/viewStore';
 import { usePaletteStore } from '../../stores/paletteStore';
+import { usePitchShelfStore } from '../../stores/pitchShelfStore';
 import { ImportChoiceModal } from '../Sidebar/ImportChoiceModal';
 import { AboutJsonViewer, useOpenSpark } from '../Files/AboutJsonViewer';
 import { Icon, type IconName } from '../common/Icon';
@@ -373,6 +374,13 @@ export function LibraryView(): React.ReactElement {
     return subscribeToDirectoryChanges();
   }, [subscribeToDirectoryChanges]);
 
+  // Shelved-pitch count for the Pitch ghost card.
+  const shelvedPitches = usePitchShelfStore((s) => s.pitches);
+  const loadShelvedPitches = usePitchShelfStore((s) => s.loadPitches);
+  useEffect(() => {
+    void loadShelvedPitches();
+  }, [loadShelvedPitches]);
+
   // Fill the per-book pipeline cache so every card can show "Phase N of 14".
   // Already-cached books are skipped; the active book is kept fresh elsewhere.
   useEffect(() => {
@@ -545,6 +553,11 @@ export function LibraryView(): React.ReactElement {
               <span className="max-w-[170px] leading-[1.45]">
                 Free brainstorming — nothing is committed until you say so
               </span>
+              {shelvedPitches.length > 0 && (
+                <span className="rounded-full border border-ne-spark/30 bg-ne-spark/10 px-2 py-0.5 text-[10px] font-medium text-ne-spark">
+                  {shelvedPitches.length} shelved
+                </span>
+              )}
             </button>
           </div>
 

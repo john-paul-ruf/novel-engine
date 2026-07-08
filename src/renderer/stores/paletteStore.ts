@@ -5,9 +5,11 @@ import { useBookStore } from './bookStore';
 import { useChatStore } from './chatStore';
 import { usePipelineStore } from './pipelineStore';
 import { useHelperStore } from './helperStore';
+import { usePitchRoomStore } from './pitchRoomStore';
 import { agentColor } from '../components/common/agentColors';
 import { startHotTake } from '../components/Sidebar/HotTakeButton';
 import { openAdhocRevisions } from '../components/Sidebar/AdhocRevisionButton';
+import { openVoiceSetup } from '../components/Sidebar/VoiceSetupButton';
 
 export type PaletteItem = {
   id: string;
@@ -113,6 +115,38 @@ const ACTION_ITEMS: PaletteItem[] = [
     icon: 'bulb',
     keywords: ['faq', 'question', 'assistant'],
     run: () => useHelperStore.getState().toggle(),
+  },
+  {
+    id: 'action-voice-setup',
+    group: 'Actions',
+    label: 'Set Up Voice Profile',
+    icon: 'sparkles',
+    color: agentColor('Verity'),
+    keywords: ['voice', 'profile', 'verity', 'style'],
+    enabled: hasActiveBook,
+    run: () => openVoiceSetup(),
+  },
+  {
+    id: 'action-pitch-idea',
+    group: 'Actions',
+    label: 'Pitch an idea with Spark',
+    icon: 'bulb',
+    color: agentColor('Spark'),
+    keywords: ['brainstorm', 'pitch', 'spark', 'idea'],
+    run: () => useViewStore.getState().navigate('pitch-room'),
+  },
+  {
+    id: 'action-new-pitch',
+    group: 'Actions',
+    label: 'New Pitch — fresh Spark session',
+    icon: 'plus',
+    color: agentColor('Spark'),
+    keywords: ['brainstorm', 'pitch', 'spark', 'new'],
+    enabled: () => !usePitchRoomStore.getState().isStreaming,
+    run: () => {
+      useViewStore.getState().navigate('pitch-room');
+      void usePitchRoomStore.getState().startNewConversation();
+    },
   },
 ];
 
