@@ -22,7 +22,7 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 | 04 | Evaluation Migration + Design System | 3 | — (docs/) | done | 2026-07-08 | Migration already existed from v0.7.0 cycle; content parity verified vs pre-migration original; version badge → v0.8.0 |
 | 05 | Landing Page | 3 | — (docs/) | done | 2026-07-08 | index.html rebuilt writer-first per SESSION-03 amendment; raw GitHub screenshot URLs; all claims README-verified |
 | 06 | Architecture + Changelog Pages | 3 | — (docs/) | done | 2026-07-08 | 14 changelog entries added (76 blocks / 78 source entries, 2 legacy merges); arch page updated to 8 tables / 25 stores / 4 backends; badges v0.8.0 |
-| 07 | Press Kit + Contact Pages | 3 | — (docs/) | pending | | |
+| 07 | Press Kit + Contact Pages | 3 | — (docs/) | done | 2026-07-08 | Numbers corrected (131/187/25/8/~46K); dead screenshots replaced; ownership card added; badges v0.8.0 |
 | 08 | Site-Wide Verification + Report | 3 | — (docs/) | pending | | |
 
 ## Dependency Graph
@@ -120,3 +120,11 @@ Execute the full pre-deployment pipeline in strict phase order: generate `RELEAS
 - **CHANGELOG.md had an uncommitted working-tree entry** (2026-07-02 context ceiling) — rendered from the working tree as instructed (changelog is read-only input); it remains uncommitted by us.
 - **architecture.html corrections (all source-verified):** DB schema 7→**8 tables** (+ `word_count_snapshots`: book_slug, word_count, chapter_count, recorded_at — from migrations.ts); stores 23→**25**; hooks 6→**7**; IPC "80+"→**131** channels (counted); component groups list refreshed to the streamlined-UI set (Library/Workbench/Manuscript/PipelineSpine/Palette/Rail/StatusBar/Exports…, Dashboard/Reading/RightPanel removed); infra tree +`codex-cli/`, +`ollama-cli/` (ToolExecutor/contextCompactor), +`llama-server/`; app tree +`MultiCallOrchestrator.ts`; service graph shows all 4 clients registered with ProviderRegistry (verified in `src/main/index.ts:451–587`); tech stack +undici ^7.25.0, Pandoc 3.6.4, AI Backends row lists all four; new design-decision card "CLI-First Multi-Backend AI"; prerequisites Node 20+→**18+** per README, "at least one AI backend". Badges v0.8.0.
 - **No conflicts found between architecture docs and the README** worth flagging — the pages now agree with both.
+
+### SESSION-07 (2026-07-08) — Press Kit + Contact Pages
+
+- **Both pages pre-existed from v0.7.0 — updated, not rebuilt.** The old pages had already (correctly) omitted the phantom "two-call pattern" differentiator from §3.5; it stays omitted per SESSION-02's finding.
+- **press.html:** By The Numbers corrected to source-verified figures — IPC 80+→**131**, files 170→**187**, stores 23→**25**, DB tables 7→**8**, LOC ~49K/~44K (page was internally inconsistent)→**~46K** (measured 45,939); multi-model card now names Claude/Codex/Ollama (agentic tool loop)/llama-server; new **"Your words are yours" Ownership card** (mirrors the README legal box per the SESSION-03 amendment); all six Assets screenshots swapped from the deleted 2026-03-29 files to the 2026-07-08 set (Manuscript, Library, Workspace, Command Palette, Providers, Model Selection) with matching labels; badges v0.8.0. Score-range quote 7.0–9.4 re-confirmed against evaluation.html.
+- **contact.html:** bug-report version guidance de-versioned to "From Settings or the About panel" (the in-app About shows v0.1.0 — decoupled from the tag; avoided quoting any number); testers checklist now says "AI backend (Claude, Codex, or Ollama)"; "Windows Squirrel"→"Windows .exe" (matches README); License section gains the your-words-are-yours reassurance; badges v0.8.0. GitHub Discussions still not linked (repo has none — verified nothing claims it).
+- **Claims omitted as unverifiable:** none new — everything published traces to README, evaluation.html, or measured source counts.
+- **For SESSION-08:** all six pages now carry v0.8.0 badges; no `2026-03-29` screenshot URLs remain anywhere in docs/ (changelog.html's 2026-03-29 strings are entry dates, not URLs).
