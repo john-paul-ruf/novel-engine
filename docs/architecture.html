@@ -85,7 +85,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.7.0</span>
+            <span class="nav-version">v0.8.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -143,8 +143,9 @@
         <tr><td>Styling</td><td>Tailwind CSS</td><td>^4.0.0</td></tr>
         <tr><td>State</td><td>Zustand</td><td>^5.0.0</td></tr>
         <tr><td>Database</td><td>better-sqlite3</td><td>^11.0.0</td></tr>
-        <tr><td>AI Backend</td><td>Claude Code CLI</td><td>(system-installed)</td></tr>
-        <tr><td>Build</td><td>Pandoc</td><td>(bundled binary)</td></tr>
+        <tr><td>AI Backends</td><td>Claude Code CLI / Codex CLI / Ollama / llama-server</td><td>(system-installed)</td></tr>
+        <tr><td>HTTP Client</td><td>undici</td><td>^7.25.0</td></tr>
+        <tr><td>Build</td><td>Pandoc</td><td>3.6.4 (bundled binary)</td></tr>
         <tr><td>IDs</td><td>nanoid</td><td>3</td></tr>
         <tr><td>Markdown</td><td>marked</td><td>^15.0.0</td></tr>
         <tr><td>Diff</td><td>diff</td><td>^8.0.4</td></tr>
@@ -159,7 +160,12 @@ DatabaseService(dbPath)
 AgentService(agentsDir)
 FileSystemService(booksDir, userDataPath)
 ClaudeCodeClient(booksDir, db)
+CodexCliClient(booksDir, db)
+OllamaCodeClient(booksDir, db, baseUrl, OllamaCliRunner)
+LlamaServerClient(booksDir, db, baseUrl)
 ProviderRegistry(settingsService)
+└── registers Claude, Codex, Ollama, llama-server + saved
+    OpenAI-compatible providers at startup
 
 UsageService → IDatabaseService
 ChapterValidator(booksDir)
@@ -225,6 +231,10 @@ BooksDirWatcher(booksDir, callback)</pre>
             <p>Claude CLI spawned as child process with <code>--output-format stream-json</code>. NDJSON events parsed line-by-line and mapped to a 12-variant <code>StreamEvent</code> discriminated union.</p>
         </div>
         <div class="card">
+            <h4>CLI-First Multi-Backend AI</h4>
+            <p>Four interchangeable backends behind one interface: Claude Code CLI, Codex CLI, Ollama (CLI-first, with a built-in agentic tool loop — <code>OllamaCodeClient</code> + <code>ToolExecutor</code>), and llama-server. 250K context ceiling with proactive compaction of old tool results at 80% of the window.</p>
+        </div>
+        <div class="card">
             <h4>Context Budget System</h4>
             <p>Per-agent read guidance determines which files to include. Dynamic conversation compaction based on available context window: generous (all turns), moderate (8), tight (4), critical (2).</p>
         </div>
@@ -235,7 +245,7 @@ BooksDirWatcher(booksDir, callback)</pre>
     </div>
 
     <h2>Database Schema<span>.</span></h2>
-    <p>7 tables in SQLite with WAL mode and foreign keys enabled. Forward-only migration system via <code>src/infrastructure/database/migrations.ts</code>.</p>
+    <p>8 tables in SQLite with WAL mode and foreign keys enabled. Forward-only migration system via <code>src/infrastructure/database/migrations.ts</code>.</p>
     <table>
         <tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr>
         <tr><td><code>conversations</code></td><td>Chat conversations per book/agent</td><td>id, book_slug, agent_name, pipeline_phase, purpose, title</td></tr>
@@ -244,6 +254,7 @@ BooksDirWatcher(booksDir, callback)</pre>
         <tr><td><code>stream_events</code></td><td>Persisted stream events for replay</td><td>session_id, sequence_number, event_type, payload</td></tr>
         <tr><td><code>stream_sessions</code></td><td>CLI call lifecycle tracking</td><td>id, conversation_id, agent_name, model, ended_at, interrupted</td></tr>
         <tr><td><code>file_versions</code></td><td>File snapshots with dedup</td><td>book_slug, file_path, content, content_hash, source</td></tr>
+        <tr><td><code>word_count_snapshots</code></td><td>Word-count history for statistics</td><td>book_slug, word_count, chapter_count, recorded_at</td></tr>
         <tr><td><code>schema_version</code></td><td>Migration tracking</td><td>version, applied_at, description</td></tr>
     </table>
 
@@ -262,12 +273,17 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── agents/                          # AgentService — .md prompt loader
 │   ├── filesystem/                      # FileSystemService + BookWatcher + BooksDirWatcher
 │   ├── claude-cli/                      # ClaudeCodeClient + StreamSessionTracker
+│   ├── codex-cli/                       # CodexCliClient — OpenAI Codex CLI backend
+│   ├── ollama-cli/                      # OllamaCodeClient + ToolExecutor + tools
+│   │                                    #   + contextCompactor (agentic tool loop)
+│   ├── llama-server/                    # LlamaServerClient — llama.cpp server backend
 │   ├── providers/                       # ProviderRegistry + OpenAiCompatibleProvider
 │   ├── series/                          # SeriesService — file-based series CRUD + bible
 │   └── pandoc/                          # Pandoc binary path resolution
 │
 ├── application/                         # Business logic via injected interfaces
 │   ├── ChatService.ts                   # Send → stream → save orchestration
+│   ├── MultiCallOrchestrator.ts         # Splits oversized jobs across model calls
 │   ├── ContextBuilder.ts                # Budget-aware context assembly
 │   ├── PipelineService.ts              # Phase detection + user confirmation gates
 │   ├── BuildService.ts                  # Pandoc execution for DOCX/EPUB
@@ -295,25 +311,26 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── index.ts                         # Composition root
 │   ├── bootstrap.ts                     # First-run directory/file creation
 │   ├── notifications.ts                 # OS notification manager
-│   └── ipc/handlers.ts                  # Thin IPC adapter (80+ channels)
+│   └── ipc/handlers.ts                  # Thin IPC adapter (131 channels)
 │
 ├── preload/index.ts                     # contextBridge: typed API for renderer
 │
 └── renderer/                            # React UI
     ├── App.tsx                          # Root component, onboarding gate
     ├── main.tsx                         # React 18 createRoot entry
-    ├── stores/ (23 stores)              # Zustand state management
-    ├── components/ (20 groups)          # Layout, Chat, Files, Build, PitchRoom,
-    │                                    # RevisionQueue, MotifLedger, Import,
-    │                                    # Helper, Series, Dashboard, Statistics,
-    │                                    # Reading, RightPanel, common, etc.
-    ├── hooks/ (6 hooks)                 # Resize, theme, events, status, tooltip
+    ├── stores/ (25 stores)              # Zustand state management
+    ├── components/ (24 groups)          # Library, Workbench, Manuscript, Chat,
+    │                                    # PipelineSpine, Palette, Rail, StatusBar,
+    │                                    # Exports, Files, PitchRoom, RevisionQueue,
+    │                                    # MotifLedger, Import, Helper, Series,
+    │                                    # Statistics, Settings, Onboarding, common…
+    ├── hooks/ (7 hooks)                 # Resize, theme, events, status, tooltip
     ├── tours/                           # Guided tour step definitions
     └── styles/globals.css               # Tailwind CSS v4 base</pre>
 
     <h2>Contributing<span>.</span></h2>
     <h3>Prerequisites</h3>
-    <p>Node.js 20+, npm 9+, <a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--accent)">Claude Code CLI</a> installed and authenticated.</p>
+    <p>Node.js 18+, npm, and at least one AI backend — <a href="https://docs.anthropic.com/en/docs/claude-code" style="color:var(--accent)">Claude Code CLI</a>, Codex CLI, <a href="https://ollama.com" style="color:var(--accent)">Ollama</a>, or a llama-server / OpenAI-compatible endpoint.</p>
     <h3>Development</h3>
     <pre>git clone https://github.com/john-paul-ruf/novel-engine.git
 cd novel-engine
@@ -336,7 +353,7 @@ npm start</pre>
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.7.0 · AGPL-3.0</p>
+            <p>v0.8.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">
