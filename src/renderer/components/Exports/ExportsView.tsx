@@ -9,7 +9,7 @@ import {
   OutputFiles,
   ProgressLog,
   useManuscriptBuild,
-} from '../Build/BuildView';
+} from './buildShared';
 
 // ── Palette registrations (S04 registry) ─────────────────────────────────────
 
@@ -30,22 +30,8 @@ usePaletteStore.getState().registerItems([
       preselectFormatFromPalette?.(format);
     },
   })),
-  {
-    id: 'action-open-settings',
-    group: 'Actions',
-    label: 'Open Settings',
-    icon: 'settings',
-    keywords: ['preferences', 'providers', 'appearance'],
-    run: () => useViewStore.getState().navigate('settings'),
-  },
-  {
-    id: 'action-open-statistics',
-    group: 'Actions',
-    label: 'Open Statistics',
-    icon: 'statistics',
-    keywords: ['charts', 'usage', 'words'],
-    run: () => useViewStore.getState().navigate('statistics'),
-  },
+  // "Open Settings" / "Open Statistics" action items were pruned in SESSION-14:
+  // the S04 Navigate group already carries both destinations.
 ]);
 
 // ── View ──────────────────────────────────────────────────────────────────────

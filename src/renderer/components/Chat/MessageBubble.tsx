@@ -54,7 +54,7 @@ export const MessageBubble = memo(function MessageBubble({ message, toolActivity
         {toolActivity && toolActivity.length > 0 && (
           <div className="mt-2 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-zinc-900/50 px-3 py-2">
             <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-              <span>📁</span>
+              <span>💾</span>
               <span>{toolActivity.length} file{toolActivity.length !== 1 ? 's' : ''} written</span>
             </div>
             <div className="mt-1 space-y-0.5">

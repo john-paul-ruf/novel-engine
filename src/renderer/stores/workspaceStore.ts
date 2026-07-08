@@ -10,23 +10,44 @@ type WorkspaceState = {
   selectedPhaseId: string | null;
   /** Active tab in the workbench companion pane (S09/S10). */
   companionTab: CompanionTab;
+  /**
+   * When set, the workbench chat pane shows this conversation instead of the
+   * selected phase's conversations (hot takes, chapter deep dives, ad-hoc
+   * Spark sessions — conversations without a `pipelinePhase` tag).
+   * Cleared by selecting a phase, switching books, or dismissing the banner.
+   */
+  adhocConversationId: string | null;
   selectPhase: (id: string) => void;
   setCompanionTab: (tab: CompanionTab) => void;
+  setAdhocConversation: (conversationId: string | null) => void;
 };
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   selectedPhaseId: null,
   companionTab: 'chapter',
-  selectPhase: (id: string) => set({ selectedPhaseId: id }),
+  adhocConversationId: null,
+  selectPhase: (id: string) => set({ selectedPhaseId: id, adhocConversationId: null }),
   setCompanionTab: (tab: CompanionTab) => set({ companionTab: tab }),
+  setAdhocConversation: (conversationId: string | null) =>
+    set({ adhocConversationId: conversationId }),
 }));
+
+/**
+ * Land an untagged (ad-hoc) conversation in the workspace chat pane.
+ * The conversation must already be active in chatStore — this only routes
+ * the UI. Replaces the legacy `navigate('chat')` destination.
+ */
+export function openConversationInWorkspace(conversationId: string): void {
+  useWorkspaceStore.setState({ adhocConversationId: conversationId });
+  useViewStore.getState().navigate('workspace');
+}
 
 // ─── Cross-store subscriptions ───────────────────────────────────────────────
 
 // Switching books clears the selection so the new book's current phase is adopted.
 useBookStore.subscribe((state, prev) => {
   if (state.activeSlug !== prev.activeSlug) {
-    useWorkspaceStore.setState({ selectedPhaseId: null });
+    useWorkspaceStore.setState({ selectedPhaseId: null, adhocConversationId: null });
   }
 });
 
@@ -56,6 +77,6 @@ useViewStore.subscribe((state, prev) => {
   const phaseId = state.payload.phaseId;
   if (!phaseId) return;
   if (prev.currentView !== 'workspace' || prev.payload.phaseId !== phaseId) {
-    useWorkspaceStore.setState({ selectedPhaseId: phaseId });
+    useWorkspaceStore.setState({ selectedPhaseId: phaseId, adhocConversationId: null });
   }
 });

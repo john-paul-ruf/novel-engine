@@ -5,26 +5,24 @@ import { useChatStore } from '../../stores/chatStore';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useTourStore } from '../../stores/tourStore';
+import { useBookStore } from '../../stores/bookStore';
+import { usePipelineStore } from '../../stores/pipelineStore';
+import { useFileChangeStore } from '../../stores/fileChangeStore';
+import { useImportStore } from '../../stores/importStore';
+import { useSeriesImportStore } from '../../stores/seriesImportStore';
+import { useSeriesStore } from '../../stores/seriesStore';
 import { TOUR_DEFINITIONS } from '../../tours/tourDefinitions';
-import { ChatView } from '../Chat/ChatView';
-import { FilesView } from '../Files/FilesView';
-import { BuildView } from '../Build/BuildView';
 import { SettingsView } from '../Settings/SettingsView';
 import { RevisionQueueModal } from '../RevisionQueue';
 import { PitchRoomView } from '../PitchRoom/PitchRoomView';
-import { ReadingModeView } from '../Reading/ReadingModeView';
-import { DashboardView } from '../Dashboard/DashboardView';
 import { StatisticsView } from '../Statistics/StatisticsView';
 import { ChatModal } from '../Chat/ChatModal';
 import { CliActivityListener } from '../CliActivity/CliActivityPanel';
 import { StatusBar } from '../StatusBar/StatusBar';
 import { ActivityDrawer } from '../StatusBar/ActivityDrawer';
-import { PipelinePanel } from '../RightPanel';
 import { GuidedTourOverlay } from '../common/GuidedTourOverlay';
 import { HelperPanel } from '../Helper/HelperPanel';
 import { useHelperStore } from '../../stores/helperStore';
-import { useRightPanelStore } from '../../stores/rightPanelStore';
-import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 import { IconRail } from '../Rail/IconRail';
 import { LibraryView } from '../Library/LibraryView';
@@ -33,6 +31,10 @@ import { CommandPalette } from '../Palette/CommandPalette';
 import { ManuscriptView } from '../Manuscript/ManuscriptView';
 import { ExportsView } from '../Exports/ExportsView';
 import { usePaletteStore } from '../../stores/paletteStore';
+import { PitchPreviewModal } from '../Sidebar/PitchPreviewModal';
+import { ImportWizard } from '../Import/ImportWizard';
+import { ImportSeriesWizard } from '../Import/ImportSeriesWizard';
+import { SeriesModal } from '../Series/SeriesModal';
 
 /**
  * Keeps the stream listener alive for the entire app lifecycle,
@@ -64,27 +66,62 @@ function StreamManager(): null {
 }
 
 /**
+ * Book-scoped data wiring, re-homed from the legacy BookPanel (SESSION-14):
+ * whenever the active book changes (including the initial load), point the
+ * pipeline store at it, load its pipeline + conversations, and refresh word
+ * counts; file changes keep the word-count/chapter cache fresh.
+ */
+function BookDataManager(): null {
+  const activeSlug = useBookStore((s) => s.activeSlug);
+  const revision = useFileChangeStore((s) => s.revision);
+
+  useEffect(() => {
+    if (!activeSlug) return;
+    usePipelineStore.getState().setDisplayedBook(activeSlug);
+    void usePipelineStore.getState().loadPipeline(activeSlug);
+    void useChatStore.getState().loadConversations(activeSlug);
+    void useBookStore.getState().refreshWordCount();
+  }, [activeSlug]);
+
+  useEffect(() => {
+    if (revision > 0 && activeSlug) {
+      void useBookStore.getState().refreshWordCount();
+    }
+  }, [revision]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return null;
+}
+
+/**
+ * Book-management modals, re-homed from the legacy BookPanel (SESSION-14).
+ * Their stores are triggered from the Library view, the Pitch Room rail and
+ * the command palette; the mounts live here so they are always available.
+ */
+function GlobalBookModals(): React.ReactElement {
+  const importStep = useImportStore((s) => s.step);
+  const seriesImportStep = useSeriesImportStore((s) => s.step);
+  const seriesModalOpen = useSeriesStore((s) => s.isModalOpen);
+
+  return (
+    <>
+      <PitchPreviewModal />
+      {importStep !== 'idle' && <ImportWizard />}
+      {seriesImportStep !== 'idle' && <ImportSeriesWizard />}
+      {seriesModalOpen && <SeriesModal />}
+    </>
+  );
+}
+
+/**
  * Renders all views simultaneously but only shows the active one.
- * This keeps ChatView (and other views) mounted so they preserve
- * their local state, scroll position, and stream subscriptions.
+ * This keeps every view mounted so it preserves its local state,
+ * scroll position, and stream subscriptions.
  */
 function ViewContent(): React.ReactElement {
   const { currentView } = useViewStore();
 
   return (
     <>
-      <div className={`h-full ${currentView === 'dashboard' ? '' : 'hidden'}`}>
-        <DashboardView />
-      </div>
-      <div className={`h-full ${currentView === 'chat' ? '' : 'hidden'}`}>
-        <ChatView />
-      </div>
-      <div className={`h-full ${currentView === 'files' ? '' : 'hidden'}`}>
-        <FilesView />
-      </div>
-      <div className={`h-full ${currentView === 'build' ? '' : 'hidden'}`}>
-        <BuildView />
-      </div>
       <div className={`h-full ${currentView === 'settings' ? '' : 'hidden'}`}>
         <SettingsView />
       </div>
@@ -93,9 +130,6 @@ function ViewContent(): React.ReactElement {
       </div>
       <div className={`h-full ${currentView === 'pitch-room' ? '' : 'hidden'}`}>
         <PitchRoomView />
-      </div>
-      <div className={`h-full ${currentView === 'reading' ? '' : 'hidden'}`}>
-        <ReadingModeView />
       </div>
       <div className={`h-full ${currentView === 'library' ? '' : 'hidden'}`}>
         <LibraryView />
@@ -177,19 +211,17 @@ function TourOverlayRenderer(): React.ReactElement | null {
 
 export function AppLayout(): React.ReactElement {
   const isModalOpen = useModalChatStore((s) => s.isOpen);
-  const pipelineOpen = useRightPanelStore((s) => s.pipelineOpen);
 
   return (
     <div className="flex h-screen w-screen flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       <TitleBar />
       <StreamManager />
+      <BookDataManager />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <IconRail />
-        <Sidebar />
         <main data-tour="main-content" className="flex-1 overflow-hidden">
           <ViewContent />
         </main>
-        {pipelineOpen && <PipelinePanel />}
       </div>
       <ActivityDrawer />
       <StatusBar />
@@ -197,6 +229,7 @@ export function AppLayout(): React.ReactElement {
       <CommandPalette />
       <PaletteManager />
       <RevisionQueueModal />
+      <GlobalBookModals />
       <CliActivityListener />
       <HelperPanel />
       <TourManager />

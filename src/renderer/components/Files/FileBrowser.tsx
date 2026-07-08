@@ -18,9 +18,9 @@ type FileMetadata = {
 };
 
 function getFileIcon(name: string, isDirectory: boolean): string {
-  if (isDirectory) return '📁';
+  if (isDirectory) return '📂';
   if (name.endsWith('.md')) return '📄';
-  if (name.endsWith('.json')) return '⚙️';
+  if (name.endsWith('.json')) return '🔧';
   return '📎';
 }
 

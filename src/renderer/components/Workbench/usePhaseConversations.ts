@@ -4,6 +4,7 @@ import { PIPELINE_PHASES } from '@domain/constants';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 type PhaseConversations = {
   /** This phase's conversations for the active book, most recent first. */
@@ -47,13 +48,15 @@ export function usePhaseConversations(phaseId: string | null): PhaseConversation
     chatActive && conversations.some((c) => c.id === chatActive.id) ? chatActive : null;
 
   // Auto-activate the most recent matching conversation — only while the
-  // workspace is the current view, so the legacy chat view is never hijacked.
+  // workspace is the current view, and never while an ad-hoc conversation
+  // (hot take / deep dive / Spark) holds the chat pane.
+  const adhocConversationId = useWorkspaceStore((s) => s.adhocConversationId);
   useEffect(() => {
-    if (!isWorkspaceActive || conversations.length === 0) return;
+    if (!isWorkspaceActive || adhocConversationId !== null || conversations.length === 0) return;
     const { activeConversation: current, setActiveConversation } = useChatStore.getState();
     if (current && conversations.some((c) => c.id === current.id)) return;
     void setActiveConversation(conversations[0].id);
-  }, [isWorkspaceActive, phaseId, conversations]);
+  }, [isWorkspaceActive, adhocConversationId, phaseId, conversations]);
 
   const selectConversation = useCallback(async (conversationId: string) => {
     await useChatStore.getState().setActiveConversation(conversationId);

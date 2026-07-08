@@ -311,7 +311,6 @@ export function SeriesModal(): React.ReactElement {
                       onClick={() => setConfirmingArchiveSeries(true)}
                       className="flex items-center gap-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
                     >
-                      <span>📦</span>
                       <span>Archive Series</span>
                     </button>
                   )}

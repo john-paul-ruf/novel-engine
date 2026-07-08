@@ -1,5 +1,6 @@
 import { useViewStore } from '../../stores/viewStore';
 import { useBookStore } from '../../stores/bookStore';
+import { useHelperStore } from '../../stores/helperStore';
 import { Tooltip } from '../common/Tooltip';
 import { Icon, type IconName } from '../common/Icon';
 
@@ -76,9 +77,32 @@ export function IconRail(): React.ReactElement {
         <RailButton key={item.view} item={item} hasBook={hasBook} />
       ))}
       <div className="flex-1" />
+      <HelpRailButton />
       {BOTTOM_ITEMS.map((item) => (
         <RailButton key={item.view} item={item} hasBook={hasBook} />
       ))}
     </nav>
+  );
+}
+
+/** Toggles the Helper chat panel — the rail twin of the palette's Help action. */
+function HelpRailButton(): React.ReactElement {
+  const isOpen = useHelperStore((s) => s.isOpen);
+  const toggle = useHelperStore((s) => s.toggle);
+
+  return (
+    <Tooltip content="Help — ask the assistant" placement="right">
+      <button
+        onClick={toggle}
+        aria-label="Help — ask the assistant"
+        className={`no-drag relative grid h-[38px] w-[38px] place-items-center rounded-[9px] transition-colors ${
+          isOpen
+            ? 'bg-ne-brass-dim text-ne-brass-hi'
+            : 'text-ne-ink-faint hover:bg-ne-bg2 hover:text-ne-ink-dim'
+        }`}
+      >
+        <Icon name="bulb" size={19} strokeWidth={1.6} />
+      </button>
+    </Tooltip>
   );
 }

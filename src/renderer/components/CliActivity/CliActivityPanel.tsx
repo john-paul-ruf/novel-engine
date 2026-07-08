@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
-import { useResizeHandle } from '../../hooks/useResizeHandle';
 import { useVerticalResize } from '../../hooks/useVerticalResize';
-import { ResizeHandle } from '../Layout/ResizeHandle';
 import type { CliCall } from '../../stores/cliActivityStore';
 import type { AgentName } from '@domain/types';
 import { AGENT_REGISTRY } from '@domain/constants';
@@ -718,15 +716,10 @@ function EntryList({ call }: { call: CliCall }): React.ReactElement {
 
 // === Main Panel ===
 
-const CLI_PANEL_DEFAULT = 380;
-const CLI_PANEL_MIN = 280;
-const CLI_PANEL_MAX = 700;
-
 /**
  * Layout-agnostic activity panel content — call list, filters, phases,
  * tool usage, activity log, live badge, clear/close. Fills its container.
- * Hosted by the bottom ActivityDrawer (and the legacy right-dock wrapper
- * below until SESSION-14).
+ * Hosted by the bottom ActivityDrawer.
  */
 export function CliActivityContent(): React.ReactElement {
   const calls = useCliActivityStore((s) => s.calls);
@@ -734,7 +727,7 @@ export function CliActivityContent(): React.ReactElement {
   const selectedCallId = useCliActivityStore((s) => s.selectedCallId);
   const filterAgent = useCliActivityStore((s) => s.filterAgent);
   const filterBook = useCliActivityStore((s) => s.filterBook);
-  const close = useCliActivityStore((s) => s.close);
+  const close = useCliActivityStore((s) => s.closeDrawer);
   const clear = useCliActivityStore((s) => s.clear);
 
   const activeCount = Object.values(calls).filter((c) => c.isActive).length;
@@ -817,33 +810,3 @@ export function CliActivityContent(): React.ReactElement {
   );
 }
 
-/**
- * @deprecated Legacy right-dock wrapper around CliActivityContent —
- * kept routable until SESSION-14. The primary host is the ActivityDrawer.
- */
-export function CliActivityPanel(): React.ReactElement {
-  const { width, isDragging, onMouseDown, resetWidth } = useResizeHandle({
-    direction: 'right',
-    initialWidth: CLI_PANEL_DEFAULT,
-    minWidth: CLI_PANEL_MIN,
-    maxWidth: CLI_PANEL_MAX,
-    storageKey: 'novel-engine:cli-panel-width',
-  });
-
-  return (
-    <div
-      className="relative flex h-full shrink-0 flex-col overflow-hidden border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900"
-      style={{ width }}
-    >
-      <CliActivityContent />
-
-      {/* Resize handle on left edge */}
-      <ResizeHandle
-        side="left"
-        isDragging={isDragging}
-        onMouseDown={onMouseDown}
-        onDoubleClick={resetWidth}
-      />
-    </div>
-  );
-}

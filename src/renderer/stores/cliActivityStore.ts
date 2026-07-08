@@ -95,14 +95,6 @@ type CliActivityState = {
   toggleDrawer: () => void;
   openDrawer: () => void;
   closeDrawer: () => void;
-  /** @deprecated Mirror of `drawerOpen` (legacy right-dock naming) — removed in SESSION-14. */
-  isOpen: boolean;
-  /** @deprecated Use `toggleDrawer` — removed in SESSION-14. */
-  toggle: () => void;
-  /** @deprecated Use `openDrawer` — removed in SESSION-14. */
-  open: () => void;
-  /** @deprecated Use `closeDrawer` — removed in SESSION-14. */
-  close: () => void;
   clear: () => void;
   clearCall: (callId: string) => void;
   selectCall: (callId: string) => void;
@@ -234,17 +226,13 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
   callOrder: [],
   selectedCallId: null,
   drawerOpen: false,
-  isOpen: false,
   filterAgent: null,
   filterBook: null,
   _cleanupListener: null,
 
-  toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen, isOpen: !s.drawerOpen })),
-  openDrawer: () => set({ drawerOpen: true, isOpen: true }),
-  closeDrawer: () => set({ drawerOpen: false, isOpen: false }),
-  toggle: () => get().toggleDrawer(),
-  open: () => get().openDrawer(),
-  close: () => get().closeDrawer(),
+  toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
+  openDrawer: () => set({ drawerOpen: true }),
+  closeDrawer: () => set({ drawerOpen: false }),
 
   clear: () => set({
     calls: {},

@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import type { TourId } from '@domain/types';
 import { useViewStore } from './viewStore';
-import { useRightPanelStore } from './rightPanelStore';
 import { useChatStore } from './chatStore';
 import { useBookStore } from './bookStore';
+import { useWorkspaceStore } from './workspaceStore';
 
 type TourStoreState = {
   activeTourId: TourId | null;
@@ -40,17 +40,16 @@ export const useTourStore = create<TourStoreState>()((set, get) => ({
     const { activeTourId } = get();
     if (activeTourId !== null) return;
 
-    // Always navigate to chat and open the pipeline panel so tour steps
-    // can spotlight both chat and pipeline elements regardless of the
-    // view the user was on when they triggered the tour.
-    useViewStore.getState().navigate('chat');
-    useRightPanelStore.getState().openPipeline();
+    // Always land in the workspace so tour steps can spotlight the pipeline
+    // spine and the chat pane regardless of where the tour was triggered.
+    useViewStore.getState().navigate('workspace');
 
-    // For the welcome tour, auto-start a Spark conversation so the user
-    // arrives in a live chat session rather than a blank screen.
-    // Fire-and-forget — the tour advances synchronously; conversation
-    // creation is async and non-blocking.
+    // For the welcome tour, select the pitch phase and auto-start a Spark
+    // conversation so the user arrives in a live chat session rather than a
+    // blank screen. Fire-and-forget — the tour advances synchronously;
+    // conversation creation is async and non-blocking.
     if (tourId === 'welcome') {
+      useWorkspaceStore.getState().selectPhase('pitch');
       const activeSlug = useBookStore.getState().activeSlug;
       if (activeSlug) {
         useChatStore.getState()

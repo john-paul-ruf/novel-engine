@@ -9,7 +9,7 @@ marked.setOptions({ breaks: true, gfm: true });
 
 const STAGE_CONFIG: Record<ProgressStage, { label: string; icon: string; color: string }> = {
   idle: { label: 'Waiting', icon: '⏳', color: 'text-zinc-400' },
-  reading: { label: 'Reading files', icon: '📖', color: 'text-cyan-400' },
+  reading: { label: 'Reading files', icon: '📚', color: 'text-cyan-400' },
   thinking: { label: 'Thinking deeply', icon: '🧠', color: 'text-amber-400' },
   drafting: { label: 'Writing', icon: '✍️', color: 'text-green-400' },
   editing: { label: 'Editing', icon: '✏️', color: 'text-violet-400' },

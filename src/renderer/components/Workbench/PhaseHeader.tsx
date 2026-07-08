@@ -10,9 +10,7 @@ import { Icon } from '../common/Icon';
 import type { IconName } from '../common/Icon';
 import { usePhaseAction } from '../PipelineSpine/usePhaseAction';
 import { STAGES } from '../PipelineSpine/stages';
-import { openAdhocRevisions } from '../Sidebar/AdhocRevisionButton';
-import { startHotTake } from '../Sidebar/HotTakeButton';
-import { openVoiceSetup } from '../Sidebar/VoiceSetupButton';
+import { startHotTake, openAdhocRevisions, openVoiceSetup } from '../../actions/agentActions';
 import { openCompanionDoc } from './CompanionPane';
 
 /**
@@ -150,6 +148,7 @@ export function PhaseHeader({ phase }: { phase: PipelinePhase | null }): React.R
             {action.error}
           </span>
         )}
+        <PhaseOverrideActions phase={phase} activeSlug={activeSlug} isCurrent={isCurrent} />
         {isCurrent && action.primary ? (
           <button
             className={PRIMARY_BTN_CLASS}
@@ -171,6 +170,109 @@ export function PhaseHeader({ phase }: { phase: PipelinePhase | null }): React.R
         ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * Phases with dedicated completion controls — the manual "Mark done" override
+ * is hidden for these (same rule as the legacy PipelineTracker).
+ */
+const SKIP_DONE_OVERRIDE_PHASES: ReadonlySet<PipelinePhaseId> = new Set(['build', 'revision']);
+
+/**
+ * Pipeline override controls re-homed from the legacy PipelineTracker:
+ * "Mark done" (manual phase completion) on the current active phase, and
+ * "Revert here" on completed phases. Both are two-click arm-to-confirm.
+ */
+function PhaseOverrideActions({
+  phase,
+  activeSlug,
+  isCurrent,
+}: {
+  phase: PipelinePhase | null;
+  activeSlug: string;
+  isCurrent: boolean;
+}): React.ReactElement | null {
+  const markPhaseComplete = usePipelineStore((s) => s.markPhaseComplete);
+  const revertPhase = usePipelineStore((s) => s.revertPhase);
+  const [confirming, setConfirming] = useState<'done' | 'revert' | null>(null);
+
+  useEffect(() => {
+    setConfirming(null);
+  }, [phase?.id]);
+
+  if (!phase || !activeSlug) return null;
+
+  const arm = (kind: 'done' | 'revert'): void => {
+    setConfirming(kind);
+    setTimeout(() => setConfirming((prev) => (prev === kind ? null : prev)), 4000);
+  };
+
+  const handleMarkDone = (): void => {
+    if (confirming !== 'done') {
+      arm('done');
+      return;
+    }
+    setConfirming(null);
+    markPhaseComplete(activeSlug, phase.id).catch((err: unknown) => {
+      console.error('Failed to mark phase complete:', err);
+    });
+  };
+
+  const handleRevert = (): void => {
+    if (confirming !== 'revert') {
+      arm('revert');
+      return;
+    }
+    setConfirming(null);
+    revertPhase(activeSlug, phase.id).catch((err: unknown) => {
+      console.error('Failed to revert phase:', err);
+    });
+  };
+
+  const showMarkDone =
+    isCurrent && phase.status === 'active' && !SKIP_DONE_OVERRIDE_PHASES.has(phase.id);
+  const showRevert = phase.status === 'complete';
+
+  if (!showMarkDone && !showRevert) return null;
+
+  return (
+    <>
+      {showRevert && (
+        <button
+          onClick={handleRevert}
+          title={
+            confirming === 'revert'
+              ? 'Click again to confirm — reverts this phase and all subsequent phases'
+              : 'Revert this phase (go back)'
+          }
+          className={`rounded-[7px] border px-2.5 py-[6px] text-[11px] font-medium transition-colors ${
+            confirming === 'revert'
+              ? 'border-ne-sable/60 bg-ne-sable/15 text-ne-sable'
+              : 'border-ne-line text-ne-ink-faint hover:border-ne-sable/50 hover:text-ne-sable'
+          }`}
+        >
+          {confirming === 'revert' ? 'Revert here?' : '← Revert here'}
+        </button>
+      )}
+      {showMarkDone && (
+        <button
+          onClick={handleMarkDone}
+          title={
+            confirming === 'done'
+              ? 'Click again to confirm — marks this phase complete without its agent finishing'
+              : 'Mark this phase as complete (manual override)'
+          }
+          className={`rounded-[7px] border px-2.5 py-[6px] text-[11px] font-medium transition-colors ${
+            confirming === 'done'
+              ? 'border-ne-sable/60 bg-ne-sable/15 text-ne-sable'
+              : 'border-ne-line text-ne-ink-faint hover:border-ne-brass/50 hover:text-ne-ink'
+          }`}
+        >
+          {confirming === 'done' ? 'Mark done?' : 'Mark done'}
+        </button>
+      )}
+    </>
   );
 }
 

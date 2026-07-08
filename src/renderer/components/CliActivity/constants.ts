@@ -13,7 +13,7 @@ export const KIND_ICONS: Record<string, string> = {
   'files-changed': '💾',
   done: '🏁',
   error: '🔴',
-  'context-loaded': '📊',
+  'context-loaded': '📥',
 };
 
 export const KIND_COLORS: Record<string, string> = {

@@ -26,7 +26,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 11 | Manuscript view (read + edit) | M10 | done | 2026-07-07 | Rail + Reader(chapter/full-book) + Editor live; also touched FilesView (deep-dive → shared hook per §1), ProseViewer (`wide`), hooks/useChapterDeepDive.ts (new, per §1) |
 | 12 | Exports, Statistics, Settings routing | M10 | done | 2026-07-07 | ExportsView live (spine build-phase target now real); BuildView exports hook+components; trivial ne reskin on Statistics header + Settings tab bar |
 | 13 | Pitch Room + palette-launched actions | M10 | done | 2026-07-07 | PitchRail + header quick actions + palette items live; also unified legacy AdhocRevisionButton onto shared modal (per S04 handoff) + extracted openVoiceSetup |
-| 14 | Legacy removal, tours, final audit | M10 | pending | — | |
+| 14 | Legacy removal, tours, final audit | M10 | done | 2026-07-07 | 24 legacy files deleted; viewStore v6; tours retargeted; matrix 66/66 ✅; ad-hoc conversation slot added to workbench (hot take / deep dive / Spark) — **PROGRAM COMPLETE** |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -78,6 +78,35 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-14 (2026-07-07) — FINAL REPORT · PROGRAM COMPLETE
+
+**Sessions done: 14/14.** Verification: `npx tsc --noEmit` clean (exit 0) · `npm start` smoke boot clean (main+preload built, Electron launched, no renderer errors) · prescribed emoji grep → zero hits · coverage matrix annotated **66/66 ✅** (audit notes appended to `input-files/coverage-matrix.md`).
+
+**Deleted (24 files + 4 dirs):** `Layout/Sidebar.tsx`; `Sidebar/{BookPanel, SeriesGroup, PipelineTracker, PitchHistory, ShelvedPitchesPanel, HotTakeButton, AdhocRevisionButton, RevisionQueueButton, VoiceSetupButton, CliActivityButton}`; `Dashboard/`, `RightPanel/`, `Reading/`, `Build/` (whole dirs); `Files/{FilesView, FilesHeader, SourcePanel, ChaptersPanel, AgentOutputPanel}`; `Chat/{ChatView, ConversationList, AgentHeader, ChatTitleBar}`; `RevisionQueue/RevisionQueueView.tsx`; `stores/rightPanelStore.ts`; `Helper/HelperButton.tsx` (was orphaned). Kept per keep-list: `ImportChoiceModal`, `PitchPreviewModal`, `FileBrowser`, `FileEditor`, `VersionHistoryPanel`, `DiffViewer`, `FindReplaceModal`, `DeleteConfirmModal`, `AboutJsonViewer`, `QueueControls` (used by RevisionQueueModal).
+
+**Created:** `actions/agentActions.ts` (startHotTake / openAdhocRevisions / openVoiceSetup — palette + PhaseHeader import from here now); `Exports/buildShared.tsx` (FORMAT_LABELS, KNOWN_FORMATS, getOutputFilename, ProgressLog, OutputFiles w/ `Icon` instead of emoji, useManuscriptBuild — ExportsView's only build dependency).
+
+**Ad-hoc conversation slot (new mechanism):** `workspaceStore.adhocConversationId` + `openConversationInWorkspace(id)`. Untagged conversations (hot take, chapter deep dive, Spark-from-book-info) now display in the workspace ChatPane with an agent-dot banner + ✕ (back to phase conversations); `usePhaseConversations` auto-activation is suppressed while set; cleared on phase select / book switch / phase deep-link. Ad-hoc conversations are never read-only.
+
+**Re-homed into AppLayout:** `BookDataManager` (activeSlug → setDisplayedBook + loadPipeline + loadConversations + refreshWordCount; fileChange revision → refreshWordCount — this keeps `bookStore.chapters` fresh for the palette/companion) and `GlobalBookModals` (PitchPreviewModal, ImportWizard, ImportSeriesWizard, SeriesModal — the four mounts formerly in BookPanel).
+
+**Re-homed into PhaseHeader:** the tracker's manual **"Mark done"** override (current active phase, skip build/revision — arm-to-confirm replaces the old warning modal) and **"← Revert here"** (complete phases, arm-to-confirm). Both call pipelineStore directly.
+
+**Re-routes (all former `navigate('chat'|'dashboard'|'files'|'build'|'reading')` call sites):** bookStore.setActiveBook → `workspace`; usePhaseAction.openConversation → `workspace {phaseId}`; autoDraftStore start → `workspace {phaseId:'first-draft'}`; useChapterDeepDive + startHotTake + useOpenSpark → ad-hoc slot; tourStore.startTour → `workspace` (+ selectPhase('pitch') for welcome); Settings tour replay → `workspace`; Onboarding finish → `workspace` (book created) / `library` (skipped); Library "Edit JSON" → `manuscript {filePath:'about.json', manuscriptMode:'editor'}`.
+
+**viewStore v6:** legacy union gone; migration chains v4 → v5 mapping → v6; fresh default `library` (was `dashboard`); dead payload fields (`fileViewMode`, `fileBrowserPath`, `conversationId`) + `FileViewMode` export removed (zero consumers).
+
+**Tours:** all three rewritten — selectors `library-shelf` (added to LibraryView), `pipeline-spine`, `rail`, `chat-view`, `chat-input`, `quick-actions`, `pipeline-phase-pitch`; per-step `requiredView: 'library'|'workspace'`; copy updated (rail/spine/companion language). **Deviation from session §3:** `[data-tour="quick-actions"]` stays on the ChatInput QuickActions chip (single instance post-deletion) rather than the PhaseHeader chips — the step copy describes agent prompt presets, which is what QuickActions is; the PhaseHeader chips are Hot Take/Ad Hoc/Voice.
+
+**Other:** rail gained a Help entry (bulb, toggles HelperPanel — matrix #37's promised rail twin of `action-help`); ExportsView's duplicate "Open Settings/Statistics" palette items pruned (S12 note); cliActivityStore deprecated aliases (`isOpen/toggle/open/close`) removed and the drawer Close button now calls `closeDrawer`; CliActivityPanel right-dock wrapper deleted (only `CliActivityListener` + `CliActivityContent` remain).
+
+**Follow-up recommendations (post-program polish):**
+- Legacy internals still zinc-styled inside ne-token pages: Statistics/Settings bodies, RevisionQueueModal, ImportWizard/SeriesModal, CliActivityContent, buildShared's ProgressLog/OutputFiles — a cosmetic reskin pass.
+- Some emoji remain in kept legacy internals (CliActivity KIND_ICONS, StreamingMessage stage icons, FileBrowser file glyphs, ImportChoiceModal, MessageBubble 💾) — allowed by the "no emoji in *new* components" rule and outside the prescribed audit list, but a monochrome-glyph pass would finish the look.
+- SplitPane chip-click while the companion is collapsed still switches the hidden tab silently (S10 note) — consider auto-expanding.
+- `EmptyState` any-agent conversation picker from the old ChatView was not carried over (not a coverage-matrix feature; phase-scoped + ad-hoc conversations cover the flows). If free-form any-agent chat is wanted later, a palette "Talk to {agent}" provider + the ad-hoc slot is the natural shape.
+- Manual verification still recommended for: both themes at 1100px width, tour replays from Settings, onboarding over the new shell (`settings.json` reset).
 
 ### SESSION-13 (2026-07-07)
 

@@ -1,23 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useBookStore } from '../../stores/bookStore';
-import { useViewStore } from '../../stores/viewStore';
 import type { BuildFormat, BuildResult } from '@domain/types';
+import { Icon } from '../common/Icon';
 
-// Pieces below are exported for reuse by ExportsView (SESSION-12);
-// this legacy view is deleted wholesale in SESSION-14, which re-homes them.
+// Build/export pieces shared with the legacy BuildView until SESSION-14
+// deleted it — now owned by the Exports view.
 
 export const FORMAT_LABELS: Record<BuildFormat, string> = {
   md: 'Markdown',
   docx: 'Word Document',
   epub: 'EPUB',
   pdf: 'PDF',
-};
-
-const FORMAT_ICONS: Record<BuildFormat, string> = {
-  md: '📄',
-  docx: '📝',
-  epub: '📚',
-  pdf: '📕',
 };
 
 /** Formats produced by BuildService, in display order. */
@@ -128,7 +120,7 @@ export function OutputFiles({
             className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3"
           >
             <div className="flex items-center gap-3">
-              <span className="text-lg">{FORMAT_ICONS[entry.format]}</span>
+              <Icon name="exports" size={18} strokeWidth={1.5} className="text-ne-ink-dim" />
               <div>
                 <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                   {getOutputFilename(activeSlug, entry.format)}
@@ -157,8 +149,7 @@ export function OutputFiles({
 
 /**
  * The manuscript build/export state machine — Pandoc check, existing-output
- * scan, progress streaming, build + zip export. Shared by the legacy
- * BuildView and the new ExportsView (each instance holds its own log).
+ * scan, progress streaming, build + zip export.
  */
 export function useManuscriptBuild(activeSlug: string): {
   logs: string[];
@@ -281,109 +272,4 @@ export function useManuscriptBuild(activeSlug: string): {
     handleBuild,
     handleExportZip,
   };
-}
-
-export function BuildView(): React.ReactElement {
-  const { activeSlug, totalWordCount, books } = useBookStore();
-  const { navigate } = useViewStore();
-  const activeBook = books.find((b) => b.slug === activeSlug);
-
-  const {
-    logs,
-    isBuilding,
-    isExporting,
-    buildResult,
-    pandocAvailable,
-    exportMessage,
-    hasSuccessfulFormats,
-    handleBuild,
-    handleExportZip,
-  } = useManuscriptBuild(activeSlug);
-
-  const handleOpenPandocSite = () => {
-    window.novelEngine.shell.openExternal('https://pandoc.org');
-  };
-
-  return (
-    <div className="flex h-full flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-3xl px-8 py-6">
-        {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Build Manuscript</h1>
-            {activeBook && (
-              <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {activeBook.title} — {totalWordCount.toLocaleString()} words
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => navigate('reading')}
-            disabled={!activeSlug}
-            className="flex items-center gap-2 rounded-md px-4 py-2 text-sm text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          >
-            📖 Read Full Manuscript
-          </button>
-        </div>
-
-        {/* Pandoc Warning */}
-        {!pandocAvailable && (
-          <div className="mb-4 rounded-lg border border-amber-800 bg-amber-950 px-4 py-3">
-            <div className="text-sm font-medium text-amber-300">
-              Pandoc not found
-            </div>
-            <div className="mt-1 text-sm text-amber-600 dark:text-amber-400/80">
-              Install Pandoc to generate output files.{' '}
-              <button
-                onClick={handleOpenPandocSite}
-                className="underline hover:text-amber-300"
-              >
-                pandoc.org
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="mb-6 flex items-center gap-3">
-          <button
-            onClick={handleBuild}
-            disabled={isBuilding || !pandocAvailable || !activeSlug}
-            className="rounded-lg bg-green-700 px-4 py-2 font-medium text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isBuilding ? 'Building...' : 'Build All Formats'}
-          </button>
-
-          {hasSuccessfulFormats && (
-            <button
-              onClick={handleExportZip}
-              disabled={isExporting}
-              className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isExporting ? 'Exporting...' : 'Download All'}
-            </button>
-          )}
-        </div>
-
-        {/* Export success message */}
-        {exportMessage && (
-          <div
-            className={`mb-4 text-sm ${
-              exportMessage.startsWith('Saved') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-            }`}
-          >
-            {exportMessage}
-          </div>
-        )}
-
-        {/* Progress Log */}
-        <ProgressLog logs={logs} isBuilding={isBuilding} />
-
-        {/* Output Files */}
-        {buildResult && (
-          <OutputFiles buildResult={buildResult} activeSlug={activeSlug} />
-        )}
-      </div>
-    </div>
-  );
 }

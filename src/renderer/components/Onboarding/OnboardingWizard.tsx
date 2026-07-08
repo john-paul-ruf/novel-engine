@@ -439,15 +439,18 @@ export function OnboardingWizard(): React.ReactElement {
   const handleLaunch = useCallback(
     async (bookTitle: string) => {
       await update({ initialized: true });
+      let created = false;
       if (bookTitle.trim()) {
         try {
           const slug = await createBook(bookTitle.trim());
           await setActiveBook(slug);
+          created = true;
         } catch (error) {
           console.error('Failed to create book during onboarding:', error);
         }
       }
-      navigate('chat');
+      // With a fresh book, land in its workspace; otherwise start at the shelf.
+      navigate(created ? 'workspace' : 'library');
 
       // Start the welcome tour after a short delay to let the UI render
       setTimeout(() => {

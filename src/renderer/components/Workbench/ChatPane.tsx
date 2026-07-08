@@ -4,6 +4,8 @@ import type { CreativeAgentName, PipelinePhase } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { agentColor } from '../common/agentColors';
 import { ChatInput } from '../Chat/ChatInput';
 import { MessageList } from '../Chat/MessageList';
 import { Icon } from '../common/Icon';
@@ -103,7 +105,18 @@ export function ChatPane({ phase }: { phase: PipelinePhase | null }): React.Reac
   const overrideThinkingBudget = useSettingsStore((s) => s.settings?.overrideThinkingBudget ?? false);
   const globalThinkingBudget = useSettingsStore((s) => s.settings?.thinkingBudget ?? 5000);
 
-  const { activeConversation, createConversation } = usePhaseConversations(phase?.id ?? null);
+  const { activeConversation: phaseConversation, createConversation } =
+    usePhaseConversations(phase?.id ?? null);
+
+  // Ad-hoc override — hot takes, deep dives, Spark sessions (untagged
+  // conversations routed here via openConversationInWorkspace).
+  const adhocConversationId = useWorkspaceStore((s) => s.adhocConversationId);
+  const setAdhocConversation = useWorkspaceStore((s) => s.setAdhocConversation);
+  const chatActive = useChatStore((s) => s.activeConversation);
+  const adhocConversation =
+    adhocConversationId && chatActive?.id === adhocConversationId ? chatActive : null;
+
+  const activeConversation = adhocConversation ?? phaseConversation;
 
   // Same default-budget derivation as ChatView.
   const defaultThinkingBudget = useMemo(() => {
@@ -119,9 +132,13 @@ export function ChatPane({ phase }: { phase: PipelinePhase | null }): React.Reac
   }, [defaultThinkingBudget]);
 
   // Read-only when the selected phase is neither active nor pending-completion
-  // (same rule ChatView derives from the conversation's phase).
+  // (same rule the legacy ChatView derived from the conversation's phase).
+  // Ad-hoc conversations are never read-only — they have no phase gate.
   const isReadOnly =
-    phase !== null && phase.status !== 'active' && phase.status !== 'pending-completion';
+    adhocConversation === null &&
+    phase !== null &&
+    phase.status !== 'active' &&
+    phase.status !== 'pending-completion';
 
   // Same send handling as ChatView, including the hot-take quick action.
   const handleSend = useCallback(
@@ -146,9 +163,26 @@ export function ChatPane({ phase }: { phase: PipelinePhase | null }): React.Reac
 
   return (
     <div data-tour="chat-view" className="flex h-full min-h-0 flex-col">
-      {/* Pane header — conversation dropdown chip */}
+      {/* Pane header — conversation dropdown chip, or the ad-hoc banner */}
       <div className="flex shrink-0 items-center gap-2 border-b border-ne-line-soft px-4 py-2">
-        {phase ? (
+        {adhocConversation ? (
+          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-ne-line bg-ne-bg2 px-2.5 py-1 text-[11px] text-ne-ink-dim">
+            <span
+              className="inline-block h-[6px] w-[6px] shrink-0 rounded-full"
+              style={{ background: agentColor(adhocConversation.agentName) }}
+            />
+            <span className="truncate">
+              {adhocConversation.agentName} — {adhocConversation.title || 'Untitled'}
+            </span>
+            <button
+              onClick={() => setAdhocConversation(null)}
+              title="Back to phase conversations"
+              className="ml-1 shrink-0 text-ne-ink-faint transition-colors hover:text-ne-ink"
+            >
+              <Icon name="x" size={11} strokeWidth={2} />
+            </button>
+          </div>
+        ) : phase ? (
           <ConversationChip phaseId={phase.id} />
         ) : (
           <span className="text-[11px] text-ne-ink-faint">No phase selected</span>

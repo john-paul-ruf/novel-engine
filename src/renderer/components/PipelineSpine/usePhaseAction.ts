@@ -104,7 +104,8 @@ export function usePhaseAction(
     } else {
       await createConversation(phase.agent, activeSlug, phase.id);
     }
-    useViewStore.getState().navigate('chat');
+    // Phase-tagged conversation — the workspace chat pane picks it up.
+    useViewStore.getState().navigate('workspace', { phaseId: phase.id });
   };
 
   /**

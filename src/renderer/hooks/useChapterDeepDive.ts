@@ -1,17 +1,17 @@
 import { useCallback, useState } from 'react';
 import { useChatStore } from '../stores/chatStore';
-import { useViewStore } from '../stores/viewStore';
+import { openConversationInWorkspace } from '../stores/workspaceStore';
 
 /**
  * Chapter Deep Dive — triggers a scoped Lumen analysis of a chapter draft.
- * Extracted verbatim from FilesView.handleDeepDive so the manuscript rail and
- * the legacy Files view share one path (the Files call site goes in S14).
+ * Extracted from the legacy FilesView.handleDeepDive (deleted in SESSION-14);
+ * the conversation is untagged, so it lands in the workspace chat pane via
+ * the ad-hoc conversation slot.
  */
 export function useChapterDeepDive(activeSlug: string): {
   deepDive: (chapterSlug: string) => Promise<void>;
   isDeepDiving: boolean;
 } {
-  const { navigate } = useViewStore();
   const [isDeepDiving, setIsDeepDiving] = useState(false);
 
   const deepDive = useCallback(
@@ -31,8 +31,8 @@ export function useChapterDeepDive(activeSlug: string): {
         // Attach stream listener before firing so we don't miss early events
         useChatStore.getState().attachToExternalStream(callId, conversationId);
 
-        // Navigate to chat — ChatView will mount with the active Lumen conversation
-        navigate('chat');
+        // Show the active Lumen conversation in the workspace chat pane
+        openConversationInWorkspace(conversationId);
 
         // Fire and forget — stream events arrive via chat:streamEvent broadcast
         void window.novelEngine.chat.deepDive({
@@ -47,7 +47,7 @@ export function useChapterDeepDive(activeSlug: string): {
         setIsDeepDiving(false);
       }
     },
-    [activeSlug, navigate],
+    [activeSlug],
   );
 
   return { deepDive, isDeepDiving };

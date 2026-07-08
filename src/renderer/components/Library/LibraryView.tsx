@@ -275,7 +275,9 @@ function BookInfoModal({ slug, onClose }: { slug: string; onClose: () => void })
     if (slug !== activeSlug) {
       await setActiveBook(slug);
     }
-    useViewStore.getState().navigate('files', { filePath: 'about.json', fileViewMode: 'editor' });
+    useViewStore
+      .getState()
+      .navigate('manuscript', { filePath: 'about.json', manuscriptMode: 'editor' });
   };
 
   return (
@@ -538,7 +540,7 @@ export function LibraryView(): React.ReactElement {
       ) : (
         <>
           {/* Shelf — standalone books, ghost cards at grid end */}
-          <div className={`mt-[38px] ${SHELF_GRID_CLASS}`}>
+          <div data-tour="library-shelf" className={`mt-[38px] ${SHELF_GRID_CLASS}`}>
             {standaloneBooks.map((book) => renderCard(book))}
             <button onClick={() => setShowNewBookModal(true)} className={GHOST_CARD_CLASS}>
               <Icon name="plus" size={22} strokeWidth={1.6} />
@@ -588,8 +590,8 @@ export function LibraryView(): React.ReactElement {
         </>
       )}
 
-      {/* Modals — SeriesModal and the Import/Series wizards stay mounted in
-          BookPanel until SESSION-14; the store actions above open them. */}
+      {/* Modals — SeriesModal and the Import/Series wizards are mounted
+          globally in AppLayout; the store actions above open them. */}
       {showNewBookModal && (
         <NewBookModal onClose={() => setShowNewBookModal(false)} onCreate={handleCreateBook} />
       )}

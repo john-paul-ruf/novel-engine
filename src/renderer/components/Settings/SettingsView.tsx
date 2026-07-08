@@ -751,7 +751,7 @@ function GuidedToursSection(): React.ReactElement {
 
   const handleReplay = async (tourId: TourId) => {
     await resetTour(tourId);
-    navigate('chat');
+    navigate('workspace');
     setTimeout(() => {
       startTour(tourId);
     }, 300);

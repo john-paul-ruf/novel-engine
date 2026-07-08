@@ -81,9 +81,9 @@ export const useBookStore = create<BookState>((set, get) => ({
 
       await get().refreshWordCount();
 
-      // Navigate to dashboard when switching books
+      // Land in the new book's workspace when switching books
       const { navigate } = useViewStore.getState();
-      navigate('dashboard');
+      navigate('workspace');
 
       // Reconnect auto-draft visual state if the new book has a running loop
       const { reconnect } = useAutoDraftStore.getState();

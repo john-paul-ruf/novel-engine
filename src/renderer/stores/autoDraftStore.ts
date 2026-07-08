@@ -263,13 +263,13 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       if (isViewingBook(bookSlug)) {
         await useChatStore.getState().loadConversations(bookSlug);
 
-        // Navigate to chat and activate the auto-draft conversation
-        // only for the initial start — the user explicitly clicked this.
+        // Navigate to the first-draft workbench and activate the auto-draft
+        // conversation only for the initial start — the user explicitly clicked this.
         const chatState = useChatStore.getState();
         if (!chatState.activeConversation || chatState.activeConversation.id !== conversationId) {
           await chatState.setActiveConversation(conversationId);
         }
-        useViewStore.getState().navigate('chat');
+        useViewStore.getState().navigate('workspace', { phaseId: 'first-draft' });
       }
 
       // Brief pause — let the view settle before the first message fires

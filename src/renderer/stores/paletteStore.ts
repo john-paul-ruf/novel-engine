@@ -7,9 +7,7 @@ import { usePipelineStore } from './pipelineStore';
 import { useHelperStore } from './helperStore';
 import { usePitchRoomStore } from './pitchRoomStore';
 import { agentColor } from '../components/common/agentColors';
-import { startHotTake } from '../components/Sidebar/HotTakeButton';
-import { openAdhocRevisions } from '../components/Sidebar/AdhocRevisionButton';
-import { openVoiceSetup } from '../components/Sidebar/VoiceSetupButton';
+import { startHotTake, openAdhocRevisions, openVoiceSetup } from '../actions/agentActions';
 
 export type PaletteItem = {
   id: string;

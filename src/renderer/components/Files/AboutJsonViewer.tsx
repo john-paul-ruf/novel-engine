@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBookStore } from '../../stores/bookStore';
 import { useChatStore } from '../../stores/chatStore';
-import { useViewStore } from '../../stores/viewStore';
+import { openConversationInWorkspace } from '../../stores/workspaceStore';
 import type { BookMeta, BookStatus } from '@domain/types';
 
 const ALL_STATUSES: BookStatus[] = [
@@ -420,17 +420,18 @@ export function AboutJsonViewer({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Hook — call from FilesView to build onOpenSpark
+// Hook — call from the Library Book-info modal to build onOpenSpark
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useOpenSpark(bookSlug: string): () => Promise<void> {
-  const { navigate } = useViewStore();
   return useCallback(async () => {
     const { createConversation, sendMessage } = useChatStore.getState();
     await createConversation('Spark', bookSlug, null, 'pipeline');
-    navigate('chat');
-    // Brief yield so ChatView mounts and reads the active conversation before we stream
+    // Untagged Spark conversation → workspace chat pane (ad-hoc slot)
+    const conversationId = useChatStore.getState().activeConversation?.id;
+    if (conversationId) openConversationInWorkspace(conversationId);
+    // Brief yield so the pane mounts and reads the active conversation before we stream
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
     await sendMessage(SPARK_METADATA_PROMPT);
-  }, [bookSlug, navigate]);
+  }, [bookSlug]);
 }
