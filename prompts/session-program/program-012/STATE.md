@@ -15,7 +15,7 @@
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Retheme version-history surfaces (DiffViewer, VersionHistoryPanel, FileEditor, UserEditsDiffModal remnants) | M10 | done | 2026-07-08 | Pure className swap (66 lines). Save button uses `text-ne-bg0` (LibraryView precedent) instead of `text-white`. Preview pane prose themed via `--tw-prose-*` vars → `ne-*` tokens. |
-| 02 | Reusable VersionHistoryModal (common component) | M10 | pending | — | — |
+| 02 | Reusable VersionHistoryModal (common component) | M10 | done | 2026-07-08 | `frameless` prop was needed on `VersionHistoryPanel` (drops `border-l border-ne-line`, defaults to current behavior). |
 | 03 | History buttons in companion tabs (Sources, Explorer, Chapter, Reports) | M10 | pending | — | — |
 | 04 | History in Manuscript reader mode + final audit | M10 | pending | — | — |
 
@@ -88,3 +88,21 @@ SESSION-01 ──► SESSION-02 ──► SESSION-03
 - **Manual visual pass not yet run** — fold into SESSION-04's audit checklist.
 - **Warnings:** working tree contains unrelated modified files (`CHANGELOG.md`,
   `src/application/BuildService.ts`, older program prompts) — left untouched, not staged.
+
+### SESSION-02 (2026-07-08)
+
+- **Landed:** `src/renderer/components/common/VersionHistoryModal.tsx` — standalone modal
+  wrapper. Idiom matches `UserEditsDiffModal`: backdrop `bg-black/60 backdrop-blur-sm z-50`,
+  click-outside + Escape close, shell `rounded-xl border border-ne-line bg-ne-bg1 shadow-2xl`.
+  Shell is `h-[80vh] max-w-3xl` so the timeline/diff split has room.
+- **`frameless` prop added** to `VersionHistoryPanel` (optional, default `false`) — the
+  modal passes `frameless` to drop the panel's `border-l` and avoid a doubled left edge.
+  `FileEditor`'s split-pane usage is unchanged.
+- **For SESSION-03/04 wiring:**
+  ```tsx
+  import { VersionHistoryModal } from '../../common/VersionHistoryModal'; // from companion tabs
+  <VersionHistoryModal bookSlug={slug} filePath={path} onClose={...} />   // no onReverted for read-only hosts
+  ```
+  Component is intentionally unreferenced until SESSION-03 wires the first host.
+- **Gotcha found (pre-existing):** an empty 0-byte `VersionHistoryModal.tsx` already
+  existed on disk (stray touch); overwritten with the real component.

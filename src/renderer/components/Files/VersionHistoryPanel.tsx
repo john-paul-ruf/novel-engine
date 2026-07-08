@@ -9,6 +9,8 @@ type VersionHistoryPanelProps = {
   onClose: () => void;
   /** Called after a successful revert so parent can reload file content */
   onReverted?: () => void;
+  /** Drop the side-panel left border (e.g. when hosted inside a modal shell). */
+  frameless?: boolean;
 };
 
 const SOURCE_LABELS: Record<FileVersionSource, { label: string; className: string }> = {
@@ -134,6 +136,7 @@ export function VersionHistoryPanel({
   filePath,
   onClose,
   onReverted,
+  frameless = false,
 }: VersionHistoryPanelProps): React.ReactElement {
   const {
     versions,
@@ -164,7 +167,7 @@ export function VersionHistoryPanel({
   const fileName = filePath.split('/').pop() ?? filePath;
 
   return (
-    <div className="flex flex-col h-full bg-ne-bg1 border-l border-ne-line">
+    <div className={`flex flex-col h-full bg-ne-bg1 ${frameless ? '' : 'border-l border-ne-line'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-ne-line">
         <div className="min-w-0">
