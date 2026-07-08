@@ -1824,3 +1824,43 @@ Settings now presents Ollama as a local CLI-first provider. The Providers tab sh
 None
 
 ---
+
+## [2026-07-08] — Codex silent-exit fix session program
+
+### Summary
+
+Created a Forge session program for the Codex CLI bug where Novel Engine starts Codex, the process exits in under ten seconds, and the UI shows no useful error. The program scopes the fix to `./src/infrastructure/codex-cli/CodexCliClient.ts`: treat no-output Codex exits as errors, preserve synthetic completion only when assistant text exists, and add bounded exit diagnostics.
+
+### Added
+- `./prompts/session-program/program-015/input-files/bug-report.md` — Captures the user report, source observations, local Codex version check, likely failure mode, and expected outcome.
+- `./prompts/session-program/program-015/SESSION-01.md` — Defines the implementation session for Codex silent-exit diagnostics and no-output error handling.
+- `./prompts/session-program/program-015/STATE.md` — Tracks session status, scope, design decisions, and handoff notes.
+- `./prompts/session-program/program-015/MASTER.md` — Defines the execution protocol, recovery steps, stopping conditions, and final report requirements.
+
+### Architecture Impact
+- None — prompt program only, no source wiring changes.
+
+### Migration Notes
+None
+
+---
+
+## [2026-07-08] — Surface silent Codex CLI exits as errors
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now treats Codex runs that close without assistant text or usage as failures instead of successful empty responses. The provider keeps synthetic completion only for text-without-usage runs, captures bounded stdout/stderr diagnostics, and forwards native Codex error JSON as stream errors so the renderer receives a visible failure event.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added bounded process diagnostics, parse metadata, native Codex error extraction, and diagnostic close handling for no-output and non-zero exits.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented Codex no-output exit errors, bounded diagnostics, and text-without-usage synthetic completion behavior.
+- `./prompts/session-program/program-015/STATE.md` — Marked SESSION-01 complete with verification and handoff notes.
+
+### Fixed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Prevents a quick Codex exit with no assistant output from being saved as a successful empty assistant message.
+
+### Architecture Impact
+- None — no new dependencies, IPC channels, renderer stores, or schema changes.
+
+### Migration Notes
+None

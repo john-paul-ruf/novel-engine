@@ -151,6 +151,11 @@ export class CodexCliClient implements IModelProvider {
     const tracker = new StreamSessionTracker(sessionId);
     const prompt = this.buildPrompt(systemPrompt, messages);
 
+    const startedAt = Date.now();
+    let parsedJsonEventCount = 0;
+    let nonJsonStdoutTail = '';
+    let lastStatusMessage = '';
+    let terminalErrorMessage = '';
     let doneEmitted = false;
     let textBlockOpen = false;
     let outputTextLength = 0;
@@ -286,27 +291,73 @@ export class CodexCliClient implements IModelProvider {
         settle(() => reject(new Error(message)));
       });
 
+      const applyLineResult = (result: CodexLineResult) => {
+        if (result.parsedJson) parsedJsonEventCount += 1;
+        if (result.nonJsonText) nonJsonStdoutTail = this.appendTail(nonJsonStdoutTail, `${result.nonJsonText}\n`);
+        if (result.statusMessage) lastStatusMessage = result.statusMessage;
+        if (result.errorMessage) terminalErrorMessage = result.errorMessage;
+      };
+
       child.stdout.on('data', (chunk: Buffer) => {
         stdoutBuffer += chunk.toString();
         const lines = stdoutBuffer.split('\n');
         stdoutBuffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock);
+          applyLineResult(this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock));
         }
       });
 
       child.stderr.on('data', (chunk: Buffer) => {
-        stderrBuffer += chunk.toString();
+        stderrBuffer = this.appendTail(stderrBuffer, chunk.toString());
       });
 
-      child.on('close', (code) => {
+      child.on('close', (code, signal) => {
         if (stdoutBuffer.trim()) {
-          this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock);
+          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock));
         }
         closeTextBlock();
 
+        const elapsedMs = Date.now() - startedAt;
+        const stderr = stderrBuffer.trim();
+        const stdoutTail = nonJsonStdoutTail.trim();
+
         if (code === 0) {
+          if (terminalErrorMessage) {
+            const message = this.buildCodexExitMessage({
+              summary: `Codex CLI reported an error: ${terminalErrorMessage}`,
+              code,
+              signal,
+              elapsedMs,
+              workspaceMode: workspacePlan.mode,
+              parsedJsonEventCount,
+              lastStatusMessage,
+              stderr,
+              stdoutTail,
+            });
+            cleanup();
+            settle(() => reject(new Error(message)));
+            return;
+          }
+
+          if (!doneEmitted && outputTextLength === 0) {
+            const message = this.buildCodexExitMessage({
+              summary: 'Codex CLI exited without assistant output or usage.',
+              code,
+              signal,
+              elapsedMs,
+              workspaceMode: workspacePlan.mode,
+              parsedJsonEventCount,
+              lastStatusMessage,
+              stderr,
+              stdoutTail,
+            });
+            wrappedOnEvent({ type: 'error', message });
+            cleanup();
+            settle(() => reject(new Error(message)));
+            return;
+          }
+
           if (!doneEmitted) {
             const outputTokens = Math.ceil(outputTextLength / CHARS_PER_TOKEN);
             const inputTokens = Math.ceil(prompt.length / CHARS_PER_TOKEN);
@@ -325,10 +376,23 @@ export class CodexCliClient implements IModelProvider {
           cleanup();
           settle(() => resolve());
         } else {
+          const message = this.buildCodexExitMessage({
+            summary: terminalErrorMessage
+              ? `Codex CLI reported an error before exit: ${terminalErrorMessage}`
+              : 'Codex CLI exited unsuccessfully.',
+            code,
+            signal,
+            elapsedMs,
+            workspaceMode: workspacePlan.mode,
+            parsedJsonEventCount,
+            lastStatusMessage,
+            stderr,
+            stdoutTail,
+          });
+          if (!terminalErrorMessage) {
+            wrappedOnEvent({ type: 'error', message });
+          }
           cleanup();
-          const stderr = stderrBuffer.trim();
-          const message = stderr || `Codex CLI exited with code ${code ?? 'unknown'}`;
-          wrappedOnEvent({ type: 'error', message });
           settle(() => reject(new Error(message)));
         }
       });
@@ -344,14 +408,31 @@ export class CodexCliClient implements IModelProvider {
     onEvent: (event: StreamEvent) => void,
     tracker: StreamSessionTracker,
     closeTextBlock: () => void,
-  ): void {
+  ): CodexLineResult {
+    const emptyResult: CodexLineResult = {
+      parsedJson: false,
+      emittedText: false,
+      emittedUsageDone: false,
+    };
+
     const trimmed = line.trim();
-    if (!trimmed) return;
+    if (!trimmed) return emptyResult;
 
     const parsed = this.parseJsonObject(trimmed);
     if (!parsed) {
-      emitText(`${line}\n`);
-      return;
+      return { ...emptyResult, nonJsonText: line };
+    }
+
+    const errorMessage = this.extractError(parsed);
+    if (errorMessage) {
+      closeTextBlock();
+      onEvent({ type: 'error', message: errorMessage });
+      return {
+        parsedJson: true,
+        errorMessage,
+        emittedText: false,
+        emittedUsageDone: false,
+      };
     }
 
     const text = this.extractText(parsed);
@@ -373,13 +454,54 @@ export class CodexCliClient implements IModelProvider {
         thinkingTokens: usage.thinkingTokens,
         filesTouched: tracker.getFileTouches(),
       });
-      return;
+      return {
+        parsedJson: true,
+        emittedText: Boolean(text),
+        emittedUsageDone: true,
+      };
     }
 
-    const message = this.extractStatus(parsed);
-    if (message) {
-      onEvent({ type: 'status', message });
+    const statusMessage = this.extractStatus(parsed);
+    if (statusMessage) {
+      onEvent({ type: 'status', message: statusMessage });
     }
+
+    return {
+      parsedJson: true,
+      statusMessage: statusMessage || undefined,
+      emittedText: Boolean(text),
+      emittedUsageDone: false,
+    };
+  }
+
+  private appendTail(current: string, chunk: string, maxChars = 4000): string {
+    const next = current + chunk;
+    return next.length > maxChars ? next.slice(next.length - maxChars) : next;
+  }
+
+  private buildCodexExitMessage(params: {
+    summary: string;
+    code: number | null;
+    signal: NodeJS.Signals | null;
+    elapsedMs: number;
+    workspaceMode: CodexWorkspacePlan['mode'];
+    parsedJsonEventCount: number;
+    lastStatusMessage: string;
+    stderr: string;
+    stdoutTail: string;
+  }): string {
+    const parts = [
+      params.summary,
+      `exitCode=${params.code ?? 'null'}`,
+      `signal=${params.signal ?? 'null'}`,
+      `elapsedMs=${params.elapsedMs}`,
+      `workspaceMode=${params.workspaceMode}`,
+      `jsonEvents=${params.parsedJsonEventCount}`,
+    ];
+    if (params.lastStatusMessage) parts.push(`lastStatus=${params.lastStatusMessage}`);
+    if (params.stderr) parts.push(`stderr=${params.stderr}`);
+    if (params.stdoutTail) parts.push(`stdout=${params.stdoutTail}`);
+    return parts.join('\n');
   }
 
   private parseJsonObject(line: string): Record<string, unknown> | null {
@@ -425,6 +547,29 @@ export class CodexCliClient implements IModelProvider {
       outputTokens: this.getNumber(usage, 'output_tokens') ?? 0,
       thinkingTokens: this.getNumber(usage, 'reasoning_output_tokens') ?? 0,
     };
+  }
+
+  private extractError(event: Record<string, unknown>): string {
+    const type = this.getString(event, 'type') ?? '';
+    const level = this.getString(event, 'level') ?? '';
+    const message = this.getString(event, 'message') ?? this.getString(event, 'msg');
+    const error = event.error;
+
+    if (typeof error === 'string') return error;
+    if (this.isRecord(error)) {
+      return this.getString(error, 'message') ?? this.getString(error, 'msg') ?? JSON.stringify(error);
+    }
+    if (type.toLowerCase().includes('error') || level.toLowerCase() === 'error') {
+      return message ?? type;
+    }
+    const item = event.item;
+    if (this.isRecord(item)) {
+      const itemType = this.getString(item, 'type') ?? '';
+      if (itemType.toLowerCase().includes('error')) {
+        return this.getString(item, 'message') ?? this.getString(item, 'text') ?? itemType;
+      }
+    }
+    return '';
   }
 
   private extractStatus(event: Record<string, unknown>): string {
@@ -474,6 +619,15 @@ export class CodexCliClient implements IModelProvider {
     ].join('\n');
   }
 }
+
+type CodexLineResult = {
+  parsedJson: boolean;
+  nonJsonText?: string;
+  statusMessage?: string;
+  errorMessage?: string;
+  emittedText: boolean;
+  emittedUsageDone: boolean;
+};
 
 type CodexWorkspacePlan = {
   cwd: string;

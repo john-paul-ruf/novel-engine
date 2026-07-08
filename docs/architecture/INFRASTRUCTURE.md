@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-02 (program-008 SESSION-02)
+> Last updated: 2026-07-08 (program-015 SESSION-01)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -111,8 +111,11 @@ Key behavior:
 - Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`
 - Falls back to `-c 'sandbox_workspace_write.writable_roots=["<booksDir>"]'` for older Codex CLI installs without `--add-dir` (verified against codex-cli 0.27.0 via `codex debug seatbelt`), so the books root is always writable
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
-- Parses `item.completed` assistant messages from JSONL and falls back to plain stdout text lines
-- Uses `turn.completed.usage` when available; otherwise estimates tokens with `CHARS_PER_TOKEN`
+- Parses JSONL in `--json` mode; non-JSON stdout is captured as bounded diagnostics instead of assistant text
+- Emits native Codex error JSON as `StreamEvent { type: 'error' }` and rejects the run when the process closes
+- Converts clean no-output/no-usage exits into diagnostic `error` events with exit code, signal, elapsed time, workspace mode, JSON event count, last status, stderr tail, and stdout tail
+- Preserves synthetic `done` only when assistant text streamed but Codex omitted `turn.completed.usage`; token counts are estimated with `CHARS_PER_TOKEN`
+- Uses `turn.completed.usage` when available
 - Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` mirror the Claude provider idle checks
 
