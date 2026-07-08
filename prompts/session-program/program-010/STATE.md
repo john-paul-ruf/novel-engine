@@ -17,7 +17,7 @@ Collapse today's 4-column, 10-nav-item UI into a book-centric workspace where th
 | 02 | viewStore v5 — new view routing | M10 | done | 2026-07-07 | ViewId extended, persist v5 migration forwards legacy views, placeholders mounted, `navigateToPhase` exported |
 | 03 | Icon rail + title bar breadcrumb | M10 | done | 2026-07-07 | Rail + breadcrumb + ⌘K pill live; Sidebar lost bottom-nav only; legacy views now reachable only via in-app links until S05/S08 |
 | 04 | Command palette + action registry | M10 | done | 2026-07-07 | Palette + registry live; ⌘K/Ctrl+K global; also touched bookStore (chapters cache) + both Sidebar button files (trigger extraction per §2) |
-| 05 | Status bar + activity drawer | M10 | pending | — | |
+| 05 | Status bar + activity drawer | M10 | done | 2026-07-07 | Bottom status bar + drawer live; cost-today deferred (session tokens shown); also touched useVerticalResize (direction:'up') |
 | 06 | Library view (bookshelf) | M10 | pending | — | |
 | 07 | Pipeline spine panel | M10 | pending | — | |
 | 08 | Workbench shell + phase header | M10 | pending | — | |
@@ -78,6 +78,22 @@ Parallel-safe pairs: S04/S05 (after S02–S03); S06/S07; S11 alongside S08–S10
 ## Handoff Notes
 
 (agents append here after each session — newest first)
+
+### SESSION-05 (2026-07-07)
+
+**Built:** `StatusBar/StatusBar.tsx` (28px bar: live pulsing dot + `{agent} · {tool} {path}` + elapsed / Idle; session tokens; Activity toggle), `StatusBar/ActivityDrawer.tsx` (height-animated drawer hosting `CliActivityContent`, drag-resize 120–480 via top edge, height persisted at `novel-engine:activity-drawer-height`), AppLayout column order now TitleBar → body row → ActivityDrawer → StatusBar. Right-dock mount removed.
+
+**Store renames (`cliActivityStore.ts`):** `drawerOpen` / `toggleDrawer` / `openDrawer` / `closeDrawer` are canonical. `isOpen` / `toggle` / `open` / `close` remain as deprecated MIRRORS (kept in sync; `isOpen` === `drawerOpen`) so legacy files (`CliActivityButton.tsx`, panel Close button) still compile+work — S14 deletes them. New export: `useActiveCallSummary(): ActiveCallSummary | null` (+ type) — most-recent-active-call summary for the status bar; StatusBar runs the 1s `updateElapsed()` ticker (previously only CallHeader ticked, at 100ms, while panel open).
+
+**`CliActivityContent` export (`CliActivity/CliActivityPanel.tsx`):** layout-agnostic full panel content (header w/ live badge + Clear + Close, FilterBar, CallList, phases, tools, diagnostics, log). `CliActivityPanel` remains as a deprecated right-dock wrapper. `CliActivityListener` untouched, still mounted once in AppLayout.
+
+**Cost-today: DEFERRED.** `statisticsStore` only holds on-demand `BookStatistics` (no cheap day totals). Status bar shows summed session tokens (in+out+thinking of tracked calls) labeled "tokens this session". If day-cost is wanted, S12 (statistics routing) is the natural place to wire it.
+
+**Beyond the file table (justified):** `hooks/useVerticalResize.ts` gained optional `direction?: 'down' | 'up'` (default 'down', backward compatible) — the session prescribed "useResizeHandle with direction up" but that hook is horizontal-only; this was the minimal reuse path.
+
+**Warnings:**
+- The drawer's Close (x) inside CliActivityContent header calls the deprecated `close` alias → closes the drawer. Correct behavior, but S14 should rename the call sites when deleting aliases.
+- `drawerHeight` lives in localStorage (via useVerticalResize), NOT in the store — session allowed this since the store doesn't persist.
 
 ### SESSION-04 (2026-07-07)
 

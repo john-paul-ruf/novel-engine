@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { StreamEvent, ToolUseInfo, ContextDiagnostics, AgentName } from '@domain/types';
 import { CHARS_PER_TOKEN, AGENT_REGISTRY } from '@domain/constants';
 
@@ -82,7 +83,8 @@ type CliActivityState = {
   /** Which call is currently selected for detail view in the panel */
   selectedCallId: string | null;
 
-  isOpen: boolean;
+  /** Whether the bottom activity drawer is expanded. */
+  drawerOpen: boolean;
 
   /** Filter: only show calls for this agent (null = show all) */
   filterAgent: AgentName | null;
@@ -90,8 +92,16 @@ type CliActivityState = {
   /** Filter: only show calls for this book slug (null = show all) */
   filterBook: string | null;
 
+  toggleDrawer: () => void;
+  openDrawer: () => void;
+  closeDrawer: () => void;
+  /** @deprecated Mirror of `drawerOpen` (legacy right-dock naming) — removed in SESSION-14. */
+  isOpen: boolean;
+  /** @deprecated Use `toggleDrawer` — removed in SESSION-14. */
   toggle: () => void;
+  /** @deprecated Use `openDrawer` — removed in SESSION-14. */
   open: () => void;
+  /** @deprecated Use `closeDrawer` — removed in SESSION-14. */
   close: () => void;
   clear: () => void;
   clearCall: (callId: string) => void;
@@ -223,14 +233,18 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
   calls: {},
   callOrder: [],
   selectedCallId: null,
+  drawerOpen: false,
   isOpen: false,
   filterAgent: null,
   filterBook: null,
   _cleanupListener: null,
 
-  toggle: () => set((s) => ({ isOpen: !s.isOpen })),
-  open: () => set({ isOpen: true }),
-  close: () => set({ isOpen: false }),
+  toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen, isOpen: !s.drawerOpen })),
+  openDrawer: () => set({ drawerOpen: true, isOpen: true }),
+  closeDrawer: () => set({ drawerOpen: false, isOpen: false }),
+  toggle: () => get().toggleDrawer(),
+  open: () => get().openDrawer(),
+  close: () => get().closeDrawer(),
 
   clear: () => set({
     calls: {},
@@ -681,3 +695,36 @@ export const useCliActivityStore = create<CliActivityState>((set, get) => ({
     }
   },
 }));
+
+export type ActiveCallSummary = {
+  agentName: string;
+  agentColor: string;
+  toolLabel: string | null;
+  filePath: string | null;
+  elapsedMs: number;
+};
+
+/**
+ * Live summary of the most recent active call — drives the status bar.
+ * Returns null when idle. Elapsed time only advances while something
+ * calls `updateElapsed()` (the status bar runs a 1s ticker).
+ */
+export function useActiveCallSummary(): ActiveCallSummary | null {
+  return useCliActivityStore(
+    useShallow((s) => {
+      const activeId = s.callOrder.find((id) => s.calls[id]?.isActive);
+      if (!activeId) return null;
+      const call = s.calls[activeId];
+      const lastToolEntry = call.currentToolName
+        ? [...call.entries].reverse().find((e) => e.kind === 'tool-start' && e.tool?.filePath)
+        : undefined;
+      return {
+        agentName: call.callMeta.agentName,
+        agentColor: call.callMeta.agentColor,
+        toolLabel: call.currentToolName,
+        filePath: lastToolEntry?.tool?.filePath ?? null,
+        elapsedMs: call.callElapsedMs,
+      };
+    }),
+  );
+}

@@ -9,6 +9,11 @@ type UseVerticalResizeOptions = {
   maxHeight: number;
   /** localStorage key to persist the height (optional) */
   storageKey?: string;
+  /**
+   * Which drag direction grows the element. 'down' (default) suits handles
+   * below the content; 'up' suits a bottom drawer's top-edge handle.
+   */
+  direction?: 'down' | 'up';
 };
 
 type UseVerticalResizeResult = {
@@ -50,6 +55,7 @@ export function useVerticalResize({
   minHeight,
   maxHeight,
   storageKey,
+  direction = 'down',
 }: UseVerticalResizeOptions): UseVerticalResizeResult {
   const [height, setHeight] = useState(() =>
     loadPersistedHeight(storageKey, initialHeight, minHeight, maxHeight),
@@ -79,7 +85,7 @@ export function useVerticalResize({
       if (!dragRef.current) return;
       const { startY, startHeight } = dragRef.current;
       const delta = e.clientY - startY;
-      const newHeight = startHeight + delta;
+      const newHeight = direction === 'up' ? startHeight - delta : startHeight + delta;
       const clamped = Math.max(minHeight, Math.min(maxHeight, newHeight));
       setHeight(clamped);
     };
@@ -102,7 +108,7 @@ export function useVerticalResize({
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     };
-  }, [isDragging, minHeight, maxHeight, storageKey]);
+  }, [isDragging, minHeight, maxHeight, storageKey, direction]);
 
   const resetHeight = useCallback(() => {
     setHeight(initialHeight);

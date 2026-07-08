@@ -722,7 +722,13 @@ const CLI_PANEL_DEFAULT = 380;
 const CLI_PANEL_MIN = 280;
 const CLI_PANEL_MAX = 700;
 
-export function CliActivityPanel(): React.ReactElement {
+/**
+ * Layout-agnostic activity panel content — call list, filters, phases,
+ * tool usage, activity log, live badge, clear/close. Fills its container.
+ * Hosted by the bottom ActivityDrawer (and the legacy right-dock wrapper
+ * below until SESSION-14).
+ */
+export function CliActivityContent(): React.ReactElement {
   const calls = useCliActivityStore((s) => s.calls);
   const callOrder = useCliActivityStore((s) => s.callOrder);
   const selectedCallId = useCliActivityStore((s) => s.selectedCallId);
@@ -731,24 +737,13 @@ export function CliActivityPanel(): React.ReactElement {
   const close = useCliActivityStore((s) => s.close);
   const clear = useCliActivityStore((s) => s.clear);
 
-  const { width, isDragging, onMouseDown, resetWidth } = useResizeHandle({
-    direction: 'right',
-    initialWidth: CLI_PANEL_DEFAULT,
-    minWidth: CLI_PANEL_MIN,
-    maxWidth: CLI_PANEL_MAX,
-    storageKey: 'novel-engine:cli-panel-width',
-  });
-
   const activeCount = Object.values(calls).filter((c) => c.isActive).length;
   const selectedCall = selectedCallId ? calls[selectedCallId] : null;
   const hasFilters = filterAgent !== null || filterBook !== null;
   const filteredOrder = useCliActivityStore((s) => s.getFilteredCallOrder)();
 
   return (
-    <div
-      className="relative flex h-full shrink-0 flex-col overflow-hidden border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900"
-      style={{ width }}
-    >
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-300 dark:border-zinc-700 px-3 py-2">
         <div className="flex items-center gap-2">
@@ -818,6 +813,29 @@ export function CliActivityPanel(): React.ReactElement {
           <p className="text-sm text-zinc-500">Select a call to view details</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * @deprecated Legacy right-dock wrapper around CliActivityContent —
+ * kept routable until SESSION-14. The primary host is the ActivityDrawer.
+ */
+export function CliActivityPanel(): React.ReactElement {
+  const { width, isDragging, onMouseDown, resetWidth } = useResizeHandle({
+    direction: 'right',
+    initialWidth: CLI_PANEL_DEFAULT,
+    minWidth: CLI_PANEL_MIN,
+    maxWidth: CLI_PANEL_MAX,
+    storageKey: 'novel-engine:cli-panel-width',
+  });
+
+  return (
+    <div
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-l border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900"
+      style={{ width }}
+    >
+      <CliActivityContent />
 
       {/* Resize handle on left edge */}
       <ResizeHandle

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useViewStore } from '../../stores/viewStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
-import { useCliActivityStore } from '../../stores/cliActivityStore';
 import { useChatStore } from '../../stores/chatStore';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -17,7 +16,9 @@ import { ReadingModeView } from '../Reading/ReadingModeView';
 import { DashboardView } from '../Dashboard/DashboardView';
 import { StatisticsView } from '../Statistics/StatisticsView';
 import { ChatModal } from '../Chat/ChatModal';
-import { CliActivityPanel, CliActivityListener } from '../CliActivity/CliActivityPanel';
+import { CliActivityListener } from '../CliActivity/CliActivityPanel';
+import { StatusBar } from '../StatusBar/StatusBar';
+import { ActivityDrawer } from '../StatusBar/ActivityDrawer';
 import { PipelinePanel } from '../RightPanel';
 import { GuidedTourOverlay } from '../common/GuidedTourOverlay';
 import { HelperPanel } from '../Helper/HelperPanel';
@@ -173,22 +174,22 @@ function TourOverlayRenderer(): React.ReactElement | null {
 
 export function AppLayout(): React.ReactElement {
   const isModalOpen = useModalChatStore((s) => s.isOpen);
-  const isCliPanelOpen = useCliActivityStore((s) => s.isOpen);
   const pipelineOpen = useRightPanelStore((s) => s.pipelineOpen);
 
   return (
     <div className="flex h-screen w-screen flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
       <TitleBar />
       <StreamManager />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <IconRail />
         <Sidebar />
         <main data-tour="main-content" className="flex-1 overflow-hidden">
           <ViewContent />
         </main>
         {pipelineOpen && <PipelinePanel />}
-        {isCliPanelOpen && <CliActivityPanel />}
       </div>
+      <ActivityDrawer />
+      <StatusBar />
       {isModalOpen && <ChatModal />}
       <CommandPalette />
       <PaletteManager />
