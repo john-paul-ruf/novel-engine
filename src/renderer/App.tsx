@@ -6,15 +6,17 @@ import { useSettingsStore } from './stores/settingsStore';
 import { useTheme } from './hooks/useTheme';
 
 function AppContent(): React.ReactElement {
-  const { settings, loading, load } = useSettingsStore();
+  const { settings, load } = useSettingsStore();
   useTheme();
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // Loading state: dark screen to prevent flash
-  if (loading || settings === null) {
+  // Loading state: dark screen to prevent flash. Only gate on the initial
+  // load (settings === null) — background reloads (e.g. ProviderSection
+  // refreshing settings) must not unmount the app and reset view state.
+  if (settings === null) {
     return <div className="h-screen w-screen bg-white dark:bg-zinc-950" />;
   }
 
