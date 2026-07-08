@@ -68,21 +68,21 @@ export function ThinkingBlock({
   }, [content, expanded]);
 
   return (
-    <div className="mb-2 rounded-lg border border-amber-500/20 bg-amber-950/20">
+    <div className="mb-2 rounded-lg border border-amber-400/40 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-950/20">
       <button
         onClick={() => setExpanded((prev) => !prev)}
         className="flex w-full items-center gap-2 px-4 py-2 text-left"
       >
         <span className="text-sm">🧠</span>
 
-        <span className="flex-1 text-sm font-medium text-amber-300">
+        <span className="flex-1 text-sm font-medium text-amber-800 dark:text-amber-300">
           {isStreaming ? 'Thinking...' : 'Agent Thinking'}
         </span>
 
         {isStreaming && (
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-            <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75 dark:bg-amber-400" />
+            <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 dark:bg-amber-400" />
           </span>
         )}
 
@@ -99,8 +99,8 @@ export function ThinkingBlock({
 
       {/* Preview snippet when collapsed — shows the user thinking content exists */}
       {!expanded && previewSnippet && (
-        <div className="border-t border-amber-500/10 px-4 py-2">
-          <p className="text-xs leading-relaxed text-amber-200/40 italic line-clamp-2">
+        <div className="border-t border-amber-400/30 dark:border-amber-500/10 px-4 py-2">
+          <p className="text-xs leading-relaxed text-amber-700/70 dark:text-amber-200/40 italic line-clamp-2">
             {previewSnippet}
           </p>
         </div>
@@ -109,21 +109,21 @@ export function ThinkingBlock({
       {expanded && (
         <div
           ref={bodyRef}
-          className="max-h-64 overflow-y-auto border-t border-amber-500/10 px-4 py-3"
+          className="max-h-64 overflow-y-auto border-t border-amber-400/30 dark:border-amber-500/10 px-4 py-3"
         >
           {renderedHtml ? (
             <div
-              className="prose prose-sm prose-invert max-w-none font-mono text-amber-200/70 prose-p:my-2.5 prose-p:leading-relaxed prose-headings:text-amber-200/80 prose-headings:mt-4 prose-headings:mb-2 prose-strong:text-amber-200/80 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-hr:my-4 prose-hr:border-amber-500/20 prose-code:text-amber-200/80 prose-a:text-amber-300/70"
+              className="prose prose-sm dark:prose-invert max-w-none font-mono text-amber-900/80 dark:text-amber-200/70 prose-p:my-2.5 prose-p:leading-relaxed prose-headings:text-amber-900 dark:prose-headings:text-amber-200/80 prose-headings:mt-4 prose-headings:mb-2 prose-strong:text-amber-900 dark:prose-strong:text-amber-200/80 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-hr:my-4 prose-hr:border-amber-500/30 dark:prose-hr:border-amber-500/20 prose-code:text-amber-800 dark:prose-code:text-amber-200/80 prose-a:text-amber-700 dark:prose-a:text-amber-300/70"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
           ) : (
-            <div className="font-mono text-sm text-amber-200/40">
+            <div className="font-mono text-sm text-amber-700/60 dark:text-amber-200/40">
               Waiting for thinking output...
             </div>
           )}
 
           {isStreaming && (
-            <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-amber-400/60" />
+            <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-amber-600/60 dark:bg-amber-400/60" />
           )}
         </div>
       )}
