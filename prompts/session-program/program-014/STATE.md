@@ -24,7 +24,7 @@ Bash(mkdir/cat/mv/cp/ls/find/wc/rm/rmdir).
 | 01 | Widen ToolExecutor sandbox to books root | M11, M12 | done | 2026-07-08 | `additionalRoots: string[] = []` added to constructor; both clients pass `[this.booksDir]` |
 | 02 | Provider-agnostic PITCH-ROOM.md build instructions | M04 | done | 2026-07-08 | Content-only edit; Bash now optional, failure-reporting added |
 | 03 | "Promote to Book" button fallback | M10 | done | 2026-07-08 | Manual GUI smoke deferred to end-to-end check |
-| 04 | BashEmulator — sandboxed coreutils module | M11 | pending | — | Requires 01; module unused until 05 |
+| 04 | BashEmulator — sandboxed coreutils module | M11 | done | 2026-07-08 | Module unreferenced until 05, compiles + barrel-exported |
 | 05 | Wire Bash tool into local-provider agent loop | M11, M12 | pending | — | Requires 04; llama-server picks it up with no edits |
 | 06 | Codex writable_roots sandbox fallback | M13 | pending | — | Parallel-safe; verified against codex-cli 0.27.0 |
 
@@ -133,3 +133,17 @@ Header button → `window.novelEngine.pitchRoom.promote(convId)` → IPC `pitchR
   acceptable; future UX polish could hide it once a matching book exists.
 - Manual smoke (button appears after Spark writes `source/pitch.md`, promote → book active,
   draft leaves the rail) still needs a human `npm start` pass.
+
+### SESSION-04 (2026-07-08)
+
+- New `src/infrastructure/ollama-cli/BashEmulator.ts`. Public surface for SESSION-05:
+  `new BashEmulator(resolvePath)` + `run(command): Promise<BashResult>` where
+  `BashResult = { output: string; isWrite: boolean; filePath?: string }`.
+- Every `run()` failure throws `Error` with a model-readable message. Key strings:
+  `Unsupported shell syntax: "{seq}". …` (metacharacters), `Unterminated quote in command`,
+  `Empty command`, `Command not allowed: "{cmd}". Allowed: mkdir, cat, mv, cp, ls, find,
+  wc, rm, rmdir`, and per-command usage hints (`mv requires: mv <source> <dest>` etc.).
+- Deviation from prompt sketch: no module-level `WRITE_COMMANDS` set — each command
+  returns its `isWrite` literal directly (the set would have been dead code). SESSION-05
+  must use `BashResult.isWrite` dynamically (per Design Decision 7), never a static set.
+- `filePath` is reported as originally given (dest for `mv`/`cp`, last path otherwise).
