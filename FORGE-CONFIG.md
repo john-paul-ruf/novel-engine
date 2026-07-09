@@ -49,6 +49,7 @@
 | `M08` | application | `src/application/` | Business logic and orchestration — all services depend on injected interfaces | `M01` (interfaces only) | `ChatService.ts, PipelineService.ts, BuildService.ts, UsageService.ts, ContextWrangler.ts, FindReplaceService.ts, ...` |
 | `M09` | main/ipc | `src/main/`, `src/preload/` | Composition root, thin IPC adapter, contextBridge exposure | `M08, M01` | `index.ts, ipc/handlers.ts, preload/index.ts` |
 | `M10` | renderer | `src/renderer/` | React UI — stores, components, views. Backend access only via `window.novelEngine` | `M09` (bridge only) + `M01` type imports | `stores/, components/, App.tsx, main.tsx` |
+| `M11` | codex-cli | `src/infrastructure/codex-cli/` | Spawns `codex` CLI process, parses `exec --json` events, workspace sandbox planning | `M01`, `M06` (StreamSessionTracker only) | `CodexCliClient.ts, index.ts` |
 
 ---
 

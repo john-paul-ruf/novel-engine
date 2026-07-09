@@ -1946,3 +1946,70 @@ Stale model settings now resolve to an available provider model before chat stre
 
 ### Migration Notes
 - Existing stale `settings.json` model/provider pairs are repaired on startup to the resolved effective model and provider.
+
+---
+
+## [2026-07-08] — Created Codex file-only completion program
+
+### Summary
+
+Created a Forge session program for the Codex CLI auto-draft failure where `codex exec --json` exits with code `0`, writes no final agent message, and Novel Engine reports an error even though the manuscript pane appears to show file output. The program scopes implementation to Codex file-only completion detection, workspace snapshot fallback, and useful diagnostics for unknown Codex JSON event shapes.
+
+### Added
+- `./prompts/session-program/program-017/input-files/bug-report.md` — Captures the screenshot error, current code context, likely root cause, and desired fix.
+- `./prompts/session-program/program-017/MASTER.md` — Defines the execution protocol for the Codex file-only completion fix.
+- `./prompts/session-program/program-017/STATE.md` — Tracks the two-session plan, dependencies, scope, and design decisions.
+- `./prompts/session-program/program-017/SESSION-01.md` — Specifies Codex file-only success detection via bounded workspace snapshot diff.
+- `./prompts/session-program/program-017/SESSION-02.md` — Specifies improved Codex unknown-event summaries and bounded raw diagnostics.
+
+### Architecture Impact
+
+- None — no source, runtime wiring, IPC, schema, or domain contracts changed by this session-program creation.
+
+### Migration Notes
+
+- None
+
+---
+
+## [2026-07-08] — Codex file-only success detection
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now treats clean Codex exits that update files but emit no assistant text or usage as successful file-only completions. It captures a bounded workspace metadata snapshot before spawn, diffs it when parsed Codex events do not report touched files, and emits a concise updated-files summary with synthetic `done.filesTouched` instead of surfacing a false no-output error.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added bounded metadata-only workspace snapshot/diff helpers and clean-close fallback file-touch detection before no-output error classification.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented Codex file-only success classification and snapshot fallback behavior.
+- `./docs/architecture/APPLICATION.md` — Documented that provider `done.filesTouched` can come from native events or provider-level fallback detection.
+- `./prompts/session-program/program-017/STATE.md` — Marked SESSION-01 complete with verification and handoff notes.
+
+### Fixed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Prevents successful Codex file writes from being reported as `Codex CLI exited without assistant output or usage` when Codex omits assistant text and usage.
+
+### Architecture Impact
+- Codex provider behavior now emits synthetic success for clean file-only exits using snapshot-derived `done.filesTouched`.
+- No new dependencies, IPC channels, renderer stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None
+
+---
+
+## [2026-07-08] — Codex unknown-event diagnostics
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now makes Codex JSON parser misses actionable. Event summaries inspect nested `msg`, `event`, and `data` records, unknown events include compact key-shape summaries instead of bare `unknown`, and exit diagnostics include a bounded `unknownJsonTail` with the last raw unknown JSON snippets.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added nested event summary detection, compact unknown shape summaries, bounded raw unknown JSON snippets, and `unknownJsonTail` in Codex exit diagnostics.
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented Codex `eventTail` shape summaries and bounded `unknownJsonTail` diagnostics.
+- `./prompts/session-program/program-017/STATE.md` — Marked SESSION-02 complete with verification and parser smoke notes.
+
+### Architecture Impact
+- Codex provider diagnostics now include `unknownJsonTail=` in close/error messages when unknown JSON event shapes are encountered.
+- No new dependencies, IPC channels, renderer stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import os from 'node:os';
 import { promisify } from 'node:util';
@@ -20,6 +20,8 @@ const ABORT_KILL_GRACE_MS = 2000;
 const BATCH_FLUSH_INTERVAL_MS = 100;
 const BATCH_MAX_SIZE = 20;
 const CRITICAL_EVENT_TYPES = new Set(['done', 'error', 'callStart', 'filesChanged']);
+const WORKSPACE_SNAPSHOT_MAX_FILES = 5000;
+const WORKSPACE_SNAPSHOT_SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'out', '.vite']);
 
 export class CodexCliClient implements IModelProvider {
   readonly providerId: ProviderId = CODEX_CLI_PROVIDER_ID;
@@ -103,6 +105,55 @@ export class CodexCliClient implements IModelProvider {
     return { cwd, argsCwd: cwd, extraArgs, mode: params.workingDir ? 'custom-working-dir' : 'books-root' };
   }
 
+  private snapshotWorkspace(root: string): Map<string, string> {
+    const snapshot = new Map<string, string>();
+
+    const visit = (dir: string): void => {
+      if (snapshot.size >= WORKSPACE_SNAPSHOT_MAX_FILES) return;
+
+      let entries: string[];
+      try {
+        entries = readdirSync(dir);
+      } catch {
+        return;
+      }
+
+      for (const entry of entries) {
+        if (snapshot.size >= WORKSPACE_SNAPSHOT_MAX_FILES) return;
+        if (WORKSPACE_SNAPSHOT_SKIP_DIRS.has(entry)) continue;
+
+        const absPath = path.join(dir, entry);
+        let stat: ReturnType<typeof statSync>;
+        try {
+          stat = statSync(absPath);
+        } catch {
+          continue;
+        }
+
+        if (stat.isDirectory()) {
+          visit(absPath);
+        } else if (stat.isFile()) {
+          const relPath = this.normalizeWorkspacePath(absPath, root);
+          snapshot.set(relPath, `${stat.size}:${stat.mtimeMs}`);
+        }
+      }
+    };
+
+    visit(root);
+    return snapshot;
+  }
+
+  private diffWorkspaceSnapshot(root: string, before: Map<string, string>): string[] {
+    const after = this.snapshotWorkspace(root);
+    const changed: string[] = [];
+
+    for (const [filePath, signature] of after) {
+      if (before.get(filePath) !== signature) changed.push(filePath);
+    }
+
+    return changed.sort();
+  }
+
   hasActiveProcesses(): boolean {
     return this.activeProcesses.size > 0;
   }
@@ -155,6 +206,7 @@ export class CodexCliClient implements IModelProvider {
     const startedAt = Date.now();
     let parsedJsonEventCount = 0;
     let parsedJsonEventTail: string[] = [];
+    let unknownJsonEventTail: string[] = [];
     let nonJsonStdoutTail = '';
     let lastStatusMessage = '';
     let terminalErrorMessage = '';
@@ -232,6 +284,7 @@ export class CodexCliClient implements IModelProvider {
       throw new Error(message);
     }
 
+    const workspaceSnapshotBefore = this.snapshotWorkspace(workspacePlan.cwd);
     const outputDir = mkdtempSync(path.join(os.tmpdir(), 'novel-engine-codex-'));
     const outputLastMessagePath = path.join(outputDir, 'last-message.txt');
 
@@ -319,6 +372,9 @@ export class CodexCliClient implements IModelProvider {
         if (result.parsedJson) parsedJsonEventCount += 1;
         if (result.eventSummary) {
           parsedJsonEventTail = [...parsedJsonEventTail, result.eventSummary].slice(-12);
+          if (result.eventSummary.startsWith('unknown') && result.rawJsonSnippet) {
+            unknownJsonEventTail = [...unknownJsonEventTail, result.rawJsonSnippet].slice(-5);
+          }
         }
         if (result.nonJsonText) nonJsonStdoutTail = this.appendTail(nonJsonStdoutTail, `${result.nonJsonText}\n`);
         if (result.statusMessage) lastStatusMessage = result.statusMessage;
@@ -364,6 +420,7 @@ export class CodexCliClient implements IModelProvider {
               workspaceMode: workspacePlan.mode,
               parsedJsonEventCount,
               parsedJsonEventTail,
+              unknownJsonEventTail,
               lastStatusMessage,
               stderr,
               stdoutTail,
@@ -371,6 +428,38 @@ export class CodexCliClient implements IModelProvider {
             cleanup();
             settle(() => reject(new Error(message)));
             return;
+          }
+
+          const touchedPaths = Object.keys(tracker.getFileTouches());
+          if (touchedPaths.length === 0) {
+            const snapshotChangedPaths = this.diffWorkspaceSnapshot(workspacePlan.cwd, workspaceSnapshotBefore);
+            for (const changedPath of snapshotChangedPaths) {
+              tracker.touchFile(changedPath);
+            }
+          }
+
+          const finalTouchedPaths = Object.keys(tracker.getFileTouches());
+          if (!doneEmitted && outputTextLength === 0 && finalTouchedPaths.length > 0) {
+            const summaryText = [
+              'Codex completed and updated files:',
+              ...finalTouchedPaths.map((filePath) => `- ${filePath}`),
+            ].join('\n');
+            emitText(summaryText);
+            closeTextBlock();
+
+            const inputTokens = Math.ceil(prompt.length / CHARS_PER_TOKEN);
+            const outputTokens = Math.ceil(summaryText.length / CHARS_PER_TOKEN);
+            const stageChange = tracker.inferStage('result');
+            if (stageChange) {
+              wrappedOnEvent({ type: 'progressStage', stage: stageChange });
+            }
+            wrappedOnEvent({
+              type: 'done',
+              inputTokens,
+              outputTokens,
+              thinkingTokens: 0,
+              filesTouched: tracker.getFileTouches(),
+            });
           }
 
           if (!doneEmitted && outputTextLength === 0) {
@@ -382,6 +471,7 @@ export class CodexCliClient implements IModelProvider {
               workspaceMode: workspacePlan.mode,
               parsedJsonEventCount,
               parsedJsonEventTail,
+              unknownJsonEventTail,
               lastStatusMessage,
               stderr,
               stdoutTail,
@@ -407,9 +497,9 @@ export class CodexCliClient implements IModelProvider {
               filesTouched: tracker.getFileTouches(),
             });
           }
-          const touchedPaths = Object.keys(tracker.getFileTouches());
-          if (touchedPaths.length > 0) {
-            wrappedOnEvent({ type: 'filesChanged', paths: touchedPaths });
+          const changedPaths = Object.keys(tracker.getFileTouches());
+          if (changedPaths.length > 0) {
+            wrappedOnEvent({ type: 'filesChanged', paths: changedPaths });
           }
           cleanup();
           settle(() => resolve());
@@ -424,6 +514,7 @@ export class CodexCliClient implements IModelProvider {
             workspaceMode: workspacePlan.mode,
             parsedJsonEventCount,
             parsedJsonEventTail,
+            unknownJsonEventTail,
             lastStatusMessage,
             stderr,
             stdoutTail,
@@ -464,6 +555,9 @@ export class CodexCliClient implements IModelProvider {
     }
 
     const eventSummary = this.summarizeCodexEvent(parsed);
+    const rawJsonSnippet = eventSummary.startsWith('unknown')
+      ? this.safeJsonSnippet(parsed)
+      : undefined;
     const errorMessage = this.extractError(parsed);
     if (errorMessage) {
       closeTextBlock();
@@ -471,6 +565,7 @@ export class CodexCliClient implements IModelProvider {
       return {
         parsedJson: true,
         eventSummary,
+        rawJsonSnippet,
         errorMessage,
         emittedText: false,
         emittedUsageDone: false,
@@ -529,6 +624,7 @@ export class CodexCliClient implements IModelProvider {
       return {
         parsedJson: true,
         eventSummary,
+        rawJsonSnippet,
         emittedText: Boolean(text),
         emittedUsageDone: true,
       };
@@ -542,6 +638,7 @@ export class CodexCliClient implements IModelProvider {
     return {
       parsedJson: true,
       eventSummary,
+      rawJsonSnippet,
       statusMessage: statusMessage || undefined,
       emittedText: Boolean(text),
       emittedUsageDone: false,
@@ -554,14 +651,50 @@ export class CodexCliClient implements IModelProvider {
   }
 
   private summarizeCodexEvent(event: Record<string, unknown>): string {
-    const type = this.getString(event, 'type') ?? 'unknown';
-    const item = event.item;
-    if (this.isRecord(item)) {
-      const itemType = this.getString(item, 'type');
-      const toolName = this.getString(item, 'name') ?? this.getString(item, 'tool_name');
-      return [type, itemType, toolName].filter(Boolean).join(':');
+    const candidates = [
+      event,
+      this.getNestedRecord(event, 'msg'),
+      this.getNestedRecord(event, 'event'),
+      this.getNestedRecord(event, 'data'),
+    ].filter((candidate): candidate is Record<string, unknown> => Boolean(candidate));
+
+    for (const candidate of candidates) {
+      const rawType = this.getString(candidate, 'type');
+      const type = rawType && rawType !== 'unknown' ? rawType : undefined;
+      const item = this.getNestedRecord(candidate, 'item');
+      if (!type) continue;
+      if (item) {
+        const rawItemType = this.getString(item, 'type');
+        const itemType = rawItemType && rawItemType !== 'unknown' ? rawItemType : undefined;
+        const toolName = this.getString(item, 'name') ?? this.getString(item, 'tool_name');
+        const itemKeys = Object.keys(item).slice(0, 6).join(',');
+        return [type, itemType ?? (itemKeys ? `item{${itemKeys}}` : undefined), toolName]
+          .filter(Boolean)
+          .join(':');
+      }
+      return type;
     }
-    return type;
+
+    const keys = Object.keys(event).slice(0, 6).join(',');
+    const item = candidates
+      .map((candidate) => this.getNestedRecord(candidate, 'item'))
+      .find((candidate): candidate is Record<string, unknown> => Boolean(candidate));
+
+    if (item) {
+      const itemKeys = Object.keys(item).slice(0, 6).join(',');
+      return `unknown{${keys}}:item{${itemKeys}}`;
+    }
+
+    return keys ? `unknown{${keys}}` : 'unknown{}';
+  }
+
+  private safeJsonSnippet(value: Record<string, unknown>, maxChars = 500): string {
+    try {
+      const json = JSON.stringify(value);
+      return json.length > maxChars ? `${json.slice(0, maxChars)}…` : json;
+    } catch {
+      return '';
+    }
   }
 
   private extractToolInfo(event: Record<string, unknown>, workspaceCwd: string): { toolName: string; filePath?: string; toolId: string } | null {
@@ -662,6 +795,7 @@ export class CodexCliClient implements IModelProvider {
     workspaceMode: CodexWorkspacePlan['mode'];
     parsedJsonEventCount: number;
     parsedJsonEventTail: string[];
+    unknownJsonEventTail: string[];
     lastStatusMessage: string;
     stderr: string;
     stdoutTail: string;
@@ -676,6 +810,9 @@ export class CodexCliClient implements IModelProvider {
     ];
     if (params.parsedJsonEventTail.length > 0) {
       parts.push(`eventTail=${params.parsedJsonEventTail.join(' > ')}`);
+    }
+    if (params.unknownJsonEventTail.length > 0) {
+      parts.push(`unknownJsonTail=${params.unknownJsonEventTail.join(' | ')}`);
     }
     if (params.lastStatusMessage) parts.push(`lastStatus=${params.lastStatusMessage}`);
     if (params.stderr) parts.push(`stderr=${params.stderr}`);
@@ -778,6 +915,11 @@ export class CodexCliClient implements IModelProvider {
     return typeof value === 'number' ? value : undefined;
   }
 
+  private getNestedRecord(record: Record<string, unknown>, key: string): Record<string, unknown> | null {
+    const value = record[key];
+    return this.isRecord(value) ? value : null;
+  }
+
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
@@ -802,6 +944,7 @@ export class CodexCliClient implements IModelProvider {
 type CodexLineResult = {
   parsedJson: boolean;
   eventSummary?: string;
+  rawJsonSnippet?: string;
   nonJsonText?: string;
   statusMessage?: string;
   errorMessage?: string;
