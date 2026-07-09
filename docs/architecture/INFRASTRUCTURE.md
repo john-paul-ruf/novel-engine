@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-08 (program-017 SESSION-02)
+> Last updated: 2026-07-09 (program-018 SESSION-03)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -113,15 +113,16 @@ Key behavior:
 - Reads the temporary `--output-last-message` file on clean close when JSON stdout contained no assistant text, emits that fallback as `textDelta`, then deletes the temp directory
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
 - Parses JSONL in `--json` mode; non-JSON stdout is captured as bounded diagnostics instead of assistant text
+- Unwraps the Codex 0.27.0 `{"id":"0","msg":{...}}` event envelope (also `event`/`data` keys) for text, status, usage, and error extraction; streams `agent_message`/`*_delta` text with a delta-duplicate guard; labels type-less config/prompt echo lines as `config-echo`/`prompt-echo`
+- Records mid-task `token_count` usage without ending the turn; `turn.completed` and `task_complete` are terminal and emit `done` (falling back to the last recorded `token_count` usage, then `CHARS_PER_TOKEN` estimates)
 - Codex JSON diagnostics include compact `eventTail` shape summaries for unknown events (for example `unknown{msg,data}`) and bounded `unknownJsonTail` raw snippets capped to the last five unknown JSON objects
 - Tracks completed Codex tool/file items, including `file_change` events, through `StreamSessionTracker` and emits `toolUse`, zero-duration `toolDuration`, `progressStage`, `done.filesTouched`, and one terminal `filesChanged` event for touched paths
 - Captures a bounded metadata-only workspace snapshot before spawn and diffs it on clean close when parsed Codex events did not report touched files; skips `.git`, `node_modules`, `dist`, `out`, and `.vite`, capped at 5,000 files
 - Treats clean file-only exits as success when Codex writes files but emits no assistant text or usage; emits a concise updated-files text block plus synthetic `done.filesTouched`
-- Emits native Codex error JSON as `StreamEvent { type: 'error' }` and rejects the run when the process closes
-- Converts clean no-output/no-usage/no-file exits into diagnostic `error` events with exit code, signal, elapsed time, workspace mode, JSON event count, parsed event tail, last status, stderr tail, and stdout tail
-- Preserves synthetic `done` only when assistant text streamed but Codex omitted `turn.completed.usage`; token counts are estimated with `CHARS_PER_TOKEN`
-- Uses `turn.completed.usage` when available
-- Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s
+- Classifies transient `stream_error` events (the CLI retries internally) as `status` events with the recorded reason; terminal `error` envelopes set the failure message so rejections carry the real cause
+- Retries fully-empty transient stream failures (no text streamed, no files touched, no `done`) by re-spawning up to `CODEX_STREAM_RETRY_MAX` times with linear `CODEX_STREAM_RETRY_DELAY_MS` backoff; emits exactly one `error` StreamEvent when the run finally gives up
+- Failure diagnostics include exit code, signal, elapsed time, workspace mode, JSON event count, parsed event tail, `streamError=` last transient reason, last status, stderr tail, and stdout tail
+- Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s; a Stop during retry backoff cancels the pending re-spawn
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` mirror the Claude provider idle checks
 
 ### ollama-cli/ — Ollama CLI/API Hybrid Provider

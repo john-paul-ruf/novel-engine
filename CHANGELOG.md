@@ -2049,3 +2049,26 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-09] — Codex bounded stream-failure retry
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now automatically retries fully-empty transient Codex stream failures. `sendMessage()` is restructured into a retry loop around a new `runCodexAttempt()`: when an attempt streams no text, touches no files, and fails with a recorded stream error (or a clean-but-empty exit that parsed JSON events), the provider re-spawns `codex exec` up to 2 times with linear 2s/4s backoff. Exactly one terminal `error` StreamEvent is emitted when the run finally gives up, and a Stop during retry backoff cancels the pending re-spawn.
+
+### Added
+- `./src/domain/constants.ts` — `CODEX_STREAM_RETRY_MAX` (2) and `CODEX_STREAM_RETRY_DELAY_MS` (2000) with JSDoc, next to the `MULTI_CALL_*` retry constants.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Extracted per-attempt spawn/parse/close logic into `runCodexAttempt()` returning `CodexAttemptOutcome`; retry loop with status events and linear backoff in `sendMessage()`; attempt-level `error` StreamEvents withheld until give-up; `abortedStreams` set so user Stop never triggers a re-spawn (including during backoff).
+- `./docs/architecture/INFRASTRUCTURE.md` — Documented envelope unwrapping, stream_error classification, bounded retry, and abort-during-backoff behavior for the Codex provider.
+- `./prompts/session-program/program-018/STATE.md` — Marked SESSION-03 complete; program done.
+
+### Architecture Impact
+- Two additive M01 constants; retry logic lives entirely in M11 (provider concern) — `ChatService`/`PipelineService` untouched, dependency flow `DOMAIN <- INFRASTRUCTURE` preserved.
+- No new dependencies, IPC channels, renderer stores, database schema changes, or domain type changes.
+
+### Migration Notes
+None

@@ -539,6 +539,21 @@ export const MULTI_CALL_MAX_RETRIES = 2;
 export const MULTI_CALL_RETRY_EXTRA_TURNS = 5;
 
 /**
+ * Maximum number of automatic re-spawn attempts when the Codex CLI exits
+ * after exhausting its internal model-stream retries without producing any
+ * output. Only fully-empty failures are retried — if any assistant text
+ * streamed or any file was touched, the run is NOT retried (avoids
+ * duplicate writes into the book workspace).
+ */
+export const CODEX_STREAM_RETRY_MAX = 2;
+
+/**
+ * Base delay before a Codex stream retry. Attempt N waits N × this value
+ * (linear backoff: 2s, then 4s).
+ */
+export const CODEX_STREAM_RETRY_DELAY_MS = 2000;
+
+/**
  * Sable (Copy Edit) — sip-and-track pattern (same as Lumen/Ghostlight).
  *
  * 1. Dynamic read batches (~25K words each) scan chapters and track ALL

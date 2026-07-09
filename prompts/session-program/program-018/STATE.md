@@ -20,7 +20,7 @@ transient stream failures are retried automatically with bounded backoff.
 |---|---------|---------|--------|-----------|-------|
 | 01 | Unwrap the Codex 0.27.0 `msg` envelope (text, status, usage) | M11 | done | 2026-07-09 | Built per spec; envelope + echo-line shapes confirmed against live codex-cli 0.27.0 |
 | 02 | Surface real Codex errors (stream_error vs terminal error) | M11 | done | 2026-07-09 | Built per spec; only 3 `buildCodexExitMessage` call sites exist (spec said 4) — all updated |
-| 03 | Bounded retry on transient stream failure | M01, M11 | pending | — | — |
+| 03 | Bounded retry on transient stream failure | M01, M11 | done | 2026-07-09 | Built per spec; attempt-level error events withheld so give-up emits exactly one |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -130,3 +130,40 @@ nonzero-exit preference order is `terminalErrorMessage` → `lastStreamErrorMess
 5 retry `status` events, terminal envelope error sets `terminalErrorMessage`, rejection
 begins `Codex CLI reported an error: <real reason>`. Matches live 0.27.0 lines captured
 in SESSION-01's runtime observation.
+
+### SESSION-03 (2026-07-09) — program complete
+
+**Built:** `CODEX_STREAM_RETRY_MAX` / `CODEX_STREAM_RETRY_DELAY_MS` in M01;
+`sendMessage()` restructured into retry loop + `runCodexAttempt(options)`;
+`private abortedStreams: Set<string>`; `private delay(ms)`.
+
+**Final `CodexAttemptOutcome` shape (file-local, bottom of `CodexCliClient.ts`):**
+```typescript
+type CodexAttemptOutcome =
+  | { kind: 'success' }
+  | { kind: 'failure'; message: string; retryable: boolean };
+```
+`runCodexAttempt(options)` takes `{ model, prompt, bookSlug?, conversationId,
+workspacePlan, tracker, wrappedOnEvent, flushBatch, isDoneEmitted }`. Per-call state
+(tracker sequence, event batching, `doneEmitted`, workspace plan) stays in `sendMessage()`;
+per-attempt state (parse state, buffers, tails, snapshot, temp dir, text-block flags)
+resets each spawn.
+
+**Design refinements (spirit of the spec, noted as minor deviations):**
+1. ALL attempt-level `error` StreamEvents are withheld inside `runCodexAttempt()` (via
+   `onAttemptEvent` filter), not just the close-handler ones — `processOutputLine()` emits
+   a line-level `error` for terminal envelopes which would otherwise paint a banner before
+   a successful retry. The give-up path in `sendMessage()` emits exactly one `error`.
+   Non-retryable failures therefore also surface their single error at give-up (loop exits
+   immediately for them, so timing is equivalent).
+2. `abortStream()` adds to `abortedStreams` *before* the live-process lookup (spec said
+   "before killing") — otherwise a Stop during backoff (no live process, early return)
+   would never set the flag and the pending re-spawn would proceed.
+
+**Whole-feature summary (for Final Report):** M11 now parses the 0.27.0 envelope
+(text/status/usage), classifies `stream_error` (transient → status) vs `error` (terminal →
+real reason in the rejection), and re-spawns fully-empty transient failures up to 2× with
+2s/4s backoff, one terminal error event, abort-safe. M01 gained two additive constants.
+`npx tsc --noEmit` clean after every session. Runtime note: this machine's ChatGPT account
+rejects `gpt-5`/`gpt-5-codex` on codex-cli 0.27.0 (400 → stream_error ×5 → error) — likely
+the user's original failure; upgrading the global CLI is strongly recommended.

@@ -8,7 +8,12 @@ import { nanoid } from 'nanoid';
 
 import type { IDatabaseService, IModelProvider } from '@domain/interfaces';
 import type { MessageRole, ProviderCapability, ProviderId, StreamEvent } from '@domain/types';
-import { CHARS_PER_TOKEN, CODEX_CLI_PROVIDER_ID } from '@domain/constants';
+import {
+  CHARS_PER_TOKEN,
+  CODEX_CLI_PROVIDER_ID,
+  CODEX_STREAM_RETRY_DELAY_MS,
+  CODEX_STREAM_RETRY_MAX,
+} from '@domain/constants';
 import { StreamSessionTracker } from '../claude-cli/StreamSessionTracker';
 
 const execFileAsync = promisify(execFile);
@@ -37,6 +42,7 @@ export class CodexCliClient implements IModelProvider {
   private _supportsAddDir: boolean | null = null;
   private activeProcesses: Map<string, ChildProcess> = new Map();
   private streamBookMap: Map<string, string> = new Map();
+  private abortedStreams: Set<string> = new Set();
 
   constructor(
     private booksDir: string,
@@ -166,6 +172,9 @@ export class CodexCliClient implements IModelProvider {
   }
 
   abortStream(conversationId: string): void {
+    // Marked before the process lookup so a Stop during retry backoff
+    // (no live process) still cancels the pending re-spawn.
+    this.abortedStreams.add(conversationId);
     const child = this.activeProcesses.get(conversationId);
     if (!child) return;
 
@@ -202,19 +211,10 @@ export class CodexCliClient implements IModelProvider {
     const conversationId = params.conversationId ?? '';
     const tracker = new StreamSessionTracker(sessionId);
     const prompt = this.buildPrompt(systemPrompt, messages);
-    const parseState: CodexParseState = { deltaTextSeen: false, pendingUsage: null };
 
-    const startedAt = Date.now();
-    let parsedJsonEventCount = 0;
-    let parsedJsonEventTail: string[] = [];
-    let unknownJsonEventTail: string[] = [];
-    let nonJsonStdoutTail = '';
-    let lastStatusMessage = '';
-    let lastStreamErrorMessage = '';
-    let terminalErrorMessage = '';
+    if (conversationId) this.abortedStreams.delete(conversationId);
+
     let doneEmitted = false;
-    let textBlockOpen = false;
-    let outputTextLength = 0;
     let persistErrorLogged = false;
     let eventBatch: EventRecord[] = [];
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -258,25 +258,6 @@ export class CodexCliClient implements IModelProvider {
       params.onEvent(streamEvent);
     };
 
-    const emitText = (text: string) => {
-      if (!text) return;
-      outputTextLength += text.length;
-      if (!textBlockOpen) {
-        textBlockOpen = true;
-        tracker.setCurrentBlockType('text');
-        tracker.markTextEmitted();
-        wrappedOnEvent({ type: 'blockStart', blockType: 'text' });
-      }
-      wrappedOnEvent({ type: 'textDelta', text });
-    };
-
-    const closeTextBlock = () => {
-      if (!textBlockOpen) return;
-      wrappedOnEvent({ type: 'blockEnd', blockType: 'text' });
-      tracker.setCurrentBlockType(null);
-      textBlockOpen = false;
-    };
-
     let workspacePlan: CodexWorkspacePlan;
     try {
       workspacePlan = await this.buildWorkspacePlan({ bookSlug, workingDir });
@@ -285,6 +266,102 @@ export class CodexCliClient implements IModelProvider {
       wrappedOnEvent({ type: 'error', message });
       throw new Error(message);
     }
+
+    let lastFailure: Extract<CodexAttemptOutcome, { kind: 'failure' }> = {
+      kind: 'failure',
+      message: 'Codex CLI did not run.',
+      retryable: false,
+    };
+
+    for (let attempt = 0; attempt <= CODEX_STREAM_RETRY_MAX; attempt++) {
+      if (attempt > 0) {
+        wrappedOnEvent({
+          type: 'status',
+          message: `Codex stream failed — retrying (${attempt}/${CODEX_STREAM_RETRY_MAX})...`,
+        });
+        await this.delay(attempt * CODEX_STREAM_RETRY_DELAY_MS);
+        if (conversationId && this.abortedStreams.has(conversationId)) break; // user cancelled during backoff
+      }
+
+      const outcome = await this.runCodexAttempt({
+        model,
+        prompt,
+        bookSlug,
+        conversationId,
+        workspacePlan,
+        tracker,
+        wrappedOnEvent,
+        flushBatch,
+        isDoneEmitted: () => doneEmitted,
+      });
+
+      if (outcome.kind === 'success') {
+        if (conversationId) this.abortedStreams.delete(conversationId);
+        return;
+      }
+      lastFailure = outcome;
+      if (!outcome.retryable) break;
+      if (conversationId && this.abortedStreams.has(conversationId)) break;
+    }
+
+    if (conversationId) this.abortedStreams.delete(conversationId);
+    wrappedOnEvent({ type: 'error', message: lastFailure.message });
+    throw new Error(lastFailure.message);
+  }
+
+  /**
+   * Spawn one `codex exec` process and classify its outcome. Error
+   * StreamEvents are withheld here — the retry loop in sendMessage() emits
+   * exactly one error event if the run finally gives up.
+   */
+  private runCodexAttempt(options: {
+    model: string;
+    prompt: string;
+    bookSlug?: string;
+    conversationId: string;
+    workspacePlan: CodexWorkspacePlan;
+    tracker: StreamSessionTracker;
+    wrappedOnEvent: (event: StreamEvent) => void;
+    flushBatch: () => void;
+    isDoneEmitted: () => boolean;
+  }): Promise<CodexAttemptOutcome> {
+    const { model, prompt, bookSlug, conversationId, workspacePlan, tracker, wrappedOnEvent, flushBatch, isDoneEmitted } = options;
+
+    const parseState: CodexParseState = { deltaTextSeen: false, pendingUsage: null };
+    const startedAt = Date.now();
+    let parsedJsonEventCount = 0;
+    let parsedJsonEventTail: string[] = [];
+    let unknownJsonEventTail: string[] = [];
+    let nonJsonStdoutTail = '';
+    let lastStatusMessage = '';
+    let lastStreamErrorMessage = '';
+    let terminalErrorMessage = '';
+    let textBlockOpen = false;
+    let outputTextLength = 0;
+
+    const onAttemptEvent = (streamEvent: StreamEvent) => {
+      if (streamEvent.type === 'error') return;
+      wrappedOnEvent(streamEvent);
+    };
+
+    const emitText = (text: string) => {
+      if (!text) return;
+      outputTextLength += text.length;
+      if (!textBlockOpen) {
+        textBlockOpen = true;
+        tracker.setCurrentBlockType('text');
+        tracker.markTextEmitted();
+        onAttemptEvent({ type: 'blockStart', blockType: 'text' });
+      }
+      onAttemptEvent({ type: 'textDelta', text });
+    };
+
+    const closeTextBlock = () => {
+      if (!textBlockOpen) return;
+      onAttemptEvent({ type: 'blockEnd', blockType: 'text' });
+      tracker.setCurrentBlockType(null);
+      textBlockOpen = false;
+    };
 
     const workspaceSnapshotBefore = this.snapshotWorkspace(workspacePlan.cwd);
     const outputDir = mkdtempSync(path.join(os.tmpdir(), 'novel-engine-codex-'));
@@ -324,7 +401,7 @@ export class CodexCliClient implements IModelProvider {
       `cwd=${workspacePlan.cwd}, conversationId=${conversationId}`,
     );
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<CodexAttemptOutcome>((resolve) => {
       const child = spawn('codex', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env },
@@ -340,10 +417,10 @@ export class CodexCliClient implements IModelProvider {
       let stderrBuffer = '';
       let settled = false;
 
-      const settle = (fn: () => void) => {
+      const settle = (outcome: CodexAttemptOutcome) => {
         if (!settled) {
           settled = true;
-          fn();
+          resolve(outcome);
         }
       };
 
@@ -359,15 +436,12 @@ export class CodexCliClient implements IModelProvider {
       child.on('error', (err: NodeJS.ErrnoException) => {
         cleanup();
         const message = err.code === 'ENOENT' ? CODEX_NOT_FOUND_MESSAGE : err.message;
-        wrappedOnEvent({ type: 'error', message });
-        settle(() => reject(new Error(message)));
+        settle({ kind: 'failure', message, retryable: false });
       });
 
       child.stdin.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') return;
-        const message = `Codex CLI stdin error: ${err.message}`;
-        wrappedOnEvent({ type: 'error', message });
-        settle(() => reject(new Error(message)));
+        settle({ kind: 'failure', message: `Codex CLI stdin error: ${err.message}`, retryable: false });
       });
 
       const applyLineResult = (result: CodexLineResult) => {
@@ -390,7 +464,7 @@ export class CodexCliClient implements IModelProvider {
         stdoutBuffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          applyLineResult(this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd, parseState));
+          applyLineResult(this.processOutputLine(line, emitText, onAttemptEvent, tracker, closeTextBlock, workspacePlan.cwd, parseState));
         }
       });
 
@@ -400,7 +474,7 @@ export class CodexCliClient implements IModelProvider {
 
       child.on('close', (code, signal) => {
         if (stdoutBuffer.trim()) {
-          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd, parseState));
+          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, onAttemptEvent, tracker, closeTextBlock, workspacePlan.cwd, parseState));
         }
         closeTextBlock();
         const fallbackText = readFallbackOutput();
@@ -412,6 +486,14 @@ export class CodexCliClient implements IModelProvider {
         const elapsedMs = Date.now() - startedAt;
         const stderr = stderrBuffer.trim();
         const stdoutTail = nonJsonStdoutTail.trim();
+
+        // Retry only fully-empty transient failures: nothing streamed, nothing
+        // written, and either a recorded stream error or a clean-but-empty exit.
+        const isRetryable = () =>
+          outputTextLength === 0 &&
+          Object.keys(tracker.getFileTouches()).length === 0 &&
+          !isDoneEmitted() &&
+          (lastStreamErrorMessage !== '' || (code === 0 && parsedJsonEventCount > 0));
 
         if (code === 0) {
           if (terminalErrorMessage) {
@@ -430,7 +512,7 @@ export class CodexCliClient implements IModelProvider {
               stdoutTail,
             });
             cleanup();
-            settle(() => reject(new Error(message)));
+            settle({ kind: 'failure', message, retryable: isRetryable() });
             return;
           }
 
@@ -443,7 +525,7 @@ export class CodexCliClient implements IModelProvider {
           }
 
           const finalTouchedPaths = Object.keys(tracker.getFileTouches());
-          if (!doneEmitted && outputTextLength === 0 && finalTouchedPaths.length > 0) {
+          if (!isDoneEmitted() && outputTextLength === 0 && finalTouchedPaths.length > 0) {
             const summaryText = [
               'Codex completed and updated files:',
               ...finalTouchedPaths.map((filePath) => `- ${filePath}`),
@@ -455,9 +537,9 @@ export class CodexCliClient implements IModelProvider {
             const outputTokens = Math.ceil(summaryText.length / CHARS_PER_TOKEN);
             const stageChange = tracker.inferStage('result');
             if (stageChange) {
-              wrappedOnEvent({ type: 'progressStage', stage: stageChange });
+              onAttemptEvent({ type: 'progressStage', stage: stageChange });
             }
-            wrappedOnEvent({
+            onAttemptEvent({
               type: 'done',
               inputTokens,
               outputTokens,
@@ -466,7 +548,7 @@ export class CodexCliClient implements IModelProvider {
             });
           }
 
-          if (!doneEmitted && outputTextLength === 0) {
+          if (!isDoneEmitted() && outputTextLength === 0) {
             const message = this.buildCodexExitMessage({
               summary: lastStreamErrorMessage
                 ? `Codex CLI stream failed after retries: ${lastStreamErrorMessage}`
@@ -483,13 +565,12 @@ export class CodexCliClient implements IModelProvider {
               stderr,
               stdoutTail,
             });
-            wrappedOnEvent({ type: 'error', message });
             cleanup();
-            settle(() => reject(new Error(message)));
+            settle({ kind: 'failure', message, retryable: isRetryable() });
             return;
           }
 
-          if (!doneEmitted) {
+          if (!isDoneEmitted()) {
             const usage = parseState.pendingUsage ?? {
               inputTokens: Math.ceil(prompt.length / CHARS_PER_TOKEN),
               outputTokens: Math.ceil(outputTextLength / CHARS_PER_TOKEN),
@@ -497,9 +578,9 @@ export class CodexCliClient implements IModelProvider {
             };
             const stageChange = tracker.inferStage('result');
             if (stageChange) {
-              wrappedOnEvent({ type: 'progressStage', stage: stageChange });
+              onAttemptEvent({ type: 'progressStage', stage: stageChange });
             }
-            wrappedOnEvent({
+            onAttemptEvent({
               type: 'done',
               inputTokens: usage.inputTokens,
               outputTokens: usage.outputTokens,
@@ -509,10 +590,10 @@ export class CodexCliClient implements IModelProvider {
           }
           const changedPaths = Object.keys(tracker.getFileTouches());
           if (changedPaths.length > 0) {
-            wrappedOnEvent({ type: 'filesChanged', paths: changedPaths });
+            onAttemptEvent({ type: 'filesChanged', paths: changedPaths });
           }
           cleanup();
-          settle(() => resolve());
+          settle({ kind: 'success' });
         } else {
           const message = this.buildCodexExitMessage({
             summary: terminalErrorMessage
@@ -532,11 +613,8 @@ export class CodexCliClient implements IModelProvider {
             stderr,
             stdoutTail,
           });
-          if (!terminalErrorMessage) {
-            wrappedOnEvent({ type: 'error', message });
-          }
           cleanup();
-          settle(() => reject(new Error(message)));
+          settle({ kind: 'failure', message, retryable: isRetryable() });
         }
       });
 
@@ -680,6 +758,10 @@ export class CodexCliClient implements IModelProvider {
       emittedText: Boolean(text),
       emittedUsageDone: false,
     };
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private appendTail(current: string, chunk: string, maxChars = 4000): string {
@@ -1065,6 +1147,11 @@ export class CodexCliClient implements IModelProvider {
     ].join('\n');
   }
 }
+
+/** Result of one codex exec spawn, classified for the sendMessage() retry loop. */
+type CodexAttemptOutcome =
+  | { kind: 'success' }
+  | { kind: 'failure'; message: string; retryable: boolean };
 
 type CodexUsage = { inputTokens: number; outputTokens: number; thinkingTokens: number };
 
