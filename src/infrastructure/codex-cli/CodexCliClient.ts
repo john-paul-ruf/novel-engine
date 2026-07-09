@@ -210,6 +210,7 @@ export class CodexCliClient implements IModelProvider {
     let unknownJsonEventTail: string[] = [];
     let nonJsonStdoutTail = '';
     let lastStatusMessage = '';
+    let lastStreamErrorMessage = '';
     let terminalErrorMessage = '';
     let doneEmitted = false;
     let textBlockOpen = false;
@@ -379,6 +380,7 @@ export class CodexCliClient implements IModelProvider {
         }
         if (result.nonJsonText) nonJsonStdoutTail = this.appendTail(nonJsonStdoutTail, `${result.nonJsonText}\n`);
         if (result.statusMessage) lastStatusMessage = result.statusMessage;
+        if (result.streamErrorMessage) lastStreamErrorMessage = result.streamErrorMessage;
         if (result.errorMessage) terminalErrorMessage = result.errorMessage;
       };
 
@@ -423,6 +425,7 @@ export class CodexCliClient implements IModelProvider {
               parsedJsonEventTail,
               unknownJsonEventTail,
               lastStatusMessage,
+              lastStreamErrorMessage,
               stderr,
               stdoutTail,
             });
@@ -465,7 +468,9 @@ export class CodexCliClient implements IModelProvider {
 
           if (!doneEmitted && outputTextLength === 0) {
             const message = this.buildCodexExitMessage({
-              summary: 'Codex CLI exited without assistant output or usage.',
+              summary: lastStreamErrorMessage
+                ? `Codex CLI stream failed after retries: ${lastStreamErrorMessage}`
+                : 'Codex CLI exited without assistant output or usage.',
               code,
               signal,
               elapsedMs,
@@ -474,6 +479,7 @@ export class CodexCliClient implements IModelProvider {
               parsedJsonEventTail,
               unknownJsonEventTail,
               lastStatusMessage,
+              lastStreamErrorMessage,
               stderr,
               stdoutTail,
             });
@@ -511,7 +517,9 @@ export class CodexCliClient implements IModelProvider {
           const message = this.buildCodexExitMessage({
             summary: terminalErrorMessage
               ? `Codex CLI reported an error before exit: ${terminalErrorMessage}`
-              : 'Codex CLI exited unsuccessfully.',
+              : lastStreamErrorMessage
+                ? `Codex CLI stream failed after retries: ${lastStreamErrorMessage}`
+                : 'Codex CLI exited unsuccessfully.',
             code,
             signal,
             elapsedMs,
@@ -520,6 +528,7 @@ export class CodexCliClient implements IModelProvider {
             parsedJsonEventTail,
             unknownJsonEventTail,
             lastStatusMessage,
+            lastStreamErrorMessage,
             stderr,
             stdoutTail,
           });
@@ -563,6 +572,19 @@ export class CodexCliClient implements IModelProvider {
     const rawJsonSnippet = eventSummary.startsWith('unknown')
       ? this.safeJsonSnippet(parsed)
       : undefined;
+    const streamErrorMessage = this.extractStreamError(parsed);
+    if (streamErrorMessage) {
+      onEvent({ type: 'status', message: `Model stream error (Codex retrying): ${streamErrorMessage}` });
+      return {
+        parsedJson: true,
+        eventSummary,
+        rawJsonSnippet,
+        streamErrorMessage,
+        emittedText: false,
+        emittedUsageDone: false,
+      };
+    }
+
     const errorMessage = this.extractError(parsed);
     if (errorMessage) {
       closeTextBlock();
@@ -815,6 +837,7 @@ export class CodexCliClient implements IModelProvider {
     parsedJsonEventTail: string[];
     unknownJsonEventTail: string[];
     lastStatusMessage: string;
+    lastStreamErrorMessage: string;
     stderr: string;
     stdoutTail: string;
   }): string {
@@ -833,6 +856,7 @@ export class CodexCliClient implements IModelProvider {
       parts.push(`unknownJsonTail=${params.unknownJsonEventTail.join(' | ')}`);
     }
     if (params.lastStatusMessage) parts.push(`lastStatus=${params.lastStatusMessage}`);
+    if (params.lastStreamErrorMessage) parts.push(`streamError=${params.lastStreamErrorMessage}`);
     if (params.stderr) parts.push(`stderr=${params.stderr}`);
     if (params.stdoutTail) parts.push(`stdout=${params.stdoutTail}`);
     return parts.join('\n');
@@ -931,24 +955,41 @@ export class CodexCliClient implements IModelProvider {
     };
   }
 
-  private extractError(event: Record<string, unknown>): string {
-    const type = this.getString(event, 'type') ?? '';
-    const level = this.getString(event, 'level') ?? '';
-    const message = this.getString(event, 'message') ?? this.getString(event, 'msg');
-    const error = event.error;
+  /** Transient model-stream failure (the CLI retries internally). Returns its message, or ''. */
+  private extractStreamError(event: Record<string, unknown>): string {
+    for (const candidate of this.unwrapCodexEvent(event)) {
+      const type = (this.getString(candidate, 'type') ?? '').toLowerCase();
+      if (type === 'stream_error') {
+        return this.getString(candidate, 'message') ?? this.getString(candidate, 'msg') ?? 'stream error';
+      }
+    }
+    return '';
+  }
 
-    if (typeof error === 'string') return error;
-    if (this.isRecord(error)) {
-      return this.getString(error, 'message') ?? this.getString(error, 'msg') ?? JSON.stringify(error);
-    }
-    if (type.toLowerCase().includes('error') || level.toLowerCase() === 'error') {
-      return message ?? type;
-    }
-    const item = event.item;
-    if (this.isRecord(item)) {
-      const itemType = this.getString(item, 'type') ?? '';
-      if (itemType.toLowerCase().includes('error')) {
-        return this.getString(item, 'message') ?? this.getString(item, 'text') ?? itemType;
+  /** Terminal error extraction — transient stream_error events are extractStreamError()'s job. */
+  private extractError(event: Record<string, unknown>): string {
+    for (const candidate of this.unwrapCodexEvent(event)) {
+      const rawType = this.getString(candidate, 'type') ?? '';
+      const type = rawType.toLowerCase();
+      if (type === 'stream_error') continue;
+
+      const level = this.getString(candidate, 'level') ?? '';
+      const message = this.getString(candidate, 'message') ?? this.getString(candidate, 'msg');
+      const error = candidate.error;
+
+      if (typeof error === 'string') return error;
+      if (this.isRecord(error)) {
+        return this.getString(error, 'message') ?? this.getString(error, 'msg') ?? JSON.stringify(error);
+      }
+      if (type.includes('error') || level.toLowerCase() === 'error') {
+        return message ?? rawType;
+      }
+      const item = candidate.item;
+      if (this.isRecord(item)) {
+        const itemType = this.getString(item, 'type') ?? '';
+        if (itemType.toLowerCase().includes('error')) {
+          return this.getString(item, 'message') ?? this.getString(item, 'text') ?? itemType;
+        }
       }
     }
     return '';
@@ -1039,6 +1080,7 @@ type CodexLineResult = {
   rawJsonSnippet?: string;
   nonJsonText?: string;
   statusMessage?: string;
+  streamErrorMessage?: string;
   errorMessage?: string;
   emittedText: boolean;
   emittedUsageDone: boolean;

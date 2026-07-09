@@ -2031,3 +2031,21 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-09] — Codex real error surfacing
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now distinguishes Codex transient `stream_error` events (the CLI retries internally) from terminal `error` events, both envelope-aware. Transient errors surface as `status` events and are recorded; terminal errors set `terminalErrorMessage` so failures report `Codex CLI reported an error: <real reason>` instead of the generic no-output diagnostic dump. Empty-output and nonzero-exit failures now prefer `Codex CLI stream failed after retries: <reason>` when a stream error was the last known cause, and exit diagnostics include a `streamError=` line.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added `extractStreamError()`; rewrote `extractError()` to iterate envelope candidates (skipping `stream_error`); routed transient stream errors as `status` events with `lastStreamErrorMessage` tracking; added `streamError=` to `buildCodexExitMessage()` diagnostics and improved failure summaries.
+- `./prompts/session-program/program-018/STATE.md` — Marked SESSION-02 complete with verification and handoff notes.
+
+### Architecture Impact
+- None — internal to M11; error strings ride the existing `StreamEvent` union (`status` / `error`), no domain changes.
+
+### Migration Notes
+None

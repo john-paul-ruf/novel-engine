@@ -19,7 +19,7 @@ transient stream failures are retried automatically with bounded backoff.
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Unwrap the Codex 0.27.0 `msg` envelope (text, status, usage) | M11 | done | 2026-07-09 | Built per spec; envelope + echo-line shapes confirmed against live codex-cli 0.27.0 |
-| 02 | Surface real Codex errors (stream_error vs terminal error) | M11 | pending | — | — |
+| 02 | Surface real Codex errors (stream_error vs terminal error) | M11 | done | 2026-07-09 | Built per spec; only 3 `buildCodexExitMessage` call sites exist (spec said 4) — all updated |
 | 03 | Bounded retry on transient stream failure | M01, M11 | pending | — | — |
 
 (Status: pending | in-progress | done | blocked | skipped)
@@ -108,3 +108,25 @@ lines match SESSION-02's expected shapes verbatim.
   SESSION-01's diff stays honest.
 - Unrelated dirty worktree files left untouched: `.DS_Store`, edits to
   `prompts/session-program/program-002|003|014` files.
+
+### SESSION-02 (2026-07-09)
+
+**Built:** `extractStreamError()` (transient, returns message or `''`); `extractError()`
+rewritten envelope-aware and skips `type === 'stream_error'`; `processOutputLine()` checks
+stream errors first and emits `status` `"Model stream error (Codex retrying): <msg>"`;
+`CodexLineResult.streamErrorMessage?: string` added; `buildCodexExitMessage()` gained
+`lastStreamErrorMessage: string` and appends `streamError=<msg>` after `lastStatus`.
+
+**How `lastStreamErrorMessage` is exposed (for SESSION-03):** closure `let` in
+`sendMessage()` (declared next to `lastStatusMessage`), populated by `applyLineResult()`
+from `result.streamErrorMessage`. Empty-output exit-0 summary is
+`Codex CLI stream failed after retries: <msg>` when set (and no `terminalErrorMessage`);
+nonzero-exit preference order is `terminalErrorMessage` → `lastStreamErrorMessage` → generic.
+
+**Deviation:** spec said "all four `buildCodexExitMessage` call sites" — only three exist
+(exit-0 terminal-error, exit-0 empty-output, nonzero-exit); all three pass the new param.
+
+**Desk-check:** incident trace `task_started > stream_error ×5 > error` (exit 0) →
+5 retry `status` events, terminal envelope error sets `terminalErrorMessage`, rejection
+begins `Codex CLI reported an error: <real reason>`. Matches live 0.27.0 lines captured
+in SESSION-01's runtime observation.
