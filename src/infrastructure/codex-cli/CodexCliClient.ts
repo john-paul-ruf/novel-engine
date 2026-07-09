@@ -202,6 +202,7 @@ export class CodexCliClient implements IModelProvider {
     const conversationId = params.conversationId ?? '';
     const tracker = new StreamSessionTracker(sessionId);
     const prompt = this.buildPrompt(systemPrompt, messages);
+    const parseState: CodexParseState = { deltaTextSeen: false, pendingUsage: null };
 
     const startedAt = Date.now();
     let parsedJsonEventCount = 0;
@@ -387,7 +388,7 @@ export class CodexCliClient implements IModelProvider {
         stdoutBuffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          applyLineResult(this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd));
+          applyLineResult(this.processOutputLine(line, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd, parseState));
         }
       });
 
@@ -397,7 +398,7 @@ export class CodexCliClient implements IModelProvider {
 
       child.on('close', (code, signal) => {
         if (stdoutBuffer.trim()) {
-          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd));
+          applyLineResult(this.processOutputLine(stdoutBuffer, emitText, wrappedOnEvent, tracker, closeTextBlock, workspacePlan.cwd, parseState));
         }
         closeTextBlock();
         const fallbackText = readFallbackOutput();
@@ -483,17 +484,20 @@ export class CodexCliClient implements IModelProvider {
           }
 
           if (!doneEmitted) {
-            const outputTokens = Math.ceil(outputTextLength / CHARS_PER_TOKEN);
-            const inputTokens = Math.ceil(prompt.length / CHARS_PER_TOKEN);
+            const usage = parseState.pendingUsage ?? {
+              inputTokens: Math.ceil(prompt.length / CHARS_PER_TOKEN),
+              outputTokens: Math.ceil(outputTextLength / CHARS_PER_TOKEN),
+              thinkingTokens: 0,
+            };
             const stageChange = tracker.inferStage('result');
             if (stageChange) {
               wrappedOnEvent({ type: 'progressStage', stage: stageChange });
             }
             wrappedOnEvent({
               type: 'done',
-              inputTokens,
-              outputTokens,
-              thinkingTokens: 0,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              thinkingTokens: usage.thinkingTokens,
               filesTouched: tracker.getFileTouches(),
             });
           }
@@ -539,6 +543,7 @@ export class CodexCliClient implements IModelProvider {
     tracker: StreamSessionTracker,
     closeTextBlock: () => void,
     workspaceCwd: string,
+    parseState: CodexParseState,
   ): CodexLineResult {
     const emptyResult: CodexLineResult = {
       parsedJson: false,
@@ -602,13 +607,23 @@ export class CodexCliClient implements IModelProvider {
       });
     }
 
-    const text = this.extractText(parsed);
+    const text = this.extractText(parsed, parseState);
     if (text) {
       emitText(text);
     }
 
-    const usage = this.extractUsage(parsed);
-    if (usage) {
+    const usageResult = this.extractUsage(parsed, parseState);
+    if (usageResult) {
+      if (!usageResult.terminal) {
+        parseState.pendingUsage = usageResult.usage;
+        return {
+          parsedJson: true,
+          eventSummary,
+          rawJsonSnippet,
+          emittedText: Boolean(text),
+          emittedUsageDone: false,
+        };
+      }
       closeTextBlock();
       const stageChange = tracker.inferStage('result');
       if (stageChange) {
@@ -616,9 +631,9 @@ export class CodexCliClient implements IModelProvider {
       }
       onEvent({
         type: 'done',
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        thinkingTokens: usage.thinkingTokens,
+        inputTokens: usageResult.usage.inputTokens,
+        outputTokens: usageResult.usage.outputTokens,
+        thinkingTokens: usageResult.usage.thinkingTokens,
         filesTouched: tracker.getFileTouches(),
       });
       return {
@@ -651,12 +666,7 @@ export class CodexCliClient implements IModelProvider {
   }
 
   private summarizeCodexEvent(event: Record<string, unknown>): string {
-    const candidates = [
-      event,
-      this.getNestedRecord(event, 'msg'),
-      this.getNestedRecord(event, 'event'),
-      this.getNestedRecord(event, 'data'),
-    ].filter((candidate): candidate is Record<string, unknown> => Boolean(candidate));
+    const candidates = this.unwrapCodexEvent(event);
 
     for (const candidate of candidates) {
       const rawType = this.getString(candidate, 'type');
@@ -673,6 +683,14 @@ export class CodexCliClient implements IModelProvider {
           .join(':');
       }
       return type;
+    }
+
+    // No candidate carried a type — label the CLI's config/prompt echo lines.
+    for (const candidate of candidates) {
+      if ('prompt' in candidate) return 'prompt-echo';
+      const configKeyCount = ['provider', 'model', 'sandbox', 'workdir', 'approval']
+        .filter((key) => key in candidate).length;
+      if (configKeyCount >= 2) return 'config-echo';
     }
 
     const keys = Object.keys(event).slice(0, 6).join(',');
@@ -829,17 +847,35 @@ export class CodexCliClient implements IModelProvider {
     }
   }
 
-  private extractText(event: Record<string, unknown>): string {
-    const directText = this.getString(event, 'text') ?? this.getString(event, 'delta') ?? this.getString(event, 'message');
-    if (directText && this.looksLikeAssistantText(event)) return directText;
+  private extractText(event: Record<string, unknown>, parseState: CodexParseState): string {
+    for (const candidate of this.unwrapCodexEvent(event)) {
+      const type = this.getString(candidate, 'type') ?? '';
 
-    const item = event.item;
+      // Deltas already streamed this content; skip the final full message.
+      if (type === 'agent_message' && parseState.deltaTextSeen) {
+        parseState.deltaTextSeen = false;
+        continue;
+      }
+
+      const text = this.extractCandidateText(candidate);
+      if (!text) continue;
+      if (type.includes('delta')) parseState.deltaTextSeen = true;
+      return text;
+    }
+    return '';
+  }
+
+  private extractCandidateText(candidate: Record<string, unknown>): string {
+    const directText = this.getString(candidate, 'text') ?? this.getString(candidate, 'delta') ?? this.getString(candidate, 'message');
+    if (directText && this.looksLikeAssistantText(candidate)) return directText;
+
+    const item = candidate.item;
     if (this.isRecord(item)) {
       const itemText = this.getString(item, 'text') ?? this.getString(item, 'content');
       if (itemText && this.looksLikeAssistantText(item)) return itemText;
     }
 
-    const content = event.content;
+    const content = candidate.content;
     if (Array.isArray(content)) {
       return content
         .map((part) => this.isRecord(part) ? (this.getString(part, 'text') ?? '') : '')
@@ -851,17 +887,47 @@ export class CodexCliClient implements IModelProvider {
   }
 
 
-  private extractUsage(event: Record<string, unknown>): { inputTokens: number; outputTokens: number; thinkingTokens: number } | null {
-    const type = this.getString(event, 'type');
-    if (type !== 'turn.completed') return null;
+  private extractUsage(
+    event: Record<string, unknown>,
+    parseState: CodexParseState,
+  ): { usage: CodexUsage; terminal: boolean } | null {
+    for (const candidate of this.unwrapCodexEvent(event)) {
+      const type = this.getString(candidate, 'type');
 
-    const usage = event.usage;
-    if (!this.isRecord(usage)) return null;
+      if (type === 'turn.completed') {
+        const usage = this.getNestedRecord(candidate, 'usage');
+        if (!usage) continue;
+        return { usage: this.readUsageFields(usage), terminal: true };
+      }
 
+      // 0.27.0 emits token_count mid-task; ending the turn there would cut
+      // the UI off while the process keeps running.
+      if (type === 'token_count') {
+        const hasDirectFields = this.getNumber(candidate, 'input_tokens') !== undefined
+          || this.getNumber(candidate, 'output_tokens') !== undefined;
+        const info = this.getNestedRecord(candidate, 'info');
+        const source = hasDirectFields
+          ? candidate
+          : info && (this.getNestedRecord(info, 'total_token_usage') ?? this.getNestedRecord(info, 'last_token_usage'));
+        if (!source) continue;
+        return { usage: this.readUsageFields(source), terminal: false };
+      }
+
+      if (type === 'task_complete') {
+        return {
+          usage: parseState.pendingUsage ?? { inputTokens: 0, outputTokens: 0, thinkingTokens: 0 },
+          terminal: true,
+        };
+      }
+    }
+    return null;
+  }
+
+  private readUsageFields(record: Record<string, unknown>): CodexUsage {
     return {
-      inputTokens: this.getNumber(usage, 'input_tokens') ?? 0,
-      outputTokens: this.getNumber(usage, 'output_tokens') ?? 0,
-      thinkingTokens: this.getNumber(usage, 'reasoning_output_tokens') ?? 0,
+      inputTokens: this.getNumber(record, 'input_tokens') ?? 0,
+      outputTokens: this.getNumber(record, 'output_tokens') ?? 0,
+      thinkingTokens: this.getNumber(record, 'reasoning_output_tokens') ?? 0,
     };
   }
 
@@ -889,9 +955,13 @@ export class CodexCliClient implements IModelProvider {
   }
 
   private extractStatus(event: Record<string, unknown>): string {
-    const type = this.getString(event, 'type');
-    const msg = this.getString(event, 'message') ?? this.getString(event, 'msg');
-    if (type && !this.looksLikeAssistantText(event)) return msg ?? type;
+    for (const candidate of this.unwrapCodexEvent(event)) {
+      const type = this.getString(candidate, 'type');
+      if (!type || this.looksLikeAssistantText(candidate)) continue;
+      if (type.toLowerCase().includes('error')) continue; // SESSION-02 gives errors dedicated handling
+      const msg = this.getString(candidate, 'message') ?? this.getString(candidate, 'msg');
+      return msg ?? type;
+    }
     return '';
   }
 
@@ -920,6 +990,20 @@ export class CodexCliClient implements IModelProvider {
     return this.isRecord(value) ? value : null;
   }
 
+  /**
+   * Codex 0.27.0 wraps payloads as {"id":"0","msg":{...}}; some builds use
+   * "event"/"data". Returns the event itself plus any nested envelope records,
+   * outermost first, so callers can probe each candidate for a known shape.
+   */
+  private unwrapCodexEvent(event: Record<string, unknown>): Record<string, unknown>[] {
+    return [
+      event,
+      this.getNestedRecord(event, 'msg'),
+      this.getNestedRecord(event, 'event'),
+      this.getNestedRecord(event, 'data'),
+    ].filter((c): c is Record<string, unknown> => Boolean(c));
+  }
+
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
@@ -940,6 +1024,14 @@ export class CodexCliClient implements IModelProvider {
     ].join('\n');
   }
 }
+
+type CodexUsage = { inputTokens: number; outputTokens: number; thinkingTokens: number };
+
+/** Per-sendMessage mutable parse state threaded through processOutputLine(). */
+type CodexParseState = {
+  deltaTextSeen: boolean;
+  pendingUsage: CodexUsage | null;
+};
 
 type CodexLineResult = {
   parsedJson: boolean;

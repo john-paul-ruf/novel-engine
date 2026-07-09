@@ -2013,3 +2013,21 @@ None
 
 ### Migration Notes
 None
+
+---
+
+## [2026-07-09] — Codex 0.27.0 envelope unwrapping
+
+### Summary
+
+`./src/infrastructure/codex-cli/CodexCliClient.ts` now parses the Codex 0.27.0 `{"id":"0","msg":{...}}` event envelope. Assistant text (`agent_message` / `*_delta`), status, and usage (`token_count` / `task_complete`) are extracted from nested envelope candidates instead of top-level keys only, so 0.27.0 assistant text streams incrementally instead of surviving only via the `--output-last-message` fallback file. Mid-task `token_count` usage is recorded without ending the UI turn early, and the CLI's config/prompt echo lines are labeled `config-echo` / `prompt-echo` in diagnostics.
+
+### Changed
+- `./src/infrastructure/codex-cli/CodexCliClient.ts` — Added `unwrapCodexEvent()` candidate iteration; rewrote `extractText()` (with delta/full-message duplicate guard), `extractStatus()`, and `extractUsage()` (terminal vs non-terminal usage contract) to be envelope-aware; threaded a per-call `CodexParseState` through `processOutputLine()`; preferred recorded `token_count` usage over character estimates in the close-handler `done` fallback; labeled config/prompt echo lines in event summaries.
+- `./prompts/session-program/program-018/STATE.md` — Marked SESSION-01 complete with verification and handoff notes.
+
+### Architecture Impact
+- None — all changes are internal to M11 with file-local types; no new dependencies, IPC channels, renderer stores, database schema changes, or domain contracts.
+
+### Migration Notes
+None
