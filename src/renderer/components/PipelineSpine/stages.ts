@@ -2,7 +2,7 @@ import { PIPELINE_PHASES } from '@domain/constants';
 import type { AgentName, PipelinePhaseId } from '@domain/types';
 
 /**
- * The 14 canonical pipeline phases (from PIPELINE_PHASES) grouped into the
+ * The canonical pipeline phases (from PIPELINE_PHASES) grouped into the
  * 5 spine stages of the Streamlined Workspace design.
  */
 export const STAGES: { label: string; phaseIds: PipelinePhaseId[] }[] = [
@@ -21,7 +21,7 @@ export const STAGES: { label: string; phaseIds: PipelinePhaseId[] }[] = [
       'mechanical-fixes',
     ],
   },
-  { label: 'SHIP', phaseIds: ['build', 'publish'] },
+  { label: 'SHIP', phaseIds: ['build', 'publish', 'query-agents'] },
 ];
 
 /** Agent for a phase — the canonical phase→agent mapping from PIPELINE_PHASES. */

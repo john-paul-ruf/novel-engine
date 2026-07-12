@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-07-12 (program-019 SESSION-05)
+> Last updated: 2026-07-12 (program-019 SESSION-07)
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 

@@ -1,6 +1,6 @@
 # Domain — Types, Interfaces, Constants
 
-> Last updated: 2026-07-12 (program-019 SESSION-01)
+> Last updated: 2026-07-12 (program-019 SESSION-07)
 
 Everything in `src/domain/`. Pure TypeScript declarations — zero imports from other layers.
 
@@ -561,7 +561,7 @@ Implemented by: `FindReplaceService` (`src/application/FindReplaceService.ts`)
 
 ### IQueryService
 
-Implemented by: `QueryService` (`src/application/QueryService.ts`) — *planned, not yet implemented*
+Implemented by: `QueryService` (`src/application/QueryService.ts`)
 
 | Method | Signature | Returns |
 |--------|-----------|---------|

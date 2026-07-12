@@ -22,7 +22,7 @@ Add a query management system: a new pipeline phase `query-agents` (after `publi
 | 04 | Composition root wiring + Quill agent prompt update | M08, agents/ | done | 2026-07-12 | QueryService instantiated as `const queryService = new QueryService(fs, chat)` at line 647 of index.ts (after statistics, before notifications). Passed as `query: queryService` to registerIpcHandlers. QUILL.md updated with Phase 6: Personalized Query Letters — covers target context, personalization rules, output path. |
 | 05 | Renderer store (queryStore) | M10 | done | 2026-07-12 | queryStore created at `src/renderer/stores/queryStore.ts`. Zustand store with: tracker/letters state, load/addTarget/updateStatus/removeTarget/generateLetter/readLetter/saveLetter actions, streamBuffer for live letter generation, initStreamListener for `query:onStream` events. All calls go through `window.novelEngine.query.*`. `npx tsc --noEmit` passes. |
 | 06 | QueryManagerView component + IconRail entry | M10 | done | 2026-07-12 | 5 components created in `src/renderer/components/QueryManager/`: QueryManagerView, TargetCard, AddTargetForm, LetterPreview, FilterBar. `'query-manager'` added to ViewId union in viewStore.ts. `'mail'` icon added to Icon.tsx. IconRail.tsx has query-manager item with needsBook. AppLayout.tsx renders QueryManagerView in ViewContent (always-mounted, hidden when inactive). `npx tsc --noEmit` passes. |
-| 07 | PipelineSpine integration + docs + changelog | M10, M01 | pending | | |
+| 07 | PipelineSpine integration + docs + changelog | M10, M01 | done | 2026-07-12 | Added `isPhaseComplete` detection for `query-agents` via `source/query-tracker.md` (markPhaseComplete was already in place from SESSION-01). SHIP stage in stages.ts now has 3 phases (build, publish, query-agents). PipelineSpine.tsx intercepts `query-agents` click → `useViewStore.navigate('query-manager')`. All 5 architecture docs + CHANGELOG updated. `npx tsc --noEmit` passes. |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -122,3 +122,13 @@ SESSION-07 (pipeline spine + docs) depends on 06 and 01.
 - `initStreamListener` is called in a useEffect in QueryManagerView — the stream listener persists for the component's lifetime.
 - The `slugify` function is duplicated in QueryManagerView and TargetCard (local helper). Both match QueryService's `slugify` logic. Not ideal, but keeping it local avoids cross-layer coupling.
 - SESSION-07 needs PipelineSpine integration (making the `query-agents` phase clickable to navigate to the Query Manager view) + final docs.
+
+### SESSION-07 — Final
+- All 7 sessions complete. Feature is fully implemented end-to-end.
+- `isPhaseComplete` checks `source/query-tracker.md` existence; `markPhaseComplete` creates the stub (both in PipelineService.ts).
+- PipelineSpine SHIP stage has build + publish + query-agents.
+- Clicking `query-agents` in PipelineSpine navigates to `query-manager` view via `useViewStore.getState().navigate('query-manager')`.
+- All architecture docs updated: ARCHITECTURE.md, DOMAIN.md, APPLICATION.md, IPC.md, RENDERER.md.
+- CHANGELOG.md has entries for all 5 sessions (03 was combined with 04, so entries: SESSION-01 implied via earlier, 02, 03, 04, 05, 06, 07).
+- Final verification: `npx tsc --noEmit` passes with zero errors.
+- Testing: run `npm start` and navigate to a book with `publish` phase complete. The `query-agents` phase should be active. Clicking it opens the Query Manager view. Add a target, then generate a query letter via Quill.

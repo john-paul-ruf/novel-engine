@@ -4,6 +4,32 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — PipelineSpine integration + pipeline detection for query-agents
+
+### Summary
+
+Integrated the `query-agents` phase into the PipelineSpine UI: added it to the SHIP stage, wired the phase click to navigate to the QueryManagerView instead of the workspace, and added `isPhaseComplete` detection via `source/query-tracker.md`. All architecture docs updated.
+
+### Changed
+- `src/application/PipelineService.ts` — Added `case 'query-agents'` to `isPhaseComplete` checking `source/query-tracker.md` via `hasSubstantiveFile`
+- `src/renderer/components/PipelineSpine/stages.ts` — Added `'query-agents'` to SHIP stage phase IDs (now 3 phases: build, publish, query-agents)
+- `src/renderer/components/PipelineSpine/PipelineSpine.tsx` — Intercepted `query-agents` phase click: navigates to `query-manager` view via `useViewStore` instead of `selectPhase`
+- `docs/architecture/ARCHITECTURE.md` — Updated last-updated, added queryStore + QueryManager/ + PipelineSpine/ to source tree, added query-tracker.md + query-letters/ to book directory structure
+- `docs/architecture/DOMAIN.md` — Updated last-updated, fixed IQueryService status from planned to implemented
+- `docs/architecture/APPLICATION.md` — Updated last-updated
+- `docs/architecture/IPC.md` — Updated last-updated
+- `docs/architecture/RENDERER.md` — Updated last-updated
+
+### Architecture Impact
+- New pipeline phase clickable behavior: `query-agents` phase navigates to `query-manager` view, all other phases select in workspace
+- PipelineSpine SHIP stage now has 3 phases (build, publish, query-agents)
+- `markPhaseComplete` for `query-agents` was already in place from SESSION-01 (creates `source/query-tracker.md` stub)
+
+### Migration Notes
+- None — existing books show `query-agents` as `locked` until `publish` is complete. No breaking changes.
+
+---
+
 ## [2026-07-12] — QueryManagerView, components, IconRail entry, view routing
 
 ### Summary

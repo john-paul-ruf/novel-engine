@@ -1,6 +1,6 @@
 # Architecture — Novel Engine
 
-> Last updated: 2026-07-12 (program-019 SESSION-03)
+> Last updated: 2026-07-12 (program-019 SESSION-07)
 
 Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Codex CLI + Ollama CLI + Pandoc
 
@@ -130,6 +130,7 @@ src/
     │   ├── fileChangeStore.ts
     │   ├── modalChatStore.ts
     │   ├── motifLedgerStore.ts
+    │   ├── queryStore.ts                   # Query tracker/submission state
     │   ├── importStore.ts
     │   ├── helperStore.ts                # In-app help assistant panel state
     │   └── streamHandler.ts              # Shared stream event handler factory
@@ -150,7 +151,9 @@ src/
     │   ├── Import/                          # ImportWizard, ChapterPreviewList, ImportSeriesWizard, VolumePreviewList
     │   ├── CliActivity/                     # CliActivityPanel
     │   ├── Helper/                          # HelperButton, HelperPanel, HelperMessageList
-    │   └── ErrorBoundary/                   # ErrorBoundary
+    │   ├── ErrorBoundary/                   # ErrorBoundary
+    │   ├── PipelineSpine/                   # PipelineSpine, PhaseNode, stages
+    │   └── QueryManager/                    # QueryManagerView, TargetCard, AddTargetForm, LetterPreview, FilterBar
     ├── hooks/
     │   ├── useResizeHandle.ts
     │   ├── useRevisionQueueEvents.ts
@@ -323,7 +326,9 @@ The renderer layer normally uses `import type` only from domain. However, **pure
 │       │   ├── revision-prompts.md
 │       │   ├── style-sheet.md
 │       │   ├── motif-ledger.json
-│       │   └── metadata.md
+│       │   ├── metadata.md
+│       │   ├── query-tracker.md           # Query submission tracker
+│       │   └── query-letters/              # Per-target query letter files
 │       ├── chapters/
 │       │   └── NN-slug/
 │       │       ├── draft.md

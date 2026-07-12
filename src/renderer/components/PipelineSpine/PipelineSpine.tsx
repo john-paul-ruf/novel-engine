@@ -3,6 +3,7 @@ import type { PipelinePhase } from '@domain/types';
 import { useBookStore } from '../../stores/bookStore';
 import { usePipelineStore } from '../../stores/pipelineStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { useViewStore } from '../../stores/viewStore';
 import { useResizeHandle } from '../../hooks/useResizeHandle';
 import { ResizeHandle } from '../Layout/ResizeHandle';
 import { Icon } from '../common/Icon';
@@ -196,7 +197,13 @@ export function PipelineSpine(): React.ReactElement {
                     <PhaseNode
                       phase={phase}
                       isSelected={selectedPhaseId === phase.id}
-                      onSelect={() => selectPhase(phase.id)}
+                      onSelect={() => {
+                        if (phase.id === 'query-agents') {
+                          useViewStore.getState().navigate('query-manager');
+                        } else {
+                          selectPhase(phase.id);
+                        }
+                      }}
                     />
                     {currentPhase?.id === phase.id && activeSlug && (
                       <CurrentPhaseCard phase={phase} activeSlug={activeSlug} />

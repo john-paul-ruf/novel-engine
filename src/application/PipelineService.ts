@@ -710,6 +710,9 @@ export class PipelineService implements IPipelineService {
       case 'publish':
         return this.hasSubstantiveFile(bookSlug, 'source/metadata.md');
 
+      case 'query-agents':
+        return this.hasSubstantiveFile(bookSlug, 'source/query-tracker.md');
+
       default:
         return false;
     }

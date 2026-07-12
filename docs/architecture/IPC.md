@@ -1,6 +1,6 @@
 # IPC — Channels, Preload Bridge, Handler Registry
 
-> Last updated: 2026-07-12 (program-019 SESSION-03)
+> Last updated: 2026-07-12 (program-019 SESSION-07)
 
 Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between application services and the renderer.
 

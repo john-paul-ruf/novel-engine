@@ -1,6 +1,6 @@
 # Application — Services & Orchestration
 
-> Last updated: 2026-07-12 (program-019 SESSION-01)
+> Last updated: 2026-07-12 (program-019 SESSION-07)
 
 Everything in `src/application/`. Business logic that orchestrates infrastructure through injected interfaces.
 
