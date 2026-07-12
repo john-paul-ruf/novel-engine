@@ -17,7 +17,7 @@ Add a query management system: a new pipeline phase `query-agents` (after `publi
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain types, constants, and pipeline phase registration | M01 | done | 2026-07-12 | Types added: QueryTargetType, QueryStatus, QuerySubmissionMethod, QueryTarget, QueryTracker, QueryLetter. IQueryService interface added. PipelinePhaseId extended with 'query-agents'. PIPELINE_PHASES has 15 entries. PHASE_OUTPUT_FILES has 'query-agents' entry. Quill quick actions: 'Analyze for queries' + 'Find agents for this book'. Also fixed exhaustiveness guard in PipelineService.ts markPhaseComplete switch. |
-| 02 | QueryService — tracker I/O, target CRUD, query letter generation | M08 | pending | | |
+| 02 | QueryService — tracker I/O, target CRUD, query letter generation | M08 | done | 2026-07-12 | QueryService.ts created with full IQueryService implementation. Deps: IFileSystemService, IChatService (simplified from session prompt's 5-dep constructor to 2-core-dep — agents/settings/providerRegistry not needed since chat service handles context). Tracker parser/serializer handles markdown format. Letter generation via Quill conversation + changedFiles detection. Exported from application barrel. |
 | 03 | IPC handlers + preload bridge for query namespace | M09, M01 | pending | | |
 | 04 | Composition root wiring + Quill agent prompt update | M08, agents/ | pending | | |
 | 05 | Renderer store (queryStore) | M10 | pending | | |
@@ -80,3 +80,12 @@ SESSION-07 (pipeline spine + docs) depends on 06 and 01.
 - Quill has two new quick actions: 'Analyze for queries' and 'Find agents for this book'.
 - PipelineService.ts `markPhaseComplete` already handles `'query-agents'` (creates stub `source/query-tracker.md`).
 - WARNING: The `markPhaseComplete` fix in PipelineService.ts was necessary because the exhaustiveness guard caught the new phase. SESSION-02 should be aware that the pipeline service already handles the new phase's stub creation.
+
+### SESSION-02 → SESSION-03
+- `QueryService` is at `src/application/QueryService.ts`, exported from `src/application/index.ts`.
+- Constructor takes `(fs: IFileSystemService, chat: IChatService)` — only 2 deps, not 5 as originally specified. The session prompt mentioned IAgentService, ISettingsService, IProviderRegistry but these are not needed: `chat.sendMessage` already handles context assembly internally.
+- The `generateQueryLetter` method creates a Quill conversation with `pipelinePhase: 'query-agents'` and `purpose: 'pipeline'`.
+- Tracker format: `## [Name] — {status}` sections with `- **Field:** value` bullet points.
+- `extractField` regex matches `- **FieldName:** value` (case-insensitive).
+- `slugify` and `unslugify` are private methods for converting target names to/from filenames.
+- IPC handlers in SESSION-03 should delegate to QueryService methods directly — no additional business logic needed.

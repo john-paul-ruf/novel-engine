@@ -4,6 +4,25 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — QueryService implementation: tracker I/O, CRUD, letter generation
+
+### Summary
+
+Implemented `QueryService` in the application layer. Parses/serializes `source/query-tracker.md` (markdown with `## [Name] — {Status}` sections), manages `source/query-letters/` directory, and generates personalized query letters by creating a Quill conversation and streaming via `IChatService.sendMessage`. Simplified constructor from 5 deps to 2 (IFileSystemService, IChatService) since chat service already handles context assembly internally.
+
+### Added
+- `src/application/QueryService.ts` — Full `IQueryService` implementation: tracker parsing/serialization, target CRUD, query letter generation via Quill, letter file management
+- `src/application/index.ts` — Added `QueryService` barrel export
+
+### Architecture Impact
+- New service: `QueryService` (M08 application layer)
+- Dependencies: `IFileSystemService`, `IChatService` (injected in composition root — wiring in SESSION-04)
+
+### Migration Notes
+- None — service exists but is not yet wired into the composition root or IPC handlers.
+
+---
+
 ## [2026-07-12] — Query Manager domain types and pipeline phase registration
 
 ### Summary

@@ -427,6 +427,31 @@ Key behaviors:
 - Files missing between preview and apply are silently skipped (not counted in result)
 - No AI calls, no database writes, no Electron APIs
 
+### QueryService
+
+File: `src/application/QueryService.ts`
+
+Dependencies: `IFileSystemService`, `IChatService`
+
+| Method | What It Does |
+|--------|-------------|
+| `loadTracker(bookSlug)` | Reads `source/query-tracker.md`, parses `## [Name] — {Status}` sections into `QueryTarget[]`. Returns empty tracker if file missing. |
+| `saveTracker(bookSlug, tracker)` | Serializes tracker back to `source/query-tracker.md` with front matter + sections |
+| `addTarget(bookSlug, target)` | Generates nanoid, adds to tracker, saves |
+| `updateTargetStatus(bookSlug, targetId, status, responseDate?)` | Updates target status; auto-sets `submittedDate` when status becomes 'queried' |
+| `removeTarget(bookSlug, targetId)` | Deletes query letter file if present, removes target from tracker |
+| `generateQueryLetter(bookSlug, targetId, onEvent)` | Creates Quill conversation (`query-agents` phase), sends personalized prompt, streams via onEvent. Detects letter via `changedFiles` or extracts from assistant message. Writes to `source/query-letters/{slug}.md` |
+| `listQueryLetters(bookSlug)` | Lists all `.md` files in `source/query-letters/` |
+| `readQueryLetter(bookSlug, targetSlug)` | Reads a specific letter file |
+| `saveQueryLetter(bookSlug, targetSlug, content)` | Writes letter file, updates tracker `queryLetterPath` if not set |
+
+Key behaviors:
+- Tracker format: YAML front matter (`last_updated`, `total_targets`) + `## [Name] — {status}` sections with `- **Field:** value` bullets
+- Parser collects all `## [...]` header positions first, then extracts fields from each section body
+- `extractField` regex: case-insensitive match on `- **FieldName:** value`
+- `slugify` converts target names to filesystem-safe slugs; `unslugify` reverses for display
+- Letter generation reuses `ChatService.sendMessage` — Quill writes via tool-use OR content is extracted from assistant message
+
 ---
 
 ## Context Assembly
