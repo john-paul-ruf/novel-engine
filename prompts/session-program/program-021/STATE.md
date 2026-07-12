@@ -11,7 +11,7 @@
 |---|---------|---------|--------|-----------|-------|
 | 01 | Add WebSearch to Claude CLI | M-CLI | done | 2026-07-12 | One-line change to allowedTools |
 | 02 | Domain types & interface | M-DOMAIN | done | 2026-07-12 | Pure type additions |
-| 03 | QueryService research + fill | M-APP | pending | | Depends on 02 |
+| 03 | QueryService research + fill | M-APP | done | 2026-07-12 | Depends on 02 |
 | 04 | IPC handlers + preload bridge | M-IPC, M-PRELOAD | pending | | Depends on 03 |
 | 05 | queryStore actions | M-RENDERER | pending | | Depends on 04 |
 | 06 | ResearchPanel + View integration | M-RENDERER | pending | | Depends on 05 |
@@ -67,3 +67,6 @@ Added `WebSearch` to `--allowedTools` in `ClaudeCodeClient.ts`. All agents now h
 
 ### SESSION-02 (done 2026-07-12)
 Added `QueryFillableField`, `QueryResearchResult`, `QueryFieldFillResult` types to `types.ts`. Added `researchTargets()` and `fillTargetField()` methods to `IQueryService` interface. NOTE: `npx tsc --noEmit` shows 2 errors — `QueryService` doesn't implement the new methods yet. This is expected; SESSION-03 implements them.
+
+### SESSION-03 (done 2026-07-12)
+Implemented `researchTargets()` and `fillTargetField()` on `QueryService`. Both follow the `generateQueryLetter` pattern: create conversation → send prompt → Quill writes to tracker.md → reload tracker. Added `buildResearchPrompt()`, `buildFieldFillPrompt()`, and `fieldToLabel()` private helpers. Type check and lint both pass.

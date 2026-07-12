@@ -8,6 +8,9 @@ import type {
   QueryTarget,
   QueryStatus,
   QueryLetter,
+  QueryResearchResult,
+  QueryFieldFillResult,
+  QueryFillableField,
   StreamEvent,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
@@ -186,6 +189,79 @@ export class QueryService implements IQueryService {
     }
   }
 
+  async researchTargets(
+    bookSlug: string,
+    onEvent: (event: StreamEvent) => void,
+  ): Promise<QueryResearchResult> {
+    const conversation = await this.chat.createConversation({
+      bookSlug,
+      agentName: 'Quill',
+      pipelinePhase: 'query-agents',
+      purpose: 'pipeline',
+    });
+
+    const prompt = this.buildResearchPrompt();
+
+    await this.chat.sendMessage({
+      agentName: 'Quill',
+      message: prompt,
+      conversationId: conversation.id,
+      bookSlug,
+      onEvent,
+    });
+
+    const updatedTracker = await this.loadTracker(bookSlug);
+    const targetNames = updatedTracker.targets.map((t) => t.name);
+
+    return {
+      addedTargets: updatedTracker.targets.length,
+      targetNames,
+      conversationId: conversation.id,
+    };
+  }
+
+  async fillTargetField(
+    bookSlug: string,
+    targetId: string,
+    field: QueryFillableField,
+    onEvent: (event: StreamEvent) => void,
+  ): Promise<QueryFieldFillResult> {
+    const tracker = await this.loadTracker(bookSlug);
+    const target = tracker.targets.find((t) => t.id === targetId);
+    if (!target) throw new Error(`Query target not found: ${targetId}`);
+
+    const oldValue = String(target[field] ?? '');
+
+    const conversation = await this.chat.createConversation({
+      bookSlug,
+      agentName: 'Quill',
+      pipelinePhase: 'query-agents',
+      purpose: 'pipeline',
+    });
+
+    const prompt = this.buildFieldFillPrompt(target, field);
+
+    await this.chat.sendMessage({
+      agentName: 'Quill',
+      message: prompt,
+      conversationId: conversation.id,
+      bookSlug,
+      onEvent,
+    });
+
+    const updatedTracker = await this.loadTracker(bookSlug);
+    const updatedTarget = updatedTracker.targets.find((t) => t.id === targetId);
+    const newValue = updatedTarget ? String(updatedTarget[field] ?? '') : oldValue;
+
+    return {
+      targetId,
+      field,
+      oldValue,
+      newValue,
+      conversationId: conversation.id,
+    };
+  }
+
   // ── Private: Parsing ──────────────────────────────────────────────────
 
   private parseTrackerContent(bookSlug: string, content: string): QueryTracker {
@@ -291,6 +367,79 @@ A query letter is approximately 250-300 words with three parts:
 Personalize this letter for ${target.name}. Reference their specific interests or preferences noted above. Adjust the tone to match what this agent/publisher is known to represent.
 
 Read the pitch, story bible, and voice profile for context. Write the letter in first person as the author. Output to ${LETTERS_DIR}/${this.slugify(target.name)}.md.`;
+  }
+
+  private buildResearchPrompt(): string {
+    return `Research submission targets for this book.
+
+Read about.json for genre, subgenre, audience, and comp titles. Read source/story-bible.md and source/pitch-card.md if they exist for context on the book's themes and market positioning.
+
+Use WebSearch to find literary agents and publishers who represent or publish books in this genre. Search for:
+- "literary agents [genre]" and "[genre] literary agents seeking new clients"
+- Manuscript Wish List (MSWL) entries matching this book's genre and themes
+- Publisher's Marketplace listings for recent deals in this genre
+- QueryTracker.net agent profiles active in this genre
+
+For each viable target found (aim for 5–10), add an entry to source/query-tracker.md following the existing format. Include:
+- Agent/publisher name
+- Type (agent, publisher, or platform)
+- Contact (email or submission URL from their listing)
+- Method (email, form, or query-manager)
+- Link to their profile/agency page
+- Personalization notes: what they're looking for, why this book fits their list, specific MSWL items aligned with the book
+
+Append new entries to any existing content in source/query-tracker.md. Do not remove existing targets. Use the same markdown format as existing entries:
+
+## [Target Name] — drafting
+- **Type:** agent
+- **Contact:** [email or URL]
+- **Method:** email
+- **ID:** [generated id]
+- **Submitted:**
+- **Response Date:**
+- **Query Letter:**
+- **Personalization:** [why this book fits]
+- **Notes:**
+- **Link:** [profile URL]
+
+Focus on agents and publishers that are actively accepting submissions in this genre as of today.`;
+  }
+
+  private buildFieldFillPrompt(target: QueryTarget, field: QueryFillableField): string {
+    const fieldDescriptions: Record<QueryFillableField, string> = {
+      contact: 'the submission email address or form URL',
+      method: 'the submission method (email, form, query-manager, or other)',
+      link: 'a URL to their agent/publisher profile or agency page',
+      personalizationNotes: 'what this target is looking for, why this book fits their list, specific MSWL or interview quotes that align',
+      notes: 'any special submission instructions, exclusivity requirements, or notable details',
+    };
+
+    return `Research and fill the "${field}" field for ${target.name} (${target.type}).
+
+Target context:
+- Name: ${target.name}
+- Type: ${target.type}
+- Current contact: ${target.contact}
+- Current link: ${target.link}
+
+Use WebSearch to find ${fieldDescriptions[field]} for ${target.name}.
+
+After researching, update the "${field}" field for ${target.name} in source/query-tracker.md. Only change that one field — do not modify any other fields or targets. Write the updated value using the same markdown format:
+
+- **${this.fieldToLabel(field)}:** [new value]
+
+where the field label matches the existing format in the file.`;
+  }
+
+  private fieldToLabel(field: QueryFillableField): string {
+    const map: Record<QueryFillableField, string> = {
+      contact: 'Contact',
+      method: 'Method',
+      link: 'Link',
+      personalizationNotes: 'Personalization',
+      notes: 'Notes',
+    };
+    return map[field];
   }
 
   private slugify(name: string): string {
