@@ -1,5 +1,5 @@
 import { useQueryStore } from '../../stores/queryStore';
-import type { QueryTarget, QueryStatus, QueryLetter } from '@domain/types';
+import type { QueryTarget, QueryStatus, QueryLetter, QueryFillableField } from '@domain/types';
 
 const STATUS_COLORS: Record<QueryStatus, string> = {
   'drafting': 'bg-zinc-500/15 text-zinc-400',
@@ -25,6 +25,31 @@ const ALL_STATUSES: QueryStatus[] = ['drafting', 'queried', 'partial-request', '
 
 function slugify(name: string): string {
   return name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function AiFillButton({
+  targetId,
+  field,
+  label,
+}: {
+  targetId: string;
+  field: QueryFillableField;
+  label: string;
+}): React.ReactElement {
+  const fillTargetField = useQueryStore((s) => s.fillTargetField);
+  const fillingFor = useQueryStore((s) => s.fillingFor);
+  const isFilling = fillingFor === targetId;
+
+  return (
+    <button
+      onClick={() => fillTargetField(targetId, field)}
+      disabled={isFilling}
+      title={`AI-fill ${label}`}
+      className="rounded px-1.5 py-0.5 text-[10px] font-medium text-ne-brass transition-colors hover:bg-ne-brass/10 disabled:opacity-50"
+    >
+      {isFilling ? '…' : 'AI'}
+    </button>
+  );
 }
 
 export function TargetCard({
@@ -56,18 +81,46 @@ export function TargetCard({
               {STATUS_LABELS[target.status]}
             </span>
           </div>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ne-ink-dim">
-            <span>{target.type}</span>
-            {target.contact && <span>{target.contact}</span>}
-            {target.submittedDate && <span>Sent: {target.submittedDate.split('T')[0]}</span>}
-            {target.responseDate && <span>Response: {target.responseDate.split('T')[0]}</span>}
+          <div className="mt-1.5 space-y-1 text-xs text-ne-ink-dim">
+            <div className="flex items-center gap-2">
+              <span className="text-ne-ink-faint">Type:</span>
+              <span>{target.type}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-ne-ink-faint">Contact:</span>
+              <span className="truncate">{target.contact || '—'}</span>
+              <AiFillButton targetId={target.id} field="contact" label="contact" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-ne-ink-faint">Method:</span>
+              <span>{target.method}</span>
+              <AiFillButton targetId={target.id} field="method" label="method" />
+            </div>
+            {target.link && (
+              <div className="flex items-center gap-2">
+                <span className="text-ne-ink-faint">Link:</span>
+                <span className="truncate text-blue-400">{target.link}</span>
+                <AiFillButton targetId={target.id} field="link" label="link" />
+              </div>
+            )}
+            {!target.link && (
+              <div className="flex items-center gap-2">
+                <span className="text-ne-ink-faint">Link:</span>
+                <span>—</span>
+                <AiFillButton targetId={target.id} field="link" label="link" />
+              </div>
+            )}
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-ne-ink-faint">Personalization:</span>
+              <span className="flex-1">{target.personalizationNotes || '—'}</span>
+              <AiFillButton targetId={target.id} field="personalizationNotes" label="personalization" />
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-ne-ink-faint">Notes:</span>
+              <span className="flex-1">{target.notes || '—'}</span>
+              <AiFillButton targetId={target.id} field="notes" label="notes" />
+            </div>
           </div>
-          {target.personalizationNotes && (
-            <p className="mt-1.5 text-xs text-ne-ink-faint">{target.personalizationNotes}</p>
-          )}
-          {target.notes && (
-            <p className="mt-1 text-xs text-ne-ink-faint italic">{target.notes}</p>
-          )}
         </div>
         <div className="ml-4 flex shrink-0 gap-1.5">
           {letter && (

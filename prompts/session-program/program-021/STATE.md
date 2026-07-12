@@ -14,9 +14,9 @@
 | 03 | QueryService research + fill | M-APP | done | 2026-07-12 | Depends on 02 |
 | 04 | IPC handlers + preload bridge | M-IPC, M-PRELOAD | done | 2026-07-12 | Depends on 03 |
 | 05 | queryStore actions | M-RENDERER | done | 2026-07-12 | Depends on 04 |
-| 06 | ResearchPanel + View integration | M-RENDERER | pending | | Depends on 05 |
-| 07 | TargetCard per-field AI buttons | M-RENDERER | pending | | Depends on 05 |
-| 08 | Quill agent prompt Phase 7 | M-AGENTS | pending | | Depends on 03 |
+| 06 | ResearchPanel + View integration | M-RENDERER | done | 2026-07-12 | Depends on 05 |
+| 07 | TargetCard per-field AI buttons | M-RENDERER | done | 2026-07-12 | Depends on 05 |
+| 08 | Quill agent prompt Phase 7 | M-AGENTS | done | 2026-07-12 | Depends on 03 |
 | 09 | Documentation update | M-DOCS | pending | | Depends on 01–08 |
 
 ## Dependency Graph
@@ -76,3 +76,12 @@ Added `query:researchTargets` and `query:fillTargetField` IPC handlers in `handl
 
 ### SESSION-05 (done 2026-07-12)
 Added `researchTargets()` and `fillTargetField()` actions to `queryStore`. New state fields: `isResearching`, `researchBuffer`, `fillingFor`. Updated `initStreamListener` to accumulate into `researchBuffer` when researching. Updated `clear` to reset new fields. Imported `useBookStore` for active slug access.
+
+### SESSION-06 (done 2026-07-12)
+Created `ResearchPanel.tsx` — streaming panel showing Quill's research progress with "Research again" button. Added "Research Targets" button to `QueryManagerView.tsx` next to "+ Add Target". Button disabled while researching.
+
+### SESSION-07 (done 2026-07-12)
+Added `AiFillButton` component to `TargetCard.tsx` — small "AI" button next to each fillable field (contact, method, link, personalization, notes). Shows "…" while filling. Restructured info display from inline flex-wrap to structured field rows.
+
+### SESSION-08 (done 2026-07-12)
+Updated QUILL.md: Phase 6 personalization now allows WebSearch. Added Phase 7 with research workflow, research rules, and per-field fill instructions. Updated Red Lines to allow writing `source/query-tracker.md`. Added Query Tracker to "Files Owned by This Agent" table.

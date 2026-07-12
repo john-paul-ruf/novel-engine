@@ -5,6 +5,7 @@ import { TargetCard } from './TargetCard';
 import { AddTargetForm } from './AddTargetForm';
 import { LetterPreview } from './LetterPreview';
 import { FilterBar } from './FilterBar';
+import { ResearchPanel } from './ResearchPanel';
 import type { QueryTarget, QueryStatus, QuerySubmissionMethod, QueryTargetType } from '@domain/types';
 
 type MethodFilter = 'all' | QuerySubmissionMethod;
@@ -24,6 +25,8 @@ export function QueryManagerView(): React.ReactElement {
   const load = useQueryStore((s) => s.load);
   const clear = useQueryStore((s) => s.clear);
   const initStreamListener = useQueryStore((s) => s.initStreamListener);
+  const researchTargets = useQueryStore((s) => s.researchTargets);
+  const isResearching = useQueryStore((s) => s.isResearching);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
@@ -96,6 +99,13 @@ export function QueryManagerView(): React.ReactElement {
           >
             + Add Target
           </button>
+          <button
+            onClick={() => researchTargets()}
+            disabled={isResearching}
+            className="rounded-lg border border-ne-brass/50 px-4 py-2 text-sm font-medium text-ne-brass transition-colors hover:bg-ne-brass/10 disabled:opacity-50"
+          >
+            {isResearching ? 'Researching…' : 'Research Targets'}
+          </button>
         </div>
 
         {error && (
@@ -103,6 +113,8 @@ export function QueryManagerView(): React.ReactElement {
             {error}
           </div>
         )}
+
+        <ResearchPanel />
 
         {showAddForm && (
           <AddTargetForm
