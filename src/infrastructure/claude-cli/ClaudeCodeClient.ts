@@ -230,7 +230,7 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       '--model', model,
       '--max-turns', String(params.maxTurns ?? 30),
       '--system-prompt-file', systemPromptFile,
-      '--allowedTools', 'Read,Write,Edit,LS,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(wc:*),Bash(rm:*),Bash(rmdir:*)',
+      '--allowedTools', 'Read,Write,Edit,LS,WebSearch,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(wc:*),Bash(rm:*),Bash(rmdir:*)',
       '--add-dir', this.booksDir,
     ];
 

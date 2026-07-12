@@ -493,6 +493,27 @@ export type QueryLetter = {
   generatedAt: string | null;
 };
 
+export type QueryFillableField =
+  | 'contact'
+  | 'method'
+  | 'link'
+  | 'personalizationNotes'
+  | 'notes';
+
+export type QueryResearchResult = {
+  addedTargets: number;
+  targetNames: string[];
+  conversationId: string;
+};
+
+export type QueryFieldFillResult = {
+  targetId: string;
+  field: QueryFillableField;
+  oldValue: string;
+  newValue: string;
+  conversationId: string;
+};
+
 // === Verity Audit ===
 
 export type AuditViolationType =

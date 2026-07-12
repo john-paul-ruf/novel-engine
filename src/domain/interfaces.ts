@@ -41,7 +41,10 @@ import type {
   ProviderConfig,
   ProviderId,
   ProviderStatus,
+  QueryFieldFillResult,
+  QueryFillableField,
   QueryLetter,
+  QueryResearchResult,
   QueryStatus,
   QueryTarget,
   QueryTracker,
@@ -971,4 +974,10 @@ export interface IQueryService {
 
   /** Save manually edited query letter content */
   saveQueryLetter(bookSlug: string, targetSlug: string, content: string): Promise<void>;
+
+  /** Quill researches appropriate submission targets for the book and adds them to the tracker. Streams via onEvent. */
+  researchTargets(bookSlug: string, onEvent: (event: StreamEvent) => void): Promise<QueryResearchResult>;
+
+  /** Quill researches and fills a single field on an existing target. Streams via onEvent. */
+  fillTargetField(bookSlug: string, targetId: string, field: QueryFillableField, onEvent: (event: StreamEvent) => void): Promise<QueryFieldFillResult>;
 }
