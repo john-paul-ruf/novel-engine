@@ -1,5 +1,7 @@
 # Novel Engine
 
+[Youtube Demo](https://www.youtube.com/watch?v=nRG4_2phOgU)
+
 **A Desktop Publishing Studio for Novels**
 
 **Ten books on Amazon. Built with seven AI editors in one app.**
