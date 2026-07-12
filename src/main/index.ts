@@ -644,6 +644,7 @@ async function initializeApp(): Promise<void> {
   const helper = new HelperService(settings, agents, db, fs, providerRegistry, streamManager, userDataPath);
   const dashboard = new DashboardService(db, fs, pipeline);
   const statistics = new StatisticsService(db, fs);
+  const queryService = new QueryService(fs, chat);
   const notifications = new NotificationManager(settings);
 
   // 4b. Recover orphaned stream sessions and prune old event data
@@ -740,7 +741,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper, findReplace, dashboard, statistics, query: new QueryService(fs, chat) },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper, findReplace, dashboard, statistics, query: queryService },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {

@@ -4,6 +4,24 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — Composition root wiring + Quill Phase 6 prompt
+
+### Summary
+
+Cleaned up the composition root to use a named `queryService` variable instead of inline instantiation. Added Phase 6 (Personalized Query Letters) to `agents/QUILL.md` — covers target context, personalization rules, and output path for per-target query letter generation.
+
+### Changed
+- `src/main/index.ts` — Moved `new QueryService(fs, chat)` to named variable `queryService` (line 647), passed as `query: queryService` to handlers
+- `agents/QUILL.md` — Added Phase 6: Personalized Query Letters section between Phase 5 and Relationship to Other Agents
+
+### Architecture Impact
+- Agent prompt change: QUILL.md now has Phase 6 — personalized per-target query letter generation with specific output path `source/query-letters/{target-slug}.md`
+
+### Migration Notes
+- None — the inline instantiation from SESSION-03 is replaced by a named variable. No behavioral change.
+
+---
+
 ## [2026-07-12] — IPC handlers and preload bridge for query namespace
 
 ### Summary

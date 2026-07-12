@@ -19,7 +19,7 @@ Add a query management system: a new pipeline phase `query-agents` (after `publi
 | 01 | Domain types, constants, and pipeline phase registration | M01 | done | 2026-07-12 | Types added: QueryTargetType, QueryStatus, QuerySubmissionMethod, QueryTarget, QueryTracker, QueryLetter. IQueryService interface added. PipelinePhaseId extended with 'query-agents'. PIPELINE_PHASES has 15 entries. PHASE_OUTPUT_FILES has 'query-agents' entry. Quill quick actions: 'Analyze for queries' + 'Find agents for this book'. Also fixed exhaustiveness guard in PipelineService.ts markPhaseComplete switch. |
 | 02 | QueryService — tracker I/O, target CRUD, query letter generation | M08 | done | 2026-07-12 | QueryService.ts created with full IQueryService implementation. Deps: IFileSystemService, IChatService (simplified from session prompt's 5-dep constructor to 2-core-dep — agents/settings/providerRegistry not needed since chat service handles context). Tracker parser/serializer handles markdown format. Letter generation via Quill conversation + changedFiles detection. Exported from application barrel. |
 | 03 | IPC handlers + preload bridge for query namespace | M09, M01 | done | 2026-07-12 | 9 IPC channels added (8 invoke + 1 push event for stream). Preload `query` namespace with 9 methods. Had to add QueryService import + inline instantiation in index.ts to satisfy type check — SESSION-04's composition root wiring is already in place. `query:generateLetter` handler forwards stream events via `query:onStream` push channel. |
-| 04 | Composition root wiring + Quill agent prompt update | M08, agents/ | pending | | |
+| 04 | Composition root wiring + Quill agent prompt update | M08, agents/ | done | 2026-07-12 | QueryService instantiated as `const queryService = new QueryService(fs, chat)` at line 647 of index.ts (after statistics, before notifications). Passed as `query: queryService` to registerIpcHandlers. QUILL.md updated with Phase 6: Personalized Query Letters — covers target context, personalization rules, output path. |
 | 05 | Renderer store (queryStore) | M10 | pending | | |
 | 06 | QueryManagerView component + IconRail entry | M10 | pending | | |
 | 07 | PipelineSpine integration + docs + changelog | M10, M01 | pending | | |
@@ -95,3 +95,10 @@ SESSION-07 (pipeline spine + docs) depends on 06 and 01.
 - Preload bridge has `query` namespace at `src/preload/index.ts` with 9 methods (8 invoke + onStream listener).
 - Composition root wiring is ALREADY DONE — `QueryService` is instantiated inline in `src/main/index.ts` at line 742 as `new QueryService(fs, chat)` and passed to `registerIpcHandlers`.
 - SESSION-04's main remaining task is the Quill agent prompt update (`agents/QUILL.md` Phase 6).
+
+### SESSION-04 → SESSION-05
+- Full backend pipeline is operational: types → QueryService → IPC → preload → composition root.
+- `window.novelEngine.query` has 9 methods ready for the renderer store.
+- `query:generateLetter` returns a `QueryLetter` and streams events via `query:onStream` (subscribe via `window.novelEngine.query.onStream`).
+- Quill's `QUILL.md` now has Phase 6 for personalized query letter generation.
+- The renderer store should call `window.novelEngine.query.*` and manage: tracker state, target CRUD, letter generation streaming, letter file I/O.
