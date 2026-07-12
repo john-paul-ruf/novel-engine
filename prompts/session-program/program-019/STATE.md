@@ -20,7 +20,7 @@ Add a query management system: a new pipeline phase `query-agents` (after `publi
 | 02 | QueryService — tracker I/O, target CRUD, query letter generation | M08 | done | 2026-07-12 | QueryService.ts created with full IQueryService implementation. Deps: IFileSystemService, IChatService (simplified from session prompt's 5-dep constructor to 2-core-dep — agents/settings/providerRegistry not needed since chat service handles context). Tracker parser/serializer handles markdown format. Letter generation via Quill conversation + changedFiles detection. Exported from application barrel. |
 | 03 | IPC handlers + preload bridge for query namespace | M09, M01 | done | 2026-07-12 | 9 IPC channels added (8 invoke + 1 push event for stream). Preload `query` namespace with 9 methods. Had to add QueryService import + inline instantiation in index.ts to satisfy type check — SESSION-04's composition root wiring is already in place. `query:generateLetter` handler forwards stream events via `query:onStream` push channel. |
 | 04 | Composition root wiring + Quill agent prompt update | M08, agents/ | done | 2026-07-12 | QueryService instantiated as `const queryService = new QueryService(fs, chat)` at line 647 of index.ts (after statistics, before notifications). Passed as `query: queryService` to registerIpcHandlers. QUILL.md updated with Phase 6: Personalized Query Letters — covers target context, personalization rules, output path. |
-| 05 | Renderer store (queryStore) | M10 | pending | | |
+| 05 | Renderer store (queryStore) | M10 | done | 2026-07-12 | queryStore created at `src/renderer/stores/queryStore.ts`. Zustand store with: tracker/letters state, load/addTarget/updateStatus/removeTarget/generateLetter/readLetter/saveLetter actions, streamBuffer for live letter generation, initStreamListener for `query:onStream` events. All calls go through `window.novelEngine.query.*`. `npx tsc --noEmit` passes. |
 | 06 | QueryManagerView component + IconRail entry | M10 | pending | | |
 | 07 | PipelineSpine integration + docs + changelog | M10, M01 | pending | | |
 
@@ -102,3 +102,13 @@ SESSION-07 (pipeline spine + docs) depends on 06 and 01.
 - `query:generateLetter` returns a `QueryLetter` and streams events via `query:onStream` (subscribe via `window.novelEngine.query.onStream`).
 - Quill's `QUILL.md` now has Phase 6 for personalized query letter generation.
 - The renderer store should call `window.novelEngine.query.*` and manage: tracker state, target CRUD, letter generation streaming, letter file I/O.
+
+### SESSION-05 → SESSION-06
+- `queryStore` is at `src/renderer/stores/queryStore.ts`, exported as `useQueryStore`.
+- State: `tracker`, `letters`, `loading`, `generatingFor`, `streamBuffer`, `isGenerating`, `error`.
+- Actions: `load(bookSlug)`, `addTarget`, `updateTargetStatus`, `removeTarget`, `generateLetter`, `readLetter`, `saveLetter`, `clear`, `initStreamListener`.
+- `initStreamListener` returns a cleanup function — call in useEffect in the view component.
+- `streamBuffer` accumulates `textDelta` events during letter generation. The UI can display this for live feedback.
+- After every mutation (addTarget, updateTargetStatus, removeTarget, generateLetter, saveLetter), the store auto-reloads via `get().load(bookSlug)`. The view just needs to call the action and the state refreshes.
+- View component should call `useQueryStore.load(bookSlug)` on mount and `useQueryStore.clear()` on unmount (or book switch).
+- IconRail entry and `viewStore` navigate to `'query-manager'` view ID — SESSION-06 will add both.

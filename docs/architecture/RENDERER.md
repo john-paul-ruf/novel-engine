@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-07-08 (program-016 SESSION-03)
+> Last updated: 2026-07-12 (program-019 SESSION-05)
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
@@ -334,6 +334,34 @@ Manages motif ledger loading, saving, and tab state.
 | Action | What It Does |
 |--------|-------------|
 | `setNormalizing(val)` | Sets `isNormalizing` state (driven by `motifLedger:normalizing` push events) |
+
+### queryStore
+
+File: `stores/queryStore.ts`
+
+Manages query submission tracker state for the active book. Loads tracker + letter files, handles target CRUD, letter generation streaming.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `tracker` | `QueryTracker \| null` | Tracker for active book (null until loaded) |
+| `letters` | `QueryLetter[]` | All query letter files for active book |
+| `loading` | `boolean` | True during load |
+| `generatingFor` | `string \| null` | Target ID being letter-generated (null when idle) |
+| `streamBuffer` | `string` | Accumulating text from letter generation stream |
+| `isGenerating` | `boolean` | True during letter generation |
+| `error` | `string \| null` | Last error message |
+
+| Action | What It Does |
+|--------|-------------|
+| `load(bookSlug)` | Fetches tracker + letters via bridge |
+| `addTarget(bookSlug, target)` | Adds target via bridge, reloads |
+| `updateTargetStatus(bookSlug, targetId, status, responseDate?)` | Updates status via bridge, reloads |
+| `removeTarget(bookSlug, targetId)` | Removes target via bridge, reloads |
+| `generateLetter(bookSlug, targetId)` | Generates letter via bridge, streams to `streamBuffer`, reloads |
+| `readLetter(bookSlug, targetSlug)` | Reads letter content via bridge |
+| `saveLetter(bookSlug, targetSlug, content)` | Saves letter via bridge, reloads |
+| `clear()` | Clears all state (book switch) |
+| `initStreamListener()` | Subscribes to `query:onStream` events, returns cleanup fn |
 
 ---
 

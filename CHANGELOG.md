@@ -4,6 +4,24 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — Query Manager renderer store (queryStore)
+
+### Summary
+
+Created the `queryStore` Zustand store for the query management feature. Manages tracker/letter state for the active book, calls the `window.novelEngine.query.*` preload bridge, and exposes actions for target CRUD, letter generation streaming, and letter file I/O. All mutations auto-reload the tracker after completion.
+
+### Added
+- `src/renderer/stores/queryStore.ts` — Zustand store with tracker/letters/loading/generating/streamBuffer state. Actions: load, addTarget, updateTargetStatus, removeTarget, generateLetter, readLetter, saveLetter, clear, initStreamListener
+
+### Architecture Impact
+- New Zustand store: `queryStore` (`useQueryStore`)
+- New stream listener: subscribes to `query:onStream` push events via `window.novelEngine.query.onStream`
+
+### Migration Notes
+- None — purely additive. No existing stores modified.
+
+---
+
 ## [2026-07-12] — Composition root wiring + Quill Phase 6 prompt
 
 ### Summary
