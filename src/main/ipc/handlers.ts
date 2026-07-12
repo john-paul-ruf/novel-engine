@@ -26,6 +26,7 @@ import type {
   IFindReplaceService,
   IDashboardService,
   IStatisticsService,
+  IQueryService,
 } from '@domain/interfaces';
 import type {
   AgentMeta,
@@ -36,6 +37,10 @@ import type {
   ConversationPurpose,
   MotifLedger,
   PipelinePhaseId,
+  QueryStatus,
+  QueryTarget,
+  QueryTracker,
+  QueryLetter,
   QueueMode,
   SendMessageParams,
   FileVersionSource,
@@ -78,6 +83,7 @@ export function registerIpcHandlers(services: {
   findReplace: IFindReplaceService;
   dashboard: IDashboardService;
   statistics: IStatisticsService;
+  query: IQueryService;
 }, paths: {
   userDataPath: string;
   booksDir: string;
@@ -1136,5 +1142,50 @@ export function registerIpcHandlers(services: {
 
   ipcMain.handle('statistics:recordSnapshot', async (_event, bookSlug: string): Promise<void> =>
     services.statistics.recordWordCountSnapshot(bookSlug),
+  );
+
+  // === Query Manager ===
+
+  ipcMain.handle('query:loadTracker', (_, bookSlug: string) =>
+    services.query.loadTracker(bookSlug),
+  );
+
+  ipcMain.handle('query:saveTracker', (_, bookSlug: string, tracker: QueryTracker) =>
+    services.query.saveTracker(bookSlug, tracker),
+  );
+
+  ipcMain.handle('query:addTarget', (_, bookSlug: string, target: Omit<QueryTarget, 'id' | 'queryLetterPath' | 'submittedDate' | 'responseDate'>) =>
+    services.query.addTarget(bookSlug, target),
+  );
+
+  ipcMain.handle('query:updateTargetStatus', (_, bookSlug: string, targetId: string, status: QueryStatus, responseDate?: string) =>
+    services.query.updateTargetStatus(bookSlug, targetId, status, responseDate),
+  );
+
+  ipcMain.handle('query:removeTarget', (_, bookSlug: string, targetId: string) =>
+    services.query.removeTarget(bookSlug, targetId),
+  );
+
+  ipcMain.handle('query:generateLetter', async (event, bookSlug: string, targetId: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await services.query.generateQueryLetter(bookSlug, targetId, (streamEvent) => {
+      win?.webContents.send('query:onStream', streamEvent);
+    });
+    if (result && result.filePath) {
+      snapshotChangedFiles(bookSlug, [result.filePath]);
+    }
+    return result;
+  });
+
+  ipcMain.handle('query:listLetters', (_, bookSlug: string) =>
+    services.query.listQueryLetters(bookSlug),
+  );
+
+  ipcMain.handle('query:readLetter', (_, bookSlug: string, targetSlug: string) =>
+    services.query.readQueryLetter(bookSlug, targetSlug),
+  );
+
+  ipcMain.handle('query:saveLetter', (_, bookSlug: string, targetSlug: string, content: string) =>
+    services.query.saveQueryLetter(bookSlug, targetSlug, content),
   );
 }

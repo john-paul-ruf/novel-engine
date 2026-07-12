@@ -23,6 +23,10 @@ import type {
   PipelinePhase,
   PipelinePhaseId,
   PitchDraft,
+  QueryStatus,
+  QueryTarget,
+  QueryTracker,
+  QueryLetter,
   QueueMode,
   QueueStatus,
   RevisionPlan,
@@ -494,6 +498,33 @@ const api = {
       ipcRenderer.invoke('helper:abort', conversationId),
     reset: (): Promise<void> =>
       ipcRenderer.invoke('helper:reset'),
+  },
+
+  // Query Manager
+  query: {
+    loadTracker: (bookSlug: string): Promise<QueryTracker> =>
+      ipcRenderer.invoke('query:loadTracker', bookSlug),
+    saveTracker: (bookSlug: string, tracker: QueryTracker): Promise<void> =>
+      ipcRenderer.invoke('query:saveTracker', bookSlug, tracker),
+    addTarget: (bookSlug: string, target: Omit<QueryTarget, 'id' | 'queryLetterPath' | 'submittedDate' | 'responseDate'>): Promise<QueryTarget> =>
+      ipcRenderer.invoke('query:addTarget', bookSlug, target),
+    updateTargetStatus: (bookSlug: string, targetId: string, status: QueryStatus, responseDate?: string): Promise<void> =>
+      ipcRenderer.invoke('query:updateTargetStatus', bookSlug, targetId, status, responseDate),
+    removeTarget: (bookSlug: string, targetId: string): Promise<void> =>
+      ipcRenderer.invoke('query:removeTarget', bookSlug, targetId),
+    generateLetter: (bookSlug: string, targetId: string): Promise<QueryLetter> =>
+      ipcRenderer.invoke('query:generateLetter', bookSlug, targetId),
+    listLetters: (bookSlug: string): Promise<QueryLetter[]> =>
+      ipcRenderer.invoke('query:listLetters', bookSlug),
+    readLetter: (bookSlug: string, targetSlug: string): Promise<string> =>
+      ipcRenderer.invoke('query:readLetter', bookSlug, targetSlug),
+    saveLetter: (bookSlug: string, targetSlug: string, content: string): Promise<void> =>
+      ipcRenderer.invoke('query:saveLetter', bookSlug, targetSlug, content),
+    onStream: (callback: (event: StreamEvent) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, event: StreamEvent) => callback(event);
+      ipcRenderer.on('query:onStream', handler);
+      return () => ipcRenderer.removeListener('query:onStream', handler);
+    },
   },
 };
 

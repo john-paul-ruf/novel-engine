@@ -1,6 +1,6 @@
 # Architecture — Novel Engine
 
-> Last updated: 2026-07-02
+> Last updated: 2026-07-12 (program-019 SESSION-03)
 
 Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Codex CLI + Ollama CLI + Pandoc
 
@@ -95,6 +95,7 @@ src/
 │   ├── SourceGenerationService.ts           # Multi-agent source document generation
 │   ├── HelperService.ts                     # In-app help assistant (user guide as context)
 │   ├── FindReplaceService.ts               # Bulk find & replace across chapter drafts; safe revert via snapshots
+│   ├── QueryService.ts                    # Query tracker I/O, target CRUD, AI query letter generation via Quill
 │   ├── import/
 │   │   └── ChapterDetector.ts               # Pure chapter break detection utility
 │   ├── context/
@@ -242,6 +243,10 @@ HelperService
 FindReplaceService
 ├── IFileSystemService (FileSystemService)
 └── IVersionService (VersionService)
+
+QueryService
+├── IFileSystemService (FileSystemService)
+└── IChatService (ChatService)
 
 NotificationManager
 └── ISettingsService (SettingsService)

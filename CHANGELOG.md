@@ -4,6 +4,28 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — IPC handlers and preload bridge for query namespace
+
+### Summary
+
+Wired `QueryService` into the IPC layer: 9 new channels under `query:*` namespace (8 invoke + 1 push event for streaming), `query` namespace on the preload bridge with 9 methods. Composition root wiring (instantiation + injection) was done inline to satisfy the type checker since the handler services object now requires `IQueryService`.
+
+### Added
+- `src/main/ipc/handlers.ts` — `IQueryService` import, `query` in services param, 9 IPC handlers (loadTracker, saveTracker, addTarget, updateTargetStatus, removeTarget, generateLetter, listLetters, readLetter, saveLetter)
+- `src/preload/index.ts` — Query type imports, `query` namespace with 9 methods (8 invoke + onStream listener)
+- `src/main/index.ts` — `QueryService` import + inline instantiation `new QueryService(fs, chat)` in registerIpcHandlers call
+
+### Architecture Impact
+- New IPC channels: `query:loadTracker`, `query:saveTracker`, `query:addTarget`, `query:updateTargetStatus`, `query:removeTarget`, `query:generateLetter`, `query:listLetters`, `query:readLetter`, `query:saveLetter`
+- New push event: `query:onStream` (StreamEvent from query:generateLetter)
+- New preload namespace: `window.novelEngine.query`
+- New composition root wiring: `QueryService(fs, chat)`
+
+### Migration Notes
+- None — purely additive. Existing code unaffected.
+
+---
+
 ## [2026-07-12] — QueryService implementation: tracker I/O, CRUD, letter generation
 
 ### Summary

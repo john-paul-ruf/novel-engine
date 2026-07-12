@@ -18,7 +18,7 @@ Add a query management system: a new pipeline phase `query-agents` (after `publi
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain types, constants, and pipeline phase registration | M01 | done | 2026-07-12 | Types added: QueryTargetType, QueryStatus, QuerySubmissionMethod, QueryTarget, QueryTracker, QueryLetter. IQueryService interface added. PipelinePhaseId extended with 'query-agents'. PIPELINE_PHASES has 15 entries. PHASE_OUTPUT_FILES has 'query-agents' entry. Quill quick actions: 'Analyze for queries' + 'Find agents for this book'. Also fixed exhaustiveness guard in PipelineService.ts markPhaseComplete switch. |
 | 02 | QueryService — tracker I/O, target CRUD, query letter generation | M08 | done | 2026-07-12 | QueryService.ts created with full IQueryService implementation. Deps: IFileSystemService, IChatService (simplified from session prompt's 5-dep constructor to 2-core-dep — agents/settings/providerRegistry not needed since chat service handles context). Tracker parser/serializer handles markdown format. Letter generation via Quill conversation + changedFiles detection. Exported from application barrel. |
-| 03 | IPC handlers + preload bridge for query namespace | M09, M01 | pending | | |
+| 03 | IPC handlers + preload bridge for query namespace | M09, M01 | done | 2026-07-12 | 9 IPC channels added (8 invoke + 1 push event for stream). Preload `query` namespace with 9 methods. Had to add QueryService import + inline instantiation in index.ts to satisfy type check — SESSION-04's composition root wiring is already in place. `query:generateLetter` handler forwards stream events via `query:onStream` push channel. |
 | 04 | Composition root wiring + Quill agent prompt update | M08, agents/ | pending | | |
 | 05 | Renderer store (queryStore) | M10 | pending | | |
 | 06 | QueryManagerView component + IconRail entry | M10 | pending | | |
@@ -89,3 +89,9 @@ SESSION-07 (pipeline spine + docs) depends on 06 and 01.
 - `extractField` regex matches `- **FieldName:** value` (case-insensitive).
 - `slugify` and `unslugify` are private methods for converting target names to/from filenames.
 - IPC handlers in SESSION-03 should delegate to QueryService methods directly — no additional business logic needed.
+
+### SESSION-03 → SESSION-04
+- IPC handlers are in `src/main/ipc/handlers.ts` under `=== Query Manager ===` section (8 invoke handlers + 1 push event `query:onStream`).
+- Preload bridge has `query` namespace at `src/preload/index.ts` with 9 methods (8 invoke + onStream listener).
+- Composition root wiring is ALREADY DONE — `QueryService` is instantiated inline in `src/main/index.ts` at line 742 as `new QueryService(fs, chat)` and passed to `registerIpcHandlers`.
+- SESSION-04's main remaining task is the Quill agent prompt update (`agents/QUILL.md` Phase 6).

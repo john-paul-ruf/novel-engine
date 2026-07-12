@@ -1,6 +1,6 @@
 # IPC — Channels, Preload Bridge, Handler Registry
 
-> Last updated: 2026-07-02
+> Last updated: 2026-07-12 (program-019 SESSION-03)
 
 Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between application services and the renderer.
 
@@ -261,6 +261,20 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `findReplace:preview` | invoke | `findReplaceService.preview(bookSlug, searchTerm, options)` | `FindReplacePreviewResult` |
 | `findReplace:apply` | invoke | `findReplaceService.apply(params)` | `FindReplaceApplyResult` |
 
+### query:*
+
+| Channel | Direction | Handler | Returns |
+|---------|-----------|---------|---------|
+| `query:loadTracker` | invoke | `queryService.loadTracker(bookSlug)` | `QueryTracker` |
+| `query:saveTracker` | invoke | `queryService.saveTracker(bookSlug, tracker)` | `void` |
+| `query:addTarget` | invoke | `queryService.addTarget(bookSlug, target)` | `QueryTarget` |
+| `query:updateTargetStatus` | invoke | `queryService.updateTargetStatus(bookSlug, targetId, status, responseDate?)` | `void` |
+| `query:removeTarget` | invoke | `queryService.removeTarget(bookSlug, targetId)` | `void` |
+| `query:generateLetter` | invoke | `queryService.generateQueryLetter(bookSlug, targetId, onEvent)` — streams via `query:onStream` | `QueryLetter` |
+| `query:listLetters` | invoke | `queryService.listQueryLetters(bookSlug)` | `QueryLetter[]` |
+| `query:readLetter` | invoke | `queryService.readQueryLetter(bookSlug, targetSlug)` | `string` |
+| `query:saveLetter` | invoke | `queryService.saveQueryLetter(bookSlug, targetSlug, content)` | `void` |
+
 ---
 
 ## Push Events
@@ -278,6 +292,7 @@ Events from main → renderer (not request/response).
 | `window:unmaximized` | (none) | Main window unmaximize event |
 | `import:generationProgress` | `SourceGenerationEvent` | SourceGenerationService during multi-agent source generation |
 | `motifLedger:normalizing` | `status: 'started' \| 'done' \| 'error', error?: string` | MotifLedgerService during CLI schema normalization |
+| `query:onStream` | `StreamEvent` | QueryService during query letter generation via Quill — sent to sender window only |
 
 ---
 
@@ -488,6 +503,19 @@ window.novelEngine: {
     preview(bookSlug: string, searchTerm: string, options: FindReplaceOptions): Promise<FindReplacePreviewResult>
     apply(params: { bookSlug, searchTerm, replacement, filePaths, options }): Promise<FindReplaceApplyResult>
   }
+
+  query: {
+    loadTracker(bookSlug: string): Promise<QueryTracker>
+    saveTracker(bookSlug: string, tracker: QueryTracker): Promise<void>
+    addTarget(bookSlug: string, target: Omit<QueryTarget, 'id' | 'queryLetterPath' | 'submittedDate' | 'responseDate'>): Promise<QueryTarget>
+    updateTargetStatus(bookSlug: string, targetId: string, status: QueryStatus, responseDate?: string): Promise<void>
+    removeTarget(bookSlug: string, targetId: string): Promise<void>
+    generateLetter(bookSlug: string, targetId: string): Promise<QueryLetter>
+    listLetters(bookSlug: string): Promise<QueryLetter[]>
+    readLetter(bookSlug: string, targetSlug: string): Promise<string>
+    saveLetter(bookSlug: string, targetSlug: string, content: string): Promise<void>
+    onStream(callback: (event: StreamEvent) => void): () => void
+  }
 }
 ```
 
@@ -497,7 +525,7 @@ window.novelEngine: {
 
 `registerIpcHandlers(services, paths, hooks)` in `src/main/ipc/handlers.ts`:
 
-- **services**: all service instances (settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, motifLedger, notifications)
+- **services**: all service instances (settings, agents, db, fs, chat, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper, findReplace, dashboard, statistics, query)
 - **paths**: `{ userDataPath, booksDir }`
 - **hooks**: `{ onActiveBookChanged(slug) }` — triggers BookWatcher switch
 
