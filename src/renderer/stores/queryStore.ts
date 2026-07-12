@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { QueryTracker, QueryTarget, QueryStatus, QueryLetter, StreamEvent } from '@domain/types';
+import type { QueryTracker, QueryTarget, QueryStatus, QueryLetter, QueryResearchResult, QueryFieldFillResult, QueryFillableField, StreamEvent } from '@domain/types';
+import { useBookStore } from './bookStore';
 
 type QueryStoreState = {
   tracker: QueryTracker | null;
@@ -8,6 +9,9 @@ type QueryStoreState = {
   generatingFor: string | null;
   streamBuffer: string;
   isGenerating: boolean;
+  isResearching: boolean;
+  researchBuffer: string;
+  fillingFor: string | null;
   error: string | null;
 
   load: (bookSlug: string) => Promise<void>;
@@ -15,6 +19,8 @@ type QueryStoreState = {
   updateTargetStatus: (bookSlug: string, targetId: string, status: QueryStatus, responseDate?: string) => Promise<void>;
   removeTarget: (bookSlug: string, targetId: string) => Promise<void>;
   generateLetter: (bookSlug: string, targetId: string) => Promise<QueryLetter | null>;
+  researchTargets: () => Promise<QueryResearchResult | null>;
+  fillTargetField: (targetId: string, field: QueryFillableField) => Promise<QueryFieldFillResult | null>;
   readLetter: (bookSlug: string, targetSlug: string) => Promise<string>;
   saveLetter: (bookSlug: string, targetSlug: string, content: string) => Promise<void>;
   clear: () => void;
@@ -28,6 +34,9 @@ export const useQueryStore = create<QueryStoreState>((set, get) => ({
   generatingFor: null,
   streamBuffer: '',
   isGenerating: false,
+  isResearching: false,
+  researchBuffer: '',
+  fillingFor: null,
   error: null,
 
   load: async (bookSlug: string) => {
@@ -74,6 +83,38 @@ export const useQueryStore = create<QueryStoreState>((set, get) => ({
     }
   },
 
+  researchTargets: async () => {
+    const bookSlug = useBookStore.getState().activeSlug;
+    if (!bookSlug) return null;
+    set({ isResearching: true, researchBuffer: '', error: null });
+    try {
+      const result = await window.novelEngine.query.researchTargets(bookSlug);
+      set({ isResearching: false, researchBuffer: '' });
+      await get().load(bookSlug);
+      return result;
+    } catch (err) {
+      console.error('[queryStore] Research failed:', err);
+      set({ isResearching: false, researchBuffer: '', error: 'Target research failed' });
+      return null;
+    }
+  },
+
+  fillTargetField: async (targetId, field) => {
+    const bookSlug = useBookStore.getState().activeSlug;
+    if (!bookSlug) return null;
+    set({ fillingFor: targetId, error: null });
+    try {
+      const result = await window.novelEngine.query.fillTargetField(bookSlug, targetId, field);
+      set({ fillingFor: null });
+      await get().load(bookSlug);
+      return result;
+    } catch (err) {
+      console.error('[queryStore] Field fill failed:', err);
+      set({ fillingFor: null, error: 'Field research failed' });
+      return null;
+    }
+  },
+
   readLetter: async (bookSlug, targetSlug) => {
     return window.novelEngine.query.readLetter(bookSlug, targetSlug);
   },
@@ -84,13 +125,16 @@ export const useQueryStore = create<QueryStoreState>((set, get) => ({
   },
 
   clear: () => {
-    set({ tracker: null, letters: [], loading: false, error: null, generatingFor: null, isGenerating: false, streamBuffer: '' });
+    set({ tracker: null, letters: [], loading: false, error: null, generatingFor: null, isGenerating: false, streamBuffer: '', isResearching: false, researchBuffer: '', fillingFor: null });
   },
 
   initStreamListener: () => {
     const cleanup = window.novelEngine.query.onStream((event: StreamEvent) => {
       if (event.type === 'textDelta') {
-        set((state) => ({ streamBuffer: state.streamBuffer + event.text }));
+        set((state) => ({
+          streamBuffer: state.isGenerating ? state.streamBuffer + event.text : state.streamBuffer,
+          researchBuffer: state.isResearching ? state.researchBuffer + event.text : state.researchBuffer,
+        }));
       }
     });
     return cleanup;

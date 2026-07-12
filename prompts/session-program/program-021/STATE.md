@@ -13,7 +13,7 @@
 | 02 | Domain types & interface | M-DOMAIN | done | 2026-07-12 | Pure type additions |
 | 03 | QueryService research + fill | M-APP | done | 2026-07-12 | Depends on 02 |
 | 04 | IPC handlers + preload bridge | M-IPC, M-PRELOAD | done | 2026-07-12 | Depends on 03 |
-| 05 | queryStore actions | M-RENDERER | pending | | Depends on 04 |
+| 05 | queryStore actions | M-RENDERER | done | 2026-07-12 | Depends on 04 |
 | 06 | ResearchPanel + View integration | M-RENDERER | pending | | Depends on 05 |
 | 07 | TargetCard per-field AI buttons | M-RENDERER | pending | | Depends on 05 |
 | 08 | Quill agent prompt Phase 7 | M-AGENTS | pending | | Depends on 03 |
@@ -73,3 +73,6 @@ Implemented `researchTargets()` and `fillTargetField()` on `QueryService`. Both 
 
 ### SESSION-04 (done 2026-07-12)
 Added `query:researchTargets` and `query:fillTargetField` IPC handlers in `handlers.ts`. Added `researchTargets` and `fillTargetField` bridge methods in `preload/index.ts`. Both streaming handlers follow the `query:generateLetter` pattern (BrowserWindow.fromWebContents → send `query:onStream`). Type check passes.
+
+### SESSION-05 (done 2026-07-12)
+Added `researchTargets()` and `fillTargetField()` actions to `queryStore`. New state fields: `isResearching`, `researchBuffer`, `fillingFor`. Updated `initStreamListener` to accumulate into `researchBuffer` when researching. Updated `clear` to reset new fields. Imported `useBookStore` for active slug access.
