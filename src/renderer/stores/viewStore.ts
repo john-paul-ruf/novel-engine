@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 type ViewId =
-  | 'library' | 'workspace' | 'manuscript' | 'exports'        // primary
-  | 'settings' | 'statistics' | 'pitch-room' | 'onboarding';  // secondary
+  | 'library' | 'workspace' | 'manuscript' | 'exports' | 'query-manager'  // primary
+  | 'settings' | 'statistics' | 'pitch-room' | 'onboarding';               // secondary
 
 type ViewPayload = {
   filePath?: string;

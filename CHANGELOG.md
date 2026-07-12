@@ -4,6 +4,36 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — QueryManagerView, components, IconRail entry, view routing
+
+### Summary
+
+Built the full Query Manager UI: 5 React components (QueryManagerView, TargetCard, AddTargetForm, LetterPreview, FilterBar), added `'query-manager'` to ViewId union, added `'mail'` icon, added IconRail entry with book requirement, wired QueryManagerView into AppLayout's ViewContent.
+
+### Added
+- `src/renderer/components/QueryManager/QueryManagerView.tsx` — Book-scoped view: tracker load on mount, stats summary, filtered target list, add-target form toggle, letter preview modal
+- `src/renderer/components/QueryManager/TargetCard.tsx` — Target card with status badge, inline status dropdown, generate/regenerate/view letter buttons, remove action
+- `src/renderer/components/QueryManager/AddTargetForm.tsx` — Form with name, type, contact, method, link, personalization notes, general notes
+- `src/renderer/components/QueryManager/LetterPreview.tsx` — Modal overlay for viewing/editing a query letter with save support
+- `src/renderer/components/QueryManager/FilterBar.tsx` — Filter selectors by method, status, and type with clear-filters action
+
+### Changed
+- `src/renderer/stores/viewStore.ts` — Added `'query-manager'` to ViewId union
+- `src/renderer/components/common/Icon.tsx` — Added `'mail'` to IconName union and `mail` envelope path to ICON_PATHS
+- `src/renderer/components/Rail/IconRail.tsx` — Added `'query-manager'` to RailView type, added rail item with `mail` icon and `needsBook: true`
+- `src/renderer/components/Layout/AppLayout.tsx` — Imported QueryManagerView, added always-mounted hidden-when-inactive div in ViewContent
+
+### Architecture Impact
+- New view ID: `'query-manager'` in viewStore and RailView
+- New icon: `'mail'` in Icon.tsx
+- New component group: `QueryManager/` (5 files)
+- New IconRail entry after Exports
+
+### Migration Notes
+- None — purely additive. Persisted view state unaffected (new view ID, no legacy mapping needed).
+
+---
+
 ## [2026-07-12] — Query Manager renderer store (queryStore)
 
 ### Summary

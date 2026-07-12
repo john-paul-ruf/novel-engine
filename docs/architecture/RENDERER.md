@@ -377,6 +377,7 @@ Manages query submission tracker state for the active book. Loads tracker + lett
 | `revision-queue` | `RevisionQueueView` | Revision session management |
 | `pitch-room` | `PitchRoomView` | Free brainstorming |
 | `motif-ledger` | `MotifLedgerView` | Motif/phrase tracking |
+| `query-manager` | `QueryManagerView` | Query/submission tracking |
 
 Routing: `viewStore.currentView` → conditional render in `App.tsx` via `AppLayout`.
 
@@ -517,6 +518,16 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 | `FlaggedPhrasesTab.tsx` | Flagged phrase management |
 | `StructuralTab.tsx` | Structural devices catalog |
 | `AuditLogTab.tsx` | Chapter audit history |
+
+### QueryManager/
+
+| File | Purpose |
+|------|---------|
+| `QueryManagerView.tsx` | Book-scoped view: loads tracker, stats summary, target list with filters, add-target toggle, letter preview modal |
+| `TargetCard.tsx` | Single submission target card with status badge, inline status dropdown, generate/regenerate/view letter, remove |
+| `AddTargetForm.tsx` | Inline form for adding a new target (name, type, contact, method, link, personalization, notes) |
+| `LetterPreview.tsx` | Modal overlay for viewing/editing a query letter with save support |
+| `FilterBar.tsx` | Filter selectors: by method (email/form/QM/other), status (7 states), type (agent/publisher/platform) |
 
 ### Import/
 

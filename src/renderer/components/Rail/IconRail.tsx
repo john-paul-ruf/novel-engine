@@ -4,7 +4,7 @@ import { useHelperStore } from '../../stores/helperStore';
 import { Tooltip } from '../common/Tooltip';
 import { Icon, type IconName } from '../common/Icon';
 
-type RailView = 'library' | 'workspace' | 'manuscript' | 'exports' | 'statistics' | 'settings';
+type RailView = 'library' | 'workspace' | 'manuscript' | 'exports' | 'query-manager' | 'statistics' | 'settings';
 
 type RailItem = {
   view: RailView;
@@ -19,6 +19,7 @@ const TOP_ITEMS: RailItem[] = [
   { view: 'workspace', icon: 'workspace', label: 'Workspace — pipeline & agent chat', needsBook: true },
   { view: 'manuscript', icon: 'manuscript', label: 'Manuscript — read & edit', needsBook: true },
   { view: 'exports', icon: 'exports', label: 'Exports — DOCX, EPUB, PDF', needsBook: true },
+  { view: 'query-manager', icon: 'mail', label: 'Query Manager — agents & submissions', needsBook: true },
 ];
 
 const BOTTOM_ITEMS: RailItem[] = [

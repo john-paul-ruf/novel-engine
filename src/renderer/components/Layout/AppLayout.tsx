@@ -30,6 +30,7 @@ import { WorkspaceView } from '../Workbench/WorkspaceView';
 import { CommandPalette } from '../Palette/CommandPalette';
 import { ManuscriptView } from '../Manuscript/ManuscriptView';
 import { ExportsView } from '../Exports/ExportsView';
+import { QueryManagerView } from '../QueryManager/QueryManagerView';
 import { usePaletteStore } from '../../stores/paletteStore';
 import { PitchPreviewModal } from '../Sidebar/PitchPreviewModal';
 import { ImportWizard } from '../Import/ImportWizard';
@@ -142,6 +143,9 @@ function ViewContent(): React.ReactElement {
       </div>
       <div className={`h-full ${currentView === 'exports' ? '' : 'hidden'}`}>
         <ExportsView />
+      </div>
+      <div className={`h-full ${currentView === 'query-manager' ? '' : 'hidden'}`}>
+        <QueryManagerView />
       </div>
     </>
   );
