@@ -99,7 +99,8 @@ export type ProjectManifest = {
 export type PipelinePhaseId =
   | 'pitch' | 'scaffold' | 'first-draft' | 'first-read' | 'first-assessment'
   | 'revision-plan-1' | 'revision' | 'second-read' | 'second-assessment'
-  | 'copy-edit' | 'revision-plan-2' | 'mechanical-fixes' | 'build' | 'publish';
+  | 'copy-edit' | 'revision-plan-2' | 'mechanical-fixes' | 'build' | 'publish'
+  | 'query-agents';
 
 /**
  * A phase is 'pending-completion' when all its detection files exist (the AI
@@ -454,6 +455,43 @@ export type RevisionQueueEvent =
   | { type: 'plan:loading-step'; step: string }
   | { type: 'queue:done'; planId: string }
   | { type: 'error'; sessionId: string; message: string };
+
+// === Query Manager ===
+
+export type QueryTargetType = 'agent' | 'publisher' | 'platform';
+
+export type QueryStatus = 'drafting' | 'queried' | 'partial-request' | 'full-request' | 'offer' | 'rejected' | 'withdrawn';
+
+export type QuerySubmissionMethod = 'email' | 'form' | 'query-manager' | 'other';
+
+export type QueryTarget = {
+  id: string;
+  name: string;
+  type: QueryTargetType;
+  contact: string;
+  method: QuerySubmissionMethod;
+  status: QueryStatus;
+  queryLetterPath: string | null;
+  submittedDate: string | null;
+  responseDate: string | null;
+  notes: string;
+  link: string;
+  personalizationNotes: string;
+};
+
+export type QueryTracker = {
+  bookSlug: string;
+  lastUpdated: string;
+  targets: QueryTarget[];
+};
+
+export type QueryLetter = {
+  targetName: string;
+  targetSlug: string;
+  filePath: string;
+  content: string;
+  generatedAt: string | null;
+};
 
 // === Verity Audit ===
 

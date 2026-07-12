@@ -4,6 +4,33 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — Query Manager domain types and pipeline phase registration
+
+### Summary
+
+Added the domain layer foundation for the query management system: new `PipelinePhaseId` value `'query-agents'` (15th phase, after `publish`), six new query types (`QueryTargetType`, `QueryStatus`, `QuerySubmissionMethod`, `QueryTarget`, `QueryTracker`, `QueryLetter`), the `IQueryService` interface, and two new Quill quick actions for query research. Also fixed the exhaustiveness guard in `PipelineService.markPhaseComplete` to handle the new phase.
+
+### Added
+- `src/domain/types.ts` — `QueryTargetType`, `QueryStatus`, `QuerySubmissionMethod`, `QueryTarget`, `QueryTracker`, `QueryLetter` types after the Revision Queue section
+- `src/domain/interfaces.ts` — `IQueryService` interface with 9 methods: `loadTracker`, `saveTracker`, `addTarget`, `updateTargetStatus`, `removeTarget`, `generateQueryLetter`, `listQueryLetters`, `readQueryLetter`, `saveQueryLetter`
+- `src/domain/constants.ts` — `'query-agents'` entry in `PIPELINE_PHASES` (Quill agent, 15th phase)
+- `src/domain/constants.ts` — `'query-agents'` entry in `PHASE_OUTPUT_FILES` mapping to `['source/query-tracker.md']`
+- `src/domain/constants.ts` — Two new Quill quick actions: 'Analyze for queries' and 'Find agents for this book'
+
+### Changed
+- `src/domain/types.ts` — `PipelinePhaseId` union extended with `| 'query-agents'` (14 → 15 values)
+- `src/application/PipelineService.ts` — `markPhaseComplete` switch: added `case 'query-agents'` to satisfy exhaustiveness guard (creates stub `source/query-tracker.md`)
+
+### Architecture Impact
+- New pipeline phase: `'query-agents'` (15th phase, after `'publish'`)
+- New service interface: `IQueryService` (implementation pending in SESSION-02)
+- Quill quick actions expanded from 4 to 6 entries
+
+### Migration Notes
+- None — the new phase is additive. Existing books without `source/query-tracker.md` will show `query-agents` as locked until `publish` is confirmed.
+
+---
+
 ## [2026-07-02] — Increase context ceiling + add compaction for Ollama/llama-server
 
 ### Summary

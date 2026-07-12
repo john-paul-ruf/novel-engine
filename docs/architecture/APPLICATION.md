@@ -1,6 +1,6 @@
 # Application — Services & Orchestration
 
-> Last updated: 2026-07-08 (program-017 SESSION-01)
+> Last updated: 2026-07-12 (program-019 SESSION-01)
 
 Everything in `src/application/`. Business logic that orchestrates infrastructure through injected interfaces.
 
@@ -198,7 +198,7 @@ Dependencies: `IFileSystemService`
 
 | Method | What It Does |
 |--------|-------------|
-| `detectPhases(bookSlug)` | Checks file existence → returns all 14 phases with statuses |
+| `detectPhases(bookSlug)` | Checks file existence → returns all 15 phases with statuses |
 | `getActivePhase(bookSlug)` | Returns the first phase that is not 'complete' |
 | `getAgentForPhase(phaseId)` | Looks up agent from `PIPELINE_PHASES` |
 | `markPhaseComplete(bookSlug, phaseId)` | Advances book status for status-dependent phases |

@@ -274,6 +274,10 @@ export class PipelineService implements IPipelineService {
         await this.ensureStubFile(bookSlug, 'source/metadata.md', 'Publication Metadata');
         break;
 
+      case 'query-agents':
+        await this.ensureStubFile(bookSlug, 'source/query-tracker.md', 'Query Tracker');
+        break;
+
       default: {
         // Exhaustiveness guard — TypeScript will error here if a new phase is added
         const _exhaustive: never = phaseId;

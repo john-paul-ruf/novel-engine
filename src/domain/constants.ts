@@ -89,6 +89,7 @@ export const PIPELINE_PHASES: { id: PipelinePhaseId; label: string; agent: Agent
   { id: 'mechanical-fixes',   label: 'Mechanical Fixes',      agent: 'Verity',     description: 'Implement copy-level fixes' },
   { id: 'build',              label: 'Build',                 agent: null,          description: 'Generate DOCX, EPUB, and PDF' },
   { id: 'publish',            label: 'Publish & Audit',       agent: 'Quill',      description: 'Audit outputs and prepare metadata' },
+  { id: 'query-agents',       label: 'Query Agents',           agent: 'Quill',      description: 'Research agents and publishers, generate query letters, track submissions' },
 ];
 
 /**
@@ -115,6 +116,7 @@ export const PHASE_OUTPUT_FILES: Partial<Record<PipelinePhaseId, string[]>> = {
   'copy-edit':         ['source/audit-report.md'],
   'revision-plan-2':   ['source/project-tasks.md', 'source/revision-prompts.md'],
   'publish':           ['source/metadata.md'],
+  'query-agents':      ['source/query-tracker.md'],
 };
 
 /**
@@ -348,6 +350,8 @@ Include:
 - Protagonist's arc and change
 
 Read the full manuscript and scene outline. Write in present tense, third person. Output to source/synopsis.md.` },
+    { label: 'Analyze for queries', prompt: 'Read the manuscript, pitch, story bible, and metadata. Analyze the book\'s market position — genre, comp titles, themes, word count, and target audience. Identify the types of literary agents, publishers, or platforms that would be the best fit for this book. Write your analysis to source/query-analysis.md.' },
+    { label: 'Find agents for this book', prompt: 'Read source/query-analysis.md if it exists, plus the pitch and story bible. Based on the book\'s genre, themes, and comp titles, identify 5-10 literary agents or publishers who represent or publish similar work. For each, note their name, agency/publisher, what they\'re looking for (based on MSWL or known preferences), and why this book is a fit. Write the list to source/query-research.md.' },
   ],
 };
 

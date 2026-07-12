@@ -1,6 +1,6 @@
 # Domain — Types, Interfaces, Constants
 
-> Last updated: 2026-07-08 (program-016 SESSION-03)
+> Last updated: 2026-07-12 (program-019 SESSION-01)
 
 Everything in `src/domain/`. Pure TypeScript declarations — zero imports from other layers.
 
@@ -52,7 +52,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 
 | Type | Shape | Used By |
 |------|-------|---------|
-| `PipelinePhaseId` | `'pitch' \| 'scaffold' \| ... \| 'publish'` (14 values) | PipelineService, PipelineTracker |
+| `PipelinePhaseId` | `'pitch' \| 'scaffold' \| ... \| 'publish' \| 'query-agents'` (15 values) | PipelineService, PipelineTracker |
 | `PhaseStatus` | `'complete' \| 'pending-completion' \| 'active' \| 'locked'` | PipelineTracker UI |
 | `PipelinePhase` | `{ id, label, agent, status, description }` | PipelineService.detectPhases() |
 
@@ -216,6 +216,17 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 |------|-------|---------|
 | `SourceGenerationStep` | `{ index, label, agentName, status, error? }` | SourceGenerationService, importStore |
 | `SourceGenerationEvent` | discriminated union: `started \| step-started \| step-done \| step-error \| done \| error` | SourceGenerationService, importStore |
+
+### Query Manager
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `QueryTargetType` | `'agent' \| 'publisher' \| 'platform'` | QueryService, QueryManagerView |
+| `QueryStatus` | `'drafting' \| 'queried' \| 'partial-request' \| 'full-request' \| 'offer' \| 'rejected' \| 'withdrawn'` | QueryService, QueryManagerView |
+| `QuerySubmissionMethod` | `'email' \| 'form' \| 'query-manager' \| 'other'` | QueryService, QueryManagerView |
+| `QueryTarget` | `{ id, name, type, contact, method, status, queryLetterPath, submittedDate, responseDate, notes, link, personalizationNotes }` | QueryService, queryStore |
+| `QueryTracker` | `{ bookSlug, lastUpdated, targets: QueryTarget[] }` | QueryService, queryStore |
+| `QueryLetter` | `{ targetName, targetSlug, filePath, content, generatedAt }` | QueryService, queryStore |
 
 ---
 
@@ -548,6 +559,22 @@ Implemented by: `FindReplaceService` (`src/application/FindReplaceService.ts`)
 | `preview` | `(bookSlug, searchTerm, options) => Promise<FindReplacePreviewResult>` | Match scan across all `chapters/*/draft.md`; up to 20 locations per file; sorted by match count desc |
 | `apply` | `(params: { bookSlug, searchTerm, replacement, filePaths, options }) => Promise<FindReplaceApplyResult>` | Snapshots each file (source='user'), replaces all matches, writes updated content |
 
+### IQueryService
+
+Implemented by: `QueryService` (`src/application/QueryService.ts`) — *planned, not yet implemented*
+
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `loadTracker` | `(bookSlug) => Promise<QueryTracker>` | Parsed tracker from `source/query-tracker.md`; empty tracker if file missing |
+| `saveTracker` | `(bookSlug, tracker) => Promise<void>` | Writes tracker back to `source/query-tracker.md` |
+| `addTarget` | `(bookSlug, target) => Promise<QueryTarget>` | Adds target to tracker, generates ID |
+| `updateTargetStatus` | `(bookSlug, targetId, status, responseDate?) => Promise<void>` | Updates target status, re-writes tracker |
+| `removeTarget` | `(bookSlug, targetId) => Promise<void>` | Removes target + deletes query letter if present |
+| `generateQueryLetter` | `(bookSlug, targetId, onEvent) => Promise<QueryLetter>` | AI-generates personalized query letter via Quill, streams via onEvent |
+| `listQueryLetters` | `(bookSlug) => Promise<QueryLetter[]>` | Lists all `source/query-letters/*.md` files |
+| `readQueryLetter` | `(bookSlug, targetSlug) => Promise<string>` | Reads a specific query letter file |
+| `saveQueryLetter` | `(bookSlug, targetSlug, content) => Promise<void>` | Saves manually edited query letter |
+
 ---
 
 ## Constants
@@ -570,7 +597,7 @@ Implemented by: `FindReplaceService` (`src/application/FindReplaceService.ts`)
 
 ### PIPELINE_PHASES
 
-14-phase pipeline in order. See [Application](./APPLICATION.md) for detection logic.
+15-phase pipeline in order. See [Application](./APPLICATION.md) for detection logic.
 
 ### AGENT_READ_GUIDANCE
 
@@ -668,3 +695,4 @@ Extracted to a separate file. Zero imports — pure functions over static arrays
 | `mechanical-fixes` | Mechanical Fixes | Verity | `audit-report.md` exists AND book status >= 'copy-edit' |
 | `build` | Build | (none) | `dist/output.md` exists |
 | `publish` | Publish & Audit | Quill | `source/metadata.md` exists |
+| `query-agents` | Query Agents | Quill | `source/query-tracker.md` exists |

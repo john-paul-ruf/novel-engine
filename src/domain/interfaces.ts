@@ -41,6 +41,10 @@ import type {
   ProviderConfig,
   ProviderId,
   ProviderStatus,
+  QueryLetter,
+  QueryStatus,
+  QueryTarget,
+  QueryTracker,
   QueueMode,
   QueueStatus,
   RecentFile,
@@ -938,4 +942,33 @@ export interface IDashboardService {
 export interface IStatisticsService {
   getStatistics(bookSlug?: string): Promise<BookStatistics>;
   recordWordCountSnapshot(bookSlug: string): Promise<void>;
+}
+
+export interface IQueryService {
+  /** Load and parse the query tracker file for a book. Returns empty tracker if file doesn't exist. */
+  loadTracker(bookSlug: string): Promise<QueryTracker>;
+
+  /** Save the full tracker back to source/query-tracker.md */
+  saveTracker(bookSlug: string, tracker: QueryTracker): Promise<void>;
+
+  /** Add a new submission target to the tracker */
+  addTarget(bookSlug: string, target: Omit<QueryTarget, 'id' | 'queryLetterPath' | 'submittedDate' | 'responseDate'>): Promise<QueryTarget>;
+
+  /** Update the status of a submission target */
+  updateTargetStatus(bookSlug: string, targetId: string, status: QueryStatus, responseDate?: string): Promise<void>;
+
+  /** Remove a target from the tracker (and delete its query letter if present) */
+  removeTarget(bookSlug: string, targetId: string): Promise<void>;
+
+  /** Generate a personalized query letter for a target via Quill agent. Streams response. */
+  generateQueryLetter(bookSlug: string, targetId: string, onEvent: (event: StreamEvent) => void): Promise<QueryLetter>;
+
+  /** List all query letter files for a book */
+  listQueryLetters(bookSlug: string): Promise<QueryLetter[]>;
+
+  /** Read a specific query letter file */
+  readQueryLetter(bookSlug: string, targetSlug: string): Promise<string>;
+
+  /** Save manually edited query letter content */
+  saveQueryLetter(bookSlug: string, targetSlug: string, content: string): Promise<void>;
 }
