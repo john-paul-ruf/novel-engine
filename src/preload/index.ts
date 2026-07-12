@@ -27,6 +27,9 @@ import type {
   QueryTarget,
   QueryTracker,
   QueryLetter,
+  QueryResearchResult,
+  QueryFieldFillResult,
+  QueryFillableField,
   QueueMode,
   QueueStatus,
   RevisionPlan,
@@ -520,6 +523,10 @@ const api = {
       ipcRenderer.invoke('query:readLetter', bookSlug, targetSlug),
     saveLetter: (bookSlug: string, targetSlug: string, content: string): Promise<void> =>
       ipcRenderer.invoke('query:saveLetter', bookSlug, targetSlug, content),
+    researchTargets: (bookSlug: string): Promise<QueryResearchResult> =>
+      ipcRenderer.invoke('query:researchTargets', bookSlug),
+    fillTargetField: (bookSlug: string, targetId: string, field: QueryFillableField): Promise<QueryFieldFillResult> =>
+      ipcRenderer.invoke('query:fillTargetField', bookSlug, targetId, field),
     onStream: (callback: (event: StreamEvent) => void) => {
       const handler = (_: Electron.IpcRendererEvent, event: StreamEvent) => callback(event);
       ipcRenderer.on('query:onStream', handler);

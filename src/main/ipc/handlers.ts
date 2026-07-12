@@ -41,6 +41,7 @@ import type {
   QueryTarget,
   QueryTracker,
   QueryLetter,
+  QueryFillableField,
   QueueMode,
   SendMessageParams,
   FileVersionSource,
@@ -1188,4 +1189,20 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('query:saveLetter', (_, bookSlug: string, targetSlug: string, content: string) =>
     services.query.saveQueryLetter(bookSlug, targetSlug, content),
   );
+
+  ipcMain.handle('query:researchTargets', async (event, bookSlug: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await services.query.researchTargets(bookSlug, (streamEvent) => {
+      win?.webContents.send('query:onStream', streamEvent);
+    });
+    return result;
+  });
+
+  ipcMain.handle('query:fillTargetField', async (event, bookSlug: string, targetId: string, field: QueryFillableField) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await services.query.fillTargetField(bookSlug, targetId, field, (streamEvent) => {
+      win?.webContents.send('query:onStream', streamEvent);
+    });
+    return result;
+  });
 }
