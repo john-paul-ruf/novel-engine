@@ -274,6 +274,8 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `query:listLetters` | invoke | `queryService.listQueryLetters(bookSlug)` | `QueryLetter[]` |
 | `query:readLetter` | invoke | `queryService.readQueryLetter(bookSlug, targetSlug)` | `string` |
 | `query:saveLetter` | invoke | `queryService.saveQueryLetter(bookSlug, targetSlug, content)` | `void` |
+| `query:researchTargets` | invoke | `queryService.researchTargets(bookSlug, onStream)` | `QueryResearchResult` (streams via `query:onStream`) |
+| `query:fillTargetField` | invoke | `queryService.fillTargetField(bookSlug, targetId, field, onStream)` | `QueryFieldFillResult` (streams via `query:onStream`) |
 
 ---
 
@@ -292,7 +294,7 @@ Events from main → renderer (not request/response).
 | `window:unmaximized` | (none) | Main window unmaximize event |
 | `import:generationProgress` | `SourceGenerationEvent` | SourceGenerationService during multi-agent source generation |
 | `motifLedger:normalizing` | `status: 'started' \| 'done' \| 'error', error?: string` | MotifLedgerService during CLI schema normalization |
-| `query:onStream` | `StreamEvent` | QueryService during query letter generation via Quill — sent to sender window only |
+| `query:onStream` | `StreamEvent` | QueryService during Quill streaming (letter generation, target research, field fill) — sent to sender window only |
 
 ---
 
@@ -514,6 +516,8 @@ window.novelEngine: {
     listLetters(bookSlug: string): Promise<QueryLetter[]>
     readLetter(bookSlug: string, targetSlug: string): Promise<string>
     saveLetter(bookSlug: string, targetSlug: string, content: string): Promise<void>
+    researchTargets(bookSlug: string): Promise<QueryResearchResult>
+    fillTargetField(bookSlug: string, targetId: string, field: QueryFillableField): Promise<QueryFieldFillResult>
     onStream(callback: (event: StreamEvent) => void): () => void
   }
 }

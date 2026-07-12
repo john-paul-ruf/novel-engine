@@ -300,7 +300,7 @@ claude --output-format stream-json \
 ```
 
 - Working directory set to book path (enables tool file operations)
-- `--allowedTools` not specified — CLI uses its default tool set
+- `--allowedTools` set to `Read,Write,Edit,LS,WebSearch,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(wc:*),Bash(rm:*),Bash(rmdir:*)` — includes `WebSearch` for all agents
 - Process spawned via `child_process.spawn`
 
 ### Streaming Protocol

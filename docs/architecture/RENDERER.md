@@ -339,7 +339,7 @@ Manages motif ledger loading, saving, and tab state.
 
 File: `stores/queryStore.ts`
 
-Manages query submission tracker state for the active book. Loads tracker + letter files, handles target CRUD, letter generation streaming.
+Manages query submission tracker state for the active book. Loads tracker + letter files, handles target CRUD, letter generation streaming, bulk target research, and per-field AI fill.
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -349,6 +349,9 @@ Manages query submission tracker state for the active book. Loads tracker + lett
 | `generatingFor` | `string \| null` | Target ID being letter-generated (null when idle) |
 | `streamBuffer` | `string` | Accumulating text from letter generation stream |
 | `isGenerating` | `boolean` | True during letter generation |
+| `isResearching` | `boolean` | True during bulk target research |
+| `researchBuffer` | `string` | Accumulating text from research stream |
+| `fillingFor` | `string \| null` | Target ID being field-filled (null when idle) |
 | `error` | `string \| null` | Last error message |
 
 | Action | What It Does |
@@ -358,10 +361,12 @@ Manages query submission tracker state for the active book. Loads tracker + lett
 | `updateTargetStatus(bookSlug, targetId, status, responseDate?)` | Updates status via bridge, reloads |
 | `removeTarget(bookSlug, targetId)` | Removes target via bridge, reloads |
 | `generateLetter(bookSlug, targetId)` | Generates letter via bridge, streams to `streamBuffer`, reloads |
+| `researchTargets()` | Triggers Quill bulk research via bridge, streams to `researchBuffer`, reloads |
+| `fillTargetField(targetId, field)` | Triggers Quill per-field fill via bridge, reloads |
 | `readLetter(bookSlug, targetSlug)` | Reads letter content via bridge |
 | `saveLetter(bookSlug, targetSlug, content)` | Saves letter via bridge, reloads |
 | `clear()` | Clears all state (book switch) |
-| `initStreamListener()` | Subscribes to `query:onStream` events, returns cleanup fn |
+| `initStreamListener()` | Subscribes to `query:onStream` events, routes `textDelta` to `streamBuffer` or `researchBuffer` based on active state, returns cleanup fn |
 
 ---
 
@@ -523,9 +528,10 @@ Gate: `App.tsx` checks `settings.initialized` — if false, renders `OnboardingW
 
 | File | Purpose |
 |------|---------|
-| `QueryManagerView.tsx` | Book-scoped view: loads tracker, stats summary, target list with filters, add-target toggle, letter preview modal |
-| `TargetCard.tsx` | Single submission target card with status badge, inline status dropdown, generate/regenerate/view letter, remove |
+| `QueryManagerView.tsx` | Book-scoped view: loads tracker, stats summary, target list with filters, add-target toggle, "Research Targets" button, ResearchPanel, letter preview modal |
+| `TargetCard.tsx` | Single submission target card with status badge, per-field AI fill buttons (`AiFillButton`), inline status dropdown, generate/regenerate/view letter, remove |
 | `AddTargetForm.tsx` | Inline form for adding a new target (name, type, contact, method, link, personalization, notes) |
+| `ResearchPanel.tsx` | Streaming panel showing Quill's research progress with live text buffer and "Research again" button. Only visible when researching or after research completes. |
 | `LetterPreview.tsx` | Modal overlay for viewing/editing a query letter with save support |
 | `FilterBar.tsx` | Filter selectors: by method (email/form/QM/other), status (7 states), type (agent/publisher/platform) |
 

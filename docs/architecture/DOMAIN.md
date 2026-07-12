@@ -228,6 +228,14 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `QueryTracker` | `{ bookSlug, lastUpdated, targets: QueryTarget[] }` | QueryService, queryStore |
 | `QueryLetter` | `{ targetName, targetSlug, filePath, content, generatedAt }` | QueryService, queryStore |
 
+### Query Research & Field Fill
+
+| Type | Shape | Used By |
+|------|-------|---------|
+| `QueryFillableField` | `'contact' \| 'method' \| 'link' \| 'personalizationNotes' \| 'notes'` | QueryService, queryStore, TargetCard |
+| `QueryResearchResult` | `{ addedTargets, targetNames, conversationId }` | QueryService, queryStore |
+| `QueryFieldFillResult` | `{ targetId, field, oldValue, newValue, conversationId }` | QueryService, queryStore |
+
 ---
 
 ## Interfaces
@@ -574,6 +582,8 @@ Implemented by: `QueryService` (`src/application/QueryService.ts`)
 | `listQueryLetters` | `(bookSlug) => Promise<QueryLetter[]>` | Lists all `source/query-letters/*.md` files |
 | `readQueryLetter` | `(bookSlug, targetSlug) => Promise<string>` | Reads a specific query letter file |
 | `saveQueryLetter` | `(bookSlug, targetSlug, content) => Promise<void>` | Saves manually edited query letter |
+| `researchTargets` | `(bookSlug, onEvent) => Promise<QueryResearchResult>` | Quill researches targets via web search, writes to tracker, streams response |
+| `fillTargetField` | `(bookSlug, targetId, field, onEvent) => Promise<QueryFieldFillResult>` | Quill researches and fills a single field on an existing target |
 
 ---
 

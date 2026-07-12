@@ -17,7 +17,7 @@
 | 06 | ResearchPanel + View integration | M-RENDERER | done | 2026-07-12 | Depends on 05 |
 | 07 | TargetCard per-field AI buttons | M-RENDERER | done | 2026-07-12 | Depends on 05 |
 | 08 | Quill agent prompt Phase 7 | M-AGENTS | done | 2026-07-12 | Depends on 03 |
-| 09 | Documentation update | M-DOCS | pending | | Depends on 01–08 |
+| 09 | Documentation update | M-DOCS | done | 2026-07-12 | Depends on 01–08 |
 
 ## Dependency Graph
 ```
@@ -85,3 +85,6 @@ Added `AiFillButton` component to `TargetCard.tsx` — small "AI" button next to
 
 ### SESSION-08 (done 2026-07-12)
 Updated QUILL.md: Phase 6 personalization now allows WebSearch. Added Phase 7 with research workflow, research rules, and per-field fill instructions. Updated Red Lines to allow writing `source/query-tracker.md`. Added Query Tracker to "Files Owned by This Agent" table.
+
+### SESSION-09 (done 2026-07-12)
+Updated CHANGELOG.md with full entry for this feature. Updated DOMAIN.md (new types + interface methods), APPLICATION.md (new QueryService methods), IPC.md (new channels + preload bridge + push event description), INFRASTRUCTURE.md (Claude CLI allowed tools), RENDERER.md (queryStore state/actions + component inventory). All sessions complete.

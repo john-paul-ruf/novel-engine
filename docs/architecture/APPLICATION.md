@@ -444,6 +444,8 @@ Dependencies: `IFileSystemService`, `IChatService`
 | `listQueryLetters(bookSlug)` | Lists all `.md` files in `source/query-letters/` |
 | `readQueryLetter(bookSlug, targetSlug)` | Reads a specific letter file |
 | `saveQueryLetter(bookSlug, targetSlug, content)` | Writes letter file, updates tracker `queryLetterPath` if not set |
+| `researchTargets(bookSlug, onEvent)` | Creates Quill conversation (`query-agents` phase), sends research prompt, Quill web-searches agents/publishers and writes targets to `source/query-tracker.md`. Reloads tracker for result. Streams via onEvent. |
+| `fillTargetField(bookSlug, targetId, field, onEvent)` | Creates Quill conversation, sends field-specific prompt, Quill researches and updates a single field in `source/query-tracker.md`. Reloads tracker for old/new values. Streams via onEvent. |
 
 Key behaviors:
 - Tracker format: YAML front matter (`last_updated`, `total_targets`) + `## [Name] — {status}` sections with `- **Field:** value` bullets

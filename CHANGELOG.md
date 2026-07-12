@@ -4,6 +4,37 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-12] — Query Manager auto-populate and per-field AI fill
+
+### Summary
+
+Quill can now research and auto-populate submission targets in bulk using web search, and any individual field on a target can be AI-filled on demand. This eliminates manual data entry for the Query Manager.
+
+### Added
+- `src/renderer/components/QueryManager/ResearchPanel.tsx` — Streaming panel showing Quill's research progress with "Research again" button
+- `src/domain/types.ts` — Added `QueryFillableField`, `QueryResearchResult`, `QueryFieldFillResult` types
+- `src/domain/interfaces.ts` — Added `researchTargets()` and `fillTargetField()` to `IQueryService`
+- `src/application/QueryService.ts` — Added `researchTargets()` and `fillTargetField()` methods with `buildResearchPrompt()`, `buildFieldFillPrompt()`, `fieldToLabel()` helpers
+- `src/main/ipc/handlers.ts` — Added `query:researchTargets` and `query:fillTargetField` IPC handlers
+- `src/preload/index.ts` — Added `researchTargets` and `fillTargetField` to query bridge namespace
+- `src/renderer/stores/queryStore.ts` — Added `researchTargets`, `fillTargetField` actions + `isResearching`, `researchBuffer`, `fillingFor` state
+- `agents/QUILL.md` — Added Phase 7 (target research & field fill), updated Phase 6 personalization, updated Red Lines, added Query Tracker to Files Owned table
+
+### Changed
+- `src/infrastructure/claude-cli/ClaudeCodeClient.ts` — Added `WebSearch` to `--allowedTools` argument
+- `src/renderer/components/QueryManager/QueryManagerView.tsx` — Added "Research Targets" button and ResearchPanel integration
+- `src/renderer/components/QueryManager/TargetCard.tsx` — Added per-field AI fill buttons (`AiFillButton`), restructured info display to structured field rows
+
+### Architecture Impact
+- New IPC channels: `query:researchTargets`, `query:fillTargetField`
+- CLI tool access: `WebSearch` now available to all agents (not just Quill)
+- Agent behavioral change: Quill can now use web search for target research and query letter personalization
+
+### Migration Notes
+None — all additions are backward compatible. Existing query tracker files are unchanged.
+
+---
+
 ## [2026-07-12] — PipelineSpine integration + pipeline detection for query-agents
 
 ### Summary
