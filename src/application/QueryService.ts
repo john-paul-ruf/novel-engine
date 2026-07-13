@@ -420,19 +420,27 @@ For each viable target found (aim for 5–10), add an entry to source/query-trac
 - Link to their profile/agency page
 - Personalization notes: what they're looking for, why this book fits their list, specific MSWL items aligned with the book
 
-Append new entries to any existing content in source/query-tracker.md. Do not remove existing targets. Use the same markdown format as existing entries:
+Append new entries to any existing content in source/query-tracker.md. Do not remove
+existing targets.
 
-## [Target Name] — drafting
+Each entry MUST follow this exact format. The square brackets around the name are
+LITERAL characters that must appear in the heading, and the separator is an em dash
+(—) surrounded by spaces. Example entry for a fictional agent "Jane Doe":
+
+## [Jane Doe] — drafting
 - **Type:** agent
-- **Contact:** [email or URL]
+- **Contact:** jane@exampleliterary.com
 - **Method:** email
-- **ID:** [generated id]
+- **ID:** QT-001
 - **Submitted:**
 - **Response Date:**
 - **Query Letter:**
-- **Personalization:** [why this book fits]
-- **Notes:**
-- **Link:** [profile URL]
+- **Personalization:** Seeks near-future SF with voice-driven protagonists; this book's premise fits her MSWL item on surveillance culture.
+- **Notes:** Query + first 10 pages in email body.
+- **Link:** https://examplemswl.com/jane-doe
+
+Write the real agent's name in place of "Jane Doe", KEEPING the square brackets:
+correct: \`## [Cortney Radocaj] — drafting\` / wrong: \`## Cortney Radocaj — drafting\`.
 
 Focus on agents and publishers that are actively accepting submissions in this genre as of today.`;
   }
@@ -446,6 +454,14 @@ Focus on agents and publishers that are actively accepting submissions in this g
       notes: 'any special submission instructions, exclusivity requirements, or notable details',
     };
 
+    const fieldExamples: Record<QueryFillableField, string> = {
+      contact: 'submissions@agencyname.com',
+      method: 'email',
+      link: 'https://examplemswl.com/jane-doe',
+      personalizationNotes: 'Seeks near-future SF with voice-driven protagonists; this book fits her MSWL item on surveillance culture.',
+      notes: 'Query + first 10 pages in email body.',
+    };
+
     return `Research and fill the "${field}" field for ${target.name} (${target.type}).
 
 Target context:
@@ -456,11 +472,9 @@ Target context:
 
 Use WebSearch to find ${fieldDescriptions[field]} for ${target.name}.
 
-After researching, update the "${field}" field for ${target.name} in source/query-tracker.md. Only change that one field — do not modify any other fields or targets. Write the updated value using the same markdown format:
+After researching, update the "${field}" field for ${target.name} in source/query-tracker.md. The target's section starts with the heading \`## [${target.name}] — <status>\` — the square brackets are literal characters. Change ONLY the single bullet line for this field inside that section; leave the heading and every other line byte-identical. The updated line must use the existing format, with your researched value in place of the example value. Example:
 
-- **${this.fieldToLabel(field)}:** [new value]
-
-where the field label matches the existing format in the file.`;
+- **${this.fieldToLabel(field)}:** ${fieldExamples[field]}`;
   }
 
   private fieldToLabel(field: QueryFillableField): string {

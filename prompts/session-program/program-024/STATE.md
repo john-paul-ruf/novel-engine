@@ -19,7 +19,7 @@ hardened prompts, reliable file-write tracking, and no silent failures or data l
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Lenient tracker parsing + content marker | M08, M01 | done | 2026-07-12 | Regex exactly as specced; no deviations |
-| 02 | Harden research & field-fill prompts | M08 | pending | | |
+| 02 | Harden research & field-fill prompts | M08 | done | 2026-07-12 | Both prompts hardened; generate prompt needed no change |
 | 03 | Reliable filesTouched tracking (Claude CLI) | M06 | pending | | |
 | 04 | Surface silent failures + clobber guard | M08, M01 | pending | | |
 
@@ -85,3 +85,10 @@ _(Agents append here after each session: what was done, deviations, gotchas for 
   duplicated in M01 by necessity — sync comments in both files). Spot-checked all 6
   specced heading cases plus parenthesized names and hyphenated names — all pass.
   `npx tsc --noEmit` clean. SESSION-04's clobber guard can now rely on this parser.
+- 2026-07-12 (Mu, S02): `buildResearchPrompt` now shows the specced Jane Doe worked
+  example with the brackets-are-literal note and correct/wrong contrast line.
+  `buildFieldFillPrompt` DID need the same treatment (its `[new value]` template was
+  the same placeholder trap) — added a `fieldExamples` map for concrete per-field
+  example lines plus a byte-identical / single-bullet edit contract referencing the
+  `## [<name>] — <status>` heading. `buildGeneratePrompt` references no tracker
+  syntax — unchanged. No bracket-placeholder strings remain (grep-verified); tsc clean.
