@@ -44,6 +44,10 @@ export type OllamaToolCall = {
  * The agent operates within a book's working directory, so all file
  * paths are relative to the book root (e.g. "source/pitch.md",
  * "chapters/01-opening/draft.md").
+ *
+ * WebSearch queries an external search API so agents can research
+ * publishers, agents, and submission guidelines even when running
+ * on local models without native web access.
  */
 export const OLLAMA_TOOLS: OllamaToolDefinition[] = [
   {
@@ -144,6 +148,27 @@ export const OLLAMA_TOOLS: OllamaToolDefinition[] = [
           },
         },
         required: ['command'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'WebSearch',
+      description:
+        'Search the web for current information. Use this to find literary agents, '
+        + 'publishers, submission guidelines, agent interviews, and Manuscript Wish List '
+        + '(MSWL) entries. Returns summarized search results with titles, URLs, and '
+        + 'snippets. Use targeted queries for best results.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query (e.g. "literary agents fantasy seeking submissions", "QueryTracker fantasy agents")',
+          },
+        },
+        required: ['query'],
       },
     },
   },

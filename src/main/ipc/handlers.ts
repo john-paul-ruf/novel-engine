@@ -1167,10 +1167,17 @@ export function registerIpcHandlers(services: {
     services.query.removeTarget(bookSlug, targetId),
   );
 
-  ipcMain.handle('query:generateLetter', async (event, bookSlug: string, targetId: string) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
+  const broadcastQueryStreamEvent = (streamEvent: StreamEvent, callId: string) => {
+    for (const w of BrowserWindow.getAllWindows()) {
+      try { w.webContents.send('query:onStream', streamEvent); } catch { /* skip */ }
+      try { w.webContents.send('chat:streamEvent', { ...streamEvent, callId, conversationId: callId, source: 'query' as StreamEventSource }); } catch { /* skip */ }
+    }
+  };
+
+  ipcMain.handle('query:generateLetter', async (_event, bookSlug: string, targetId: string) => {
+    const callId = `query:generate:${randomUUID().slice(0, 8)}`;
     const result = await services.query.generateQueryLetter(bookSlug, targetId, (streamEvent) => {
-      win?.webContents.send('query:onStream', streamEvent);
+      broadcastQueryStreamEvent(streamEvent, callId);
     });
     if (result && result.filePath) {
       snapshotChangedFiles(bookSlug, [result.filePath]);
@@ -1190,18 +1197,18 @@ export function registerIpcHandlers(services: {
     services.query.saveQueryLetter(bookSlug, targetSlug, content),
   );
 
-  ipcMain.handle('query:researchTargets', async (event, bookSlug: string) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
+  ipcMain.handle('query:researchTargets', async (_event, bookSlug: string) => {
+    const callId = `query:research:${randomUUID().slice(0, 8)}`;
     const result = await services.query.researchTargets(bookSlug, (streamEvent) => {
-      win?.webContents.send('query:onStream', streamEvent);
+      broadcastQueryStreamEvent(streamEvent, callId);
     });
     return result;
   });
 
-  ipcMain.handle('query:fillTargetField', async (event, bookSlug: string, targetId: string, field: QueryFillableField) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
+  ipcMain.handle('query:fillTargetField', async (_event, bookSlug: string, targetId: string, field: QueryFillableField) => {
+    const callId = `query:fill:${randomUUID().slice(0, 8)}`;
     const result = await services.query.fillTargetField(bookSlug, targetId, field, (streamEvent) => {
-      win?.webContents.send('query:onStream', streamEvent);
+      broadcastQueryStreamEvent(streamEvent, callId);
     });
     return result;
   });

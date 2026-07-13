@@ -3,6 +3,7 @@ import * as path from 'path';
 import type { OllamaToolCall } from './tools';
 import { WRITE_TOOLS } from './tools';
 import { BashEmulator } from './BashEmulator';
+import { WebSearcher } from './WebSearcher';
 
 /**
  * Result of executing a single tool call.
@@ -43,9 +44,16 @@ export class ToolExecutor {
 
   private bashEmulator?: BashEmulator;
 
+  private webSearcher?: WebSearcher;
+
   private getBashEmulator(): BashEmulator {
     this.bashEmulator ??= new BashEmulator((p) => this.resolveSafe(p));
     return this.bashEmulator;
+  }
+
+  private getWebSearcher(): WebSearcher {
+    this.webSearcher ??= new WebSearcher();
+    return this.webSearcher;
   }
 
   /**
@@ -69,6 +77,8 @@ export class ToolExecutor {
           return await this.executeLS(args);
         case 'Bash':
           return await this.executeBash(args);
+        case 'WebSearch':
+          return await this.executeWebSearch(args);
         default:
           return {
             toolName: name,
@@ -81,7 +91,7 @@ export class ToolExecutor {
       const message = err instanceof Error ? err.message : String(err);
       return {
         toolName: name,
-        filePath: (args.file_path ?? args.path) as string | undefined,
+        filePath: (args.file_path ?? args.path ?? args.query) as string | undefined,
         isWrite: WRITE_TOOLS.has(name),
         content: `Error executing ${name}: ${message}`,
         isError: true,
@@ -192,6 +202,18 @@ export class ToolExecutor {
       filePath: result.filePath,
       isWrite: result.isWrite,
       content: result.output || '(no output)',
+      isError: false,
+    };
+  }
+
+  private async executeWebSearch(args: Record<string, unknown>): Promise<ToolResult> {
+    const query = this.requireString(args, 'query', 'q', 'search', 'search_query');
+    const results = await this.getWebSearcher().search(query);
+    return {
+      toolName: 'WebSearch',
+      filePath: query,
+      isWrite: false,
+      content: results,
       isError: false,
     };
   }

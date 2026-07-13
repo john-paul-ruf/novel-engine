@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-09 (program-018 SESSION-03)
+> Last updated: 2026-07-13
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -108,7 +108,7 @@ Key behavior:
 - Model discovery reads `~/.codex/models_cache.json` defensively, then falls back to built-in `gpt-5.3-codex`
 - Builds an explicit workspace plan before spawn: active-book `cwd` for book conversations, `booksDir` for root calls, or the caller-provided `workingDir`
 - Validates the planned working directory exists before spawning `codex`; missing paths emit an `error` stream event and abort launch
-- Spawns `codex exec --json --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --output-last-message <tempFile>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`
+- Spawns `codex exec --json --enable standalone_web_search --sandbox workspace-write --skip-git-repo-check --cd <workingDir> --output-last-message <tempFile>` and appends `--add-dir <booksDir>` only when `codex exec --help` reports support and the working directory is not already `booksDir`; the `--enable standalone_web_search` flag activates Codex's native `web_search` tool so Quill's Query Manager research flow works without configuration
 - Falls back to `-c 'sandbox_workspace_write.writable_roots=["<booksDir>"]'` for older Codex CLI installs without `--add-dir` (verified against codex-cli 0.27.0 via `codex debug seatbelt`), so the books root is always writable
 - Reads the temporary `--output-last-message` file on clean close when JSON stdout contained no assistant text, emits that fallback as `textDelta`, then deletes the temp directory
 - Writes the assembled prompt to stdin; no shell interpolation or interactive login/setup commands
@@ -124,6 +124,7 @@ Key behavior:
 - Failure diagnostics include exit code, signal, elapsed time, workspace mode, JSON event count, parsed event tail, `streamError=` last transient reason, last status, stderr tail, and stdout tail
 - Persists stream events to SQLite in batches and supports `abortStream()` with SIGTERM then SIGKILL after 2s; a Stop during retry backoff cancels the pending re-spawn
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` mirror the Claude provider idle checks
+- Recognizes built-in Codex `web_search` item events as `WebSearch` tool-use events; `extractToolFilePath` returns the `action.query` or `query` field as the search-term surrogate for CLI Activity display
 
 ### ollama-cli/ — Ollama CLI/API Hybrid Provider
 
@@ -131,9 +132,10 @@ Key behavior:
 |------|---------|
 | `OllamaCodeClient.ts` | Implements `IModelProvider`. Uses Ollama `/api/chat` for streaming text, thinking, and tool-use loops. |
 | `OllamaCliRunner.ts` | Wraps the local `ollama` command for CLI detection, model listing, model context inspection, `ollama serve` lifecycle, and smoke tests. |
-| `ToolExecutor.ts` | Executes Ollama tool calls sandboxed to the working directory plus additional allowed roots (constructor: `(bookDir, additionalRoots = [])` — clients pass the books dir for Pitch Room scaffolding). |
+| `ToolExecutor.ts` | Executes Ollama tool calls sandboxed to the working directory plus additional allowed roots (constructor: `(bookDir, additionalRoots = [])` — clients pass the books dir for Pitch Room scaffolding). Supports `WebSearch` via `WebSearcher` for query-manager research. |
 | `BashEmulator.ts` | Emulates the whitelisted Bash commands (mkdir/cat/mv/cp/ls/find/wc/rm/rmdir) with Node fs APIs — no shell spawned, metacharacters rejected, paths sandboxed via `ToolExecutor.resolveSafe`. |
-| `tools.ts` | Ollama tool schema definitions and tool-call types (Read, Write, Edit, LS, Bash — full Claude CLI parity). |
+| `WebSearcher.ts` | DuckDuckGo HTML-based web search executor for Ollama/llama-server agents. No API key required, best-effort parsing. Returns formatted text results suitable for model context. |
+| `tools.ts` | Ollama tool schema definitions and tool-call types (Read, Write, Edit, LS, Bash, WebSearch — full Claude CLI parity including web search). |
 | `contextCompactor.ts` | Compacts tool context for long Ollama agent loops. |
 | `index.ts` | Barrel export |
 
@@ -147,6 +149,21 @@ Key behavior:
 - `OllamaCliRunner.startServe()` spawns `ollama serve` once and warns, rather than throwing, if the process exits because the service is already running.
 - `OllamaCliRunner.runSmokeTest()` pipes a prompt into `ollama run <model>` with a timeout and boolean result.
 - Startup model discovery in `src/main/index.ts` uses `OllamaCliRunner.listModels()` and `showModelContext()` for local endpoints, and preserves API discovery for configured remote endpoints.
+
+### llama-server/ — llama-server HTTP Provider
+
+| File | Purpose |
+|------|---------|
+| `LlamaServerClient.ts` | Implements `IModelProvider`. Uses OpenAI-compatible `/v1/chat/completions` with SSE streaming and function-calling tool use. Shares `ToolExecutor`, `OLLAMA_TOOLS`, and `WebSearcher` from `ollama-cli/`. |
+| `index.ts` | Barrel export |
+
+Key behavior:
+- Exposes `providerId` as `'llama-server'` and capabilities: `text-completion`, `streaming`, `tool-use`
+- Uses a custom undici dispatcher (`bodyTimeout: 0`, `headersTimeout: 0`) so long-running local models don't time out
+- Tool calls dispatched through the shared `ToolExecutor` (same sandboxed Read/Write/Edit/LS/Bash/WebSearch as Ollama)
+- Parses `<think>...</think>` tags in model content for reasoning-model support (QwQ, DeepSeek-R1, etc.)
+- `isAvailable()` probes the configured base URL `/v1/models` endpoint
+- `abortStream()` signals the `AbortController` backing the active `fetch` SSE connection
 
 ### providers/ — Model Provider Registry
 

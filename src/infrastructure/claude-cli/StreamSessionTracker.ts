@@ -150,7 +150,7 @@ export class StreamSessionTracker {
     } else if (eventType === 'blockStart' && this.currentBlockType === 'thinking') {
       newStage = 'thinking';
     } else if (eventType === 'toolUse' && toolName) {
-      if (toolName === 'Read' || toolName === 'LS') {
+      if (toolName === 'Read' || toolName === 'LS' || toolName === 'WebSearch') {
         // Check if reading a file we already wrote → reviewing
         if (filePath && this.fileTouches.has(filePath)) {
           newStage = 'reviewing';

@@ -251,7 +251,7 @@ export type StreamSessionRecord = {
 };
 
 /** Discriminator for the origin of a stream event — injected by the IPC layer. */
-export type StreamEventSource = 'chat' | 'auto-draft' | 'hot-take' | 'adhoc-revision' | 'revision' | 'audit' | 'fix' | 'motif-audit';
+export type StreamEventSource = 'chat' | 'auto-draft' | 'hot-take' | 'adhoc-revision' | 'revision' | 'audit' | 'fix' | 'motif-audit' | 'query';
 
 export type StreamEvent =
   | { type: 'callStart'; agentName: AgentName; model: string; bookSlug: string }

@@ -449,7 +449,9 @@ export class OllamaCodeClient implements IModelProvider {
           const toolId = nanoid(8);
           const rawFilePath = toolCall.function.arguments.file_path
             ?? toolCall.function.arguments.path
-            ?? toolCall.function.arguments.file;
+            ?? toolCall.function.arguments.file
+            ?? toolCall.function.arguments.query
+            ?? toolCall.function.arguments.q;
           const eventFilePath = typeof rawFilePath === 'string'
             ? rawFilePath
             : typeof rawFilePath === 'object' && rawFilePath !== null
