@@ -4,6 +4,53 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-13] — Codex CLI standalone_web_search flag
+
+### Summary
+
+The Codex CLI's native `web_search` tool must be explicitly enabled via `--enable standalone_web_search` on each `codex exec` spawn. The prior session's Codex `web_search` work wired up event parsing and tool-name recognition but missed adding the CLI flag, so the tool was never actually offered to the model. This small change passes the flag on every Codex CLI invocation, completing cross-provider WebSearch parity (Claude CLI, Ollama, llama-server, and Codex).
+
+### Changed
+- `src/infrastructure/codex-cli/CodexCliClient.ts` — Added `'--enable', 'standalone_web_search'` to the `args` array in `runCodexAttempt()` (line ~390). Always on; the CLI only activates its `web_search` tool when the agent prompt requests research (e.g. Quill's Query Manager prompts).
+
+### Architecture Impact
+- Codex CLI now has functional WebSearch parity with the other providers; prior Codex `web_search` parsing code in `extractToolInfo` / `normalizeToolName` was already in place but inert without the flag.
+
+### Migration Notes
+None — additive change, no behavior change for agents that don't request web search.
+
+---
+
+## [2026-07-12] — WebSearch for all CLIs + Query Manager activity in CLI panel
+
+### Summary
+
+All model providers (Ollama, llama-server, Codex) now support WebSearch for query-manager research. Previously only Claude CLI had web search capabilities. Additionally, all Query Manager streaming activity (research, generate letter, fill field) now broadcasts to the CLI Activity panel via `chat:streamEvent`, so users can monitor Quill's CLI calls alongside all other agent activity.
+
+### Added
+- `src/infrastructure/ollama-cli/WebSearcher.ts` — DuckDuckGo HTML-based web search executor for Ollama/llama-server agents (no API key, best-effort)
+- `src/infrastructure/ollama-cli/tools.ts` — Added `WebSearch` tool definition to `OLLAMA_TOOLS`
+- `src/infrastructure/ollama-cli/ToolExecutor.ts` — Added `executeWebSearch()` case and `getWebSearcher()` lazy singleton
+- `src/domain/types.ts` — Added `'query'` to `StreamEventSource` union
+
+### Changed
+- `src/infrastructure/ollama-cli/OllamaCodeClient.ts` — Tool event extraction now includes `query`/`q` argument names for WebSearch call events
+- `src/infrastructure/llama-server/LlamaServerClient.ts` — Tool event extraction now includes `query`/`q` argument names for WebSearch call events
+- `src/infrastructure/codex-cli/CodexCliClient.ts` — `extractToolInfo` recognizes `web_search`/`websearch` item types; `normalizeToolName` returns `'WebSearch'`; `extractToolFilePath` returns the `action.query`/`query` field for web search items
+- `src/infrastructure/claude-cli/StreamSessionTracker.ts` — `inferStage` treats `WebSearch` as a reading-stage tool (same as Read/LS)
+- `src/main/ipc/handlers.ts` — Query handlers now broadcast stream events to both `query:onStream` and `chat:streamEvent` channels; each handler generates a unique `callId` for the CLI Activity panel
+- `src/infrastructure/ollama-cli/index.ts` — Exported `WebSearcher`
+
+### Architecture Impact
+- Cross-provider capability parity: Ollama, llama-server, and Codex CLIs all support WebSearch
+- Query Manager events now visible in CLI Activity panel via `chat:streamEvent` (previously only `query:onStream`)
+- `StreamEventSource` union gains `'query'` value; CLI Activity store filters these like any other call
+
+### Migration Notes
+None — additions are backward compatible. Existing `query:onStream` channel still works for the query store; `chat:streamEvent` is a parallel broadcast for CLI Activity.
+
+---
+
 ## [2026-07-12] — Query Manager auto-populate and per-field AI fill
 
 ### Summary

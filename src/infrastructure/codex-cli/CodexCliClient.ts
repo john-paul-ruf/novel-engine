@@ -387,6 +387,7 @@ export class CodexCliClient implements IModelProvider {
     const args = [
       'exec',
       '--json',
+      '--enable', 'standalone_web_search',
       '--model', model,
       '--sandbox', 'workspace-write',
       '--skip-git-repo-check',
@@ -841,6 +842,8 @@ export class CodexCliClient implements IModelProvider {
 
     const lower = `${itemType} ${toolName}`.toLowerCase();
     const isToolLike = lower.includes('tool')
+      || lower.includes('web_search')
+      || lower.includes('websearch')
       || ['read', 'write', 'edit', 'ls'].some((name) => lower.includes(name));
     if (!isToolLike) return null;
 
@@ -861,6 +864,17 @@ export class CodexCliClient implements IModelProvider {
       ?? this.getString(record, 'filePath')
       ?? this.getString(record, 'path');
     if (directPath) return this.normalizeWorkspacePath(directPath, workspaceCwd);
+
+    if (toolName === 'WebSearch') {
+      const action = record.action;
+      if (this.isRecord(action)) {
+        const actionQuery = this.getString(action, 'query');
+        if (actionQuery) return actionQuery;
+      }
+      const query = this.getString(record, 'query');
+      if (query) return query;
+      return undefined;
+    }
 
     const cmd = this.getString(record, 'cmd');
     if (!cmd || !toolName || !['Read', 'Write', 'Edit'].includes(toolName)) return undefined;
@@ -902,6 +916,7 @@ export class CodexCliClient implements IModelProvider {
     if (lower === 'write' || lower.includes('write')) return 'Write';
     if (lower === 'edit' || lower.includes('edit')) return 'Edit';
     if (lower === 'ls' || lower.includes('list')) return 'LS';
+    if (lower.includes('web_search') || lower.includes('websearch')) return 'WebSearch';
     return toolName;
   }
 
