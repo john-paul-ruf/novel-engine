@@ -21,7 +21,7 @@ hardened prompts, reliable file-write tracking, and no silent failures or data l
 | 01 | Lenient tracker parsing + content marker | M08, M01 | done | 2026-07-12 | Regex exactly as specced; no deviations |
 | 02 | Harden research & field-fill prompts | M08 | done | 2026-07-12 | Both prompts hardened; generate prompt needed no change |
 | 03 | Reliable filesTouched tracking (Claude CLI) | M06 | done | 2026-07-12 | Map-based tool resolution; manual live-run check deferred to Final Report |
-| 04 | Surface silent failures + clobber guard | M08, M01 | pending | | |
+| 04 | Surface silent failures + clobber guard | M08, M01 | done | 2026-07-12 | Renderer surfacing completed (3 lines, not deferred) |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -106,3 +106,12 @@ _(Agents append here after each session: what was done, deviations, gotchas for 
   methods additive, grep shows no other callers. Manual §V2 live-run check
   (no `[ChatService] Post-stream extraction:` when a file was written) deferred
   to the Final Report — needs an interactive `npm start` + Claude CLI run.
+- 2026-07-12 (Mu, S04): `QueryResearchResult.warning?` added (additive, optional).
+  `researchTargets` captures raw tracker content before/after the run and emits a
+  status event + returns `warning` when the file changed but 0 new targets parsed
+  (warn, don't throw). `saveTracker` archives non-empty-but-unparseable on-disk
+  content to `source/query-tracker-unparsed-<epoch-ms>.md` before overwriting;
+  guard is try/catch-wrapped so it can never block a save. Renderer surfacing was
+  NOT deferred: `QueryManagerView.tsx` research banner renders the warning in
+  amber (3 lines). Manual §V2 junk-prose archive check deferred to the Final
+  Report — needs an interactive `npm start` run.

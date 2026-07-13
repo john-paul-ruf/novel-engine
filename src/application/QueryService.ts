@@ -53,6 +53,24 @@ export class QueryService implements IQueryService {
   }
 
   async saveTracker(bookSlug: string, tracker: QueryTracker): Promise<void> {
+    try {
+      if (await this.fs.fileExists(bookSlug, TRACKER_PATH)) {
+        const existing = await this.fs.readFile(bookSlug, TRACKER_PATH);
+        const existingParsed = this.parseTrackerContent(bookSlug, existing);
+        // Non-empty file that parses to 0 targets = unparseable content we would
+        // otherwise destroy (serializeTracker only writes what's in memory).
+        if (existing.trim().length > 0 && existingParsed.targets.length === 0) {
+          const archivePath = `source/query-tracker-unparsed-${Date.now()}.md`;
+          await this.fs.writeFile(bookSlug, archivePath, existing);
+          console.warn(
+            `[QueryService] query-tracker.md had unparseable content — archived to ${archivePath} before overwrite`,
+          );
+        }
+      }
+    } catch (err) {
+      // Best-effort protection, not a gate — the save itself must never block.
+      console.error('[QueryService] Clobber-guard check failed:', err);
+    }
     const content = this.serializeTracker(tracker);
     await this.fs.writeFile(bookSlug, TRACKER_PATH, content);
   }
@@ -210,6 +228,9 @@ export class QueryService implements IQueryService {
   ): Promise<QueryResearchResult> {
     const before = await this.loadTracker(bookSlug);
     const beforeIds = new Set(before.targets.map((t) => t.id));
+    const rawBefore = (await this.fs.fileExists(bookSlug, TRACKER_PATH))
+      ? await this.fs.readFile(bookSlug, TRACKER_PATH)
+      : '';
 
     const conversation = await this.chat.createConversation({
       bookSlug,
@@ -244,10 +265,28 @@ export class QueryService implements IQueryService {
       throw new Error(`Target research failed: ${streamError}`);
     }
 
+    // Changed-but-unparsed detection: the file was modified on disk yet no new
+    // targets parsed out of it — format drift. Warn, don't throw: the research
+    // output exists on disk and is user-recoverable.
+    const rawAfter = (await this.fs.fileExists(bookSlug, TRACKER_PATH))
+      ? await this.fs.readFile(bookSlug, TRACKER_PATH)
+      : '';
+
+    let warning: string | undefined;
+    if (newTargets.length === 0 && rawAfter.trim() !== rawBefore.trim()) {
+      warning =
+        'source/query-tracker.md was modified during research, but no new targets could ' +
+        'be parsed from it. The agent may have used a non-standard heading format — open ' +
+        'the file and check that entries look like "## [Name] — drafting".';
+      onEvent({ type: 'status', message: warning });
+      console.warn(`[QueryService] ${warning}`);
+    }
+
     return {
       addedTargets: newTargets.length,
       targetNames: newTargets.map((t) => t.name),
       conversationId: conversation.id,
+      warning,
     };
   }
 

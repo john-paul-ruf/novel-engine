@@ -122,6 +122,9 @@ export function QueryManagerView(): React.ReactElement {
             {lastResearchResult.targetNames.length > 0 && (
               <>: {lastResearchResult.targetNames.join(', ')}</>
             )}
+            {lastResearchResult.warning && (
+              <p className="mt-2 text-amber-400">{lastResearchResult.warning}</p>
+            )}
           </div>
         )}
 

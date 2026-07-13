@@ -504,6 +504,9 @@ export type QueryResearchResult = {
   addedTargets: number;
   targetNames: string[];
   conversationId: string;
+  /** Set when the run finished abnormally — e.g. the tracker file changed on disk
+   *  but no new targets could be parsed from it (format drift). */
+  warning?: string;
 };
 
 export type QueryFieldFillResult = {
