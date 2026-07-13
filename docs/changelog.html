@@ -8,7 +8,7 @@
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/changelog.html">
     <meta property="og:type" content="website">
-    <meta name="description" content="Full development changelog for Novel Engine. 63 entries documenting every feature, fix, and architectural decision.">
+    <meta name="description" content="Full development changelog for Novel Engine. 99 entries documenting every feature, fix, and architectural decision.">
     <title>Novel Engine — Changelog</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     <style>
@@ -91,7 +91,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.8.0</span>
+            <span class="nav-version">v0.9.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -126,14 +126,26 @@
     <p class="page-sub">Full development history. Every feature, fix, and architectural decision documented.</p>
 
     <div class="stats">
-        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">78</div></div>
-        <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27 — 2026-07-02</div></div>
-        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">187</div></div>
-        <div class="stat"><div class="stat-label">Bug Fixes</div><div class="stat-value">25+</div></div>
+        <div class="stat"><div class="stat-label">Total Entries</div><div class="stat-value">99</div></div>
+        <div class="stat"><div class="stat-label">Date Range</div><div class="stat-value">2026-03-27 — 2026-07-13</div></div>
+        <div class="stat"><div class="stat-label">Source Files</div><div class="stat-value">197</div></div>
+        <div class="stat"><div class="stat-label">Bug Fixes</div><div class="stat-value">35+</div></div>
     </div>
 
     <h2>Highlight Reel<span>.</span></h2>
     <div class="highlights">
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>Query Manager (11 entries) — complete submission management system: Quill researches agents and publishers via web search, auto-populates targets, generates personalized query letters, and tracks submissions. 15th pipeline phase, 6 UI components, dedicated IPC namespace.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Major Feature</div>
+            <p>WebSearch for all providers (3 entries) — cross-provider web search parity: DuckDuckGo-based WebSearcher for Ollama/llama-server, <code style="font-family:'Space Mono',monospace;font-size:11px">--enable standalone_web_search</code> for Codex CLI. All providers can now research the web for query targets.</p>
+        </div>
+        <div class="highlight">
+            <div class="hl-tag">Bug Fix</div>
+            <p>Codex CLI hardening (11 entries) — silent exits surface real errors, 0.27.0 event envelope unwrapped, tool/file event tracking, file-only success detection, unknown-event diagnostics, model resolution guardrails, bounded stream-failure retry. Codex CLI is now reliable for pipeline use.</p>
+        </div>
         <div class="highlight">
             <div class="hl-tag">Major Feature</div>
             <p>Codex CLI provider (8 entries) — OpenAI's Codex CLI as a full AI backend: detection surface, provider client, startup registration, workspace-launch hardening, and add-dir compatibility.</p>
@@ -197,6 +209,177 @@
     </div>
 
     <h2>All Entries<span>.</span></h2>
+
+<details class="entry" open>
+<summary><span class="entry-date">2026-07-13</span><span class="entry-title">Codex CLI standalone_web_search flag</span></summary>
+<div class="entry-body">
+<p>The Codex CLI's native <code>web_search</code> tool must be explicitly enabled via <code>--enable standalone_web_search</code> on each <code>codex exec</code> spawn. The prior session's Codex <code>web_search</code> work wired up event parsing and tool-name recognition but missed adding the CLI flag, so the tool was never actually offered to the model.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Added <code>'--enable', 'standalone_web_search'</code> to the <code>args</code> array in <code>runCodexAttempt()</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">WebSearch for all CLIs + Query Manager activity in CLI panel</span></summary>
+<div class="entry-body">
+<p>All model providers (Ollama, llama-server, Codex) now support WebSearch for query-manager research. Previously only Claude CLI had web search capabilities. All Query Manager streaming activity now broadcasts to the CLI Activity panel.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/infrastructure/ollama-cli/WebSearcher.ts</code> — DuckDuckGo HTML-based web search executor</li><li><code>src/infrastructure/ollama-cli/tools.ts</code> — Added <code>WebSearch</code> tool definition</li><li><code>src/domain/types.ts</code> — Added <code>'query'</code> to <code>StreamEventSource</code> union</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — <code>extractToolInfo</code> recognizes <code>web_search</code> item types</li><li><code>src/infrastructure/claude-cli/StreamSessionTracker.ts</code> — <code>inferStage</code> treats <code>WebSearch</code> as a reading-stage tool</li><li><code>src/main/ipc/handlers.ts</code> — Query handlers broadcast to both <code>query:onStream</code> and <code>chat:streamEvent</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">Query Manager auto-populate and per-field AI fill</span></summary>
+<div class="entry-body">
+<p>Quill can now research and auto-populate submission targets in bulk using web search, and any individual field on a target can be AI-filled on demand. This eliminates manual data entry for the Query Manager.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/components/QueryManager/ResearchPanel.tsx</code> — Streaming research progress panel</li><li><code>src/application/QueryService.ts</code> — Added <code>researchTargets()</code> and <code>fillTargetField()</code> methods</li><li><code>src/main/ipc/handlers.ts</code> — Added <code>query:researchTargets</code> and <code>query:fillTargetField</code> handlers</li><li><code>agents/QUILL.md</code> — Added Phase 7 (target research &amp; field fill)</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/claude-cli/ClaudeCodeClient.ts</code> — Added <code>WebSearch</code> to <code>--allowedTools</code></li><li><code>src/renderer/components/QueryManager/TargetCard.tsx</code> — Added per-field AI fill buttons</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">PipelineSpine integration + pipeline detection for query-agents</span></summary>
+<div class="entry-body">
+<p>Integrated the <code>query-agents</code> phase into the PipelineSpine UI: added it to the SHIP stage, wired the phase click to navigate to the QueryManagerView, and added <code>isPhaseComplete</code> detection via <code>source/query-tracker.md</code>.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/application/PipelineService.ts</code> — Added <code>case 'query-agents'</code> to <code>isPhaseComplete</code></li><li><code>src/renderer/components/PipelineSpine/stages.ts</code> — Added <code>'query-agents'</code> to SHIP stage</li><li><code>src/renderer/components/PipelineSpine/PipelineSpine.tsx</code> — Phase click navigates to <code>query-manager</code> view</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">QueryManagerView, components, IconRail entry, view routing</span></summary>
+<div class="entry-body">
+<p>Built the full Query Manager UI: 5 React components, added <code>'query-manager'</code> to ViewId union, added <code>'mail'</code> icon, added IconRail entry, wired QueryManagerView into AppLayout.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/components/QueryManager/QueryManagerView.tsx</code></li><li><code>src/renderer/components/QueryManager/TargetCard.tsx</code></li><li><code>src/renderer/components/QueryManager/AddTargetForm.tsx</code></li><li><code>src/renderer/components/QueryManager/LetterPreview.tsx</code></li><li><code>src/renderer/components/QueryManager/FilterBar.tsx</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">Query Manager renderer store (queryStore)</span></summary>
+<div class="entry-body">
+<p>Created the <code>queryStore</code> Zustand store. Manages tracker/letter state for the active book, calls the preload bridge, and exposes actions for target CRUD, letter generation streaming, and letter file I/O.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/renderer/stores/queryStore.ts</code> — Zustand store with tracker/letters/loading/generating state</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">Composition root wiring + Quill Phase 6 prompt</span></summary>
+<div class="entry-body">
+<p>Cleaned up the composition root to use a named <code>queryService</code> variable. Added Phase 6 (Personalized Query Letters) to <code>agents/QUILL.md</code>.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/main/index.ts</code> — Named <code>queryService</code> variable, passed to handlers</li><li><code>agents/QUILL.md</code> — Added Phase 6: Personalized Query Letters</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">IPC handlers and preload bridge for query namespace</span></summary>
+<div class="entry-body">
+<p>Wired <code>QueryService</code> into the IPC layer: 9 new channels under <code>query:*</code> namespace, <code>query</code> namespace on the preload bridge with 9 methods.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/main/ipc/handlers.ts</code> — 9 IPC handlers (loadTracker, saveTracker, addTarget, updateTargetStatus, removeTarget, generateLetter, listLetters, readLetter, saveLetter)</li><li><code>src/preload/index.ts</code> — Query namespace with 9 methods</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">QueryService implementation: tracker I/O, CRUD, letter generation</span></summary>
+<div class="entry-body">
+<p>Implemented <code>QueryService</code> in the application layer. Parses/serializes <code>source/query-tracker.md</code>, manages <code>source/query-letters/</code> directory, and generates personalized query letters via Quill.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/application/QueryService.ts</code> — Full <code>IQueryService</code> implementation</li><li><code>src/application/index.ts</code> — Added <code>QueryService</code> barrel export</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-12</span><span class="entry-title">Query Manager domain types and pipeline phase registration</span></summary>
+<div class="entry-body">
+<p>Added the domain layer foundation for the query management system: new <code>PipelinePhaseId</code> value <code>'query-agents'</code> (15th phase), six new query types, the <code>IQueryService</code> interface, and two new Quill quick actions.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/types.ts</code> — <code>QueryTargetType</code>, <code>QueryStatus</code>, <code>QuerySubmissionMethod</code>, <code>QueryTarget</code>, <code>QueryTracker</code>, <code>QueryLetter</code> types</li><li><code>src/domain/interfaces.ts</code> — <code>IQueryService</code> interface with 9 methods</li><li><code>src/domain/constants.ts</code> — <code>'query-agents'</code> in <code>PIPELINE_PHASES</code> and <code>PHASE_OUTPUT_FILES</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-09</span><span class="entry-title">Codex bounded stream-failure retry</span></summary>
+<div class="entry-body">
+<p>Fully-empty transient Codex stream failures now automatically retry up to 2 times with linear 2s/4s backoff. Exactly one terminal <code>error</code> StreamEvent emitted when the run gives up.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>src/domain/constants.ts</code> — <code>CODEX_STREAM_RETRY_MAX</code> (2) and <code>CODEX_STREAM_RETRY_DELAY_MS</code> (2000)</li></ul></div>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Extracted <code>runCodexAttempt()</code>, retry loop in <code>sendMessage()</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-09</span><span class="entry-title">Codex real error surfacing</span></summary>
+<div class="entry-body">
+<p>Transient <code>stream_error</code> events are now distinguished from terminal <code>error</code> events. Terminal errors report <code>Codex CLI reported an error: &lt;real reason&gt;</code> instead of a generic no-output diagnostic dump.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Added <code>extractStreamError()</code>, rewrote <code>extractError()</code>, improved failure summaries</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-09</span><span class="entry-title">Codex 0.27.0 envelope unwrapping</span></summary>
+<div class="entry-body">
+<p>Codex 0.27.0's <code>{"id":"0","msg":{...}}</code> event envelope is now parsed correctly. Assistant text, status, and usage extracted from nested envelope candidates instead of top-level keys only.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Added <code>unwrapCodexEvent()</code>, rewrote <code>extractText()</code>, <code>extractStatus()</code>, <code>extractUsage()</code></li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Codex file-only success detection</span></summary>
+<div class="entry-body">
+<p>Clean Codex exits that update files but emit no assistant text are now classified as successful file-only completions via workspace snapshot diff, instead of surfacing a false error.</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Prevents successful Codex file writes from being reported as errors</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Codex unknown-event diagnostics</span></summary>
+<div class="entry-body">
+<p>Unknown Codex JSON event shapes now include compact key-shape summaries and bounded <code>unknownJsonTail</code> in exit diagnostics, making parser misses actionable.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Added nested event summary detection, compact unknown shape summaries</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Provider model resolution guardrails</span></summary>
+<div class="entry-body">
+<p>Stale model settings now resolve to an available provider model before chat streaming. Startup repairs stale <code>settings.json</code> model/provider pairs, ChatService records the effective model, and Settings shows a warning when the saved primary model is unavailable.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/domain/types.ts</code> — Added <code>ResolvedModelSelection</code></li><li><code>src/domain/interfaces.ts</code> — Added <code>IProviderRegistry.resolveModelSelection()</code></li><li><code>src/infrastructure/providers/ProviderRegistry.ts</code> — Added deterministic model fallback</li><li><code>src/renderer/components/Settings/SettingsView.tsx</code> — Shows stale primary-model warning</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Codex tool and file event tracking</span></summary>
+<div class="entry-body">
+<p>Completed Codex tool/file JSON items are now converted to Novel Engine stream activity. <code>file_change</code> events update <code>filesTouched</code> and emit terminal <code>filesChanged</code>, preventing false no-file pipeline runs.</p>
+<div class="entry-section"><span class="entry-tag tag-changed">Changed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Added tool/file extraction, file-change path normalization, progress inference</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Codex final-output fallback and diagnostics</span></summary>
+<div class="entry-body">
+<p><code>--output-last-message</code> flag passed to <code>codex exec</code>; temporary final-message file read when JSON stdout closes without assistant text. Recovers text that would otherwise be lost.</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Recovers assistant text from Codex's final-message file</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Surface silent Codex CLI exits as errors</span></summary>
+<div class="entry-body">
+<p>Codex runs that close without assistant text or usage are now treated as failures. Bounded stdout/stderr diagnostics captured, native Codex error JSON forwarded as stream errors.</p>
+<div class="entry-section"><span class="entry-tag tag-fixed">Fixed</span><ul><li><code>src/infrastructure/codex-cli/CodexCliClient.ts</code> — Prevents silent empty Codex exits from being saved as successful empty responses</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Codex silent-exit fix session program</span></summary>
+<div class="entry-body">
+<p>Created a Forge session program for the Codex CLI bug where the process exits in under ten seconds and the UI shows no useful error.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/session-program/program-015/</code> — Session program for Codex silent-exit fix</li></ul></div>
+</div>
+</details>
+
+<details class="entry">
+<summary><span class="entry-date">2026-07-08</span><span class="entry-title">Created Codex file-only completion program</span></summary>
+<div class="entry-body">
+<p>Created a Forge session program for the Codex CLI auto-draft failure where <code>codex exec --json</code> exits with code 0, writes no final agent message, and Novel Engine reports an error even though the manuscript pane shows file output.</p>
+<div class="entry-section"><span class="entry-tag tag-added">Added</span><ul><li><code>prompts/session-program/program-017/</code> — Session program for Codex file-only completion fix</li></ul></div>
+</div>
+</details>
 
 <details class="entry">
 <summary><span class="entry-date">2026-07-02</span><span class="entry-title">Increase context ceiling + add compaction for Ollama/llama-server</span></summary>
@@ -804,7 +987,7 @@
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.8.0 · AGPL-3.0</p>
+            <p>v0.9.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">
@@ -822,7 +1005,7 @@
     </div>
     <div class="footer-bottom">
         <p>No tracking. No cookies. No analytics.</p>
-        <p>Seven agents. Fourteen phases. One manuscript.</p>
+        <p>Seven agents. Fifteen phases. One manuscript.</p>
     </div>
 </footer>
 
