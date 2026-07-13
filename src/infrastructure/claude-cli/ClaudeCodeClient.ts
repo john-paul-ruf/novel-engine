@@ -400,7 +400,11 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
             `stderr=${stderr ? `"${stderr.slice(0, 500)}"` : '(empty)'}, ` +
             `stdoutDiagnostics=${stdoutExtra ? `"${stdoutExtra.slice(0, 500)}"` : '(none)'}`,
           );
-          wrappedOnEvent({ type: 'error', message });
+          // The error-result branch of processStreamEvent already emitted a
+          // richer `error` event for this failure — don't emit a second one.
+          if (!tracker.getHasErrorResult()) {
+            wrappedOnEvent({ type: 'error', message });
+          }
           settle(() => reject(new Error(message)));
         }
       });
@@ -459,6 +463,28 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
 
     // === result — final summary with token usage ===
     if (eventType === 'result') {
+      // The CLI emits a `result` event even on failure (subtype
+      // "error_max_turns" / "error_during_execution", is_error: true) and then
+      // exits non-zero. Treating those as success previously emitted a `done`
+      // event, which triggered ChatService's post-stream extraction and
+      // auto-saved partial narration into pipeline output files.
+      const subtype = event.subtype as string | undefined;
+      const isErrorResult =
+        event.is_error === true || (subtype !== undefined && subtype !== 'success');
+      if (isErrorResult) {
+        tracker.markErrorResult();
+        const errorResultText = typeof event.result === 'string' ? event.result.trim() : '';
+        const message = errorResultText
+          ? `Claude CLI run failed (${subtype ?? 'error'}): ${errorResultText}`
+          : `Claude CLI run failed (${subtype ?? 'error'})`;
+        console.error(
+          `[ClaudeCodeClient] Error result event: subtype=${subtype ?? '(none)'}, ` +
+          `is_error=${event.is_error === true}`,
+        );
+        onEvent({ type: 'error', message });
+        return;
+      }
+
       // Fallback: if no textDelta events were received, emit the full result text
       const resultText = event.result as string | undefined;
       if (resultText && !tracker.getHasEmittedText()) {

@@ -27,6 +27,7 @@ export class StreamSessionTracker {
   private thinkingBuffer = '';
   private currentBlockType: StreamBlockType | null = null;
   private hasEmittedText = false;
+  private hasErrorResult = false;
   private currentToolName = '';
   private currentToolId = '';
   private toolInputBuffer = '';
@@ -52,6 +53,14 @@ export class StreamSessionTracker {
 
   markTextEmitted(): void {
     this.hasEmittedText = true;
+  }
+
+  getHasErrorResult(): boolean {
+    return this.hasErrorResult;
+  }
+
+  markErrorResult(): void {
+    this.hasErrorResult = true;
   }
 
   getCurrentToolName(): string {
