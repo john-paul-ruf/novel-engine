@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta property="og:title" content="Novel Engine — Press Kit">
-    <meta property="og:description" content="Not a chatbot. An editorial production pipeline. 7 AI agents, 14 phases, 5+ published novels. Open source.">
+    <meta property="og:description" content="Not a chatbot. An editorial production pipeline. 7 AI agents, 15 phases, 10 published novels. Open source.">
     <meta property="og:image" content="https://john-paul-ruf.github.io/novel-engine/og-image.png">
     <meta property="og:url" content="https://john-paul-ruf.github.io/novel-engine/press.html">
     <meta property="og:type" content="website">
@@ -103,7 +103,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.8.0</span>
+            <span class="nav-version">v0.9.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -148,12 +148,12 @@
         <div class="card">
             <div class="card-tag">Architecture</div>
             <h3>Build system, not chatbot</h3>
-            <p>14-phase pipeline with explicit completion gates. Each phase has defined inputs, outputs, and a designated agent. The author confirms advancement &mdash; no automatic progression. This is structured production, not freeform prompting.</p>
+            <p>15-phase pipeline with explicit completion gates. Each phase has defined inputs, outputs, and a designated agent. The author confirms advancement &mdash; no automatic progression. This is structured production, not freeform prompting.</p>
         </div>
         <div class="card">
             <div class="card-tag">Design</div>
             <h3>7 specialized agents</h3>
-            <p>Not one general AI doing everything. Spark ideates. Verity drafts. Ghostlight cold-reads. Lumen runs structural analysis. Sable copy-edits. Forge plans revisions. Quill prepares publication metadata. Each agent has distinct instructions, thinking budgets, and context rules.</p>
+            <p>Not one general AI doing everything. Spark ideates. Verity drafts. Ghostlight cold-reads. Lumen runs structural analysis. Sable copy-edits. Forge plans revisions. Quill manages publication, metadata, and query letters. Each agent has distinct instructions, thinking budgets, and context rules.</p>
         </div>
         <div class="card">
             <div class="card-tag">Innovation</div>
@@ -168,7 +168,7 @@
         <div class="card">
             <div class="card-tag">Transparency</div>
             <h3>Open source</h3>
-            <p>AGPL-3.0 licensed. 187 TypeScript source files. ~46,000 lines of code. Full architecture documentation. Every design decision is inspectable, from the 5-layer clean architecture to the streaming CLI integration.</p>
+            <p>AGPL-3.0 licensed. 197 TypeScript source files. ~50,000 lines of code. Full architecture documentation. Every design decision is inspectable, from the 5-layer clean architecture to the streaming CLI integration.</p>
         </div>
         <div class="card">
             <div class="card-tag">Proof</div>
@@ -178,7 +178,17 @@
         <div class="card">
             <div class="card-tag">Flexibility</div>
             <h3>Multi-model support</h3>
-            <p>Pluggable provider architecture supports Claude Code CLI, OpenAI’s Codex CLI, Ollama (fully local, with a built-in agentic tool loop), and llama-server — plus any OpenAI-compatible API endpoint. Capability-aware model routing and dual primary/secondary model pickers.</p>
+            <p>Pluggable provider architecture supports Claude Code CLI, OpenAI's Codex CLI, Ollama (fully local, with a built-in agentic tool loop), and llama-server — plus any OpenAI-compatible API endpoint. Capability-aware model routing and dual primary/secondary model pickers.</p>
+        </div>
+        <div class="card">
+            <div class="card-tag">New</div>
+            <h3>Query Manager</h3>
+            <p>Quill researches literary agents and publishers via web search, auto-populates submission targets, generates personalized query letters, and tracks submissions through the full pipeline. The 15th pipeline phase, a dedicated IPC namespace, and a 5-component UI.</p>
+        </div>
+        <div class="card">
+            <div class="card-tag">New</div>
+            <h3>Web search for all providers</h3>
+            <p>Cross-provider web search parity: DuckDuckGo-based WebSearcher for Ollama and llama-server, native web_search tool for Codex CLI, and WebSearch tool for Claude. All agents can research the web for query targets regardless of backend.</p>
         </div>
         <div class="card">
             <div class="card-tag">Ownership</div>
@@ -242,19 +252,19 @@
             <div class="num-label">AI Agents</div>
         </div>
         <div class="number-card">
-            <div class="num">14</div>
+            <div class="num">15</div>
             <div class="num-label">Pipeline Phases</div>
         </div>
         <div class="number-card">
-            <div class="num">131</div>
+            <div class="num">142</div>
             <div class="num-label">IPC Channels</div>
         </div>
         <div class="number-card">
-            <div class="num">187</div>
+            <div class="num">197</div>
             <div class="num-label">Source Files</div>
         </div>
         <div class="number-card">
-            <div class="num">~46K</div>
+            <div class="num">~50K</div>
             <div class="num-label">Lines of Code</div>
         </div>
         <div class="number-card">
@@ -275,7 +285,7 @@
     <div class="quotes">
         <div class="quote"><p>&ldquo;You bring the story. The agents build it into a book.&rdquo;</p></div>
         <div class="quote"><p>&ldquo;The pipeline is a build process: source material goes in, a production-ready manuscript comes out.&rdquo;</p></div>
-        <div class="quote"><p>&ldquo;Seven agents. Fourteen phases. One manuscript.&rdquo;</p></div>
+        <div class="quote"><p>&ldquo;Seven agents. Fifteen phases. One manuscript.&rdquo;</p></div>
         <div class="quote"><p>&ldquo;Build is both metaphor and literal &mdash; the final phase compiles chapters via Pandoc.&rdquo;</p></div>
         <div class="quote"><p>&ldquo;Not a chatbot. Not an AI ghostwriter. An editorial production pipeline where the human author retains creative authority.&rdquo;</p></div>
     </div>
@@ -328,7 +338,7 @@
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.8.0 &middot; AGPL-3.0</p>
+            <p>v0.9.0 &middot; AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">
@@ -346,7 +356,7 @@
     </div>
     <div class="footer-bottom">
         <p>No tracking. No cookies. No analytics.</p>
-        <p>Seven agents. Fourteen phases. One manuscript.</p>
+        <p>Seven agents. Fifteen phases. One manuscript.</p>
     </div>
 </footer>
 
