@@ -120,6 +120,18 @@ export const PHASE_OUTPUT_FILES: Partial<Record<PipelinePhaseId, string[]>> = {
 };
 
 /**
+ * Optional per-phase content validation for post-stream extraction.
+ * If a phase has a marker regex, the response buffer must match it before
+ * the auto-save fallback is allowed to write the phase's output file.
+ * Prevents conversational narration from being saved into structured
+ * documents (e.g. the query tracker, which is parsed section-by-section).
+ */
+export const PHASE_OUTPUT_CONTENT_MARKERS: Partial<Record<PipelinePhaseId, RegExp>> = {
+  // Tracker sections look like: ## [Agent Name] — drafting
+  'query-agents': /^## \[.+?\]\s*—\s*.+$/m,
+};
+
+/**
  * @deprecated Use `BUILT_IN_PROVIDER_CONFIGS[0].models` or
  * `IProviderRegistry.listAllModels()` instead. Retained for backward
  * compatibility until the renderer SettingsView is updated.

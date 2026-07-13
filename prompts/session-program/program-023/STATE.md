@@ -21,7 +21,7 @@ recovery), and the failure is never surfaced in the UI.
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Treat error `result` events as errors in ClaudeCodeClient | M06 | done | 2026-07-12 | Tracker flag (`hasErrorResult`) + guard at top of `result` branch; close handler skips duplicate error event |
-| 02 | Guard post-stream extraction against non-document content | M08, M01 | pending | — | |
+| 02 | Guard post-stream extraction against non-document content | M08, M01 | done | 2026-07-12 | `PHASE_OUTPUT_CONTENT_MARKERS` (query-agents only); marker threaded to both extraction call sites |
 | 03 | Per-call maxTurns override; research gets 40 turns | M01, M08 | done | 2026-07-12 | `maxTurnsOverride?` on `IChatService.sendMessage`; research=40, fillTargetField=16, generateQueryLetter=16 |
 | 04 | Surface research failures/results in Query Manager UI | M08, M09, renderer | pending | — | |
 
@@ -107,3 +107,17 @@ rm "~/Library/Application Support/Novel Engine/books/open-channel/source/query-t
   `generateQueryLetter`=16. `AGENT_REGISTRY.Quill.maxTurns` untouched (still 8).
 - `ChatService` is the sole `IChatService` implementer (grep-verified); optional
   param is non-breaking. `npx tsc --noEmit` clean.
+
+### SESSION-02 (done, 2026-07-12)
+- Added `PHASE_OUTPUT_CONTENT_MARKERS` in `src/domain/constants.ts` directly
+  below `PHASE_OUTPUT_FILES`, with one entry: `query-agents`
+  (`/^## \[.+?\]\s*—\s*.+$/m`).
+- `extractResponseToFiles` gained optional `contentMarker?: RegExp`; buffer
+  must match before any write. Both call sites (onDone extraction and onError
+  fallback) pass `phaseContentMarker`. "Already populated" guard untouched.
+- Marker candidates for future sessions (NOT added): `revision-plan-1/2`
+  (`project-tasks.md`/`revision-prompts.md` are consumed as task lists) and
+  `publish` (`metadata.md` has expected key/value structure). All other phase
+  outputs are free-form prose reports — auto-saving narration there is
+  acceptable.
+- `npx tsc --noEmit` clean.

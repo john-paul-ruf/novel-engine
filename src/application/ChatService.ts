@@ -24,7 +24,7 @@ import type {
   StreamSessionRecord,
 } from '@domain/types';
 import { nanoid } from 'nanoid';
-import { VERITY_PHASE_FILES, VERITY_LEDGER_FILE, AGENT_REGISTRY, PHASE_OUTPUT_FILES, CLAUDE_CLI_PROVIDER_ID, MAX_CALL_CONTEXT_TOKENS } from '@domain/constants';
+import { VERITY_PHASE_FILES, VERITY_LEDGER_FILE, AGENT_REGISTRY, PHASE_OUTPUT_FILES, PHASE_OUTPUT_CONTENT_MARKERS, CLAUDE_CLI_PROVIDER_ID, MAX_CALL_CONTEXT_TOKENS } from '@domain/constants';
 import { randomPreparingStatus, randomWaitingStatus } from '@domain/statusMessages';
 import { ContextBuilder } from './ContextBuilder';
 import { MultiCallOrchestrator } from './MultiCallOrchestrator';
@@ -351,6 +351,7 @@ export class ChatService implements IChatService {
       const isPipelineConversation = conversation?.purpose === 'pipeline';
       const pipelinePhase = conversation?.pipelinePhase ?? null;
       const phaseOutputFiles = pipelinePhase ? PHASE_OUTPUT_FILES[pipelinePhase] : undefined;
+      const phaseContentMarker = pipelinePhase ? PHASE_OUTPUT_CONTENT_MARKERS[pipelinePhase] : undefined;
 
       // Warn upfront for non-Claude-CLI pipeline conversations: the model
       // has file tools available but may or may not use them. If it doesn't
@@ -410,7 +411,7 @@ export class ChatService implements IChatService {
               `[ChatService] Post-stream extraction: phase=${pipelinePhase}, ` +
               `files=${phaseOutputFiles.join(', ')}, bufferLen=${stream.getResponseBuffer().length}`,
             );
-            await this.extractResponseToFiles(bookSlug, stream.getResponseBuffer(), phaseOutputFiles, onEvent);
+            await this.extractResponseToFiles(bookSlug, stream.getResponseBuffer(), phaseOutputFiles, onEvent, phaseContentMarker);
           }
         },
 
@@ -425,7 +426,7 @@ export class ChatService implements IChatService {
               `[ChatService] Post-stream extraction (error fallback): phase=${pipelinePhase}, ` +
               `files=${phaseOutputFiles.join(', ')}, bufferLen=${errorResponseBuffer.length}`,
             );
-            await this.extractResponseToFiles(bookSlug, errorResponseBuffer, phaseOutputFiles, onEvent);
+            await this.extractResponseToFiles(bookSlug, errorResponseBuffer, phaseOutputFiles, onEvent, phaseContentMarker);
           }
         },
       });
@@ -660,9 +661,25 @@ export class ChatService implements IChatService {
     responseBuffer: string,
     outputFiles: string[],
     onEvent: (event: StreamEvent) => void,
+    contentMarker?: RegExp,
   ): Promise<void> {
     if (!responseBuffer.trim()) {
       console.warn('[ChatService] Post-stream extraction skipped — empty response buffer');
+      return;
+    }
+
+    // Structured phases (e.g. query-agents) require the buffer to actually
+    // look like the target document. Narration such as "I'll verify a few
+    // more agents, then compile" must never be saved into a parsed file.
+    if (contentMarker && !contentMarker.test(responseBuffer)) {
+      console.warn(
+        '[ChatService] Post-stream extraction skipped — response does not match ' +
+        `the expected format for ${outputFiles.join(', ')}`,
+      );
+      onEvent({
+        type: 'status',
+        message: 'Agent response did not contain the expected document format — nothing was auto-saved.',
+      });
       return;
     }
 
