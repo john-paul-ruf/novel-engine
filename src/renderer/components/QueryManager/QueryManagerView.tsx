@@ -27,6 +27,7 @@ export function QueryManagerView(): React.ReactElement {
   const initStreamListener = useQueryStore((s) => s.initStreamListener);
   const researchTargets = useQueryStore((s) => s.researchTargets);
   const isResearching = useQueryStore((s) => s.isResearching);
+  const lastResearchResult = useQueryStore((s) => s.lastResearchResult);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
@@ -111,6 +112,16 @@ export function QueryManagerView(): React.ReactElement {
         {error && (
           <div className="mb-4 rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-400">
             {error}
+          </div>
+        )}
+
+        {lastResearchResult && !isResearching && (
+          <div className="mb-4 rounded-lg border border-ne-brass/30 bg-ne-brass/10 p-3 text-sm text-ne-ink">
+            Research complete — added {lastResearchResult.addedTargets} target
+            {lastResearchResult.addedTargets !== 1 ? 's' : ''}
+            {lastResearchResult.targetNames.length > 0 && (
+              <>: {lastResearchResult.targetNames.join(', ')}</>
+            )}
           </div>
         )}
 

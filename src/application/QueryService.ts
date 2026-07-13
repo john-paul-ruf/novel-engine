@@ -194,6 +194,9 @@ export class QueryService implements IQueryService {
     bookSlug: string,
     onEvent: (event: StreamEvent) => void,
   ): Promise<QueryResearchResult> {
+    const before = await this.loadTracker(bookSlug);
+    const beforeIds = new Set(before.targets.map((t) => t.id));
+
     const conversation = await this.chat.createConversation({
       bookSlug,
       agentName: 'Quill',
@@ -201,23 +204,35 @@ export class QueryService implements IQueryService {
       purpose: 'pipeline',
     });
 
-    const prompt = this.buildResearchPrompt();
+    // ChatService swallows provider rejections and reports them only as
+    // stream events — capture them here so a dead run becomes a real error.
+    let streamError: string | null = null;
+    const wrappedOnEvent = (event: StreamEvent) => {
+      if (event.type === 'error') streamError = event.message;
+      onEvent(event);
+    };
 
     await this.chat.sendMessage({
       agentName: 'Quill',
-      message: prompt,
+      message: this.buildResearchPrompt(),
       conversationId: conversation.id,
       bookSlug,
       maxTurnsOverride: 40, // 3 context reads + 5–10 searches + verifications + tracker write
-      onEvent,
+      onEvent: wrappedOnEvent,
     });
 
     const updatedTracker = await this.loadTracker(bookSlug);
-    const targetNames = updatedTracker.targets.map((t) => t.name);
+    const newTargets = updatedTracker.targets.filter((t) => !beforeIds.has(t.id));
+
+    // A stream error with nothing added is a hard failure — surface it.
+    // Partial results (some targets landed before the error) are returned.
+    if (streamError && newTargets.length === 0) {
+      throw new Error(`Target research failed: ${streamError}`);
+    }
 
     return {
-      addedTargets: updatedTracker.targets.length,
-      targetNames,
+      addedTargets: newTargets.length,
+      targetNames: newTargets.map((t) => t.name),
       conversationId: conversation.id,
     };
   }

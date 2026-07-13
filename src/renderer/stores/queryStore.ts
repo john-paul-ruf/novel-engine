@@ -11,6 +11,7 @@ type QueryStoreState = {
   isGenerating: boolean;
   isResearching: boolean;
   researchBuffer: string;
+  lastResearchResult: QueryResearchResult | null;
   fillingFor: string | null;
   error: string | null;
 
@@ -36,6 +37,7 @@ export const useQueryStore = create<QueryStoreState>((set, get) => ({
   isGenerating: false,
   isResearching: false,
   researchBuffer: '',
+  lastResearchResult: null,
   fillingFor: null,
   error: null,
 
@@ -86,15 +88,18 @@ export const useQueryStore = create<QueryStoreState>((set, get) => ({
   researchTargets: async () => {
     const bookSlug = useBookStore.getState().activeSlug;
     if (!bookSlug) return null;
-    set({ isResearching: true, researchBuffer: '', error: null });
+    set({ isResearching: true, researchBuffer: '', lastResearchResult: null, error: null });
     try {
       const result = await window.novelEngine.query.researchTargets(bookSlug);
-      set({ isResearching: false, researchBuffer: '' });
+      set({ isResearching: false, researchBuffer: '', lastResearchResult: result });
       await get().load(bookSlug);
       return result;
     } catch (err) {
       console.error('[queryStore] Research failed:', err);
-      set({ isResearching: false, researchBuffer: '', error: 'Target research failed' });
+      // IPC rejections arrive as "Error invoking remote method '...': Error: <message>"
+      const raw = err instanceof Error ? err.message : 'Target research failed';
+      const message = raw.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, '');
+      set({ isResearching: false, researchBuffer: '', error: message });
       return null;
     }
   },
@@ -125,7 +130,7 @@ export const useQueryStore = create<QueryStoreState>((set, get) => ({
   },
 
   clear: () => {
-    set({ tracker: null, letters: [], loading: false, error: null, generatingFor: null, isGenerating: false, streamBuffer: '', isResearching: false, researchBuffer: '', fillingFor: null });
+    set({ tracker: null, letters: [], loading: false, error: null, generatingFor: null, isGenerating: false, streamBuffer: '', isResearching: false, researchBuffer: '', lastResearchResult: null, fillingFor: null });
   },
 
   initStreamListener: () => {

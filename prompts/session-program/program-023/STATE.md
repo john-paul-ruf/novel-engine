@@ -23,7 +23,7 @@ recovery), and the failure is never surfaced in the UI.
 | 01 | Treat error `result` events as errors in ClaudeCodeClient | M06 | done | 2026-07-12 | Tracker flag (`hasErrorResult`) + guard at top of `result` branch; close handler skips duplicate error event |
 | 02 | Guard post-stream extraction against non-document content | M08, M01 | done | 2026-07-12 | `PHASE_OUTPUT_CONTENT_MARKERS` (query-agents only); marker threaded to both extraction call sites |
 | 03 | Per-call maxTurns override; research gets 40 turns | M01, M08 | done | 2026-07-12 | `maxTurnsOverride?` on `IChatService.sendMessage`; research=40, fillTargetField=16, generateQueryLetter=16 |
-| 04 | Surface research failures/results in Query Manager UI | M08, M09, renderer | pending | — | |
+| 04 | Surface research failures/results in Query Manager UI | M08, M09, renderer | done | 2026-07-12 | Before/after ID delta; throw on error+zero-added; `lastResearchResult` banner in view; IPC handler unchanged (already propagates) |
 
 ## Dependency Graph
 
@@ -121,3 +121,20 @@ rm "~/Library/Application Support/Novel Engine/books/open-channel/source/query-t
   outputs are free-form prose reports — auto-saving narration there is
   acceptable.
 - `npx tsc --noEmit` clean.
+
+### SESSION-04 (done, 2026-07-12) — FEATURE COMPLETE
+- `QueryService.researchTargets`: snapshots tracker IDs before the run, wraps
+  `onEvent` to capture stream `error` events, throws
+  `Target research failed: <stream error>` only when an error occurred AND
+  zero targets were added; returns the real added delta (`newTargets`) and
+  only the new names. Partial success returns normally (per Design Decisions).
+- `queryStore`: new `lastResearchResult` state (reset on research start and in
+  `clear()`); catch now surfaces the real rejection message, stripping
+  Electron's `Error invoking remote method '...':` prefix.
+- `QueryManagerView`: brass summary banner below the error banner —
+  "Research complete — added N target(s): names". Cleared automatically when
+  research restarts (store reset); no explicit dismiss button (session's
+  snippet is the authority; it self-clears on the next run).
+- IPC `query:researchTargets` handler verified — no catch-wrapping, rejection
+  reaches the renderer as-is. No changes needed.
+- `npx tsc --noEmit` clean. All 4 sessions done.
