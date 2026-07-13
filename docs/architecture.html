@@ -85,7 +85,7 @@
     <div class="nav-inner">
         <a href="index.html" class="nav-brand">
             <span class="nav-brand-name">Novel Engine<span>.</span></span>
-            <span class="nav-version">v0.8.0</span>
+            <span class="nav-version">v0.9.0</span>
         </a>
         <div class="nav-links">
             <a href="index.html">Home</a>
@@ -117,7 +117,7 @@
     <div class="breadcrumb"><a href="index.html">Home</a> / Architecture</div>
 
     <h1>Architecture<span>.</span></h1>
-    <p class="page-sub">170 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration.</p>
+    <p class="page-sub">197 TypeScript/TSX source files across five clean architecture layers. Dependency injection. No DI container. Streaming CLI integration. Cross-provider web search.</p>
 
     <h2>Five-Layer Clean Architecture<span>.</span></h2>
     <p>Every file belongs to exactly one layer. Import rules are strictly enforced — inner layers never depend on outer layers.</p>
@@ -181,6 +181,7 @@ ChatService
 
 PipelineService → IFileSystemService
 BuildService → IFileSystemService, pandocPath, booksDir
+QueryService → IFileSystemService, IChatService
 
 RevisionQueueService
 ├── IFileSystemService
@@ -275,7 +276,7 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── claude-cli/                      # ClaudeCodeClient + StreamSessionTracker
 │   ├── codex-cli/                       # CodexCliClient — OpenAI Codex CLI backend
 │   ├── ollama-cli/                      # OllamaCodeClient + ToolExecutor + tools
-│   │                                    #   + contextCompactor (agentic tool loop)
+│   │                                    #   + contextCompactor + WebSearcher (DuckDuckGo)
 │   ├── llama-server/                    # LlamaServerClient — llama.cpp server backend
 │   ├── providers/                       # ProviderRegistry + OpenAiCompatibleProvider
 │   ├── series/                          # SeriesService — file-based series CRUD + bible
@@ -304,6 +305,7 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── DashboardService.ts             # Book overview dashboard aggregation
 │   ├── StatisticsService.ts            # Writing statistics + cost estimates
 │   ├── FindReplaceService.ts           # Bulk find &amp; replace across chapters
+│   ├── QueryService.ts                 # Quill query-agent research, target CRUD, letter generation
 │   ├── thinkingBudget.ts                # Thinking budget resolution
 │   └── context/TokenEstimator.ts        # ~4 chars/token estimation
 │
@@ -311,7 +313,7 @@ BooksDirWatcher(booksDir, callback)</pre>
 │   ├── index.ts                         # Composition root
 │   ├── bootstrap.ts                     # First-run directory/file creation
 │   ├── notifications.ts                 # OS notification manager
-│   └── ipc/handlers.ts                  # Thin IPC adapter (131 channels)
+│   └── ipc/handlers.ts                  # Thin IPC adapter (142 channels)
 │
 ├── preload/index.ts                     # contextBridge: typed API for renderer
 │
@@ -319,11 +321,12 @@ BooksDirWatcher(booksDir, callback)</pre>
     ├── App.tsx                          # Root component, onboarding gate
     ├── main.tsx                         # React 18 createRoot entry
     ├── stores/ (25 stores)              # Zustand state management
-    ├── components/ (24 groups)          # Library, Workbench, Manuscript, Chat,
+    ├── components/ (25 groups)          # Library, Workbench, Manuscript, Chat,
     │                                    # PipelineSpine, Palette, Rail, StatusBar,
     │                                    # Exports, Files, PitchRoom, RevisionQueue,
     │                                    # MotifLedger, Import, Helper, Series,
-    │                                    # Statistics, Settings, Onboarding, common…
+    │                                    # Statistics, Settings, Onboarding,
+    │                                    # QueryManager, common…
     ├── hooks/ (7 hooks)                 # Resize, theme, events, status, tooltip
     ├── tours/                           # Guided tour step definitions
     └── styles/globals.css               # Tailwind CSS v4 base</pre>
@@ -353,7 +356,7 @@ npm start</pre>
     <div class="footer-inner">
         <div class="footer-col">
             <h4>Novel Engine</h4>
-            <p>v0.8.0 · AGPL-3.0</p>
+            <p>v0.9.0 · AGPL-3.0</p>
             <p>Built with Claude Code CLI, Electron, React, and Pandoc.</p>
         </div>
         <div class="footer-col">
@@ -371,7 +374,7 @@ npm start</pre>
     </div>
     <div class="footer-bottom">
         <p>No tracking. No cookies. No analytics.</p>
-        <p>Seven agents. Fourteen phases. One manuscript.</p>
+        <p>Seven agents. Fifteen phases. One manuscript.</p>
     </div>
 </footer>
 
