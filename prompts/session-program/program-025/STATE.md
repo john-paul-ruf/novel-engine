@@ -1,0 +1,79 @@
+# State Tracker — Novel Engine / deployment-prep
+
+## Program
+Novel Engine — Electron 33 / React 18 / TypeScript 5, Clean Architecture (see FORGE-CONFIG.md)
+
+## Feature
+deployment-prep
+
+## Intent
+Execute the full pre-deployment pipeline in strict sequential order: generate release notes (Phase 1), perform a deep README update (Phase 2), then rebuild the project website (Phase 3) — all consistent with each other and the current codebase.
+(Source: `prompts/meta/deployment-prep.md`, copied to `input-files/`.)
+
+## Sessions
+5
+
+## Session Status
+
+| # | Session | Modules | Status | Completed | Notes |
+|---|---------|---------|--------|-----------|-------|
+| 01 | Release Notes (Phase 1) | — | done | 2026-07-13 | v0.9.0 suggested; 33 commits, 104 files changed; package.json discrepancy noted |
+| 02 | README Deep Update (Phase 2) | M01–M11 (read) | pending | — | Reads entire codebase; must document Query Manager, WebSearch, Codex |
+| 03 | Website: Landing + Architecture (Phase 3a) | — | pending | — | Updates docs/index.html + docs/architecture.html |
+| 04 | Website: Changelog + Evaluation (Phase 3b) | — | pending | — | Re-renders full CHANGELOG.md (2,312 lines); preserves evaluation.html |
+| 05 | Website: Press + Contact + Summary (Phase 3c) | — | pending | — | Updates press.html + contact.html; produces Phase Summary Report |
+
+(Status: pending | in-progress | done | blocked | skipped)
+
+## Dependency Graph
+
+```
+SESSION-01 ──► SESSION-02 ──► SESSION-03 ──► SESSION-04 ──► SESSION-05
+```
+
+Strict sequential chain. Each phase depends on the output of the previous one:
+- S01 produces `RELEASE_NOTES.md` (version + changes) → S02 uses it for README
+- S02 produces updated `README.md` → S03–S05 use it for website content
+- S03–S05 are sequential because they share a design system and must be cross-consistent
+
+## Architecture Reference (feature-specific)
+
+This program does NOT modify source code. It modifies:
+- `RELEASE_NOTES.md` — repo root (S01)
+- `docs/releases/vX.Y.Z-RELEASE_NOTES.md` — archive copy (S01)
+- `README.md` — repo root (S02)
+- `docs/index.html` — landing page (S03)
+- `docs/architecture.html` — technical page (S03)
+- `docs/changelog.html` — changelog page (S04)
+- `docs/evaluation.html` — evaluation page (S04, verify only)
+- `docs/press.html` — press kit (S05)
+- `docs/contact.html` — contact page (S05)
+
+Preserved (never modified):
+- `docs/architecture/*.md` — maintained by AGENTS.md documentation system
+- `docs/og-image.png` — existing asset
+
+## Scope Summary
+
+| Module | Files Touched | Sessions |
+|--------|---------------|----------|
+| — (docs) | `RELEASE_NOTES.md`, `docs/releases/*`, `README.md`, `docs/*.html` | S01–S05 |
+
+## Design Decisions
+
+1. **Phase 3 split into 3 sessions.** The update-website prompt builds 6 HTML pages — too much for one ≤30min session. Split: (3a) landing + architecture, (3b) changelog + evaluation, (3c) press + contact + summary. Rationale: keeps each session focused and within time limit.
+
+2. **Update in place, not rebuild.** All 6 HTML pages already exist with the shared design system, nav, and footer. Sessions 03–05 update content, not rebuild from scratch. Rationale: preserves working CSS/JS, avoids design drift, faster.
+
+3. **Follow current README voice.** The readme-deep-update prompt specifies a "Build Books, Not Write Them" narrative, but the current README uses "A Desktop Publishing Studio for Novels" language. SESSION-02 follows the existing voice and updates content rather than forcing a narrative shift. Rationale: the project owner chose this voice; respect it.
+
+4. **Version discrepancy flagged, not fixed.** `package.json` says `0.2.0` while last tag is `v0.8.0`. SESSION-01 notes this but does not modify `package.json` — that's a separate decision for the project owner. The suggested version follows semver logic from the release notes, not the stale package.json.
+
+5. **No source code changes.** This entire program is documentation and website content. `npx tsc --noEmit` is not a verification step for these sessions. Verification is content-accuracy checks against source code.
+
+## Handoff Notes
+
+_(Agents append here after each session: what was done, deviations, gotchas for the next session.)_
+
+- 2026-07-13 (Forge): Program created. 5 sessions, strict sequential chain. Sub-prompts copied to `input-files/`. Key context: 33 commits since v0.8.0, package.json version stale at 0.2.0, all 6 HTML pages already exist, CHANGELOG.md is 2,312 lines, README is 205 lines. Screenshots use `Screenshot 2026-07-08 at *.png` naming pattern. `TECHNICAL.md` exists and is referenced by README. No `# Heads up` section in README — Dedication is at the bottom, preserved verbatim.
+- 2026-07-13 (S01): Release notes generated. Suggested version: **v0.9.0** (minor bump — multiple new features: Query Manager, WebSearch, query auto-populate; 9 bug fixes for Codex CLI; no breaking changes). Files written: `RELEASE_NOTES.md` (root) + `docs/releases/v0.9.0-RELEASE_NOTES.md` (archive). All 33 commit hashes verified. Three feature groups, three improvement groups, nine bug fixes, two documentation items. No empty sections. package.json discrepancy (0.2.0 vs v0.8.0) noted in release notes header. **For S02 (README):** update version to v0.9.0, add Query Manager to features, add WebSearch cross-provider capability, add Codex CLI hardening summary, update pipeline phase count (14→15), update IPC channel count (add 11 query:* channels + 2 research/fill channels = 13 new), update store count (add queryStore), update component count (add 6 QueryManager components), update file count per git diff stat.
