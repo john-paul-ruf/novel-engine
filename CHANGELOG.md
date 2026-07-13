@@ -4,6 +4,37 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-13] — Deployment prep: release notes, README update, website rebuild
+
+### Summary
+
+Executed the full deployment prep pipeline for v0.9.0. Generated `RELEASE_NOTES.md` cataloging all 33 commits since v0.8.0 — 3 feature groups (Query Manager, WebSearch, query auto-populate), 3 improvement groups, 9 Codex CLI bug fixes, 2 documentation items. Updated `README.md` with pipeline 14→15 phases, Query Manager and WebSearch features, expanded Quill role. Rebuilt all 6 GitHub Pages HTML files — version v0.9.0, 2 new feature cards on landing page, updated stats (197 files, 142 IPC channels, 15 phases, 25 stores), 3 new changelog highlight cards, 21 new changelog entries, 2 new press kit differentiator cards, evaluation page phase count corrected.
+
+### Added
+
+- `RELEASE_NOTES.md` — Release notes for v0.9.0 with categorized changes, highlights, and full commit log
+- `docs/releases/v0.9.0-RELEASE_NOTES.md` — Archive copy of v0.9.0 release notes
+
+### Changed
+
+- `README.md` — Pipeline phase count 14→15; "Pitch to Published" bullet includes query letters; Quill agent description expanded; Ship stage row updated; 2 new "What Else Is In The Box" items (Query Manager, Web search)
+- `docs/index.html` — Version v0.9.0; meta description 15 phases; Quill agent card updated; pipeline heading 15 phases; Ship stage includes Query Agents chip; 2 new feature cards (Query Manager, Web search)
+- `docs/architecture.html` — Version v0.9.0; file count 170→197; dependency graph added QueryService; source tree added QueryService.ts + WebSearcher + QueryManager components; IPC channels 131→142; component groups 24→25
+- `docs/changelog.html` — Version v0.9.0; stats updated (99 entries, 197 files, 35+ bug fixes); 3 new highlight cards (Query Manager, WebSearch, Codex CLI hardening); 21 new changelog entries
+- `docs/evaluation.html` — Version v0.9.0; evaluator disclosure phase count 14→15
+- `docs/press.html` — Version v0.9.0; OG description 15 phases + 10 published novels; Quill description includes query letters; 2 new differentiator cards (Query Manager, Web search); By The Numbers updated (15 phases, 142 IPC, 197 files, ~50K LOC); quotable line "Fifteen phases"
+- `docs/contact.html` — Version v0.9.0; footer tagline "Fifteen phases"
+
+### Architecture Impact
+
+None — no source code changes. All changes are to documentation and website HTML files only.
+
+### Migration Notes
+
+None — no breaking changes, schema migrations, or renamed IPC channels.
+
+---
+
 ## [2026-07-13] — Codex CLI standalone_web_search flag
 
 ### Summary
