@@ -22,7 +22,7 @@ recovery), and the failure is never surfaced in the UI.
 |---|---------|---------|--------|-----------|-------|
 | 01 | Treat error `result` events as errors in ClaudeCodeClient | M06 | done | 2026-07-12 | Tracker flag (`hasErrorResult`) + guard at top of `result` branch; close handler skips duplicate error event |
 | 02 | Guard post-stream extraction against non-document content | M08, M01 | pending | — | |
-| 03 | Per-call maxTurns override; research gets 40 turns | M01, M08 | pending | — | |
+| 03 | Per-call maxTurns override; research gets 40 turns | M01, M08 | done | 2026-07-12 | `maxTurnsOverride?` on `IChatService.sendMessage`; research=40, fillTargetField=16, generateQueryLetter=16 |
 | 04 | Surface research failures/results in Query Manager UI | M08, M09, renderer | pending | — | |
 
 ## Dependency Graph
@@ -97,3 +97,13 @@ rm "~/Library/Application Support/Novel Engine/books/open-channel/source/query-t
   declared just below.
 - `npx tsc --noEmit` clean. `doneEmitted` stays false on error results, so the
   code-0 synthetic-done fallback is unaffected (it only runs when `code === 0`).
+
+### SESSION-03 (done, 2026-07-12)
+- `IChatService.sendMessage` gained optional `maxTurnsOverride?: number`
+  (implemented exactly as planned — no adjustment to the design decision).
+- `ChatService.sendMessage` applies `params.maxTurnsOverride ?? agent.maxTurns`
+  at the provider call.
+- Turn budgets: `researchTargets`=40, `fillTargetField`=16,
+  `generateQueryLetter`=16. `AGENT_REGISTRY.Quill.maxTurns` untouched (still 8).
+- `ChatService` is the sole `IChatService` implementer (grep-verified); optional
+  param is non-breaking. `npx tsc --noEmit` clean.

@@ -120,6 +120,7 @@ export class QueryService implements IQueryService {
       message: prompt,
       conversationId: conversation.id,
       bookSlug,
+      maxTurnsOverride: 16, // context reads + letter write
       onEvent,
     });
 
@@ -207,6 +208,7 @@ export class QueryService implements IQueryService {
       message: prompt,
       conversationId: conversation.id,
       bookSlug,
+      maxTurnsOverride: 40, // 3 context reads + 5–10 searches + verifications + tracker write
       onEvent,
     });
 
@@ -246,6 +248,7 @@ export class QueryService implements IQueryService {
       message: prompt,
       conversationId: conversation.id,
       bookSlug,
+      maxTurnsOverride: 16, // 1–3 searches + 1 read + 1 edit
       onEvent,
     });
 

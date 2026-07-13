@@ -117,6 +117,9 @@ export class ChatService implements IChatService {
     conversationId: string;
     bookSlug: string;
     thinkingBudgetOverride?: number;
+    /** Per-call turn budget. Overrides the agent's registry maxTurns —
+     *  used by turn-hungry pipeline flows (e.g. web research). */
+    maxTurnsOverride?: number;
     callId?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<{ changedFiles: string[] }> {
@@ -435,7 +438,7 @@ export class ChatService implements IChatService {
         messages: assembled.conversationMessages,
         maxTokens: appSettings.maxTokens,
         thinkingBudget,
-        maxTurns: agent.maxTurns,
+        maxTurns: params.maxTurnsOverride ?? agent.maxTurns,
         bookSlug,
         sessionId,
         conversationId,

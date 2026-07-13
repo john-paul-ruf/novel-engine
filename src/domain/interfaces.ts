@@ -559,6 +559,9 @@ export interface IChatService {
     conversationId: string;
     bookSlug: string;
     thinkingBudgetOverride?: number;
+    /** Per-call turn budget. Overrides the agent's registry maxTurns —
+     *  used by turn-hungry pipeline flows (e.g. web research). */
+    maxTurnsOverride?: number;
     callId?: string;
     onEvent: (event: StreamEvent) => void;
   }): Promise<{ changedFiles: string[] }>;
