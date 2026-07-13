@@ -270,12 +270,12 @@ Everything in `src/main/ipc/` and `src/preload/`. Thin adapter layer between app
 | `query:addTarget` | invoke | `queryService.addTarget(bookSlug, target)` | `QueryTarget` |
 | `query:updateTargetStatus` | invoke | `queryService.updateTargetStatus(bookSlug, targetId, status, responseDate?)` | `void` |
 | `query:removeTarget` | invoke | `queryService.removeTarget(bookSlug, targetId)` | `void` |
-| `query:generateLetter` | invoke | `queryService.generateQueryLetter(bookSlug, targetId, onEvent)` — streams via `query:onStream` | `QueryLetter` |
+| `query:generateLetter` | invoke | `queryService.generateQueryLetter(bookSlug, targetId, onEvent)` — streams via `query:onStream` + `chat:streamEvent` | `QueryLetter` |
 | `query:listLetters` | invoke | `queryService.listQueryLetters(bookSlug)` | `QueryLetter[]` |
 | `query:readLetter` | invoke | `queryService.readQueryLetter(bookSlug, targetSlug)` | `string` |
 | `query:saveLetter` | invoke | `queryService.saveQueryLetter(bookSlug, targetSlug, content)` | `void` |
-| `query:researchTargets` | invoke | `queryService.researchTargets(bookSlug, onStream)` | `QueryResearchResult` (streams via `query:onStream`) |
-| `query:fillTargetField` | invoke | `queryService.fillTargetField(bookSlug, targetId, field, onStream)` | `QueryFieldFillResult` (streams via `query:onStream`) |
+| `query:researchTargets` | invoke | `queryService.researchTargets(bookSlug, onStream)` | `QueryResearchResult` (streams via `query:onStream` + `chat:streamEvent`) |
+| `query:fillTargetField` | invoke | `queryService.fillTargetField(bookSlug, targetId, field, onStream)` | `QueryFieldFillResult` (streams via `query:onStream` + `chat:streamEvent`) |
 
 ---
 
@@ -285,7 +285,7 @@ Events from main → renderer (not request/response).
 
 | Event | Payload | Emitter |
 |-------|---------|---------|
-| `chat:streamEvent` | `StreamEvent & { callId, conversationId, source?: StreamEventSource }` | ChatService during CLI streaming — broadcast to all windows. `source` discriminates origin (`'chat'`, `'auto-draft'`, `'hot-take'`, `'adhoc-revision'`, `'revision'`, `'audit'`, `'fix'`, `'motif-audit'`). |
+| `chat:streamEvent` | `StreamEvent & { callId, conversationId, source?: StreamEventSource }` | ChatService during CLI streaming — broadcast to all windows. `source` discriminates origin (`'chat'`, `'auto-draft'`, `'hot-take'`, `'adhoc-revision'`, `'revision'`, `'audit'`, `'fix'`, `'motif-audit'`, `'query'`). |
 | `chat:filesChanged` | `string[], bookSlug?` | BookWatcher on file change, or post-sendMessage |
 | `books:changed` | (none) | BooksDirWatcher on folder add/remove |
 | `build:progress` | `string` | BuildService during Pandoc execution |
@@ -294,7 +294,7 @@ Events from main → renderer (not request/response).
 | `window:unmaximized` | (none) | Main window unmaximize event |
 | `import:generationProgress` | `SourceGenerationEvent` | SourceGenerationService during multi-agent source generation |
 | `motifLedger:normalizing` | `status: 'started' \| 'done' \| 'error', error?: string` | MotifLedgerService during CLI schema normalization |
-| `query:onStream` | `StreamEvent` | QueryService during Quill streaming (letter generation, target research, field fill) — sent to sender window only |
+| `query:onStream` | `StreamEvent` | QueryService during Quill streaming (letter generation, target research, field fill) — sent to all windows. Also broadcast on `chat:streamEvent` with `source: 'query'` for CLI Activity panel visibility. |
 
 ---
 

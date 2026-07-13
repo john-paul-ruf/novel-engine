@@ -96,6 +96,14 @@ New `query` namespace on `window.novelEngine`.
 - New view: `QueryManagerView` (standalone, accessible from IconRail)
 - ViewID: `'query-manager'` added to viewStore
 - Pipeline phase `query-agents` in the PipelineSpine, clicking it navigates to the QueryManagerView
+- New `FilterBar` component with three filter dimensions:
+  - **Method filter:** Email Only, Website Only, Query Manager Only, Other
+  - **Status filter:** All 7 statuses (Drafting, Queried, Partial Request, Full Request, Offer, Rejected, Withdrawn)
+  - **Type filter:** Agents, Publishers, Platforms
+  - Filters are purely UI-level (useState in QueryManagerView), no backend changes
+  - Stats summary always reflects ALL targets (ignoring active filters)
+  - "Clear filters" button appears when any filter is active
+  - Empty state shown when filters yield no results
 
 ### Agent Prompt
 - Update `QUILL.md` to include a Phase 6 for query letter generation

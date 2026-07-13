@@ -63,9 +63,10 @@ src/
 │   ├── ollama-cli/
 │   │   ├── OllamaCodeClient.ts              # Uses Ollama `/api/chat` for streaming and tool-use loops
 │   │   ├── OllamaCliRunner.ts               # Wraps `ollama` detection, list/show, serve, and smoke tests
-│   │   ├── ToolExecutor.ts                  # Executes Ollama tool calls against book files
+│   │   ├── ToolExecutor.ts                  # Executes Ollama tool calls (Read/Write/Edit/LS/Bash/WebSearch)
+│   │   ├── WebSearcher.ts                  # DuckDuckGo HTML web search for Ollama/llama-server agents
 │   │   ├── contextCompactor.ts              # Compacts long Ollama tool context
-│   │   ├── tools.ts                         # Ollama tool schemas and types
+│   │   ├── tools.ts                         # Ollama tool schemas and types (includes WebSearch)
 │   │   └── index.ts
 │   ├── llama-server/
 │   │   ├── LlamaServerClient.ts             # OpenAI-compatible llama-server provider

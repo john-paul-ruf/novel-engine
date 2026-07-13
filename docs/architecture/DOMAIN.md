@@ -78,7 +78,7 @@ Everything in `src/domain/`. Pure TypeScript declarations — zero imports from 
 | `ThinkingSummary` | `{ text, fullLengthChars }` | ThinkingBlock UI |
 | `PersistedStreamEvent` | `{ id, sessionId, conversationId, sequenceNumber, eventType, payload, timestamp }` | Stream event replay |
 | `StreamSessionRecord` | `{ id, conversationId, agentName, model, bookSlug, startedAt, endedAt, finalStage, filesTouched, interrupted }` | Orphan recovery |
-| `StreamEventSource` | `'chat' \| 'auto-draft' \| 'hot-take' \| 'adhoc-revision' \| 'revision' \| 'audit' \| 'fix' \| 'motif-audit'` | IPC source discriminator |
+| `StreamEventSource` | `'chat' \| 'auto-draft' \| 'hot-take' \| 'adhoc-revision' \| 'revision' \| 'audit' \| 'fix' \| 'motif-audit' \| 'query'` | IPC source discriminator |
 | `StreamEvent` | Discriminated union (12 variants: `callStart`, `status`, `blockStart`, `thinkingDelta`, `textDelta`, `blockEnd`, `toolUse`, `filesChanged`, `done`, `progressStage`, `thinkingSummary`, `toolDuration`, `error`) | IPC streaming |
 | `ActiveStreamInfo` | `{ conversationId, agentName, model, bookSlug, startedAt, sessionId, callId, progressStage, filesTouched, thinkingBuffer, textBuffer }` | Renderer refresh recovery |
 

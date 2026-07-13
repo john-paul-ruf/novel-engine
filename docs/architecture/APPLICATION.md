@@ -453,6 +453,7 @@ Key behaviors:
 - `extractField` regex: case-insensitive match on `- **FieldName:** value`
 - `slugify` converts target names to filesystem-safe slugs; `unslugify` reverses for display
 - Letter generation reuses `ChatService.sendMessage` — Quill writes via tool-use OR content is extracted from assistant message
+- All streaming methods (`generateQueryLetter`, `researchTargets`, `fillTargetField`) forward `onEvent` callbacks that the IPC layer broadcasts on both `query:onStream` (for Query Manager UI) and `chat:streamEvent` (for CLI Activity panel with `source: 'query'`)
 
 ---
 
