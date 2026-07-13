@@ -32,6 +32,7 @@ export class StreamSessionTracker {
   private currentToolId = '';
   private toolInputBuffer = '';
   private activeToolTimestamps: Map<string, number> = new Map(); // toolId → start time
+  private pendingTools = new Map<string, { toolName: string; filePath?: string }>();
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
@@ -77,6 +78,22 @@ export class StreamSessionTracker {
 
   setCurrentToolId(id: string): void {
     this.currentToolId = id;
+  }
+
+  /**
+   * Register a tool_use block's metadata (name + file path from tool input)
+   * so its tool_result can be matched by tool_use_id, even when tools run
+   * in parallel and the single-slot currentToolName/Id state is stale.
+   */
+  registerTool(toolId: string, toolName: string, filePath?: string): void {
+    if (toolId) this.pendingTools.set(toolId, { toolName, filePath });
+  }
+
+  /** Retrieve and clear the registered metadata for a completed tool. */
+  resolveTool(toolId: string): { toolName: string; filePath?: string } | undefined {
+    const meta = this.pendingTools.get(toolId);
+    if (meta) this.pendingTools.delete(toolId);
+    return meta;
   }
 
   getToolInputBuffer(): string {

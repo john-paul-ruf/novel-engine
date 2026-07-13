@@ -583,6 +583,11 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
           const input = block.input as Record<string, unknown> ?? {};
           const filePath = this.extractFilePath(toolName, input);
 
+          // Register tool meta (keyed by tool_use_id) so the tool_result can
+          // recover the name and input file path even with parallel tool calls
+          // or missing tool_use_result metadata.
+          tracker.registerTool(toolId, toolName, filePath);
+
           // Start tool timestamp
           tracker.startTool(toolId);
 
@@ -621,15 +626,19 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
         if (blockType !== 'tool_result') continue;
 
         const toolUseId = block.tool_use_id as string ?? tracker.getCurrentToolId();
-        const currentToolName = tracker.getCurrentToolName();
+        const registered = tracker.resolveTool(toolUseId);
+        const currentToolName = registered?.toolName ?? tracker.getCurrentToolName();
 
-        // Extract file path from the tool_use_result metadata if available
+        // Prefer result metadata path; fall back to the path captured from tool input
         const toolResultMeta = event.tool_use_result as Record<string, unknown> | undefined;
         const fileMeta = toolResultMeta?.file as Record<string, unknown> | undefined;
-        const filePath = fileMeta?.filePath as string | undefined;
+        const filePath = (fileMeta?.filePath as string | undefined) ?? registered?.filePath;
 
-        // Track files written by Write or Edit tools
-        if (filePath && (currentToolName === 'Write' || currentToolName === 'Edit')) {
+        // Track files written by Write or Edit tools. Touch on RESULT (not at
+        // tool start) and skip errored results so a rejected/failed tool call
+        // is never counted as a written file.
+        const isErrorResult = block.is_error === true;
+        if (!isErrorResult && filePath && (currentToolName === 'Write' || currentToolName === 'Edit')) {
           tracker.touchFile(filePath);
         }
 

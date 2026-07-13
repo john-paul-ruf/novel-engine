@@ -20,7 +20,7 @@ hardened prompts, reliable file-write tracking, and no silent failures or data l
 |---|---------|---------|--------|-----------|-------|
 | 01 | Lenient tracker parsing + content marker | M08, M01 | done | 2026-07-12 | Regex exactly as specced; no deviations |
 | 02 | Harden research & field-fill prompts | M08 | done | 2026-07-12 | Both prompts hardened; generate prompt needed no change |
-| 03 | Reliable filesTouched tracking (Claude CLI) | M06 | pending | | |
+| 03 | Reliable filesTouched tracking (Claude CLI) | M06 | done | 2026-07-12 | Map-based tool resolution; manual live-run check deferred to Final Report |
 | 04 | Surface silent failures + clobber guard | M08, M01 | pending | | |
 
 (Status: pending | in-progress | done | blocked | skipped)
@@ -92,3 +92,17 @@ _(Agents append here after each session: what was done, deviations, gotchas for 
   example lines plus a byte-identical / single-bullet edit contract referencing the
   `## [<name>] — <status>` heading. `buildGeneratePrompt` references no tracker
   syntax — unchanged. No bracket-placeholder strings remain (grep-verified); tsc clean.
+- 2026-07-12 (Mu, S03): `StreamSessionTracker` gained additive `registerTool`/
+  `resolveTool` (toolId → {toolName, filePath} map); `currentToolName/Id` slots kept
+  for the raw-streaming path and as fallback. `ClaudeCodeClient` registers at
+  tool_use and resolves by `tool_use_id` at tool_result; file path prefers
+  `tool_use_result.file.filePath` metadata, falls back to the path captured from
+  tool input. `is_error === true` on a tool_result block skips touchFile but still
+  emits the toolUse complete event. **is_error NOT verified against live CLI
+  NDJSON** — it is the Anthropic API tool_result schema field and the CLI mirrors
+  API message shapes; if a CLI version omits it, behavior degrades to touching on
+  every result (pre-session behavior, no worse). Other providers (codex-cli,
+  ollama-cli, llama-server) confirmed unaffected: constructor unchanged, new
+  methods additive, grep shows no other callers. Manual §V2 live-run check
+  (no `[ChatService] Post-stream extraction:` when a file was written) deferred
+  to the Final Report — needs an interactive `npm start` + Claude CLI run.
