@@ -25,7 +25,7 @@ I asked Claude and ChatGPT to audit ten books made in the MVP and this product w
 ![Your manuscript, front and center](screenshots/Screenshot%202026-07-08%20at%203.21.28%E2%80%AFAM.png)
 *The Manuscript view — your chapters on the left, your prose on the page. Read it like a book, or open the editor and write in it yourself.*
 
-- **Pitch to Published** — A 14-step pipeline takes your idea from a rough pitch to an export-ready manuscript (DOCX/EPUB) you can upload to KDP or send to an editor.
+- **Pitch to Published** — A 15-step pipeline takes your idea from a rough pitch to an export-ready manuscript (DOCX/EPUB) you can upload to KDP or send to an editor — then research agents and publishers, generate personalized query letters, and track submissions.
 - **Your Voice, Protected** — An interview with Verity, the ghostwriter, captures your prose style in a Voice Profile. Every draft sounds like you — and you can edit any chapter by hand, with your changes tracked and respected.
 - **Privacy-First** — Runs on the AI you choose: your Claude account, or free local models via Ollama. There is no Novel Engine cloud. Your drafts never leave your machine except to the AI service *you* connect.
 
@@ -107,13 +107,13 @@ You'll need [Node.js](https://nodejs.org) 18+ installed first. Full build and pa
 | **Lumen** | Developmental Editor | Deep structural assessment: character arcs, pacing, scene necessity, theme, narrative logic |
 | **Forge** | Task Master | Turns all the feedback into a prioritized, step-by-step revision plan |
 | **Sable** | Copy Editor | Grammar, consistency, and mechanical polish, with an audit report and style sheet |
-| **Quill** | Publisher | Final audit plus publication metadata — title, description, keywords, categories, back-cover copy |
+| **Quill** | Publisher | Final audit plus publication metadata — title, description, keywords, categories, back-cover copy. Also researches agents and publishers, generates personalized query letters, and tracks your submission targets |
 
 Every agent's instructions are a plain text file on your computer that you can read and edit — no black boxes.
 
 ## From Pitch to Published: the Pipeline
 
-Your book moves through **14 phases**, each with a clear deliverable. Nothing advances until *you* confirm it — the app never runs ahead of you.
+Your book moves through **15 phases**, each with a clear deliverable. Nothing advances until *you* confirm it — the app never runs ahead of you.
 
 | Stage | Phases | What you end up with |
 |-------|--------|----------------------|
@@ -122,10 +122,12 @@ Your book moves through **14 phases**, each with a clear deliverable. Nothing ad
 | **Assess** | First Read → Structural Assessment | A reader report and a developmental edit |
 | **Revise** | Revision Plan → Revision → Second Read → Second Assessment | A prioritized task list, the revision executed session by session with your approval, then fresh reads to confirm it worked |
 | **Polish** | Copy Edit → Fix Planning → Mechanical Fixes | A line-level audit and the fixes applied |
-| **Ship** | Build → Publish & Audit | Your manuscript compiled to Markdown, DOCX, and EPUB, plus publication metadata |
+| **Ship** | Build → Publish & Audit → Query Agents | Your manuscript compiled to Markdown, DOCX, and EPUB, plus publication metadata — then Quill researches agents and publishers, generates query letters, and tracks submissions |
 
 ## What Else Is In The Box
 
+- **Query Manager** — after your book is published, Quill can research agents and publishers using web search, auto-populate submission targets, generate personalized query letters, and track your submission status — all in a dedicated view with filters and per-field AI fill
+- **Web search for all providers** — every AI backend (Claude, Ollama, llama-server, Codex) can search the web for research, so Quill's query-target research works regardless of which provider you use
 - **Pitch Room** — brainstorm freely with Spark; keep, shelve, or discard ideas before they become books
 - **Write in it yourself** — the chapter editor is yours too; your edits get an EDITED badge, you can see a diff of exactly what you changed, and Verity is shown your edits so revisions respect them
 - **Import your manuscript** — bring an existing book (Word or Markdown) in; chapters are detected automatically, and the AI can backfill the outline, bible, and voice profile from your text
