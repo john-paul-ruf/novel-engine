@@ -19,6 +19,20 @@ const TRACKER_PATH = 'source/query-tracker.md';
 const LETTERS_DIR = 'source/query-letters';
 
 export class QueryService implements IQueryService {
+  /**
+   * Tracker section heading. Canonical form is `## [Name] — status`, but agents
+   * routinely drop the brackets (placeholder-syntax interpretation) or substitute
+   * `-`/`–` for the em dash. Accept all variants on read; `serializeTracker`
+   * normalizes back to canonical form on write.
+   *
+   * Requires the separator to be SPACE-DELIMITED (` — `, ` – `, or ` - `) so names
+   * containing hyphens (e.g. "Jean-Luc Agency") don't split early.
+   *
+   * Must stay in sync with PHASE_OUTPUT_CONTENT_MARKERS['query-agents'] in
+   * src/domain/constants.ts (duplicated there — domain imports from nothing).
+   */
+  private static readonly SECTION_HEADING = /^## \[?(.+?)\]?\s+[—–-]\s+(.+?)\s*$/;
+
   constructor(
     private fs: IFileSystemService,
     private chat: IChatService,
@@ -283,7 +297,7 @@ export class QueryService implements IQueryService {
   // ── Private: Parsing ──────────────────────────────────────────────────
 
   private parseTrackerContent(bookSlug: string, content: string): QueryTracker {
-    const sectionRegex = /^## \[(.+?)\]\s*—\s*(.+?)$/gm;
+    const sectionRegex = new RegExp(QueryService.SECTION_HEADING.source, 'gm');
     const rawPositions: number[] = [];
     let m: RegExpExecArray | null;
     while ((m = sectionRegex.exec(content)) !== null) {
@@ -295,7 +309,7 @@ export class QueryService implements IQueryService {
       const startPos = rawPositions[i];
       const endPos = i + 1 < rawPositions.length ? rawPositions[i + 1] : content.length;
       const section = content.slice(startPos, endPos);
-      const headerMatch = section.match(/^## \[(.+?)\]\s*—\s*(.+?)$/m);
+      const headerMatch = section.match(new RegExp(QueryService.SECTION_HEADING.source, 'm'));
       if (!headerMatch) continue;
       const name = headerMatch[1].trim();
       const status = headerMatch[2].trim();

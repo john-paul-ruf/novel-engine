@@ -127,8 +127,10 @@ export const PHASE_OUTPUT_FILES: Partial<Record<PipelinePhaseId, string[]>> = {
  * documents (e.g. the query tracker, which is parsed section-by-section).
  */
 export const PHASE_OUTPUT_CONTENT_MARKERS: Partial<Record<PipelinePhaseId, RegExp>> = {
-  // Tracker sections look like: ## [Agent Name] — drafting
-  'query-agents': /^## \[.+?\]\s*—\s*.+$/m,
+  // Canonical: ## [Agent Name] — drafting. Lenient: optional brackets,
+  // em dash / en dash / hyphen separator (space-delimited). Must stay in
+  // sync with QueryService.SECTION_HEADING.
+  'query-agents': /^## \[?.+?\]?\s+[—–-]\s+.+$/m,
 };
 
 /**
