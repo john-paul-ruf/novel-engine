@@ -23,9 +23,15 @@ afterEach(async () => {
 
 const flushWindow = () => new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS * 3));
 
+/** Start the watcher and give the FSEvents stream time to attach (macOS races). */
+async function startAndSettle(): Promise<void> {
+  await watcher.start();
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}
+
 describe('BooksDirWatcher', () => {
   it('fires when a book directory is added', async () => {
-    await watcher.start();
+    await startAndSettle();
 
     await mkdir(path.join(booksDir, 'new-book'));
 
@@ -33,13 +39,13 @@ describe('BooksDirWatcher', () => {
       () => {
         expect(onChange).toHaveBeenCalled();
       },
-      { timeout: 3000 }
+      { timeout: 5000 }
     );
   });
 
   it('fires when a book directory is removed', async () => {
     await mkdir(path.join(booksDir, 'doomed-book'));
-    await watcher.start();
+    await startAndSettle();
 
     await rm(path.join(booksDir, 'doomed-book'), { recursive: true });
 
@@ -47,7 +53,7 @@ describe('BooksDirWatcher', () => {
       () => {
         expect(onChange).toHaveBeenCalled();
       },
-      { timeout: 3000 }
+      { timeout: 5000 }
     );
   });
 

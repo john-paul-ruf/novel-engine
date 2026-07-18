@@ -27,7 +27,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | done | 2026-07-18 | 31 tests; full IDatabaseService coverage confirmed |
 | 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | done | 2026-07-18 | 37 tests; no createChapter method exists — chapters flow through writeFile |
 | 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | done | 2026-07-18 | 35 tests; full FileSystemService coverage; watchers on real fs |
-| 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | pending | | |
+| 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | done | 2026-07-18 | 32 tests; fakeProcess + NDJSON fixture helpers added for S09/S11 |
 | 09 | codex-cli — CodexCliClient | M11 | pending | | |
 | 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | pending | | |
 | 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | pending | | |
@@ -237,6 +237,29 @@ was started since the last test run, the pretest ABI guard will rebuild better-s
   for unset OR dangling cover; archive of active book clears `active-book.json`;
   `restorePitch`/`promotePitchToBook` recreate books via `createBook` (same silent-reuse slug
   semantics as S06).
+
+### 2026-07-18 — SESSION-08 (claude-cli)
+
+- **fakeProcess API for S09/S11** (`src/test/fakeProcess.ts`): `makeFakeSpawn()` →
+  `{ spawnMock, children, calls, lastChild(), lastCall(), waitForChild() }`.
+  `FakeChildProcess` has `pushStdout/pushStderr/exit(code)/fail(err)`, captures
+  `stdin.written` and `killSignals`. Clients await async setup before spawning —
+  always `await fake.waitForChild()` after calling send.
+- **Mock wiring:** ClaudeCodeClient imports from bare `'child_process'` (NOT `node:`) —
+  mock that exact specifier. `execFile` is promisified at module load → provide
+  `[promisify.custom]` in the factory (same recipe as S03). Route through a
+  `vi.hoisted` holder so each test can swap implementations.
+- **NDJSON shapes** (`src/test/fixtures/claude-ndjson.ts`): high-level CLI v2.1 events —
+  `system/init`, `assistant{message.content[{thinking|text|tool_use}]}`,
+  `user{message.content[{tool_result, tool_use_id, is_error}], tool_use_result.file.filePath}`,
+  `result{subtype, is_error, result, usage{input_tokens,output_tokens}}`.
+- Behavior pins: prompt via stdin as `Human:/Assistant:` transcript; system prompt via
+  `--system-prompt-file` temp file; malformed NDJSON silently skipped (diagnostics only);
+  exit 0 without result → synthetic `done` with zeros; error-result suppresses the second
+  close-error; failed tool_result never touches files; `filesChanged` fires AFTER `done`
+  (close handler); multi-turn text separated by `\n\n` deltas.
+- **Flake fixed in S07 file:** BooksDirWatcher add/remove tests raced FSEvents attach under
+  full-suite load — added 250ms post-start settle + 5s waitFor. Green ×3 after fix.
 
 ### 2026-07-18 — Agent stop #2 (context limit)
 
