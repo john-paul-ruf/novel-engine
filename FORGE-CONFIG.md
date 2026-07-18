@@ -21,7 +21,7 @@
 **Framework(s):** Electron Forge, React 18, Tailwind CSS v4
 **Package manager:** npm
 **Build system:** Vite (via Electron Forge Vite plugin)
-**Test framework:** None (manual verification via `npx tsc --noEmit`)
+**Test framework:** Vitest 4 (node + jsdom projects, @testing-library/react, coverage via @vitest/coverage-v8)
 
 ---
 
@@ -50,6 +50,11 @@
 | `M09` | main/ipc | `src/main/`, `src/preload/` | Composition root, thin IPC adapter, contextBridge exposure | `M08, M01` | `index.ts, ipc/handlers.ts, preload/index.ts` |
 | `M10` | renderer | `src/renderer/` | React UI — stores, components, views. Backend access only via `window.novelEngine` | `M09` (bridge only) + `M01` type imports | `stores/, components/, App.tsx, main.tsx` |
 | `M11` | codex-cli | `src/infrastructure/codex-cli/` | Spawns `codex` CLI process, parses `exec --json` events, workspace sandbox planning | `M01`, `M06` (StreamSessionTracker only) | `CodexCliClient.ts, index.ts` |
+| `M12` | ollama-cli | `src/infrastructure/ollama-cli/` | Ollama-backed agent loop — bash emulation, tool execution, context compaction, web search | `M01` | `OllamaCodeClient.ts, OllamaCliRunner.ts, ToolExecutor.ts, BashEmulator.ts, tools.ts, contextCompactor.ts, WebSearcher.ts, index.ts` |
+| `M13` | llama-server | `src/infrastructure/llama-server/` | llama.cpp server client | `M01` | `LlamaServerClient.ts, index.ts` |
+| `M14` | series | `src/infrastructure/series/` | Series CRUD, series.json + series-bible I/O | `M01` | `SeriesService.ts, index.ts` |
+| `M15` | providers | `src/infrastructure/providers/` | OpenAI-compatible provider client + provider registry | `M01` | `OpenAiCompatibleProvider.ts, ProviderRegistry.ts, index.ts` |
+| `M16` | test | `src/test/` | Shared test utilities — renderer setup, electron mock, temp-dir helpers. Test-only; never imported by production code | `M01` (types only) | `setup.renderer.ts, mocks/electron.ts, tempDir.ts` |
 
 ---
 
@@ -109,6 +114,7 @@
 ## Verification Commands
 
 **Type check:** `npx tsc --noEmit`
+**Test:** `npm test` (`npm run test:coverage` for coverage)
 **Build:** `npm run build`
 **Run dev:** `npm start`
 
