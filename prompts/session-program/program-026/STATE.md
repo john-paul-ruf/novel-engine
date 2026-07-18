@@ -268,3 +268,10 @@ Stopped cleanly after SESSION-07. All work committed (latest: 6dbaa8f). Suite: 2
 StreamSessionTracker 279 lines). Also eligible in any order: S09–S21, S22. Mock recipes so far:
 child_process via `promisify.custom` factory (S03 note), electron mock unused so far, fixtures
 in `src/test/{db,bookFixtures,tempDir}.ts`.
+
+### 2026-07-18 — Agent stop #3 (context limit)
+
+Stopped cleanly after SESSION-08. All work committed (latest: ed4d668). Suite: 25 files,
+261 tests, green ×3. **Next eligible: SESSION-09** (codex-cli — CodexCliClient, 1205 lines).
+Reuse `src/test/fakeProcess.ts` (see SESSION-08 handoff for the API and the bare-`'child_process'`
++ `promisify.custom` mock recipe). Also eligible: S10–S21, S22.
