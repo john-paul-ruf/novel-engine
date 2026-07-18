@@ -311,3 +311,12 @@ Stopped cleanly after SESSION-08. All work committed (latest: ed4d668). Suite: 2
 261 tests, green ×3. **Next eligible: SESSION-09** (codex-cli — CodexCliClient, 1205 lines).
 Reuse `src/test/fakeProcess.ts` (see SESSION-08 handoff for the API and the bare-`'child_process'`
 + `promisify.custom` mock recipe). Also eligible: S10–S21, S22.
+
+### 2026-07-18 — Agent stop #4 (context limit)
+
+Stopped cleanly after SESSIONS 09+10. All committed (latest: 3e29759). Suite: 31 files,
+333 tests, green. **Next eligible: SESSION-11** (ollama-cli II — OllamaCodeClient 949 lines,
+OllamaCliRunner 180, WebSearcher 138). S10 handoff lists the tool set + pins; S08/S09 handoffs
+carry the fakeProcess + child_process mock recipes (check which specifier OllamaCodeClient
+imports — bare vs `node:` — before wiring vi.mock). WebSearcher must be network-mocked (undici
+or global fetch — read the source first). Also eligible: S12–S21, S22.
