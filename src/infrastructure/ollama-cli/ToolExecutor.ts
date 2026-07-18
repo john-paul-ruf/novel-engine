@@ -102,7 +102,7 @@ export class ToolExecutor {
   // ── Tool implementations ──────────────────────────────────────────
 
   private async executeRead(args: Record<string, unknown>): Promise<ToolResult> {
-    const filePath = this.requireString(args, 'file_path', 'path', 'file');
+    const filePath = this.requireString(args, 'file_path', ['path', 'file']);
     const absPath = this.resolveSafe(filePath);
     const content = await fs.readFile(absPath, 'utf-8');
     return {
@@ -115,8 +115,8 @@ export class ToolExecutor {
   }
 
   private async executeWrite(args: Record<string, unknown>): Promise<ToolResult> {
-    const filePath = this.requireString(args, 'file_path', 'path', 'file');
-    const content = this.requireString(args, 'content', 'text', 'data');
+    const filePath = this.requireString(args, 'file_path', ['path', 'file']);
+    const content = this.requireString(args, 'content', ['text', 'data'], /* raw */ true);
     const absPath = this.resolveSafe(filePath);
 
     // Ensure parent directory exists
@@ -133,9 +133,9 @@ export class ToolExecutor {
   }
 
   private async executeEdit(args: Record<string, unknown>): Promise<ToolResult> {
-    const filePath = this.requireString(args, 'file_path', 'path', 'file');
-    const oldString = this.requireString(args, 'old_string', 'oldString', 'search', 'find');
-    const newString = this.requireString(args, 'new_string', 'newString', 'replace', 'replacement');
+    const filePath = this.requireString(args, 'file_path', ['path', 'file']);
+    const oldString = this.requireString(args, 'old_string', ['oldString', 'search', 'find']);
+    const newString = this.requireString(args, 'new_string', ['newString', 'replace', 'replacement']);
     const absPath = this.resolveSafe(filePath);
 
     const existing = await fs.readFile(absPath, 'utf-8');
@@ -176,7 +176,7 @@ export class ToolExecutor {
   }
 
   private async executeLS(args: Record<string, unknown>): Promise<ToolResult> {
-    const dirPath = this.requireString(args, 'path', 'file_path', 'dir', 'directory');
+    const dirPath = this.requireString(args, 'path', ['file_path', 'dir', 'directory']);
     const absPath = this.resolveSafe(dirPath);
 
     const entries = await fs.readdir(absPath, { withFileTypes: true });
@@ -195,7 +195,7 @@ export class ToolExecutor {
   }
 
   private async executeBash(args: Record<string, unknown>): Promise<ToolResult> {
-    const command = this.requireString(args, 'command', 'cmd', 'script');
+    const command = this.requireString(args, 'command', ['cmd', 'script']);
     const result = await this.getBashEmulator().run(command);
     return {
       toolName: 'Bash',
@@ -207,7 +207,7 @@ export class ToolExecutor {
   }
 
   private async executeWebSearch(args: Record<string, unknown>): Promise<ToolResult> {
-    const query = this.requireString(args, 'query', 'q', 'search', 'search_query');
+    const query = this.requireString(args, 'query', ['q', 'search', 'search_query']);
     const results = await this.getWebSearcher().search(query);
     return {
       toolName: 'WebSearch',
@@ -249,8 +249,17 @@ export class ToolExecutor {
    * - Array wrapping: `{ file_path: ["about.json"] }` → unwrap
    *
    * This method tries progressively harder to extract a usable string value.
+   *
+   * When `raw` is true, string values are returned verbatim — never parsed
+   * as JSON. Used for file-payload fields (Write content) where the string
+   * is the literal file content.
    */
-  private requireString(args: Record<string, unknown>, key: string, ...fallbackKeys: string[]): string {
+  private requireString(
+    args: Record<string, unknown>,
+    key: string,
+    fallbackKeys: string[] = [],
+    raw = false,
+  ): string {
     // Try the primary key and all fallbacks
     const keysToTry = [key, ...fallbackKeys];
 
@@ -258,7 +267,7 @@ export class ToolExecutor {
       const value = args[k];
       if (value === undefined || value === null) continue;
 
-      const extracted = this.extractStringValue(value);
+      const extracted = this.extractStringValue(value, raw);
       if (extracted !== null) return extracted;
     }
 
@@ -274,11 +283,13 @@ export class ToolExecutor {
   /**
    * Try to extract a string from a value that may be nested, wrapped, or stringified.
    */
-  private extractStringValue(value: unknown): string | null {
+  private extractStringValue(value: unknown, raw = false): string | null {
     // Direct string — happy path
     if (typeof value === 'string') {
-      // Could be a JSON-stringified object — try to parse
-      if (value.startsWith('{') || value.startsWith('[')) {
+      // Could be a JSON-stringified object — try to parse.
+      // Skip this path when `raw` is set: the caller (executeWrite for content/text/data)
+      // treats the string as the literal file payload and must not walk into it.
+      if (!raw && (value.startsWith('{') || value.startsWith('['))) {
         try {
           const parsed = JSON.parse(value);
           const inner = this.extractStringValue(parsed);
