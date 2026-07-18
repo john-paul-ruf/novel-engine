@@ -216,7 +216,17 @@ function JsonValue({ fieldKey, value }: { fieldKey: string; value: unknown }): R
 // ────────────────────────────────────────────────────────────────────────────
 
 const SPARK_METADATA_PROMPT =
-  'Read about.json and enrich the book metadata — add any additional fields that would be useful for tracking this project. Write the updated about.json back to disk.';
+  'Read about.json and propose additional metadata fields that would be useful for tracking this project.\n' +
+  '\n' +
+  'Rules for the output file:\n' +
+  '- The result must parse as valid JSON. No prose, no fenced code block, no comments.\n' +
+  '- Preserve these existing fields exactly (do not rename or remove): "title", "author", "status", "created", "coverImage".\n' +
+  '- Add new fields with the same camelCase key style.\n' +
+  '- Do not change the value of "title", "author", "status", or "created".\n' +
+  '- Use the Write tool with file_path="about.json" and the full JSON object as content.\n' +
+  '- If you are not sure whether a field is useful, omit it.\n' +
+  '\n' +
+  'Write the updated about.json back to disk.';
 
 const PRIORITY_KEYS = ['title', 'author', 'status', 'created', 'coverImage', 'slug'];
 

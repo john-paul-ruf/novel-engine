@@ -27,7 +27,7 @@ behavior in with a Vitest regression test; SESSION-03 tightens the renderer prom
 |---|---------|---------|--------|-----------|-------|
 | 01 | Stop ToolExecutor from parsing Write content as JSON | M07 | done | 2026-07-18 | `raw` flag added to `requireString`/`extractStringValue`; only the Write `content` call site sets it |
 | 02 | JSON-file guard + regression test | M07, (M12) | done | 2026-07-18 | `.json` guard in `executeWrite`; 4 regression tests; fresh minimal Vitest harness installed |
-| 03 | Tighten the SPARK_METADATA_PROMPT | M10 | pending | | Renderer-only; defense in depth; can run independently |
+| 03 | Tighten the SPARK_METADATA_PROMPT | M10 | done | 2026-07-18 | Prompt replaced with constrained JSON-output rules; `useOpenSpark` untouched |
 
 Status values: pending | in-progress | done | blocked | skipped
 
@@ -109,7 +109,10 @@ Agents write here after each session.
 - SESSION-03 can proceed (renderer-only, independent of the guard).
 
 ### After SESSION-03
-_(to be filled in)_
+- `SPARK_METADATA_PROMPT` replaced with the constrained version from SESSION-03.md verbatim: requires valid JSON output (no prose/fences/comments), pins the five canonical fields (`title`, `author`, `status`, `created`, `coverImage`), forbids value changes to the first four, names the exact Write argument shape (`file_path="about.json"`, full JSON object as `content`), and caps speculative enrichment.
+- `useOpenSpark` and all plumbing unchanged. Prompt remains module-private (not exported); grep confirmed no other importers.
+- No renderer snapshot suite exists (program-026 has not shipped), so no snapshot updates were needed.
+- `npx tsc --noEmit` clean; full `npm test` green (4/4).
 
 ## Crash Recovery
 
@@ -118,3 +121,25 @@ _(to be filled in)_
 - Read `git status` and `git log --oneline -5` to see how far the agent got.
 - If a session is half-done: complete the remaining files, OR `git reset --hard HEAD` and restart the session. Update STATE.md before stopping either way.
 - S01 and S02 modify the same file (`ToolExecutor.ts`) — never run them in parallel.
+
+## Final Report
+
+**Summary** — Ollama-backed agents writing JSON files (canonically `about.json`) had their `Write` content silently reduced to the file's first string value: `ToolExecutor.extractStringValue` treated the properly-escaped JSON payload as a wrapped argument, parsed it, and walked to the first inner string. This program fixed the extractor (a `raw` flag makes the Write `content` field bypass the recursive JSON-unwrap while path-like fields keep their malformed-arg recovery), added a conservative `.json`-target guard in `executeWrite` that restores a JSON-shaped raw argument when extraction produces non-parsing content (surfacing a warning in the tool result), and tightened `SPARK_METADATA_PROMPT` to require valid JSON output and pin the canonical metadata fields. llama-server gains both engine-side layers transitively via the shared `ToolExecutor`; Claude CLI and Codex CLI were never affected.
+
+**Sessions done/total** — 3/3.
+
+**Files modified** — `src/infrastructure/ollama-cli/ToolExecutor.ts`, `src/renderer/components/Files/AboutJsonViewer.tsx`, `package.json` (test scripts + vitest devDependency).
+
+**Files created** — `src/infrastructure/ollama-cli/ToolExecutor.test.ts`, `vitest.config.ts` (program-026's harness had not shipped; both existed as empty 0-byte placeholder files and were filled in).
+
+**Architecture impact** — Single M07 fix; one M10 renderer string. No new modules, IPC channels, or stores. llama-server covered transitively via the shared `ToolExecutor` import. New contract: `executeWrite`'s `ToolResult.content` may carry a "restored raw argument" / "non-JSON content" warning for `.json` targets.
+
+**Verification** — `npx tsc --noEmit` passes; `npm test -- src/infrastructure/ollama-cli/ToolExecutor.test.ts` all green (4/4: JSON regression, guard restore, non-JSON happy path, nested-path recovery).
+
+**Regression status** — Test A in `ToolExecutor.test.ts` replays the exact corrupt-case payload from REPRODUCTION_NOTES.md (`content` = escaped JSON of the full about.json object) and asserts the full object lands on disk — the bare-title corruption signature no longer reproduces. The live-Ollama harness (`/tmp/ne-ollama-test/spark-metadata.mjs`, ephemeral) was not re-run; the unit test locks in the same payload deterministically.
+
+**Follow-ups** —
+- Program-026's broader Vitest harness: when it ships, extend this program's minimal `vitest.config.ts` (node env, `src/**/*.test.ts`, path aliases) rather than duplicating; the `test`/`test:watch` scripts already exist.
+- SESSION-02 deviation to fold back into any future spec: the guard's raw-argument candidate is the first JSON-shaped string among `content`/`text`/`data` (the session's `args.content ?? args.text ?? args.data` expression could never fire the restore branch post-S01 and failed its own Test B).
+- Consider whether `Edit`'s `old_string`/`new_string` should also get `raw=true` (separate session if needed).
+- Broader audit of other agents that `Write` .json files — likely zero per current agent prompts.
