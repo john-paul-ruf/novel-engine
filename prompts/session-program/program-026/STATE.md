@@ -28,7 +28,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | done | 2026-07-18 | 37 tests; no createChapter method exists — chapters flow through writeFile |
 | 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | done | 2026-07-18 | 35 tests; full FileSystemService coverage; watchers on real fs |
 | 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | done | 2026-07-18 | 32 tests; fakeProcess + NDJSON fixture helpers added for S09/S11 |
-| 09 | codex-cli — CodexCliClient | M11 | pending | | |
+| 09 | codex-cli — CodexCliClient | M11 | done | 2026-07-18 | 26 tests across args/stream/lifecycle; retry test costs ~2s wall time |
 | 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | pending | | |
 | 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | pending | | |
 | 12 | llama-server + providers | M13, M15 | pending | | |
@@ -268,6 +268,25 @@ Stopped cleanly after SESSION-07. All work committed (latest: 6dbaa8f). Suite: 2
 StreamSessionTracker 279 lines). Also eligible in any order: S09–S21, S22. Mock recipes so far:
 child_process via `promisify.custom` factory (S03 note), electron mock unused so far, fixtures
 in `src/test/{db,bookFixtures,tempDir}.ts`.
+
+### 2026-07-18 — SESSION-09 (codex-cli)
+
+- **Different mock specifier than claude-cli:** CodexCliClient imports from `'node:child_process'`
+  (claude-cli uses bare `'child_process'`). Same `promisify.custom` + hoisted-holder recipe.
+- **Real fs required:** `buildWorkspacePlan` checks `existsSync(cwd)` and the workspace snapshot
+  walks the tree — tests need real temp `booksDir/my-book` dirs (makeTempDir), unlike S08.
+- Behavior pins: mid-attempt `error` StreamEvents are withheld (onAttemptEvent filter) and
+  reported exactly once when the run finally settles; retry only for fully-empty transient
+  failures (stream_error or clean-empty-with-json), backoff = attempt × 2s (the retry test takes
+  ~2s); unknown typed events surface as `status` with the type name; config/prompt echo lines
+  and non-JSON stdout are silent; `--output-last-message` file is the no-stream text fallback;
+  workspace snapshot diff supplies filesChanged when Codex writes without file_change events;
+  `agent_message` after deltas is skipped (deltaTextSeen); usage from `turn.completed`
+  (reasoning_output_tokens → thinkingTokens), `token_count` is pending-only, `task_complete`
+  terminal with pending usage.
+- Parser gaps found: none blocking; `extractStatus` turns ANY unknown typed event into a status
+  message (could get noisy with future CLI versions but is intentional diagnostics).
+- Fixtures: `src/test/fixtures/codex-events.ts` (0.27.0 `{id,msg}` envelope via `wrap()`).
 
 ### 2026-07-18 — Agent stop #3 (context limit)
 
