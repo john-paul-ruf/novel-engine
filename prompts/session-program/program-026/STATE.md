@@ -22,7 +22,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 |---|---------|---------|--------|-----------|-------|
 | 01 | Test harness setup (Vitest + jsdom + RTL) | all | done | 2026-07-18 | Vitest 4 (not 3) — was already installed; two-project config replaces earlier single-project one |
 | 02 | Domain + pure application units | M01, M08 | done | 2026-07-18 | 53 new tests; smoke test removed |
-| 03 | Settings, Agents, Pandoc, Series services | M02, M04, M07, M14 | pending | | |
+| 03 | Settings, Agents, Pandoc, Series services | M02, M04, M07, M14 | done | 2026-07-18 | 46 tests; no electron mock needed — all four take injected paths |
 | 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | pending | | |
 | 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | pending | | |
 | 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | pending | | |
@@ -144,3 +144,19 @@ _(agents append here after each session: date, session, surprises, bugs found in
   pending) — not tested, flagged as dead-export candidate.
 - Pinned contracts: `TokenEstimator` values (CHARS_PER_TOKEN=4, ceil), `BUILT_IN_PROVIDER_CONFIGS[0]`
   must stay the Claude CLI config (derived primary/secondary model constants index it).
+
+### 2026-07-18 — SESSION-03 (settings, agents, pandoc, series)
+
+- **Injection styles (for S06/S07 reuse):** all four services take plain constructor paths —
+  `SettingsService(userDataPath)`, `AgentService(agentsDir)`, `SeriesService(userDataDir)`,
+  `resolvePandocPath(resourcesPath)`. NO electron mock was needed anywhere in this session;
+  the electron boundary lives in the composition root.
+- **child_process mock recipe** (SettingsService promisifies `execFile` at module load):
+  supply `promisify.custom` in the `vi.mock('node:child_process')` factory —
+  a plain `vi.fn()` breaks `const { stdout } = await execFile(...)` destructuring.
+- **node:os mock recipe** (default-import consumers): return `{ ...mocked, default: mocked }`.
+- Behavior pins: settings corrupted-JSON → silent defaults; AgentService matches filenames
+  case-insensitively and reports the canonical registry filename; unknown .md files silently
+  skipped; SeriesService silently skips corrupt manifests in listSeries.
+- Minor doc drift (not fixed): AgentService.loadAll comment says "excludes Wrangler" but
+  CREATIVE_AGENT_NAMES also excludes Helper.
