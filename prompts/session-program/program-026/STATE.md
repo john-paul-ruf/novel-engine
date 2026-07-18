@@ -21,7 +21,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Test harness setup (Vitest + jsdom + RTL) | all | done | 2026-07-18 | Vitest 4 (not 3) — was already installed; two-project config replaces earlier single-project one |
-| 02 | Domain + pure application units | M01, M08 | pending | | |
+| 02 | Domain + pure application units | M01, M08 | done | 2026-07-18 | 53 new tests; smoke test removed |
 | 03 | Settings, Agents, Pandoc, Series services | M02, M04, M07, M14 | pending | | |
 | 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | pending | | |
 | 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | pending | | |
@@ -130,3 +130,17 @@ _(agents append here after each session: date, session, surprises, bugs found in
   bundles built and the composition root booted; not related to test tooling.
 - Alias check: `@domain/@infra/@app` identical across both vite configs + tsconfig; mirrored in
   vitest.config.ts.
+
+### 2026-07-18 — SESSION-02 (domain + pure application units)
+
+- `statusMessages.ts` exports take no arguments (pure random pickers) — the session's
+  "unknown key → fallback" instruction didn't apply; tested extremes of `Math.random`
+  (out-of-bounds guard) and rotation instead.
+- Suspicious constant (not fixed): `MAX_CALL_CONTEXT_TOKENS = 250_000` but its own JSDoc claims
+  it "keeps each call well within the 128K context limit", and
+  `MULTI_CALL_TARGET_WORDS_PER_BATCH`'s comment calls the ceiling "125K". Comment/value drift —
+  value likely raised without updating docs.
+- `AVAILABLE_MODELS` is `@deprecated` and still exported (renderer SettingsView migration
+  pending) — not tested, flagged as dead-export candidate.
+- Pinned contracts: `TokenEstimator` values (CHARS_PER_TOKEN=4, ceil), `BUILT_IN_PROVIDER_CONFIGS[0]`
+  must stay the Claude CLI config (derived primary/secondary model constants index it).
