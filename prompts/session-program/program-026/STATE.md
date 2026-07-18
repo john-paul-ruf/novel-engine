@@ -24,7 +24,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 02 | Domain + pure application units | M01, M08 | done | 2026-07-18 | 53 new tests; smoke test removed |
 | 03 | Settings, Agents, Pandoc, Series services | M02, M04, M07, M14 | done | 2026-07-18 | 46 tests; no electron mock needed — all four take injected paths |
 | 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | done | 2026-07-18 | 23 tests; ABI ping-pong solved via pretest guard (see handoff) |
-| 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | pending | | |
+| 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | done | 2026-07-18 | 31 tests; full IDatabaseService coverage confirmed |
 | 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | pending | | |
 | 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | pending | | |
 | 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | pending | | |
@@ -180,3 +180,16 @@ _(agents append here after each session: date, session, surprises, bugs found in
 - Timestamps are SQLite `datetime('now')` (1-second resolution): the ordering test sleeps
   2×1.1s; expect the db test file to take ~2.5s. Ties in `ORDER BY timestamp` fall back to
   insertion order in practice.
+
+### 2026-07-18 — SESSION-05 (database II)
+
+- **Every `IDatabaseService` method is now covered** (grep-verified across S04+S05 test files).
+- Fixtures added to `src/test/db.ts`: `makeUsage`, `makeStreamSession`, `makeStreamEvent`,
+  `makeFileVersion`.
+- Aggregation notes: `getUsageByPhase` buckets NULL pipeline_phase as `'adhoc'`; by-agent/by-phase
+  results are ordered by total tokens DESC; `getUsageOverTime` buckets by `date(timestamp)` (UTC).
+- `deleteFileVersionsBeyondLimit` pins the newest `source='agent'` version even beyond the keep
+  limit (baseline for user-edit diffs) — pinned in tests.
+- `getWordCountHistory` default limit is 1000; snapshots always append (no per-day dedupe).
+- Stream events/sessions accept caller-provided timestamps — `pruneStreamEvents` tested with
+  a 2020 timestamp vs `new Date().toISOString()`.
