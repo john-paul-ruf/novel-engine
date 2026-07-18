@@ -25,7 +25,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 03 | Settings, Agents, Pandoc, Series services | M02, M04, M07, M14 | done | 2026-07-18 | 46 tests; no electron mock needed — all four take injected paths |
 | 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | done | 2026-07-18 | 23 tests; ABI ping-pong solved via pretest guard (see handoff) |
 | 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | done | 2026-07-18 | 31 tests; full IDatabaseService coverage confirmed |
-| 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | pending | | |
+| 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | done | 2026-07-18 | 37 tests; no createChapter method exists — chapters flow through writeFile |
 | 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | pending | | |
 | 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | pending | | |
 | 09 | codex-cli — CodexCliClient | M11 | pending | | |
@@ -200,4 +200,24 @@ Stopped cleanly after SESSION-05. All work committed (latest: b50cd7c). **Next e
 session: SESSION-06** (FileSystemService I — depends only on S01, done). Sessions 06–21 and 22
 are all eligible in any order. Reminder for the next agent: run `npm test` first — if the app
 was started since the last test run, the pretest ABI guard will rebuild better-sqlite3
-(~30s, one-time).
+(~30s, one-time). _(Resumed same day — see SESSION-06 below.)_
+
+### 2026-07-18 — SESSION-06 (filesystem I)
+
+- **Base-path injection (for S07):** `new FileSystemService(booksDir, userDataDir)` — plain
+  constructor paths, no electron mock. Fixtures: `src/test/bookFixtures.ts` provides
+  `makeLibrary(tempDir)` + `seedBook(lib, slug, opts)` (chapters, files, rawAbout/omitAbout).
+- **No createChapter method exists.** Chapters are created by agents via `writeFile`; front
+  matter (00-0-copyright, 00-1-dedication) is written by `createBook`. Session instructions
+  adapted accordingly.
+- Behavior pins: duplicate-title `createBook` silently reuses the directory (overwrites
+  about.json, keeps content); slugify drops non-ASCII (`Café Überall` → `caf-berall`);
+  `setActiveBook` does not validate the slug; malformed about.json books are skipped by
+  listBooks but throw from getBookMeta; missing about.json triggers auto-import with
+  humanized title; front matter is excluded from countWords/manifest word totals but listed
+  (0 words) by countWordsPerChapter and INCLUDED by assembleManuscript if non-empty.
+- **Uncovered → S07:** saveCoverImage, getCoverImageAbsolutePath, archiveBook, unarchiveBook,
+  listArchivedBooks, listShelvedPitches, readShelvedPitch, deleteShelvedPitch, shelvePitch,
+  restorePitch, getPitchDraftPath, listPitchDrafts, getPitchDraft, readPitchDraftContent,
+  deletePitchDraft, promotePitchToBook, shelvePitchDraft, getAuthorProfilePath,
+  generateCopyrightContent (direct), plus BookWatcher.ts and BooksDirWatcher.ts.
