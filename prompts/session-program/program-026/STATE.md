@@ -29,7 +29,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | done | 2026-07-18 | 35 tests; full FileSystemService coverage; watchers on real fs |
 | 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | done | 2026-07-18 | 32 tests; fakeProcess + NDJSON fixture helpers added for S09/S11 |
 | 09 | codex-cli — CodexCliClient | M11 | done | 2026-07-18 | 26 tests across args/stream/lifecycle; retry test costs ~2s wall time |
-| 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | pending | | |
+| 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | done | 2026-07-18 | 46 tests; extended existing ToolExecutor.test.ts; no sandbox escapes found |
 | 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | pending | | |
 | 12 | llama-server + providers | M13, M15 | pending | | |
 | 13 | ChatService, StreamManager, ContextBuilder | M08 | pending | | |
@@ -287,6 +287,23 @@ in `src/test/{db,bookFixtures,tempDir}.ts`.
 - Parser gaps found: none blocking; `extractStatus` turns ANY unknown typed event into a status
   message (could get noisy with future CLI versions but is intentional diagnostics).
 - Fixtures: `src/test/fixtures/codex-events.ts` (0.27.0 `{id,msg}` envelope via `wrap()`).
+
+### 2026-07-18 — SESSION-10 (ollama-cli I)
+
+- **Tool list for S11 loop tests:** Read, Write, Edit, LS, Bash, WebSearch (OLLAMA_TOOLS);
+  READ_TOOLS={Read,LS}, WRITE_TOOLS={Write,Edit}. Every tool verified to have a ToolExecutor
+  dispatch branch (empty-args probe → missing-arg error, never "Unknown tool").
+- **No sandbox escapes found.** resolveSafe blocks relative traversal, absolute paths outside
+  roots, and nested `a/../../..`; additionalRoots grant sibling access by absolute path.
+- Minor parser quirk (noted, not fixed): BashEmulator `find` ignores unknown VALUE-LESS flags,
+  but a valued flag's value token (e.g. `-maxdepth 1`) is treated as the start path → ENOENT.
+  Small models rarely emit these; acceptable.
+- Behavior pins: Bash whitelist mkdir/cat/mv/cp/ls/find/wc/rm/rmdir; metacharacters | & ; < > ` $( ${ \n
+  rejected pre-parse; cat caps at 100k chars ("…[truncated]"); find caps at 500 results;
+  ToolExecutor tool failures return `isError:true` results (never throw); Edit enforces
+  unique old_string; compactToolHistory protects head 2 + tail 4, truncates middle tool
+  results >200 chars and assistant messages >2000 chars, cannot compact ≤6 messages;
+  WebSearch dispatch exists but WebSearcher itself is S11's target (network-mocked there).
 
 ### 2026-07-18 — Agent stop #3 (context limit)
 
