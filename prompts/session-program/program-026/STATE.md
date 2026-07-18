@@ -26,7 +26,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | done | 2026-07-18 | 23 tests; ABI ping-pong solved via pretest guard (see handoff) |
 | 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | done | 2026-07-18 | 31 tests; full IDatabaseService coverage confirmed |
 | 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | done | 2026-07-18 | 37 tests; no createChapter method exists — chapters flow through writeFile |
-| 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | pending | | |
+| 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | done | 2026-07-18 | 35 tests; full FileSystemService coverage; watchers on real fs |
 | 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | pending | | |
 | 09 | codex-cli — CodexCliClient | M11 | pending | | |
 | 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | pending | | |
@@ -221,3 +221,19 @@ was started since the last test run, the pretest ABI guard will rebuild better-s
   restorePitch, getPitchDraftPath, listPitchDrafts, getPitchDraft, readPitchDraftContent,
   deletePitchDraft, promotePitchToBook, shelvePitchDraft, getAuthorProfilePath,
   generateCopyrightContent (direct), plus BookWatcher.ts and BooksDirWatcher.ts.
+
+### 2026-07-18 — SESSION-07 (filesystem II)
+
+- **Every public FileSystemService method now covered** (grep-verified S06+S07).
+- **Path drift vs session/FORGE-CONFIG docs:** shelved pitches actually live in
+  `books/_pitches/*.md` (not `shelved-pitches/`), pitch drafts in
+  `books/__pitch-room__/drafts/{conversationId}/` (not `pitch-room/`). Tests pin the source.
+  There is no author-profile read/write method — only `getAuthorProfilePath()`.
+- **Watchers tested on real fs.watch** (no injection needed). Flake mitigation: macOS FSEvents
+  replays pre-attach events after attach — helper `startWatching()` waits 3× debounce then
+  `mockClear()`s the spy before acting. Debounce 100ms, `vi.waitFor` timeout 3s. 3 consecutive
+  full-suite runs clean.
+- Behavior pins: cover replace deletes old-extension file; `getCoverImageAbsolutePath` → null
+  for unset OR dangling cover; archive of active book clears `active-book.json`;
+  `restorePitch`/`promotePitchToBook` recreate books via `createBook` (same silent-reuse slug
+  semantics as S06).
