@@ -14,8 +14,11 @@
     "generate-icons": "node scripts/generate-icons.js",
     "ci-build": "node scripts/ci-build.js",
     "lint": "tsc --noEmit",
+    "pretest": "node scripts/ensure-native-abi.js",
     "test": "vitest run",
+    "pretest:watch": "node scripts/ensure-native-abi.js",
     "test:watch": "vitest",
+    "pretest:coverage": "node scripts/ensure-native-abi.js",
     "test:coverage": "vitest run --coverage",
     "clean": "rm -rf out .vite dist"
   },

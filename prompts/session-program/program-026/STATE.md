@@ -23,7 +23,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 01 | Test harness setup (Vitest + jsdom + RTL) | all | done | 2026-07-18 | Vitest 4 (not 3) — was already installed; two-project config replaces earlier single-project one |
 | 02 | Domain + pure application units | M01, M08 | done | 2026-07-18 | 53 new tests; smoke test removed |
 | 03 | Settings, Agents, Pandoc, Series services | M02, M04, M07, M14 | done | 2026-07-18 | 46 tests; no electron mock needed — all four take injected paths |
-| 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | pending | | |
+| 04 | DatabaseService I — schema, migrations, conversations, messages | M03 | done | 2026-07-18 | 23 tests; ABI ping-pong solved via pretest guard (see handoff) |
 | 05 | DatabaseService II — usage, versions, stream sessions, word counts | M03 | pending | | |
 | 06 | FileSystemService I — book CRUD, slugs, chapters | M05 | pending | | |
 | 07 | FileSystemService II — covers, archive, pitches + watchers | M05 | pending | | |
@@ -160,3 +160,23 @@ _(agents append here after each session: date, session, surprises, bugs found in
   skipped; SeriesService silently skips corrupt manifests in listSeries.
 - Minor doc drift (not fixed): AgentService.loadAll comment says "excludes Wrangler" but
   CREATIVE_AGENT_NAMES also excludes Helper.
+
+### 2026-07-18 — SESSION-04 (database I)
+
+- **better-sqlite3 ABI ping-pong (IMPORTANT for S05):** the module is compiled for Electron's
+  ABI (130) by `npm start` (Forge "Preparing native dependencies") but Vitest needs Node's (127).
+  Fix: `scripts/ensure-native-abi.js` wired as `pretest`/`pretest:watch`/`pretest:coverage` —
+  constructs a `:memory:` DB (the binding loads lazily in the constructor; bare `require` is NOT
+  enough) and runs `npm rebuild better-sqlite3` only on mismatch. Both `npm test` and `npm start`
+  now self-heal. `pool: 'forks'` was not needed (Vitest 4 default).
+- **Covered (S05 owns the complement):** createConversation, getConversation, listConversations,
+  deleteConversation (incl. message cascade), updateBookSlug, saveMessage, getMessages,
+  initializeSchema, runMigrations/MIGRATIONS. NOT covered: usage (recordUsage, getUsageSummary,
+  getUsageByConversation), stream events (persist/batch/get/delete/prune), stream sessions
+  (create/end/getActive/markInterrupted), file versions (all 8), dashboard/stats
+  (getLastConversation, getUsageOverTime, getUsageByAgent, getUsageByPhase,
+  recordWordCountSnapshot, getWordCountHistory), close.
+- `src/test/db.ts` provides `makeDb()`, `makeConversation()`, `makeMessage()` — extend there.
+- Timestamps are SQLite `datetime('now')` (1-second resolution): the ordering test sleeps
+  2×1.1s; expect the db test file to take ~2.5s. Ties in `ORDER BY timestamp` fall back to
+  insertion order in practice.
