@@ -237,3 +237,11 @@ was started since the last test run, the pretest ABI guard will rebuild better-s
   for unset OR dangling cover; archive of active book clears `active-book.json`;
   `restorePitch`/`promotePitchToBook` recreate books via `createBook` (same silent-reuse slug
   semantics as S06).
+
+### 2026-07-18 — Agent stop #2 (context limit)
+
+Stopped cleanly after SESSION-07. All work committed (latest: 6dbaa8f). Suite: 23 files,
+229 tests, green ×3. **Next eligible: SESSION-08** (claude-cli — ClaudeCodeClient 808 lines +
+StreamSessionTracker 279 lines). Also eligible in any order: S09–S21, S22. Mock recipes so far:
+child_process via `promisify.custom` factory (S03 note), electron mock unused so far, fixtures
+in `src/test/{db,bookFixtures,tempDir}.ts`.
