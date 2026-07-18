@@ -193,3 +193,11 @@ _(agents append here after each session: date, session, surprises, bugs found in
 - `getWordCountHistory` default limit is 1000; snapshots always append (no per-day dedupe).
 - Stream events/sessions accept caller-provided timestamps — `pruneStreamEvents` tested with
   a 2020 timestamp vs `new Date().toISOString()`.
+
+### 2026-07-18 — Agent stop (context limit)
+
+Stopped cleanly after SESSION-05. All work committed (latest: b50cd7c). **Next eligible
+session: SESSION-06** (FileSystemService I — depends only on S01, done). Sessions 06–21 and 22
+are all eligible in any order. Reminder for the next agent: run `npm test` first — if the app
+was started since the last test run, the pretest ABI guard will rebuild better-sqlite3
+(~30s, one-time).
