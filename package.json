@@ -14,6 +14,8 @@
     "generate-icons": "node scripts/generate-icons.js",
     "ci-build": "node scripts/ci-build.js",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf out .vite dist"
   },
   "keywords": [],
@@ -50,7 +52,8 @@
     "postcss": "^8.4.0",
     "tailwindcss": "^4.0.0",
     "typescript": "~5.5.0",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",

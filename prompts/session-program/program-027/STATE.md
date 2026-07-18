@@ -26,7 +26,7 @@ behavior in with a Vitest regression test; SESSION-03 tightens the renderer prom
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Stop ToolExecutor from parsing Write content as JSON | M07 | done | 2026-07-18 | `raw` flag added to `requireString`/`extractStringValue`; only the Write `content` call site sets it |
-| 02 | JSON-file guard + regression test | M07, (M12) | pending | | Depends on S01; adds `.json` guard in `executeWrite`; co-locates `ToolExecutor.test.ts` |
+| 02 | JSON-file guard + regression test | M07, (M12) | done | 2026-07-18 | `.json` guard in `executeWrite`; 4 regression tests; fresh minimal Vitest harness installed |
 | 03 | Tighten the SPARK_METADATA_PROMPT | M10 | pending | | Renderer-only; defense in depth; can run independently |
 
 Status values: pending | in-progress | done | blocked | skipped
@@ -100,7 +100,13 @@ Agents write here after each session.
 - SESSION-02 can now add the `.json` guard in `executeWrite` and the co-located regression test.
 
 ### After SESSION-02
-_(to be filled in)_
+- **Vitest installed fresh** (`vitest@^4.1.10`, devDependency) — program-026's harness had NOT shipped (its SESSION-01 is still `pending`). Added `test`/`test:watch` scripts to `package.json` and a minimal `vitest.config.ts` (node environment, `src/**/*.test.ts`, `@domain`/`@infra`/`@app` aliases). **Program-026 maintainers:** merge carefully — extend this config rather than duplicating it; do not clobber the `test` script.
+- Guard added to `executeWrite`: for `.json` targets whose extracted content fails `JSON.parse`, it restores the first JSON-shaped string among the raw `content`/`text`/`data` args if that string parses; otherwise it writes as extracted and surfaces a warning.
+- **Deviation from the session snippet:** the snippet computed `rawContentArg = args.content ?? args.text ?? args.data`, but in Test B `args.content` is the mangled string, so the restore branch could never fire and Test B could not pass (post-S01 extraction returns strings verbatim, so extracted ≡ raw for that expression). Implemented instead as "first JSON-shaped string among content/text/data" — same conservative behavior, and it makes the guard reachable/testable. Test B passes.
+- **New `executeWrite` warning contract:** `ToolResult.content` may now carry a "restored raw argument" or "non-JSON content" warning for `.json` targets. UI surfaces showing tool results display this verbatim — desired behavior.
+- All 4 tests pass (`npm test -- src/infrastructure/ollama-cli/ToolExecutor.test.ts`); `npx tsc --noEmit` clean.
+- Note: `vitest.config.ts` and `ToolExecutor.test.ts` existed as empty 0-byte files before this session (IDE scaffolding); they were filled in, not newly created.
+- SESSION-03 can proceed (renderer-only, independent of the guard).
 
 ### After SESSION-03
 _(to be filled in)_

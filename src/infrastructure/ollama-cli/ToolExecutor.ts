@@ -116,8 +116,38 @@ export class ToolExecutor {
 
   private async executeWrite(args: Record<string, unknown>): Promise<ToolResult> {
     const filePath = this.requireString(args, 'file_path', ['path', 'file']);
-    const content = this.requireString(args, 'content', ['text', 'data'], /* raw */ true);
+    let content = this.requireString(args, 'content', ['text', 'data'], /* raw */ true);
     const absPath = this.resolveSafe(filePath);
+
+    // JSON-file guard: if the target is a JSON file but the extracted content
+    // does not parse as JSON, fall back to the original raw argument string when
+    // it looks JSON-shaped. Defends every .json file in the book dir, not just
+    // about.json, against any future extractor bug.
+    let warning: string | undefined;
+    if (filePath.endsWith('.json')) {
+      let parses = false;
+      try { JSON.parse(content); parses = true; } catch { parses = false; }
+
+      if (!parses) {
+        const rawContentArg = [args.content, args.text, args.data].find(
+          (v): v is string => typeof v === 'string' && (v.startsWith('{') || v.startsWith('[')),
+        );
+        if (rawContentArg !== undefined) {
+          try {
+            JSON.parse(rawContentArg);
+            // The raw arg parses — use it.
+            content = rawContentArg;
+            warning = `Write content had been mangled; restored raw argument (${rawContentArg.length} chars) for ${filePath}.`;
+          } catch {
+            // Raw arg also doesn't parse — leave content as-is, surface the problem.
+            warning = `Write to ${filePath} produced non-JSON content; raw argument was also invalid JSON. File NOT written as valid JSON.`;
+          }
+        } else {
+          warning = `Write to ${filePath} produced non-JSON content; raw argument was not a JSON string. File NOT written as valid JSON.`;
+        }
+        console.warn(`[ToolExecutor] ${warning}`);
+      }
+    }
 
     // Ensure parent directory exists
     await fs.mkdir(path.dirname(absPath), { recursive: true });
@@ -127,7 +157,7 @@ export class ToolExecutor {
       toolName: 'Write',
       filePath,
       isWrite: true,
-      content: `Successfully wrote ${content.length} characters to ${filePath}`,
+      content: warning ?? `Successfully wrote ${content.length} characters to ${filePath}`,
       isError: false,
     };
   }
