@@ -7,6 +7,9 @@ import type {
   BookSummary,
   Conversation,
   Message,
+  MotifLedger,
+  RevisionPlan,
+  RevisionSession,
   UsageRecord,
 } from '@domain/types';
 
@@ -160,6 +163,51 @@ export function makeUsageRecord(overrides: Partial<UsageRecord> = {}): UsageReco
     thinkingTokens: 0,
     model: 'test-model',
     timestamp: ISO,
+    ...overrides,
+  };
+}
+
+export function makeMotifLedger(overrides: Partial<MotifLedger> = {}): MotifLedger {
+  return {
+    systems: [],
+    entries: [],
+    structuralDevices: [],
+    foreshadows: [],
+    minorCharacters: [],
+    flaggedPhrases: [],
+    auditLog: [],
+    ...overrides,
+  };
+}
+
+export function makeRevisionSession(overrides: Partial<RevisionSession> = {}): RevisionSession {
+  return {
+    id: 'session-1',
+    index: 1,
+    title: 'Fix pacing',
+    chapters: [],
+    taskNumbers: [1, 2],
+    model: 'opus',
+    prompt: 'Session prompt text',
+    notes: '',
+    status: 'pending',
+    conversationId: null,
+    response: '',
+    ...overrides,
+  };
+}
+
+export function makeRevisionPlan(overrides: Partial<RevisionPlan> = {}): RevisionPlan {
+  return {
+    id: 'plan-1',
+    bookSlug: 'test-book',
+    sessions: [makeRevisionSession()],
+    totalTasks: 4,
+    completedTaskNumbers: [1],
+    phases: [],
+    mode: 'manual',
+    createdAt: ISO,
+    verificationConversationId: null,
     ...overrides,
   };
 }

@@ -47,7 +47,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 25 | Remaining stores II | M10 | done | 2026-07-18 | 61 tests; sweep clean — all 26 store files now have co-located tests |
 | 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | done | 2026-07-18 | 67 tests; renderApp helper added; AppLayout mount deferred to S28 App smoke (see handoff) |
 | 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | done | 2026-07-18 | 197 tests / 28 files; usePhaseConversations covered via ChatPane; ThinkingBlock auto-collapse bug candidate (see handoff) |
-| 28 | Components III — Library, Series, PitchRoom, Import, Settings + App smoke | M10 | pending | | |
+| 28 | Components III — Library, Series, PitchRoom, Import, Settings + App smoke | M10 | done | 2026-07-19 | 222 tests / 43 files; sweep complete incl. deferred AppLayout smoke; zero source changes |
 | 29 | Coverage gate — thresholds, gap fill, CI + FORGE-CONFIG update | all | pending | | |
 
 Status values: pending | in-progress | done | blocked | skipped
@@ -830,6 +830,35 @@ Stopped cleanly after SESSION-27. All committed (latest: 831c224). Suite: 134 fi
 from S26; see the S26 handoff for exactly what the smoke must cover). Key inputs: the
 S27 handoff directly above (jsdom stubs, action-override seeding, cliActivity recipe),
 renderApp/installNovelEngineMock (S22/S26). After S28 only the S29 coverage gate remains.
+
+### 2026-07-19 — SESSION-28 (components III — Library, Series, PitchRoom, Import, Settings, + rest)
+
+- **Component sweep COMPLETE: 43 test files / 222 tests; zero production-source changes; no
+  `data-testid` added; recharts mounted fine under jsdom (no mocking needed — ResponsiveContainer
+  renders zero-height, headings/legends/summary cards are assertable).**
+- **Sweep exceptions (justified):** `main.tsx` (ReactDOM bootstrap, no unit surface) and
+  `AppLayout.tsx` (covered transitively by `App.test.tsx` — the S26-deferred App smoke, which
+  pins: shell regions, all views mounted with only the active one visible (`.hidden` wrapper),
+  ⌘K/Escape palette keybinds, TourManager hydration from settings, onboarding gate on
+  `initialized:false`, and a no-unexpected-`console.error` spy).
+- **fixtures added to `src/test/novelEngineMock.ts`:** `makeRevisionSession`, `makeRevisionPlan`,
+  `makeMotifLedger` (S29 gap-fill can reuse).
+- **jsdom recipe (new):** `window.matchMedia` does NOT exist in jsdom — anything mounting
+  `useTheme` (App) needs the guarded stub in App.test.tsx. All other recipes from S26/S27
+  (IntersectionObserver/scrollIntoView/ResizeObserver stubs, action-override seeding,
+  cliActivity via `handleStreamEvent` + afterEach `destroyListener`) transferred unchanged.
+- **Traps hit (for future reference):** pitchShelf `shelveCurrentPitch` PREPENDS the bridge
+  result to `pitches` — a `pitches.shelve` stub must resolve a real meta or the list renders
+  `undefined.slug`; store-action stubs must be seeded BEFORE render (post-render `setState`
+  loses the race with the click handler's captured closure); `revision.runAll` sends
+  `undefined` ids outside selective mode (pinned).
+- Pins: LibraryView groups series volumes into titled sections and re-uses BookCard with
+  `Vol. N`; primary model selection switches active provider, secondary never does;
+  QueryManagerView filters/research; SessionCard auto-opens the active session's panel;
+  EntriesTab `__none__` filter = unassigned; onboarding walks welcome→CLI→model→profile→ready
+  and lands in workspace only when a first book was created.
+- Suite after S28: 178 files, 1383 tests, green ×2; `npx tsc --noEmit` clean. Only S29
+  (coverage gate) remains.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
