@@ -421,8 +421,17 @@ injected interfaces of each service. Also eligible: S14–S21, S22 (renderer har
   (countWordsPerChapter only lists dirs, and reads then can only fail on races).
 - BuildService pandoc mocked via the S03 `promisify.custom` recipe on `'node:child_process'`.
 
+### 2026-07-18 — Agent stop #7 (context limit)
+
 Stopped cleanly after SESSION-13. All committed (latest: 3c988cd). Suite: 40 files, 429 tests,
 green ×2, no @infra imports in application tests. **Next eligible: SESSION-14** (PipelineService,
 BuildService, SourceGenerationService, ChapterValidator). Start from the SESSION-13 handoff:
 `src/test/fakes.ts` covers most collaborators; BuildService likely needs pandoc mocking
 (execFile — see S03 recipe) and real temp dirs (bookFixtures). Also eligible: S15–S21, S22.
+
+### 2026-07-18 — Agent stop #8 (context limit)
+
+Stopped cleanly after SESSION-14. All committed (latest: 690cd45). Suite: 44 files, 461 tests,
+green. **Next eligible: SESSION-15** (RevisionQueueService, AdhocRevisionService). The S13/S14
+fakes cover settings/agents/registry/fs/db collaborators; remember the S13 multi-call trap when
+driving ChatService-adjacent flows. Also eligible: S16–S21, S22.
