@@ -4,6 +4,32 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-19] — ChapterDetector heuristic fix (bug 6)
+
+### Summary
+
+Fixes the three ChapterDetector heuristic bugs recorded as bug 6 in `program-026`'s STATE: mid-prose `Chapter N …` lines used to split into phantom chapters; the markdown-heading strategy counted a title-page `# Title` as chapter 1 when `##` headings followed; and content before the first detected split (title, byline, copyright, dedication) was silently dropped. Adds a standalone-heading guard, a title-page H1 skip when an H2 appears later, and a synthetic `Front Matter` pseudo-chapter (`index: -1`) emitted before the first real split when the first split is not at line 0. The Front Matter entry is excluded from ambiguity math. Flips the three previously-pinned limitation tests and adds regression tests for each decision plus the H1-only and first-split-at-line-0 edge cases.
+
+### Added
+- `src/test/fixtures/manuscripts.ts` — `H1_ONLY_CHAPTERS` (H1-only fallback regression fixture) and `MID_PROSE_FALSE_POSITIVE` (the prose-embedded `Chapter N` fixture, promoted from an inline test string)
+
+### Changed
+- `src/application/import/ChapterDetector.ts` — Added `isStandaloneHeading` helper; gated the three pattern branches in `detectByChapterPattern` on it (Decision 1)
+- `src/application/import/ChapterDetector.ts` — Rewrote `detectByHeadings` to skip the first H1 when it is the first heading AND at least one H2 appears later; H1-only manuscripts keep all H1s (Decision 2)
+- `src/application/import/ChapterDetector.ts` — Rewrote `buildResult` to prepend a `Front Matter` pseudo-chapter (`index: -1`, `title: 'Front Matter'`, `startLine: 0`) when `splits[0].lineIndex > 0`; no entry is emitted when the first split is at line 0 (Decision 3)
+- `src/application/import/ChapterDetector.ts` — Rewrote `detectAmbiguity` to filter `index >= 0` before the uneven-size and few-chapters rules so the Front Matter block never triggers ambiguity
+- `src/application/import/ChapterDetector.test.ts` — Flipped the three pinned limitation tests (`NUMBERED_CHAPTERS` now captures front matter; `HEADING_CHAPTERS` now skips the title-page `# Étoiles Mortes`; the `MID_PROSE_FALSE_POSITIVE` line is no longer a split). Added regression tests: standalone-heading guard, title-page-H1 skip, H1-only fallback, no-empty-Front-Matter, CRLF+Front-Matter. Updated the strategy-checklist header comment.
+
+### Architecture Impact
+- No public API change. `DetectedChapter.index` now reserves `-1` for the synthetic Front Matter entry emitted before the first detected split; the type itself (`src/domain/types.ts`) is unchanged.
+- No new module, no IPC channel change, no preload change, no renderer change.
+- Downstream consumers (`ManuscriptImportService`, `importStore`, `ImportWizard`, `ChapterPreviewList`, preload/handlers) are index-blind beyond array position; the Front Matter row simply appears as the first row of the import preview and can be merged or removed like any other chapter. The commit slug emits `00-front-matter/draft.md` for `index: -1`, which sorts before `01-…`.
+
+### Migration Notes
+- None at the type level. ImportWizard now displays a "Front Matter" row when the source manuscript has content before its first chapter heading; users can remove or merge the row before importing. If the user removes it, no `00-…` file is written (the `removeChapter` behavior discards first-chapter content). Downstream `ManuscriptImportService.test.ts` assertions at lines 47 and 62 (using `NUMBERED_CHAPTERS`) now expect 6 chapters instead of 5; that ripple is carried to SESSION-02.
+
+---
+
 ## [2026-07-18] — Forge program for Ollama about.json corruption
 
 ### Summary

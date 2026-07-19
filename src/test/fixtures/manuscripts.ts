@@ -65,3 +65,28 @@ export const NO_CHAPTERS = [
   '',
   'The prose continued without any structural markers at all.',
 ].join('\n');
+
+/** H1-only manuscript (no H2 headings) — every H1 is a chapter (Decision 2 fallback). */
+export const H1_ONLY_CHAPTERS = [
+  '# Book One',
+  'First chapter prose here.',
+  '',
+  '# Book Two',
+  'Second chapter prose here.',
+  '',
+  '# Book Three',
+  'Third chapter prose here.',
+].join('\n');
+
+/** Manuscript with a prose line that STARTS with "Chapter N" — must NOT split (Decision 1). */
+export const MID_PROSE_FALSE_POSITIVE = [
+  'Chapter 1',
+  'Opening prose.',
+  'Chapter 3 was her favorite of all the rooms in the house.',
+  '',
+  'Chapter 2',
+  'More prose.',
+  '',
+  'Chapter 3',
+  'Final prose.',
+].join('\n');

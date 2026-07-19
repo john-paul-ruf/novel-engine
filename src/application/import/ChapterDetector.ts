@@ -91,6 +91,15 @@ function stripBold(text: string): string {
 }
 
 /**
+ * A chapter/section/part label is only a split when the previous line is blank
+ * (or it sits at the top of the document). Rejects prose-embedded mentions.
+ */
+function isStandaloneHeading(lines: string[], index: number): boolean {
+  if (index === 0) return true;
+  return lines[index - 1].trim() === '';
+}
+
+/**
  * If the next non-empty line after a chapter heading is italic (*subtitle*),
  * return it as the subtitle.
  */
@@ -106,22 +115,30 @@ function findSubtitle(lines: string[], fromIndex: number): string {
 }
 
 function detectByHeadings(lines: string[]): SplitPoint[] {
-  const splits: SplitPoint[] = [];
+  const raw: SplitPoint[] = [];
+  let firstHeadingIsH1 = false;
+  let hasH2 = false;
 
   for (let i = 0; i < lines.length; i++) {
     const match = lines[i].match(HEADING_PATTERN);
-    if (match) {
-      splits.push({ lineIndex: i, title: match[1].trim() });
-    }
+    if (!match) continue;
+    const isH1 = /^#\s+/.test(lines[i]);
+    if (raw.length === 0 && isH1) firstHeadingIsH1 = true;
+    if (!isH1) hasH2 = true;
+    raw.push({ lineIndex: i, title: match[1].trim() });
   }
 
-  return splits;
+  if (firstHeadingIsH1 && hasH2) {
+    return raw.slice(1);
+  }
+  return raw;
 }
 
 function detectByChapterPattern(lines: string[]): SplitPoint[] {
   const splits: SplitPoint[] = [];
 
   for (let i = 0; i < lines.length; i++) {
+    if (!isStandaloneHeading(lines, i)) continue;
     const line = lines[i].trim();
 
     const chapterMatch = line.match(CHAPTER_PATTERN);
@@ -159,6 +176,19 @@ function countWords(text: string): number {
 
 function buildResult(splits: SplitPoint[], lines: string[]): DetectionResult {
   const chapters: DetectedChapter[] = [];
+
+  if (splits.length > 0 && splits[0].lineIndex > 0) {
+    const endLine = splits[0].lineIndex;
+    const fmContent = lines.slice(0, endLine).join('\n');
+    chapters.push({
+      index: -1,
+      title: 'Front Matter',
+      startLine: 0,
+      endLine,
+      wordCount: countWords(fmContent),
+      content: fmContent,
+    });
+  }
 
   for (let i = 0; i < splits.length; i++) {
     const startLine = splits[i].lineIndex;
@@ -200,15 +230,14 @@ function buildFallbackResult(lines: string[]): DetectionResult {
 }
 
 function detectAmbiguity(chapters: DetectedChapter[], lines: string[]): boolean {
-  // Few chapters for a long document
+  const realChapters = chapters.filter((c) => c.index >= 0);
   const totalWords = countWords(lines.join('\n'));
-  if (chapters.length < 3 && totalWords > 10_000) {
+  if (realChapters.length < 3 && totalWords > 10_000) {
     return true;
   }
 
-  // Wildly uneven chapter sizes
-  if (chapters.length >= 2) {
-    const wordCounts = chapters.map((c) => c.wordCount).filter((w) => w > 0);
+  if (realChapters.length >= 2) {
+    const wordCounts = realChapters.map((c) => c.wordCount).filter((w) => w > 0);
     if (wordCounts.length >= 2) {
       const smallest = Math.min(...wordCounts);
       const largest = Math.max(...wordCounts);
