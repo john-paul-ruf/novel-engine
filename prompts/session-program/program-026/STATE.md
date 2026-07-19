@@ -563,3 +563,11 @@ green (first try). **Next eligible: SESSION-19** (ChapterDetector, ManuscriptImp
 SeriesImportService — check `src/application/import/` for locations). Then S20 finishes
 Phase D; S21 (main/IPC) and S22 (renderer harness — gates S23–S28) remain the big unlocks.
 Also eligible: S20, S21, S22.
+
+### 2026-07-18 — Agent stop #13 (context limit)
+
+Stopped cleanly after SESSION-19. All committed (latest: 8b045f5). Suite: 58 files, 566 tests,
+green. **Next eligible: SESSION-20** (PitchRoomService, DashboardService, StatisticsService,
+UsageService) — the LAST Phase D session. Dashboard/Statistics/Usage are thin db/fs aggregators
+(S05 covered the SQL side); PitchRoomService follows the S15/S18 handler shape and uses
+`fs.getPitchDraftPath` (S07 pins). After S20: S21 (main/IPC) and S22 (renderer harness).
