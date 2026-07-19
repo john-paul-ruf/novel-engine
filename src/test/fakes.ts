@@ -248,6 +248,24 @@ export function makeFakeFs(
     deleteFile: async (slug: string, path: string) => {
       files.delete(`${slug}/${path}`);
     },
+    deletePath: async (slug: string, path: string) => {
+      const prefix = `${slug}/${path}`;
+      for (const key of [...files.keys()]) {
+        if (key === prefix || key.startsWith(`${prefix}/`)) files.delete(key);
+      }
+    },
+    listDirectory: async (slug: string, relativePath?: string) => {
+      const prefix = `${slug}/${relativePath ? `${relativePath}/` : ''}`;
+      const names = new Set<string>();
+      for (const key of files.keys()) {
+        if (key.startsWith(prefix)) names.add(key.slice(prefix.length).split('/')[0]);
+      }
+      return [...names].sort().map((name) => ({
+        name,
+        path: relativePath ? `${relativePath}/${name}` : name,
+        isDirectory: !files.has(`${prefix}${name}`),
+      }));
+    },
     getBookMeta: async () => ({ ...meta }),
     updateBookMeta: async (_slug: string, partial: Partial<typeof meta>) => {
       Object.assign(meta, partial);

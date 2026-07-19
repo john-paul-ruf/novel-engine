@@ -35,7 +35,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 13 | ChatService, StreamManager, ContextBuilder | M08 | done | 2026-07-18 | 35 tests; src/test/fakes.ts factory added for all Phase D sessions |
 | 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | done | 2026-07-18 | 32 tests; fakes.ts fs fake extended (meta/chapters/delete/cover) |
 | 15 | RevisionQueueService, AdhocRevisionService | M08 | done | 2026-07-18 | 20 tests; all six session statuses asserted |
-| 16 | MultiCallOrchestrator, AuditService | M08 | pending | | |
+| 16 | MultiCallOrchestrator, AuditService | M08 | done | 2026-07-18 | 16 tests; sequential orchestration + write-verification pinned |
 | 17 | QueryService, VersionService, FindReplaceService | M08 | pending | | |
 | 18 | MotifLedgerService, HotTakeService, HelperService | M08 | pending | | |
 | 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | pending | | |
@@ -453,6 +453,28 @@ Stopped cleanly after SESSION-14. All committed (latest: 690cd45). Suite: 44 fil
 green. **Next eligible: SESSION-15** (RevisionQueueService, AdhocRevisionService). The S13/S14
 fakes cover settings/agents/registry/fs/db collaborators; remember the S13 multi-call trap when
 driving ChatService-adjacent flows. Also eligible: S16–S21, S22.
+
+### 2026-07-18 — SESSION-16 (multi-call orchestrator + audit service)
+
+- **Orchestration model pinned: strictly SEQUENTIAL** (no parallelism/concurrency cap — the
+  session prompt's fan-out assumptions don't apply). Failure strategy: per-step retry ×3 with
+  maxTurns +5/+10; after exhaustion → single error event + PARTIAL results returned (later steps
+  never run; scratch files preserved for retry). Step success requires the expected
+  scratch/output file to EXIST after the call ("never wrote its expected file" error otherwise) —
+  test provider impls must write to the fs fake. Provider error EVENTS (never-throw providers)
+  are converted to step failures via interception; intermediate `done` events are swallowed
+  (exactly one done reaches the caller). Resumption skips non-synthesis steps whose file exists.
+- Dynamic expansion pinned: batches = ceil(words/20k) capped 8; batch 2+ prompts get scratch
+  refs renumbered (own file first, then prior); {{READ_TRACKER_FILES}}/{{BATCH_TRACKER_FILES}}/
+  {{BATCH_COUNT}} substitution; read steps use the lightweight system prompt; scratch cleanup
+  only after successful synthesis. fakes.ts fs fake gained listDirectory/deletePath.
+- AuditService pins: audit prefers settings.secondaryModel when its provider is registered
+  (VERITY_AUDIT_MAX_TOKENS cap) else primary+full maxTokens; JSON extracted from fences or
+  brace-matching, malformed → null (never throws); ephemeral `audit-*`/`motif-audit-*`
+  conversations satisfy the usage FK; fixChapter threads `<conversationId>-fix`; motif audit
+  routes by provider id (claude-cli single call w/ Lumen maxTurns, else batch+synthesis with
+  maxTurns 15 / scratch+5). Note: audit/fix use 120s/300s realtime timeout races — scripts must
+  resolve well before those.
 
 ### 2026-07-18 — Agent stop #9 (context limit)
 
