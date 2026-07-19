@@ -46,7 +46,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 24 | Remaining stores I | M10 | done | 2026-07-18 | 72 tests; drift adapted (fileChange=counter, palette has no recents, motif has no book-switch sub) |
 | 25 | Remaining stores II | M10 | done | 2026-07-18 | 61 tests; sweep clean — all 26 store files now have co-located tests |
 | 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | done | 2026-07-18 | 67 tests; renderApp helper added; AppLayout mount deferred to S28 App smoke (see handoff) |
-| 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | pending | | |
+| 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | done | 2026-07-18 | 197 tests / 28 files; usePhaseConversations covered via ChatPane; ThinkingBlock auto-collapse bug candidate (see handoff) |
 | 28 | Components III — Library, Series, PitchRoom, Import, Settings + App smoke | M10 | pending | | |
 | 29 | Coverage gate — thresholds, gap fill, CI + FORGE-CONFIG update | all | pending | | |
 
@@ -789,6 +789,38 @@ pins, and the S23 note that `useRevisionQueueEvents` (hook) is owed coverage by 
 component sessions. Note VersionHistoryPanel/DiffViewer already get shallow coverage
 via S26's VersionHistoryModal test — S27 owns their real behavior. After S27: S28
 (includes the deferred AppLayout smoke), then the S29 gate.
+
+### 2026-07-18 — SESSION-27 (components II — Chat, Workbench, Manuscript, Files)
+
+- **28 test files, 197 tests; zero source changes.** Coverage: Chat/ (8), Workbench/ (5 +
+  companion/ 4), Manuscript/ (3), Files/ (7), plus `useRevisionQueueEvents` (hook owed from
+  S23). `usePhaseConversations.ts` has no own test file — it is a hook fully exercised
+  through ChatPane.test.tsx (filter/sort, workspace-only auto-activate, create) — the one
+  sweep exception.
+- **🐛 Bug candidate (ThinkingBlock, not fixed — pinned in ThinkingBlock.test.tsx):** the
+  1.5s auto-collapse-after-streaming timer is scheduled and immediately cancelled —
+  `setWasStreaming(false)` in the sibling effect re-renders, the dep change runs the
+  collapse effect's cleanup, and `clearTimeout` fires before the timer can. In-place
+  auto-collapse never happens; blocks only appear collapsed because the streaming block
+  unmounts and MessageBubble mounts a fresh collapsed one. Fix would be decoupling the
+  timer from the `wasStreaming` dep (e.g. track prev-streaming in a ref).
+- **jsdom recipes for S28:** IntersectionObserver needs a guarded class stub (MessageList,
+  ManuscriptView); scrollIntoView stub as in S26. Action-override seeding
+  (`stores: [[useChatStore, { sendMessage: vi.fn() }]]`) works cleanly with resetStores —
+  restored next test. cliActivity agentBusy is easiest driven via
+  `handleStreamEvent({type:'callStart', …})` (see ManuscriptView.test.tsx) + afterEach
+  `destroyListener()`.
+- Pins worth knowing: ChatInput quick-action popover mounts slider lazily; QuickActions
+  saved-prompt save/delete round-trips through settingsStore.update → bridge
+  settings.update+load; SplitPane persists ratio/collapse under
+  `novel-engine:workbench-split*`; ExplorerTab preview-back returns to the SAME directory;
+  ChapterRail back-matter add writes `chapters/z{N}-{slug}/draft.md` (next zN from max);
+  ManuscriptView tracked-edit UI keys off `chapters/(\d+)-…/draft.md` with NN ≥ 2 (chapter
+  01 is untracked); FileEditor auto-saves dirty content via the bridge on unmount unless
+  disabled; VersionHistoryPanel diffs selected vs next-OLDER version (`getDiff(prevId, id)`).
+- Timezone gotcha: AboutJsonViewer renders `created` via toLocaleDateString — tests must
+  tolerate ±1 day (regex), never assert an exact local date from a UTC ISO string.
+- Suite after S27: 134 files, 1161 tests, green ×2; `npx tsc --noEmit` clean.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
