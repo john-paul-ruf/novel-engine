@@ -9,6 +9,7 @@
  * For IDatabaseService, prefer the REAL service on `:memory:` via
  * `makeDb()` from `src/test/db.ts` (Design Decision #3).
  */
+import path from 'node:path';
 import { vi } from 'vitest';
 import type {
   IAdhocRevisionService,
@@ -195,7 +196,7 @@ export type FakeFileSystem = IFileSystemService & {
   activeBookSlug: string;
   /** Path returned by getAuthorProfilePath (default: nonexistent fake path). */
   authorProfilePath: string;
-  /** Base dir for getPitchDraftPath → `${pitchDraftBase}/${conversationId}`. */
+  /** Base dir for getPitchDraftPath → `path.join(pitchDraftBase, conversationId)`. */
   pitchDraftBase: string;
   /** Entries returned by getRecentFiles (default []). */
   recentFiles: RecentFile[];
@@ -252,7 +253,7 @@ export function makeFakeFs(
       fake.activeBookSlug = slug;
     },
     getAuthorProfilePath: () => fake.authorProfilePath,
-    getPitchDraftPath: (conversationId: string) => `${fake.pitchDraftBase}/${conversationId}`,
+    getPitchDraftPath: (conversationId: string) => path.join(fake.pitchDraftBase, conversationId),
     getRecentFiles: async () => fake.recentFiles,
     readFile: async (slug: string, path: string) => {
       const content = files.get(`${slug}/${path}`);

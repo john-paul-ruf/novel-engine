@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IDatabaseService } from '@domain/interfaces';
 import type { StreamEvent } from '@domain/types';
@@ -179,7 +180,7 @@ describe('sendMessage — spawn contract', () => {
     expect(args).toContain('--system-prompt-file');
     expect(args.join(' ')).toContain(`--add-dir ${BOOKS_DIR}`);
     expect(args).not.toContain('--effort'); // no thinking budget requested
-    expect(options.cwd).toBe(`${BOOKS_DIR}/my-book`);
+    expect(options.cwd).toBe(path.join(BOOKS_DIR, 'my-book'));
 
     // Prompt goes through stdin as a Human/Assistant transcript
     expect(child.stdin.written).toBe('Human: First ask\n\nAssistant: First answer\n\nHuman: Second ask');

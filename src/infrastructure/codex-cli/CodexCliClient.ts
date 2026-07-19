@@ -907,7 +907,9 @@ export class CodexCliClient implements IModelProvider {
   private normalizeWorkspacePath(filePath: string, workspaceCwd: string): string {
     if (!path.isAbsolute(filePath)) return filePath;
     const relativePath = path.relative(workspaceCwd, filePath);
-    return relativePath && !relativePath.startsWith('..') ? relativePath : filePath;
+    if (!relativePath || relativePath.startsWith('..')) return filePath;
+    // Book-relative paths are display/domain values — always POSIX separators
+    return relativePath.split(path.sep).join('/');
   }
 
   private normalizeToolName(toolName: string): string {
