@@ -41,7 +41,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | done | 2026-07-18 | 20 tests; detector limitations recorded |
 | 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | done | 2026-07-18 | 25 tests; Phase D complete — every src/application file now has a co-located test |
 | 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | done | 2026-07-18 | 47 tests; 142 channels wired 1:1 with preload; composition root excluded (window:*); FORGE.MD migration no-ops on APFS (bug candidate) |
-| 22 | Renderer test harness + core stores | M10 | pending | | |
+| 22 | Renderer test harness + core stores | M10 | done | 2026-07-18 | 69 tests; typed bridge mock + resetStores helpers; setActiveBook/switchBook convo-key bug candidate (see handoff) |
 | 23 | Streaming stores | M10 | pending | | |
 | 24 | Remaining stores I | M10 | pending | | |
 | 25 | Remaining stores II | M10 | pending | | |
@@ -619,6 +619,43 @@ core stores) — it gates S23–S28. Key inputs for S22: the `window.novelEngine
 mock factory; the full bridge surface (30 namespaces, every method + subscription shape) is
 pinned in `src/preload/index.test.ts` — mirror it. After S22: S23–S28 in any order, then the
 S29 gate.
+
+### 2026-07-18 — SESSION-22 (renderer harness + core stores)
+
+- **Harness API for S23–S28 (`src/test/novelEngineMock.ts`):**
+  `installNovelEngineMock(overrides?)` → typed `NovelEngineMock` — the FULL 30-namespace
+  bridge, every method a `vi.fn()`. Obvious-empty methods resolve ([], null, '', false, 0,
+  void); complex-object methods (import.preview, revision.loadPlan, motifLedger.load,
+  dashboard.getData, statistics.get, query.loadTracker, findReplace.*, series CRUD, …)
+  REJECT with a "no sensible empty default" error until overridden — override or
+  `mockResolvedValue` before exercising them. Push events: `mock.emit(channel, ...args)`
+  and `mock.listenerCount(channel)`; channels = books:changed, import:generationProgress,
+  chat:streamEvent, chat:filesChanged, build:progress, revision:event,
+  motifLedger:normalizing, window:maximizeChange, query:onStream. Fixture factories
+  exported: makeAppSettings/BookMeta/BookSummary/Conversation/Message/AgentMeta/
+  ActiveStreamInfo/UsageRecord. Stream events are emitted with enrichment fields inline:
+  `mock.emit('chat:streamEvent', { type: 'textDelta', text, callId, conversationId?, source? })`.
+- **`src/test/resetStores.ts`:** `resetStoresBeforeEach(...stores)` — call at test-file
+  module scope; snapshots pristine state immediately and registers a beforeEach that
+  `localStorage.clear()`s and full-replace-restores each store. Register stores with
+  cross-store SUBSCRIPTIONS (workspaceStore) LAST so restore-triggered subscriptions
+  can't dirty them.
+- **Typing gotcha:** preload `on*` cleanups without an explicit annotation return
+  `Electron.IpcRenderer` (chained removeListener) — the mock's subscribe returns
+  `() => Electron.IpcRenderer` to satisfy both shapes.
+- **🐛 Bug candidate (not fixed, pinned in chatStore.test.ts):** `setActiveBook` sets
+  `bookStore.activeSlug` BEFORE `switchBook`, so switchBook's "departing book" save writes
+  the old conversation id under the NEW book's localStorage key — clobbering the new book's
+  saved spot (membership guard then falls back to "most recent") and never saving the
+  departing book's. Per-book conversation restore is effectively broken whenever a
+  conversation is active at switch time.
+- **Session-prompt drift (adapted):** viewStore has no guards and persists via zustand
+  `persist` middleware (localStorage `novel-engine-view`, v6 migrate tested through
+  `useViewStore.persist`), not the bridge; settingsStore.update is confirmed-only (bridge
+  update → reload), NOT optimistic — pinned.
+- chatStore recovery poll (2s interval, module-level timer): afterEach must call
+  `destroyStreamListener()` to clear it; the poll-completion test uses
+  `vi.useFakeTimers()` + `advanceTimersByTimeAsync`.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
