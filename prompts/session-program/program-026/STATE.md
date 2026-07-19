@@ -777,6 +777,19 @@ component wires stream listeners. Then S29 (coverage gate) closes the program.
   after `done`; ActivityDrawer honors persisted height, drag-up grows (direction
   'up'), double-click resets to 208 and persists.
 
+### 2026-07-18 — Agent stop #16 (context limit)
+
+Stopped cleanly after SESSION-26. All committed (latest: 0a46a4d). Suite: 106 files,
+964 tests, green ×2; `npx tsc --noEmit` clean. **Next eligible: SESSION-27**
+(Components II — Chat 8 files, Workbench 6 + companion/, Manuscript 3, Files 7;
+~5.6k source lines — plan on reading each file before testing, and consider splitting
+the run if context is tight). Key inputs: the S26 handoff directly above (renderApp
+API, RTL-cleanup fix, ../../../test/ import depth, jsdom stub recipes), S22–S25 store
+pins, and the S23 note that `useRevisionQueueEvents` (hook) is owed coverage by the
+component sessions. Note VersionHistoryPanel/DiffViewer already get shallow coverage
+via S26's VersionHistoryModal test — S27 owns their real behavior. After S27: S28
+(includes the deferred AppLayout smoke), then the S29 gate.
+
 ### 2026-07-18 — Agent stop #13 (context limit)
 
 Stopped cleanly after SESSION-19. All committed (latest: 8b045f5). Suite: 58 files, 566 tests,
