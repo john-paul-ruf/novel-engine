@@ -273,6 +273,11 @@ export function makeFakeFs(
         isDirectory: !files.has(`${prefix}${name}`),
       }));
     },
+    createBook: async (title: string, author?: string) => {
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      Object.assign(meta, { slug, title, author: author ?? '', status: 'scaffolded' });
+      return { ...meta };
+    },
     getBookMeta: async () => ({ ...meta }),
     updateBookMeta: async (_slug: string, partial: Partial<typeof meta>) => {
       Object.assign(meta, partial);

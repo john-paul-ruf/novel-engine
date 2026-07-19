@@ -38,7 +38,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 16 | MultiCallOrchestrator, AuditService | M08 | done | 2026-07-18 | 16 tests; sequential orchestration + write-verification pinned |
 | 17 | QueryService, VersionService, FindReplaceService | M08 | done | 2026-07-18 | 30 tests; TWO QueryService parse bugs found + recorded (see handoff) |
 | 18 | MotifLedgerService, HotTakeService, HelperService | M08 | done | 2026-07-18 | 19 tests, first-try green |
-| 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | pending | | |
+| 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | done | 2026-07-18 | 20 tests; detector limitations recorded |
 | 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | pending | | |
 | 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | pending | | |
 | 22 | Renderer test harness + core stores | M10 | pending | | |
@@ -538,6 +538,23 @@ green. **Next eligible: SESSION-18** (MotifLedgerService, HotTakeService, Helper
 HotTake/Helper follow the AdhocRevisionService handler shape (S15 test is the template);
 QueryService S17 handoff has TWO recorded parse bugs worth a follow-up fix ticket.
 Also eligible: S19–S21, S22.
+
+### 2026-07-18 — SESSION-19 (import services)
+
+- **Detector limitations recorded (candidate bugs, pinned in tests):**
+  (1) CHAPTER_PATTERN matches ANY line starting "Chapter N …" — mid-prose sentences like
+  "Chapter 3 was her favorite…" become false splits (the `.*?` tail is unanchored);
+  (2) the heading strategy counts EVERY #/## line, so title-page headings become chapter 1;
+  (3) all content before the first split is silently dropped from every chapter.
+- Pins: strategy priority chapter-pattern (≥3) → headings (≥3) → single-chapter fallback
+  (always ambiguous); bold-strip + section capitalization + italic-subtitle attachment
+  ("Prologue — Before the Storm"); Part headings split; CRLF safe; ambiguity on >5× uneven
+  chapter sizes. Import commit: `NN-slugified-title/draft.md` (fallback 'untitled'), status →
+  first-draft after write; DOCX converts via pandoc argv `-f docx -t markdown --wrap=none`.
+  Series import: name detection common-title-prefix → common parent dir → 'Imported Series';
+  commit sorts by volumeNumber, links after each import, and a failing volume N aborts leaving
+  volumes 1..N-1 imported+linked (partial state pinned).
+- fakes.ts fs fake gained `createBook` (mutates `.meta`, slugifies title).
 
 ### 2026-07-18 — Agent stop #12 (context limit)
 
