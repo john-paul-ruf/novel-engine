@@ -511,3 +511,11 @@ Stopped cleanly after SESSION-16. All committed (latest: 55a5720). Suite: 49 fil
 green (first try). **Next eligible: SESSION-17** (QueryService, VersionService,
 FindReplaceService). VersionService pairs with the S05 file-version db coverage; the fakes
 module now covers fs listDirectory/deletePath. Also eligible: S18–S21, S22.
+
+### 2026-07-18 — Agent stop #11 (context limit)
+
+Stopped cleanly after SESSION-17. All committed (latest: 5e25033). Suite: 52 files, 527 tests,
+green. **Next eligible: SESSION-18** (MotifLedgerService, HotTakeService, HelperService).
+HotTake/Helper follow the AdhocRevisionService handler shape (S15 test is the template);
+QueryService S17 handoff has TWO recorded parse bugs worth a follow-up fix ticket.
+Also eligible: S19–S21, S22.
