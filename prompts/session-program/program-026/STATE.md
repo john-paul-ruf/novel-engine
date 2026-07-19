@@ -43,7 +43,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | done | 2026-07-18 | 47 tests; 142 channels wired 1:1 with preload; composition root excluded (window:*); FORGE.MD migration no-ops on APFS (bug candidate) |
 | 22 | Renderer test harness + core stores | M10 | done | 2026-07-18 | 69 tests; typed bridge mock + resetStores helpers; setActiveBook/switchBook convo-key bug candidate (see handoff) |
 | 23 | Streaming stores | M10 | done | 2026-07-18 | 57 tests; session-prompt drift adapted (pipeline=cache, revision events live in a hook); autoDraft loop tested on real timers (~6s) |
-| 24 | Remaining stores I | M10 | pending | | |
+| 24 | Remaining stores I | M10 | done | 2026-07-18 | 72 tests; drift adapted (fileChange=counter, palette has no recents, motif has no book-switch sub) |
 | 25 | Remaining stores II | M10 | pending | | |
 | 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | pending | | |
 | 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | pending | | |
@@ -683,6 +683,28 @@ S29 gate.
   (`{ type, …, callId, conversationId?, source? }` — see streamHandler/chatStore tests);
   cliActivity tests show the callStart shape. Component tests (S26–S28) can copy these
   patterns; no separate fixture module was needed.
+
+### 2026-07-18 — SESSION-24 (remaining stores I)
+
+- **Session-prompt drift (adapted, pinned):** fileChangeStore is a bare monotonic counter
+  (no per-book filtering/dedupe — chatStore decides when to bump); paletteStore has no
+  recent-commands and `enabled()` is advisory metadata (visibleItems does NOT filter by
+  it — pinned); motifLedgerStore has no book-switch subscription (views call `load`);
+  pitchRoom draft save/shelve live in FileSystemService/PitchRoomService (S07/S20), the
+  store only reads draft status + promotes.
+- **Modal-chat family pattern:** helper/modalChat/pitchRoom all use
+  `alwaysCheckConversationId: true` (strict conversation guard pinned in each).
+  Listener re-registration differs: helper/modalChat REPLACE on re-init; pitchRoom KEEPS
+  the first registration (early-return) — pinned. modalChat's deferred close
+  (`_closeRequested` honored by done AND error handlers) pinned.
+- Pins: importStore removeChapter folds content into the previous chapter (first chapter's
+  content is discarded, last chapter unremovable), merge/remove reindex `index`;
+  startImport falls back to settings.authorName then '' and 'Untitled'; dashboardStore
+  discards stale results via the loadedSlug guard; motif removeSystem detaches entries'
+  systemId; palette group order Actions→Phases→Chapters→Books→Navigate, providers pull
+  live from pipeline/book stores.
+- paletteStore's built-in registrations happen at module import — the resetStores snapshot
+  includes them, so tests see the Actions/Navigate baseline.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
