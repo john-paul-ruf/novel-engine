@@ -340,3 +340,12 @@ OllamaCliRunner 180, WebSearcher 138). S10 handoff lists the tool set + pins; S0
 carry the fakeProcess + child_process mock recipes (check which specifier OllamaCodeClient
 imports — bare vs `node:` — before wiring vi.mock). WebSearcher must be network-mocked (undici
 or global fetch — read the source first). Also eligible: S12–S21, S22.
+
+### 2026-07-18 — Agent stop #5 (context limit)
+
+Stopped cleanly after SESSION-11. All committed (latest: e0ff7fc). Suite: 34 files, 362 tests,
+green ×3. **Next eligible: SESSION-12** (llama-server + providers — LlamaServerClient 912 lines,
+OpenAiCompatibleProvider 229, ProviderRegistry 383). LlamaServerClient almost certainly reuses
+the fetch-streaming pattern — the S11 fixtures (`src/test/fixtures/ollama-responses.ts` style)
+and the non-local-baseUrl trick likely transfer. ProviderRegistry is DI/pure — hand-rolled fakes.
+Also eligible: S13–S21, S22.
