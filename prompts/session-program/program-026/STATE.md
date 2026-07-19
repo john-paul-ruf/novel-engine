@@ -37,7 +37,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 15 | RevisionQueueService, AdhocRevisionService | M08 | done | 2026-07-18 | 20 tests; all six session statuses asserted |
 | 16 | MultiCallOrchestrator, AuditService | M08 | done | 2026-07-18 | 16 tests; sequential orchestration + write-verification pinned |
 | 17 | QueryService, VersionService, FindReplaceService | M08 | done | 2026-07-18 | 30 tests; TWO QueryService parse bugs found + recorded (see handoff) |
-| 18 | MotifLedgerService, HotTakeService, HelperService | M08 | pending | | |
+| 18 | MotifLedgerService, HotTakeService, HelperService | M08 | done | 2026-07-18 | 19 tests, first-try green |
 | 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | pending | | |
 | 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | pending | | |
 | 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | pending | | |
@@ -511,6 +511,25 @@ Stopped cleanly after SESSION-16. All committed (latest: 55a5720). Suite: 49 fil
 green (first try). **Next eligible: SESSION-17** (QueryService, VersionService,
 FindReplaceService). VersionService pairs with the S05 file-version db coverage; the fakes
 module now covers fs listDirectory/deletePath. Also eligible: S18–S21, S22.
+
+### 2026-07-18 — SESSION-18 (motif ledger, hot take, helper)
+
+- **Output-parsing formats pinned:** MotifLedger load chain = parse → repairJson (missing commas
+  between pretty-printed objects, trailing commas, BOM) → EMPTY_LEDGER fallback; non-canonical
+  shapes (associatedCharacters / entries.system / object firstAppearance / plant-payoff
+  foreshadows / numeric chapters) trigger CLI normalization (maxTurns 1, fence-stripped reply,
+  persisted on success) with best-effort local mapping on failure; normalization callback fires
+  started→done (or started→error→done). Unknown flaggedPhrase categories coerce to 'crutch';
+  missing ids are generated.
+- HotTake pins: routes by provider id (same pattern as motif audit); single-call uses chat
+  history or the synthetic "Read the full manuscript…" message, trackFilesChanged false;
+  multi-call batches (20k words/batch) with prior-tracker threading, intermediate done/error
+  interception (errors → status warnings), synthesis maxTurns = scratch+3, chat-only output,
+  scratch cleanup only after synthesis; batch failure aborts before synthesis.
+- Helper pins: single persistent conversation under HELPER_SLUG/purpose 'helper'; system prompt =
+  agent prompt + USER_GUIDE.md from userDataPath (REAL node:fs read — temp dir in tests) with a
+  degraded placeholder fallback; workingDir = active book dir else userDataPath; Helper
+  maxTurns 5. fakes.ts fs fake gained activeBookSlug/getActiveBookSlug/setActiveBook.
 
 ### 2026-07-18 — Agent stop #11 (context limit)
 

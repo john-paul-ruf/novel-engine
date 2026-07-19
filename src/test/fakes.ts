@@ -190,6 +190,8 @@ export type FakeFileSystem = IFileSystemService & {
   meta: { slug: string; title: string; author: string; status: string; created: string; coverImage: string };
   /** Absolute cover path returned by getCoverImageAbsolutePath (default null). */
   coverPath: string | null;
+  /** Active book slug returned by getActiveBookSlug (default ''). */
+  activeBookSlug: string;
 };
 
 /**
@@ -233,7 +235,12 @@ export function makeFakeFs(
     writes,
     meta,
     coverPath: null as string | null,
+    activeBookSlug: '',
     getBooksPath: () => '/fake/books',
+    getActiveBookSlug: async () => fake.activeBookSlug,
+    setActiveBook: async (slug: string) => {
+      fake.activeBookSlug = slug;
+    },
     getAuthorProfilePath: () => '/fake/userdata/author-profile.md',
     readFile: async (slug: string, path: string) => {
       const content = files.get(`${slug}/${path}`);
