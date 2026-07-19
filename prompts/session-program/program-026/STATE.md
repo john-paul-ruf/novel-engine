@@ -609,6 +609,17 @@ Also eligible: S20, S21, S22.
   revision onEvent re-tags stream events with callId `rev:{sessionId}`; notifications gate on
   enabled && supported && unfocused, error bodies truncate at 117+'…'.
 
+### 2026-07-18 — Agent stop #14 (context limit)
+
+Stopped cleanly after SESSIONS 20+21. All committed (latest: 1791244). Suite: 66 files,
+638 tests, green ×2; `npx tsc --noEmit` clean. **Phases D (application) and E (main/IPC) are
+COMPLETE — sessions 02–21 all done.** Next eligible: **SESSION-22** (renderer test harness +
+core stores) — it gates S23–S28. Key inputs for S22: the `window.novelEngine` placeholder in
+`src/test/setup.renderer.ts` is an empty cast object (S01 note) — S22 must build the real typed
+mock factory; the full bridge surface (30 namespaces, every method + subscription shape) is
+pinned in `src/preload/index.test.ts` — mirror it. After S22: S23–S28 in any order, then the
+S29 gate.
+
 ### 2026-07-18 — Agent stop #13 (context limit)
 
 Stopped cleanly after SESSION-19. All committed (latest: 8b045f5). Suite: 58 files, 566 tests,
