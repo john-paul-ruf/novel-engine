@@ -34,7 +34,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 12 | llama-server + providers | M13, M15 | done | 2026-07-18 | 32 tests; LlamaServerClient is pure HTTP/SSE (no spawn); infra layer complete |
 | 13 | ChatService, StreamManager, ContextBuilder | M08 | done | 2026-07-18 | 35 tests; src/test/fakes.ts factory added for all Phase D sessions |
 | 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | done | 2026-07-18 | 32 tests; fakes.ts fs fake extended (meta/chapters/delete/cover) |
-| 15 | RevisionQueueService, AdhocRevisionService | M08 | pending | | |
+| 15 | RevisionQueueService, AdhocRevisionService | M08 | done | 2026-07-18 | 20 tests; all six session statuses asserted |
 | 16 | MultiCallOrchestrator, AuditService | M08 | pending | | |
 | 17 | QueryService, VersionService, FindReplaceService | M08 | pending | | |
 | 18 | MotifLedgerService, HotTakeService, HelperService | M08 | pending | | |
@@ -428,6 +428,24 @@ green ×2, no @infra imports in application tests. **Next eligible: SESSION-14**
 BuildService, SourceGenerationService, ChapterValidator). Start from the SESSION-13 handoff:
 `src/test/fakes.ts` covers most collaborators; BuildService likely needs pandoc mocking
 (execFile — see S03 recipe) and real temp dirs (bookFixtures). Also eligible: S15–S21, S22.
+
+### 2026-07-18 — SESSION-15 (revision queue + adhoc revision)
+
+- **Queue persistence contract pinned:** plan cache (`source/revision-plan-cache.json`) +
+  session state (`source/revision-queue-state.json`, embeds parsed plan); content hash
+  normalizes checkboxes/whitespace so approvals never invalidate the cache; state restore only
+  applies terminal statuses (approved/rejected/skipped) — never running/awaiting-approval —
+  but conversationIds are restored unconditionally; cycle transitions (audit + archived v1)
+  clear cache+state; audit without archive is a hard loadPlan error.
+- **Retry contract pinned:** Wrangler parse retries ×3 with maxTurns 15→20→25 (MULTI_CALL
+  constants); empty response/no-JSON/0-sessions all count as failures.
+- **Gate mechanics pinned:** isApprovalGate keys on the LAST paragraph containing signal words
+  (approval/proceed/continue/next task/shall i/…) — final replies in tests must avoid them;
+  approve/approve-all/reject/skip re-enter the loop with a follow-up user message; retry
+  resets response+conversationId and leaves status 'rejected' (runnable again); auto-approve
+  mode bypasses gates. runAll: FIFO by session index, pause stops between sessions,
+  concurrent runAll on the same plan throws.
+- Session model tier ('opus'/'sonnet') is metadata only — execution always uses settings.model.
 
 ### 2026-07-18 — Agent stop #8 (context limit)
 
