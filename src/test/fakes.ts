@@ -186,6 +186,10 @@ export type FakeFileSystem = IFileSystemService & {
   files: Map<string, string>;
   /** Every writeFile call, in order. */
   writes: { bookSlug: string; path: string; content: string }[];
+  /** Mutable book meta returned by getBookMeta. */
+  meta: { slug: string; title: string; author: string; status: string; created: string; coverImage: string };
+  /** Absolute cover path returned by getCoverImageAbsolutePath (default null). */
+  coverPath: string | null;
 };
 
 /**
@@ -203,9 +207,32 @@ export function makeFakeFs(
   const writes: { bookSlug: string; path: string; content: string }[] = [];
   const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
+  /** Mirror FileSystemService.chapterSortKey: 00-N front matter → body → zN back matter. */
+  const chapterSortKey = (name: string): number => {
+    if (name.toLowerCase().startsWith('z')) {
+      const n = parseInt(name.slice(1), 10);
+      return 10_000 + (isNaN(n) ? 0 : n);
+    }
+    const fm = name.match(/^00-(\d+)-/);
+    if (fm) return parseInt(fm[1], 10) * 0.01;
+    const n = parseInt(name, 10);
+    return isNaN(n) ? 5000 : n;
+  };
+
+  const meta = {
+    slug: bookSlug,
+    title: opts.title ?? 'Test Book',
+    author: 'Test Author',
+    status: 'first-draft',
+    created: '2026-01-01T00:00:00.000Z',
+    coverImage: '',
+  };
+
   const fake = {
     files,
     writes,
+    meta,
+    coverPath: null as string | null,
     getBooksPath: () => '/fake/books',
     getAuthorProfilePath: () => '/fake/userdata/author-profile.md',
     readFile: async (slug: string, path: string) => {
@@ -218,6 +245,25 @@ export function makeFakeFs(
       writes.push({ bookSlug: slug, path, content });
     },
     fileExists: async (slug: string, path: string) => files.has(`${slug}/${path}`),
+    deleteFile: async (slug: string, path: string) => {
+      files.delete(`${slug}/${path}`);
+    },
+    getBookMeta: async () => ({ ...meta }),
+    updateBookMeta: async (_slug: string, partial: Partial<typeof meta>) => {
+      Object.assign(meta, partial);
+      return { ...meta };
+    },
+    getCoverImageAbsolutePath: async () => fake.coverPath,
+    countWordsPerChapter: async (slug: string) => {
+      const chapters = [...files.entries()]
+        .filter(([key]) => key.startsWith(`${slug}/chapters/`) && key.endsWith('/draft.md'))
+        .map(([key, content]) => {
+          const chapterSlug = key.slice(`${slug}/chapters/`.length).replace(/\/draft\.md$/, '');
+          const isFrontMatter = /^00-\d+-/.test(chapterSlug);
+          return { slug: chapterSlug, wordCount: isFrontMatter ? 0 : wordCount(content) };
+        });
+      return chapters.sort((a, b) => chapterSortKey(a.slug) - chapterSortKey(b.slug));
+    },
     getProjectManifest: async (slug: string): Promise<ProjectManifest> => {
       const bookFiles = [...files.entries()]
         .filter(([key]) => key.startsWith(`${slug}/`))

@@ -33,7 +33,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | done | 2026-07-18 | 29 tests; M12 fully covered; all network via fetch stubs |
 | 12 | llama-server + providers | M13, M15 | done | 2026-07-18 | 32 tests; LlamaServerClient is pure HTTP/SSE (no spawn); infra layer complete |
 | 13 | ChatService, StreamManager, ContextBuilder | M08 | done | 2026-07-18 | 35 tests; src/test/fakes.ts factory added for all Phase D sessions |
-| 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | pending | | |
+| 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | done | 2026-07-18 | 32 tests; fakes.ts fs fake extended (meta/chapters/delete/cover) |
 | 15 | RevisionQueueService, AdhocRevisionService | M08 | pending | | |
 | 16 | MultiCallOrchestrator, AuditService | M08 | pending | | |
 | 17 | QueryService, VersionService, FindReplaceService | M08 | pending | | |
@@ -401,7 +401,25 @@ lives at `src/application/ContextBuilder.ts`, NOT `context/`). Application layer
 hand-rolled interface fakes per Design Decision #6 — check `src/domain/interfaces.ts` for the
 injected interfaces of each service. Also eligible: S14–S21, S22 (renderer harness).
 
-### 2026-07-18 — Agent stop #7 (context limit)
+### 2026-07-18 — SESSION-14 (pipeline, build, source-gen, chapter validator)
+
+- **fakes.ts extended:** makeFakeFs now also provides `deleteFile`, `getBookMeta`/`updateBookMeta`
+  (mutable `.meta`), `getCoverImageAbsolutePath` (settable `.coverPath`), and
+  `countWordsPerChapter` (mirrors chapterSortKey ordering, front matter = 0 words).
+- **Pipeline resumability contract pinned:** completion = detection files/status AND
+  user confirmation in `pipeline-state.json`; legacy books (no state file) auto-confirm all
+  currently file-complete phases on first detectPhases; confirm is idempotent; revert drops the
+  target + all later confirmations (revision revert also deletes the v1 archives; first-draft
+  revert rolls book status back); markPhaseComplete writes ≥200-word stubs (never overwrites),
+  advances status phases, and auto-confirms; second-read/second-assessment gates require live
+  report word counts to DIFFER from the v1 archives.
+- **Source quirks (noted, not fixed):** (1) SourceGenerationService's step-label conversation
+  titles are immediately overwritten by the DB first-user-message title rule; (2) ChapterValidator
+  only recognizes root files STARTING with draft/notes/chapter/section — `01-slug-draft.md` at
+  chapters root is left in place (extractChapterSlug pattern 1 unreachable from that path);
+  (3) BuildService's missing-draft skip branch is unreachable via the real fs contract
+  (countWordsPerChapter only lists dirs, and reads then can only fail on races).
+- BuildService pandoc mocked via the S03 `promisify.custom` recipe on `'node:child_process'`.
 
 Stopped cleanly after SESSION-13. All committed (latest: 3c988cd). Suite: 40 files, 429 tests,
 green ×2, no @infra imports in application tests. **Next eligible: SESSION-14** (PipelineService,
