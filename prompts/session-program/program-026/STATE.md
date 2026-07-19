@@ -453,3 +453,11 @@ Stopped cleanly after SESSION-14. All committed (latest: 690cd45). Suite: 44 fil
 green. **Next eligible: SESSION-15** (RevisionQueueService, AdhocRevisionService). The S13/S14
 fakes cover settings/agents/registry/fs/db collaborators; remember the S13 multi-call trap when
 driving ChatService-adjacent flows. Also eligible: S16–S21, S22.
+
+### 2026-07-18 — Agent stop #9 (context limit)
+
+Stopped cleanly after SESSION-15. All committed (latest: e6d1af4). Suite: 47 files, 481 tests,
+green. **Next eligible: SESSION-16** (MultiCallOrchestrator 805 + AuditService 772). The S15
+retry pins (MULTI_CALL constants, 15→20→25 turns) apply to the orchestrator too; scripted
+provider + fakes cover the collaborators. AGENT_MULTI_CALL_STEPS schemas were pinned in S02's
+constants tests. Also eligible: S17–S21, S22.
