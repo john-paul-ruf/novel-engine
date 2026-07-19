@@ -4,6 +4,31 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-18] — Forge program for Ollama about.json corruption
+
+### Summary
+
+Built Forge session program `program-027` to fix the `ToolExecutor.extractStringValue` bug that strips JSON file contents to their first inner string when Ollama- or llama-server-backed agents write to `.json` files. Reproduced against live Ollama: `qwen3.5:cloud` (3/8 corrupt) and `llama3.1:8b` (4/6 corrupt) when run with the `SPARK_METADATA_PROMPT` from `src/renderer/components/Files/AboutJsonViewer.tsx`. The model sent valid escaped JSON content as the `Write` tool's `content` argument; the recursive parse-and-extract path in `extractStringValue` walked into it and salvaged only the title, writing the bare title to disk. Claude CLI and Codex CLI are unaffected (they don't use `ToolExecutor`). No source files modified in this session — only the Forge program was created.
+
+### Added
+
+- `prompts/session-program/program-027/MASTER.md` — Execution protocol, crash recovery, final report shape
+- `prompts/session-program/program-027/STATE.md` — Session status, dependency graph, design decisions, handoff notes scaffold
+- `prompts/session-program/program-027/SESSION-01.md` — Root fix: add `raw` flag to `requireString`/`extractStringValue`; pass `raw=true` only at the Write `content` extraction site. Modifies `src/infrastructure/ollama-cli/ToolExecutor.ts`
+- `prompts/session-program/program-027/SESSION-02.md` — Defense in depth: add a `.json` file guard in `executeWrite` that restores the raw argument when extraction produces non-JSON; co-locates `src/infrastructure/ollama-cli/ToolExecutor.test.ts` with four regression tests. Installs Vitest if program-026 has not shipped its harness yet
+- `prompts/session-program/program-027/SESSION-03.md` — Renderer-only: tighten `SPARK_METADATA_PROMPT` in `src/renderer/components/Files/AboutJsonViewer.tsx` to require valid JSON output, name preserved canonical fields, and forbid prose wrapping
+- `prompts/session-program/program-027/input-files/REPRODUCTION_NOTES.md` — Source material: symptom, trigger path, root cause, reproduction rates, raw arg dump, required fix, scope decisions
+
+### Architecture Impact
+
+- None — no source files modified in this session. The 3 sessions in program-027, when executed, will affect M07 (ollama-cli `ToolExecutor`), transitively benefit M07-adjacent (llama-server via shared `ToolExecutor`), and one M10 renderer string. No new IPC channels, stores, or modules.
+
+### Migration Notes
+
+none — no source changes this session; downstream migrations (if any) are documented inside each SESSION-NN.md.
+
+---
+
 ## [2026-07-13] — Deployment prep: release notes, README update, website rebuild
 
 ### Summary
