@@ -370,3 +370,12 @@ OpenAiCompatibleProvider 229, ProviderRegistry 383). LlamaServerClient almost ce
 the fetch-streaming pattern — the S11 fixtures (`src/test/fixtures/ollama-responses.ts` style)
 and the non-local-baseUrl trick likely transfer. ProviderRegistry is DI/pure — hand-rolled fakes.
 Also eligible: S13–S21, S22.
+
+### 2026-07-18 — Agent stop #6 (context limit)
+
+Stopped cleanly after SESSION-12. All committed (latest: 671fea5). Suite: 37 files, 394 tests,
+green ×2. **Infrastructure phase (C) complete — sessions 03–12 all done.** Next eligible:
+**SESSION-13** (ChatService 932 + StreamManager 255 + ContextBuilder — note: ContextBuilder
+lives at `src/application/ContextBuilder.ts`, NOT `context/`). Application layer tests use
+hand-rolled interface fakes per Design Decision #6 — check `src/domain/interfaces.ts` for the
+injected interfaces of each service. Also eligible: S14–S21, S22 (renderer harness).
