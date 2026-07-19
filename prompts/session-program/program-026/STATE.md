@@ -36,7 +36,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | done | 2026-07-18 | 32 tests; fakes.ts fs fake extended (meta/chapters/delete/cover) |
 | 15 | RevisionQueueService, AdhocRevisionService | M08 | done | 2026-07-18 | 20 tests; all six session statuses asserted |
 | 16 | MultiCallOrchestrator, AuditService | M08 | done | 2026-07-18 | 16 tests; sequential orchestration + write-verification pinned |
-| 17 | QueryService, VersionService, FindReplaceService | M08 | pending | | |
+| 17 | QueryService, VersionService, FindReplaceService | M08 | done | 2026-07-18 | 30 tests; TWO QueryService parse bugs found + recorded (see handoff) |
 | 18 | MotifLedgerService, HotTakeService, HelperService | M08 | pending | | |
 | 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | pending | | |
 | 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | pending | | |
@@ -483,6 +483,27 @@ green. **Next eligible: SESSION-16** (MultiCallOrchestrator 805 + AuditService 7
 retry pins (MULTI_CALL constants, 15→20→25 turns) apply to the orchestrator too; scripted
 provider + fakes cover the collaborators. AGENT_MULTI_CALL_STEPS schemas were pinned in S02's
 constants tests. Also eligible: S17–S21, S22.
+
+### 2026-07-18 — SESSION-17 (query, version, find-replace)
+
+- **🐛 BUG (QueryService, not fixed — needs a real fix, not behavior-preserving):**
+  `extractField('query-letter')` / `extractField('response-date')` never match the serialized
+  labels `- **Query Letter:**` / `- **Response Date:**` (hyphen vs space). Consequences, now
+  pinned in tests: `queryLetterPath`/`responseDate` are LOST on every tracker round-trip, and
+  `removeTarget`'s letter-file cleanup is dead code. Fix would be aligning extractField keys
+  with fieldToLabel (e.g. `extractField(body, 'query letter')`).
+- **🐛 QUIRK (QueryService, not fixed):** an EMPTY field value (`- **Contact:**\n- **Method:** …`)
+  makes extractField's `\s*(.*)` swallow the NEXT line as the value. Tests avoid empty
+  placeholders; agents writing empty fields will corrupt parses.
+- Regex/scope semantics pinned (FindReplace): search scope = `chapters/*/draft.md` ONLY (notes
+  and source/ excluded); literal mode escapes metacharacters; regex mode validates up front
+  ('Invalid regular expression'); case-insensitive default; apply snapshots originals via
+  versions.snapshotContent('user') BEFORE writing, skips zero-match/missing files.
+- VersionService pins: sha256 dedup on snapshot; revert always writes a 'revert' version (even
+  identical) and validates ownership; user-edit diffs use newVersion.id -1 sentinel vs latest
+  agent baseline; chapter edit statuses cover body chapters (NN ≥ 2) only; author-edits section
+  caps at 120 diff lines with a continuation note; diff totals include trailing-newline
+  rewrites (diff lib behavior).
 
 ### 2026-07-18 — Agent stop #10 (context limit)
 
