@@ -30,6 +30,7 @@ import type {
   AppSettings,
   ModelInfo,
   ProjectManifest,
+  RecentFile,
   StreamEvent,
 } from '@domain/types';
 import { AGENT_REGISTRY, DEFAULT_SETTINGS } from '@domain/constants';
@@ -192,6 +193,12 @@ export type FakeFileSystem = IFileSystemService & {
   coverPath: string | null;
   /** Active book slug returned by getActiveBookSlug (default ''). */
   activeBookSlug: string;
+  /** Path returned by getAuthorProfilePath (default: nonexistent fake path). */
+  authorProfilePath: string;
+  /** Base dir for getPitchDraftPath → `${pitchDraftBase}/${conversationId}`. */
+  pitchDraftBase: string;
+  /** Entries returned by getRecentFiles (default []). */
+  recentFiles: RecentFile[];
 };
 
 /**
@@ -236,12 +243,17 @@ export function makeFakeFs(
     meta,
     coverPath: null as string | null,
     activeBookSlug: '',
+    authorProfilePath: '/fake/userdata/author-profile.md',
+    pitchDraftBase: '/fake/userdata/pitch-drafts',
+    recentFiles: [] as RecentFile[],
     getBooksPath: () => '/fake/books',
     getActiveBookSlug: async () => fake.activeBookSlug,
     setActiveBook: async (slug: string) => {
       fake.activeBookSlug = slug;
     },
-    getAuthorProfilePath: () => '/fake/userdata/author-profile.md',
+    getAuthorProfilePath: () => fake.authorProfilePath,
+    getPitchDraftPath: (conversationId: string) => `${fake.pitchDraftBase}/${conversationId}`,
+    getRecentFiles: async () => fake.recentFiles,
     readFile: async (slug: string, path: string) => {
       const content = files.get(`${slug}/${path}`);
       if (content === undefined) throw new Error(`File not found: ${path} in book "${slug}"`);

@@ -39,7 +39,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 17 | QueryService, VersionService, FindReplaceService | M08 | done | 2026-07-18 | 30 tests; TWO QueryService parse bugs found + recorded (see handoff) |
 | 18 | MotifLedgerService, HotTakeService, HelperService | M08 | done | 2026-07-18 | 19 tests, first-try green |
 | 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | done | 2026-07-18 | 20 tests; detector limitations recorded |
-| 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | pending | | |
+| 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | done | 2026-07-18 | 25 tests; Phase D complete — every src/application file now has a co-located test |
 | 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | pending | | |
 | 22 | Renderer test harness + core stores | M10 | pending | | |
 | 23 | Streaming stores | M10 | pending | | |
@@ -563,6 +563,24 @@ green (first try). **Next eligible: SESSION-19** (ChapterDetector, ManuscriptImp
 SeriesImportService — check `src/application/import/` for locations). Then S20 finishes
 Phase D; S21 (main/IPC) and S22 (renderer harness — gates S23–S28) remain the big unlocks.
 Also eligible: S20, S21, S22.
+
+### 2026-07-18 — SESSION-20 (pitch room, dashboard, statistics, usage)
+
+- **Application layer (Phase D) COMPLETE.** Completeness sweep clean: every non-index
+  `src/application/**/*.ts` (incl. `context/TokenEstimator`, `import/ChapterDetector`,
+  `thinkingBudget.ts`) has a co-located test.
+- **Session-prompt drift (adapted, no code changes):** StatisticsService has no streak/velocity
+  math — it's db aggregation + cost estimate; UsageService has no date-range params; PitchRoom
+  has no app-level shelving/promotion (a source comment pins that Spark scaffolds books directly
+  via CLI — shelving lives in FileSystemService, covered by S07).
+- **fakes.ts fs fake extended:** settable `authorProfilePath` (getAuthorProfilePath),
+  `pitchDraftBase` (getPitchDraftPath → `base/{conversationId}`), `recentFiles` (getRecentFiles).
+- Pins: cost estimate uses the FIRST MODEL_PRICING entry (opus 15/75), thinking billed at output
+  rate, rounded to cents; dashboard task regex needs the bullet at line start (indented
+  checkboxes ignored), `[x]` case-insensitive; daysInProgress floors and clamps ≥0; PitchRoom
+  mkdirs the draft dir on REAL fs (tests must point `pitchDraftBase` at a temp dir) and reads
+  the author profile via real node:fs (whitespace-only profile skipped); event order pinned
+  status → callStart → status → provider events.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
