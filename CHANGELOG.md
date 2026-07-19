@@ -4,6 +4,24 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-19] — ChapterDetector downstream ripple + docs (program-028 SESSION-02)
+
+### Summary
+
+Flipped the two `ManuscriptImportService` preview assertions that counted chapters before the new Front Matter pseudo-chapter was introduced in SESSION-01. Updated the `docs/architecture/APPLICATION.md` ChapterDetector subsection to describe the three heuristics (standalone-heading guard, title-page H1 skip when H2s are present, Front Matter `index: -1` capture) and the strategy priority chain. No production code changed this session.
+
+### Changed
+- `src/application/ManuscriptImportService.test.ts` — `preview.chapters.length` assertion at line 47 (`toBe(5)` → `toBe(6)`) and the DOCX-branch assertion at line 62 (`toBe(5)` → `toBe(6)`); added a boundary assertion that `preview.chapters[0].title === 'Front Matter'` and `preview.chapters[0].index === -1` to lock the SESSION-01 behavior at the service seam
+- `docs/architecture/APPLICATION.md` — ChapterDetector subsection rewritten: added a detection-strategy table (chapter pattern / headings / fallback) with the standalone-heading and title-page H1 skip rules, added a Front Matter convention paragraph covering the `index: -1` synthetic chapter, `00-front-matter/draft.md` commit slug, and the ambiguity-math exclusion
+
+### Architecture Impact
+- None — no production code change this session. The Front Matter chapter surfaced by SESSION-01 flows through `ManuscriptImportService.preview` unchanged (the service passes the `chapters` array through verbatim).
+
+### Migration Notes
+- None — behavior migration was committed in SESSION-01's entry. This session closes the downstream test ripple and the architecture-doc debt.
+
+---
+
 ## [2026-07-19] — ChapterDetector heuristic fix (bug 6)
 
 ### Summary

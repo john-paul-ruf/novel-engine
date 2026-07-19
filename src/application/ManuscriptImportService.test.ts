@@ -44,7 +44,9 @@ describe('preview', () => {
     const preview = await service.preview(sourcePath);
 
     expect(preview.sourceFormat).toBe('markdown');
-    expect(preview.chapters.length).toBe(5);
+    expect(preview.chapters.length).toBe(6);
+    expect(preview.chapters[0].title).toBe('Front Matter');
+    expect(preview.chapters[0].index).toBe(-1);
     expect(preview.detectedAuthor).toBe('Jane Author');
     expect(preview.totalWordCount).toBe(preview.chapters.reduce((sum, c) => sum + c.wordCount, 0));
     expect(holder.execFile).not.toHaveBeenCalled(); // no pandoc for .md
@@ -59,7 +61,7 @@ describe('preview', () => {
 
     const preview = await service.preview('/books/novel.docx');
     expect(preview.sourceFormat).toBe('docx');
-    expect(preview.chapters.length).toBe(5);
+    expect(preview.chapters.length).toBe(6);
 
     holder.execFile = vi.fn(async () => {
       throw new Error('corrupt archive');

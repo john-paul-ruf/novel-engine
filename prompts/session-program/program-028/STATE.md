@@ -31,7 +31,7 @@ suite run.
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | ChapterDetector — 3-heuristic fix + test flip + regressions | M08 | done | 2026-07-19 | 3 heuristics fixed; 3 tests flipped; 3 regressions added; ManuscriptImportService.test.ts expected red — ripple: ASSERTIONS at BOTH line 47 AND line 62 (both use NUMBERED_CHAPTERS) need to flip to 6 |
-| 02 | Downstream ripple — service test count + docs + final green | M08, M09 (docs only) | pending | | touches `src/application/ManuscriptImportService.test.ts` (lines 47 AND 62), `docs/architecture/APPLICATION.md` |
+| 02 | Downstream ripple — service test count + docs + final green | M08, M09 (docs only) | done | 2026-07-19 | Two downstream assertions flipped to `6` (lines 47 and 62); APPLICATION.md updated; CHANGELOG appended; full suite green — 178 files, 1388 tests; coverage: global L 85.85 / S 84.12 / F 81.44 / B 72.61; application L 90.71 |
 
 Status values: pending | in-progress | done | blocked | skipped
 
@@ -119,3 +119,21 @@ _(agents append here after each session: date, session, surprises, bugs found in
 - `npm run test:coverage` — vitest exits non-zero on the 2 test failures before printing the threshold table; the coverage text reporter default is suppressed on failure. SESSION-02 will run coverage after the flip and confirm all thresholds (lines 75 global, 90 application, 80 infra, 90 preload, 70 renderer, 54 main).
 
 **Warnings.** None beyond the above. No regressions outside the import subsystem.
+
+### 2026-07-19 — SESSION-02 done
+
+**What I built.**
+- `src/application/ManuscriptImportService.test.ts` — Flipped two `preview.chapters.length` assertions from `5` to `6`: line 47 (markdown source test) and line 62 (DOCX-via-pandoc test). Added two boundary assertions at lines 48-49 locking that `preview.chapters[0].title === 'Front Matter'` and `preview.chapters[0].index === -1` at the service seam.
+- `docs/architecture/APPLICATION.md` — Rewrote the ChapterDetector subsection: replaced the single-function table with one that describes the priority-ordered strategies; added a three-row "Detection strategy" table (chapter pattern / headings / fallback) with the standalone-heading rule and the H1-title-page skip rule; added a "Front Matter convention" paragraph covering the `index: -1` synthetic chapter, the `00-front-matter/draft.md` commit slug, the ambiguity-math exclusion, and the index-blind downstream consumers (`importStore`, `ChapterPreviewList`, `ImportWizard`). Rewrote the ambiguity-detection note to mention the `index >= 0` filter.
+- `CHANGELOG.md` — Appended a second dated entry for this session.
+
+**Verification.**
+- `npx tsc --noEmit` — 0 errors.
+- `npm test` — 178 test files, 1388 tests, all green.
+- `npm run test:coverage` — exit 0. Global: Lines 85.85 / Statements 84.12 / Branches 72.61 / Functions 81.44. `src/application/**` Lines 90.71 (≥90 threshold met). All other per-glob thresholds met (domain ≥90, infrastructure ≥80, preload ≥90, renderer ≥70, main ≥54) — vitest exited zero, which is the threshold enforcement signal.
+
+**Docs sanity.** The APPLICATION.md edits reference `src/application/import/ChapterDetector.ts` (exists), the three strategies implemented in SESSION-01, the `index: -1` Front Matter entry, the `00-front-matter/draft.md` slug, and the `importStore`/`ChapterPreviewList`/`ImportWizard` consumers — all verified against SESSION-01's source changes.
+
+**Surprises.** None. SESSION-01's handoff notes flagged the exact two assertions to flip (lines 47 AND 62 — the prompt's body text already corrected SESSION-01's original "one assertion at line 47" framing); both flipped predictably to 6.
+
+**Program complete.** Both sessions `done`. Posting the Final Report per MASTER.md.

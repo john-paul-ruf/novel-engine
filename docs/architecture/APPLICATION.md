@@ -347,11 +347,21 @@ Pure utility — no class, no dependencies. Exports three functions.
 
 | Function | What It Does |
 |----------|-------------|
-| `detectChapters(markdown)` | Detects chapter boundaries by heading patterns (≥3 matches), "Chapter N" patterns (≥3 matches), or fallback single-chapter |
+| `detectChapters(markdown)` | Returns `{ chapters, ambiguous }`. Three detection strategies tried in priority order; first to reach ≥3 splits wins, otherwise a single-chapter ambiguous fallback. |
 | `detectTitle(markdown)` | Extracts title from first `# Heading` |
-| `detectAuthor(markdown)` | Extracts author from "by Author" or "Author: Name" patterns |
+| `detectAuthor(markdown)` | Extracts author from "by Author" or "Author: Name" patterns (also italic-only `*Author Name*` lines near the top) |
 
-**Ambiguity detection:** Set `ambiguous = true` if <3 chapters in a >10K word doc, or if any chapter is >5× the smallest, or if using fallback.
+**Detection strategy (priority order):**
+
+| Strategy | Trigger | Rule |
+|----------|---------|------|
+| Chapter pattern | ≥3 lines match `Chapter N` / `Prologue` / `Epilogue` / `Part N` / bold-wrapped variants | A label only counts as a split when it is a **standalone heading** — the previous line is blank or it sits at start-of-file. Tail content after the label (`Chapter 3: The Reveal`) is allowed; prose-embedded mentions (`Chapter 3 was her favorite…`) are rejected. |
+| Headings | ≥3 `#`/`##` lines | The first H1 is skipped when at least one `##` heading appears later (title-page heuristic). H1-only manuscripts (no H2) keep every H1 as a split. |
+| Fallback | otherwise | Entire document returns as one chapter, `ambiguous: true`. |
+
+**Front Matter convention.** When the first detected split is not at line 0, a synthetic `{ index: -1, title: 'Front Matter', startLine: 0, endLine: firstSplit.lineIndex, … }` entry is prepended to the `chapters` array, capturing title-page / byline / copyright / dedication content that would otherwise be dropped. The entry is excluded from ambiguity math (`detectAmbiguity` filters `index >= 0` before the uneven-size and few-chapters-for-long-doc rules). The ImportWizard renders the Front Matter row like any other chapter; users can remove or merge it before importing. `ManuscriptImportService.commit` writes the row to `chapters/00-front-matter/draft.md` (the slug zero-pads `index + 1 = 0`, which sorts before `01-…`).
+
+**Ambiguity detection:** Set `ambiguous = true` if <3 real chapters in a >10K word doc, or if any real chapter is >5× the smallest, or if using fallback. The Front Matter entry (`index: -1`) is filtered out before these checks.
 
 ### SeriesImportService
 
