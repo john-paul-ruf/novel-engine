@@ -32,7 +32,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | done | 2026-07-18 | 46 tests; extended existing ToolExecutor.test.ts; no sandbox escapes found |
 | 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | done | 2026-07-18 | 29 tests; M12 fully covered; all network via fetch stubs |
 | 12 | llama-server + providers | M13, M15 | done | 2026-07-18 | 32 tests; LlamaServerClient is pure HTTP/SSE (no spawn); infra layer complete |
-| 13 | ChatService, StreamManager, ContextBuilder | M08 | pending | | |
+| 13 | ChatService, StreamManager, ContextBuilder | M08 | done | 2026-07-18 | 35 tests; src/test/fakes.ts factory added for all Phase D sessions |
 | 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | pending | | |
 | 15 | RevisionQueueService, AdhocRevisionService | M08 | pending | | |
 | 16 | MultiCallOrchestrator, AuditService | M08 | pending | | |
@@ -370,6 +370,27 @@ OpenAiCompatibleProvider 229, ProviderRegistry 383). LlamaServerClient almost ce
 the fetch-streaming pattern — the S11 fixtures (`src/test/fixtures/ollama-responses.ts` style)
 and the non-local-baseUrl trick likely transfer. ProviderRegistry is DI/pure — hand-rolled fakes.
 Also eligible: S13–S21, S22.
+
+### 2026-07-18 — SESSION-13 (ChatService, StreamManager, ContextBuilder)
+
+- **`src/test/fakes.ts` API for S14–S20:** `makeFakeSettings(overrides)` (exposes `.current`),
+  `makeFakeAgents(promptsByFilename)` (registry-backed; loadComposite → `[FILE.md]` markers
+  joined with `---`), `makeScriptedProvider()` (`.scriptNext(events[])` queues one script per
+  sendMessage; `.setImpl()` replaces behavior; `.calls` records params), `makeFakeRegistry(provider,
+  {models})` (fallback → didFallback), `makeFakeFs(files, {bookSlug})` (in-memory; `.files` Map
+  keyed `slug/path`, `.writes` log, manifest derived from seeded files), `makeUsageRecorder()`,
+  `makeNoopChapterValidator()`, `makeFakePitchRoom/HotTake/AdhocRevision()` (vi.fn handleMessage),
+  `makeFakeSeries(biblePath)`, `makeFakeVersion(authorEdits)`. Real `:memory:` db via makeDb.
+  Real StreamManager instances are cheap — construct with (db, usageRecorder.usage).
+- **TRAP for S14–S20:** ChatService routes FIRST pipeline messages from Sable/Lumen/Ghostlight/
+  Forge into the real MultiCallOrchestrator (constructed internally). Use Spark/Quill/Verity or
+  a second message to test the normal flow; the orchestrator itself is S16.
+- Pins: user message saved BEFORE availability... no — availability check precedes all writes
+  (unavailable → zero DB writes); purpose routing (pitch-room/hot-take/adhoc-revision) happens
+  AFTER the user message is saved; extraction fallback never overwrites populated outputs and
+  respects PHASE_OUTPUT_CONTENT_MARKERS; abort saves partial text with "[Aborted by user]";
+  ContextBuilder tiers by turnBudget/MAX_CONTEXT_TOKENS fraction (>40% all, >20% 8, >10% 4,
+  else 2; +2-message omission note when dropping; force-keeps newest message).
 
 ### 2026-07-18 — Agent stop #6 (context limit)
 
