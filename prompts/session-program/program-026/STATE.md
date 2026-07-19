@@ -483,3 +483,10 @@ green. **Next eligible: SESSION-16** (MultiCallOrchestrator 805 + AuditService 7
 retry pins (MULTI_CALL constants, 15→20→25 turns) apply to the orchestrator too; scripted
 provider + fakes cover the collaborators. AGENT_MULTI_CALL_STEPS schemas were pinned in S02's
 constants tests. Also eligible: S17–S21, S22.
+
+### 2026-07-18 — Agent stop #10 (context limit)
+
+Stopped cleanly after SESSION-16. All committed (latest: 55a5720). Suite: 49 files, 497 tests,
+green (first try). **Next eligible: SESSION-17** (QueryService, VersionService,
+FindReplaceService). VersionService pairs with the S05 file-version db coverage; the fakes
+module now covers fs listDirectory/deletePath. Also eligible: S18–S21, S22.
