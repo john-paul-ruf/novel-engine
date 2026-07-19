@@ -51,11 +51,15 @@ export class BrowserWindow {
 
 export class Notification {
   static isSupported = vi.fn((): boolean => true);
+  /** Every constructed notification, in order. Clear in beforeEach. */
+  static instances: Notification[] = [];
 
   show = vi.fn();
   on = vi.fn();
 
-  constructor(public options: { title?: string; body?: string } = {}) {}
+  constructor(public options: { title?: string; body?: string } = {}) {
+    Notification.instances.push(this);
+  }
 }
 
 export const ipcMain = {

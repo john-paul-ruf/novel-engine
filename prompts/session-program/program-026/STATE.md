@@ -40,7 +40,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 18 | MotifLedgerService, HotTakeService, HelperService | M08 | done | 2026-07-18 | 19 tests, first-try green |
 | 19 | Import services — ChapterDetector, ManuscriptImport, SeriesImport | M08 | done | 2026-07-18 | 20 tests; detector limitations recorded |
 | 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | done | 2026-07-18 | 25 tests; Phase D complete — every src/application file now has a co-located test |
-| 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | pending | | |
+| 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | done | 2026-07-18 | 47 tests; 142 channels wired 1:1 with preload; composition root excluded (window:*); FORGE.MD migration no-ops on APFS (bug candidate) |
 | 22 | Renderer test harness + core stores | M10 | pending | | |
 | 23 | Streaming stores | M10 | pending | | |
 | 24 | Remaining stores I | M10 | pending | | |
@@ -581,6 +581,33 @@ Also eligible: S20, S21, S22.
   mkdirs the draft dir on REAL fs (tests must point `pitchDraftBase` at a temp dir) and reads
   the author profile via real node:fs (whitespace-only profile skipped); event order pinned
   status → callStart → status → provider events.
+
+### 2026-07-18 — SESSION-21 (main/IPC, preload, bootstrap, notifications)
+
+- **Channel completeness is self-maintaining:** handlers.test.ts regex-extracts every
+  `ipcRenderer.invoke('…')` from the preload SOURCE at test time and asserts a 1:1 match with
+  registered `ipcMain.handle` channels (142 registered / 143 invoked; the delta is
+  `window:isMaximized`). Verified the trip-wire by temporarily commenting `usage:summary`
+  (failed as expected, restored). **Exceptions documented in the test:** `window:isMaximized`
+  (handle) + `window:minimize/maximize/close` (`ipcMain.on`) live in `src/main/index.ts` —
+  the composition root is EXCLUDED from unit coverage (Electron-launch only). No orphaned
+  channels found.
+- **🐛 Bug candidate (bootstrap, not fixed):** the `ensureAgents` rename migration
+  (`FORGE.MD→FORGE.md`, `Quill.md→QUILL.md`) is case-only, so on case-insensitive filesystems
+  (macOS APFS default, NTFS) `access(newPath)` matches the old file and the migration silently
+  no-ops. Test probes fs case-sensitivity and pins both behaviors.
+- **Mock/recipe notes:** electron mock's `Notification` now tracks `static instances` (clear in
+  beforeEach). Handlers tests use a Proxy-based `auto()` recording fake (every method a memoized
+  `vi.fn(async () => undefined)` — promise default keeps the many `.catch()`/`.then()` chains
+  alive); only `revisionQueue.onEvent` runs at registration time. Preload test walks the whole
+  api: every non-`on*` method must route EXACTLY one invoke/send; every `on*` unsubscribe must
+  removeListener exactly what it registered.
+- Pins: chat:send preserves renderer callId, tags events {callId, conversationId, source:'chat'},
+  notifies complete-with-book-title vs error (mutually exclusive), snapshots changed files as
+  'agent' + records word-count snapshot; files:write auto-snapshots as 'user' and survives
+  snapshot failure; books:updateMeta migrates db slug + refires hook only on slug change;
+  revision onEvent re-tags stream events with callId `rev:{sessionId}`; notifications gate on
+  enabled && supported && unfocused, error bodies truncate at 117+'…'.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
