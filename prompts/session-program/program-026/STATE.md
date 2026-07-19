@@ -30,7 +30,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 08 | claude-cli — ClaudeCodeClient + StreamSessionTracker | M06 | done | 2026-07-18 | 32 tests; fakeProcess + NDJSON fixture helpers added for S09/S11 |
 | 09 | codex-cli — CodexCliClient | M11 | done | 2026-07-18 | 26 tests across args/stream/lifecycle; retry test costs ~2s wall time |
 | 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | done | 2026-07-18 | 46 tests; extended existing ToolExecutor.test.ts; no sandbox escapes found |
-| 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | pending | | |
+| 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | done | 2026-07-18 | 29 tests; M12 fully covered; all network via fetch stubs |
 | 12 | llama-server + providers | M13, M15 | pending | | |
 | 13 | ChatService, StreamManager, ContextBuilder | M08 | pending | | |
 | 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | pending | | |
@@ -311,6 +311,26 @@ Stopped cleanly after SESSION-08. All work committed (latest: ed4d668). Suite: 2
 261 tests, green ×3. **Next eligible: SESSION-09** (codex-cli — CodexCliClient, 1205 lines).
 Reuse `src/test/fakeProcess.ts` (see SESSION-08 handoff for the API and the bare-`'child_process'`
 + `promisify.custom` mock recipe). Also eligible: S10–S21, S22.
+
+### 2026-07-18 — SESSION-11 (ollama-cli II)
+
+- **M12 fully covered.** OllamaCodeClient talks over GLOBAL fetch (undici dispatcher option is
+  cosmetic for tests) — `vi.stubGlobal('fetch', ...)` + `src/test/fixtures/ollama-responses.ts`
+  (`chatResponse()` builds a ReadableStream NDJSON body; `makeOllamaFetchStub()` routes
+  /api/tags, /api/show, /api/chat). Runner mocks `'node:child_process'` (promisify.custom).
+- **Test simplification trick:** a non-local baseUrl (`http://ollama.test:11434`) makes
+  `ensureLocalApiReady` a no-op — no /api/tags or CLI plumbing needed in most tests.
+  The 4th constructor arg injects a fake OllamaCliRunner.
+- **Pins:** loop guard DEFAULT_MAX_TURNS=30 (tested via maxTurns=2 param); context check runs
+  from turn 2: compaction at ≥80% of window, break with status "Context limit approaching" when
+  still above the 98% ceiling; num_ctx = min(model context_length from /api/show, 250k) sent per
+  request; `think` enabled unless thinkingBudget===0; tool-call args arriving as JSON strings are
+  normalized; content suppressed on chunks that carry tool_calls; API/network errors become
+  error events and sendMessage RESOLVES (no throw) — EXCEPT ensureLocalApiReady failures, which
+  REJECT before streaming; abort → graceful blockEnd + done(0,0) and resolve; usage accumulates
+  across turns from prompt_eval_count/eval_count.
+- WebSearcher: DuckDuckGo HTML endpoint, uddg redirect unwrap, entity/tag stripping, error
+  strings (never throws), no fetch on empty query.
 
 ### 2026-07-18 — Agent stop #4 (context limit)
 
