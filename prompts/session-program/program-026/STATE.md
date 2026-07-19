@@ -400,3 +400,11 @@ green ×2. **Infrastructure phase (C) complete — sessions 03–12 all done.** 
 lives at `src/application/ContextBuilder.ts`, NOT `context/`). Application layer tests use
 hand-rolled interface fakes per Design Decision #6 — check `src/domain/interfaces.ts` for the
 injected interfaces of each service. Also eligible: S14–S21, S22 (renderer harness).
+
+### 2026-07-18 — Agent stop #7 (context limit)
+
+Stopped cleanly after SESSION-13. All committed (latest: 3c988cd). Suite: 40 files, 429 tests,
+green ×2, no @infra imports in application tests. **Next eligible: SESSION-14** (PipelineService,
+BuildService, SourceGenerationService, ChapterValidator). Start from the SESSION-13 handoff:
+`src/test/fakes.ts` covers most collaborators; BuildService likely needs pandoc mocking
+(execFile — see S03 recipe) and real temp dirs (bookFixtures). Also eligible: S15–S21, S22.
