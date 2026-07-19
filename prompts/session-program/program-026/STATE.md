@@ -538,3 +538,11 @@ green. **Next eligible: SESSION-18** (MotifLedgerService, HotTakeService, Helper
 HotTake/Helper follow the AdhocRevisionService handler shape (S15 test is the template);
 QueryService S17 handoff has TWO recorded parse bugs worth a follow-up fix ticket.
 Also eligible: S19–S21, S22.
+
+### 2026-07-18 — Agent stop #12 (context limit)
+
+Stopped cleanly after SESSION-18. All committed (latest: 0a53c4a). Suite: 55 files, 546 tests,
+green (first try). **Next eligible: SESSION-19** (ChapterDetector, ManuscriptImportService,
+SeriesImportService — check `src/application/import/` for locations). Then S20 finishes
+Phase D; S21 (main/IPC) and S22 (renderer harness — gates S23–S28) remain the big unlocks.
+Also eligible: S20, S21, S22.
