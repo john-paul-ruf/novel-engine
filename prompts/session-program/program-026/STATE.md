@@ -822,6 +822,15 @@ via S26's VersionHistoryModal test — S27 owns their real behavior. After S27: 
   tolerate ±1 day (regex), never assert an exact local date from a UTC ISO string.
 - Suite after S27: 134 files, 1161 tests, green ×2; `npx tsc --noEmit` clean.
 
+### 2026-07-18 — Agent stop #17 (context limit)
+
+Stopped cleanly after SESSION-27. All committed (latest: 831c224). Suite: 134 files,
+1161 tests, green ×2; `npx tsc --noEmit` clean. **Next eligible: SESSION-28**
+(Components III — Library, Series, PitchRoom, Import, Settings + the App smoke deferred
+from S26; see the S26 handoff for exactly what the smoke must cover). Key inputs: the
+S27 handoff directly above (jsdom stubs, action-override seeding, cliActivity recipe),
+renderApp/installNovelEngineMock (S22/S26). After S28 only the S29 coverage gate remains.
+
 ### 2026-07-18 — Agent stop #13 (context limit)
 
 Stopped cleanly after SESSION-19. All committed (latest: 8b045f5). Suite: 58 files, 566 tests,
