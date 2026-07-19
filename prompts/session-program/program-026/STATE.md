@@ -922,6 +922,39 @@ thresholds wired into `vitest.config.ts` and `npm test` wired into CI packaging.
 - Fix tickets for bugs 1–5 above (behavior is pinned by tests; fixes will flip specific
   assertions, which is intended).
 
+### 2026-07-19 — Post-program follow-up: bugs 1–5 FIXED
+
+Fix pass over the final report's "Bugs found" list (user-requested, outside the session plan):
+
+1. **QueryService (bugs 1+2) — FIXED.** `extractField` keys now match the serialized
+   labels (`'query letter'`, `'response date'`); regex tail changed `\s*(.*)` →
+   `[^\S\r\n]*(.*)` so an empty field value no longer swallows the next line; empty
+   values return null (callers' `?? fallback` defaults preserved). queryLetterPath/
+   responseDate now round-trip and removeTarget's letter cleanup is live. Tests
+   flipped + new empty-fields regression test.
+2. **bootstrap (bug 3) — FIXED.** `ensureAgents` rename migration now compares
+   against `readdir`'s exact on-disk names instead of `access()` — case-only renames
+   (FORGE.MD→FORGE.md, Quill.md→QUILL.md) now happen on APFS/NTFS too. Both-exist
+   guard preserved (only reachable on case-sensitive fs). Test now asserts the
+   rename on BOTH fs types; separate coexist test skips on case-insensitive fs.
+3. **chatStore/bookStore (bug 4) — FIXED.** `switchBook(newBookSlug, departingSlug?)`
+   — the departing slug is passed explicitly by `bookStore.setActiveBook` (captured
+   BEFORE flipping activeSlug). Departing conversation now saves under the old
+   book's key; the new book's saved spot survives and is restored. Guard skips the
+   save when departing === new. chatStore clobber pin flipped; bookStore test now
+   pins the end-to-end key writes.
+4. **ThinkingBlock (bug 5) — FIXED.** Prev-streaming moved from state to a ref and
+   the two effects merged — the 1.5s auto-collapse timer is no longer cancelled by
+   the `setWasStreaming` re-render; blocks now collapse in place. Pin flipped +
+   new autoCollapseThinking-off regression test.
+- **Bug 6 (ChapterDetector heuristics) NOT fixed** — needs design decisions
+  (anchoring CHAPTER_PATTERN, front-matter handling, pre-split content) that change
+  import behavior; recommend a small Forge program. Minor doc-drift items (S02/S03/
+  S10/S14) also left as recorded.
+- Verification: `npx tsc --noEmit` clean; `npm test` 178 files / 1386 tests green
+  (+3 new); `npm run test:coverage` passes all enforced thresholds (global
+  85.84 L / 84.11 S / 81.42 F / 72.56 B — unchanged).
+
 ### 2026-07-18 — Agent stop #13 (context limit)
 
 Stopped cleanly after SESSION-19. All committed (latest: 8b045f5). Suite: 58 files, 566 tests,

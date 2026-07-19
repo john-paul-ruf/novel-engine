@@ -136,17 +136,27 @@ describe('tracker parsing + persistence', () => {
     await expect(service.updateTargetStatus('book', 'ghost', 'queried')).rejects.toThrow(/not found/);
   });
 
-  it('removeTarget drops the entry (letter cleanup is dead code — see round-trip bug)', async () => {
+  it('removeTarget drops the entry and deletes its query letter', async () => {
     fs.files.set('book/source/query-tracker.md', TRACKER_ENTRY.replace('- **Query Letter:**', '- **Query Letter:** source/query-letters/jane-doe.md'));
     fs.files.set('book/source/query-letters/jane-doe.md', 'Dear Jane');
 
     await service.removeTarget('book', 'target-1');
 
     expect((await service.loadTracker('book')).targets).toEqual([]);
-    // BUG (recorded in STATE.md): extractField('query-letter') never matches the
-    // serialized "Query Letter:" label, so queryLetterPath parses as null and the
-    // letter file is never deleted.
-    expect(fs.files.has('book/source/query-letters/jane-doe.md')).toBe(true);
+    expect(fs.files.has('book/source/query-letters/jane-doe.md')).toBe(false);
+  });
+
+  it('empty field values parse as null and never swallow the following line', async () => {
+    fs.files.set('book/source/query-tracker.md', TRACKER_ENTRY);
+
+    const target = (await service.loadTracker('book')).targets[0];
+
+    // Submitted / Response Date / Query Letter are empty in TRACKER_ENTRY —
+    // each is followed by another bullet that must NOT be captured as its value.
+    expect(target.submittedDate).toBeNull();
+    expect(target.responseDate).toBeNull();
+    expect(target.queryLetterPath).toBeNull();
+    expect(target.personalizationNotes).toBe('Loves fantasy.');
   });
 
   it('archives unparseable tracker content before overwriting (clobber guard)', async () => {
@@ -179,12 +189,13 @@ describe('letter generation', () => {
       filePath: 'source/query-letters/jane-doe.md',
       content: 'Dear Jane, my novel...',
     });
-    // The path is serialized to disk…
+    // The path is serialized to disk and survives the reload round-trip
     expect(fs.files.get('book/source/query-tracker.md')).toContain(
       '- **Query Letter:** source/query-letters/jane-doe.md'
     );
-    // …but is lost on reload (field-label round-trip bug, recorded in STATE.md)
-    expect((await service.loadTracker('book')).targets[0].queryLetterPath).toBeNull();
+    expect((await service.loadTracker('book')).targets[0].queryLetterPath).toBe(
+      'source/query-letters/jane-doe.md'
+    );
   });
 
   it('falls back to the last assistant message when the agent wrote no file', async () => {
@@ -254,12 +265,12 @@ describe('research + field fill', () => {
   });
 
   it('fillTargetField reports old and new values after the agent edits the tracker', async () => {
-    // Placeholder value (not empty): an EMPTY field value makes extractField's
-    // `\s*(.*)` swallow the following line — quirk recorded in STATE.md.
-    fs.files.set('book/source/query-tracker.md', TRACKER_ENTRY.replace('- **Contact:** jane@lit.com', '- **Contact:** TBD'));
+    // Starts from an EMPTY contact field — extractField must not swallow the
+    // following line (regression for the S17 quirk).
+    fs.files.set('book/source/query-tracker.md', TRACKER_ENTRY.replace('- **Contact:** jane@lit.com', '- **Contact:**'));
     sendScripts.push(async () => {
       const updated = fs.files.get('book/source/query-tracker.md')!
-        .replace('- **Contact:** TBD', '- **Contact:** submissions@janedoe.lit');
+        .replace('- **Contact:**', '- **Contact:** submissions@janedoe.lit');
       fs.files.set('book/source/query-tracker.md', updated);
       return { changedFiles: ['source/query-tracker.md'] };
     });
@@ -269,7 +280,7 @@ describe('research + field fill', () => {
     expect(result).toMatchObject({
       targetId: 'target-1',
       field: 'contact',
-      oldValue: 'TBD',
+      oldValue: '',
       newValue: 'submissions@janedoe.lit',
     });
 

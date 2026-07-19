@@ -80,7 +80,7 @@ type ChatState = {
   // External stream attachment (used by auto-draft, revision queue, etc.)
   attachToExternalStream: (callId: string, conversationId: string, optimisticContent?: string) => void;
 
-  switchBook: (newBookSlug: string) => Promise<void>;
+  switchBook: (newBookSlug: string, departingSlug?: string | null) => Promise<void>;
 
   _handleStreamEvent: (event: StreamEvent) => void;
   _cleanupListener: (() => void) | null;
@@ -295,12 +295,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
   },
 
-  switchBook: async (newBookSlug: string) => {
+  switchBook: async (newBookSlug: string, departingSlug?: string | null) => {
     const { activeConversation } = get();
 
-    // Step 1: Save the departing book's active conversation (per-book key)
-    const departingSlug = useBookStore.getState().activeSlug;
-    if (departingSlug && activeConversation) {
+    // Step 1: Save the departing book's active conversation (per-book key).
+    // The caller must pass the departing slug explicitly — by the time this
+    // runs, bookStore.activeSlug has already flipped to the new book, so
+    // reading it here would save under the NEW book's key and clobber its
+    // saved conversation.
+    if (departingSlug && departingSlug !== newBookSlug && activeConversation) {
       saveBookConversation(departingSlug, activeConversation.id);
     }
 

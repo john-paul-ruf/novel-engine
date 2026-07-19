@@ -72,12 +72,14 @@ export const useBookStore = create<BookState>((set, get) => ({
 
   setActiveBook: async (slug: string) => {
     try {
+      const departingSlug = get().activeSlug;
       await window.novelEngine.books.setActive(slug);
       set({ activeSlug: slug });
 
-      // Reset chat context for the new book
+      // Reset chat context for the new book, telling it which book we left
+      // so the departing conversation is saved under the correct key.
       const { switchBook } = useChatStore.getState();
-      await switchBook(slug);
+      await switchBook(slug, departingSlug);
 
       await get().refreshWordCount();
 

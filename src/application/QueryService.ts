@@ -361,9 +361,9 @@ export class QueryService implements IQueryService {
         contact: this.extractField(body, 'contact') ?? '',
         method: (this.extractField(body, 'method') ?? 'email') as QueryTarget['method'],
         status: this.parseStatus(status),
-        queryLetterPath: this.extractField(body, 'query-letter') ?? null,
-        submittedDate: this.extractField(body, 'submitted') ?? null,
-        responseDate: this.extractField(body, 'response-date') ?? null,
+        queryLetterPath: this.extractField(body, 'query letter'),
+        submittedDate: this.extractField(body, 'submitted'),
+        responseDate: this.extractField(body, 'response date'),
         notes: this.extractField(body, 'notes') ?? '',
         link: this.extractField(body, 'link') ?? '',
         personalizationNotes: this.extractField(body, 'personalization') ?? '',
@@ -408,10 +408,17 @@ export class QueryService implements IQueryService {
     return lines.join('\n');
   }
 
+  /**
+   * Extract a `- **Label:** value` bullet. `fieldName` must match the labels
+   * written by `serializeTracker`/`fieldToLabel` (case-insensitive, e.g.
+   * 'query letter'). Only horizontal whitespace is skipped after the colon so
+   * an empty value never swallows the next line; empty values return null.
+   */
   private extractField(text: string, fieldName: string): string | null {
-    const regex = new RegExp(`- \\*\\*${fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^:]*:\\*\\*\\s*(.*)`, 'i');
+    const regex = new RegExp(`- \\*\\*${fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^:]*:\\*\\*[^\\S\\r\\n]*(.*)`, 'i');
     const match = text.match(regex);
-    return match ? match[1].trim() : null;
+    const value = match ? match[1].trim() : '';
+    return value || null;
   }
 
   private parseStatus(s: string): QueryStatus {

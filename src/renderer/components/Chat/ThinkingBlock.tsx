@@ -26,24 +26,24 @@ export function ThinkingBlock({
   //   persisted thinking blocks — making it look like thinking was "gone"
   //   even when autoCollapseThinking was false.
   const [expanded, setExpanded] = useState(isStreaming || !autoCollapseThinking);
-  const [wasStreaming, setWasStreaming] = useState(isStreaming);
+  // Previous streaming state lives in a ref, NOT state: a setState here would
+  // re-render, re-run the effect below via its dep change, and its cleanup
+  // would cancel the pending auto-collapse timer before it could fire.
+  const prevStreamingRef = useRef(isStreaming);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Expand when streaming starts
+  // Expand when streaming starts; auto-collapse 1.5s after it ends in place.
   useEffect(() => {
+    const wasStreaming = prevStreamingRef.current;
+    prevStreamingRef.current = isStreaming;
     if (isStreaming && !wasStreaming) {
       setExpanded(true);
     }
-    setWasStreaming(isStreaming);
-  }, [isStreaming, wasStreaming]);
-
-  // Auto-collapse after streaming ends
-  useEffect(() => {
     if (!isStreaming && wasStreaming && autoCollapseThinking) {
       const timer = setTimeout(() => setExpanded(false), 1500);
       return () => clearTimeout(timer);
     }
-  }, [isStreaming, wasStreaming, autoCollapseThinking]);
+  }, [isStreaming, autoCollapseThinking]);
 
   // Auto-scroll within thinking panel while streaming
   useEffect(() => {

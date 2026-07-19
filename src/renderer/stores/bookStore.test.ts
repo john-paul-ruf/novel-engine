@@ -78,6 +78,7 @@ describe('bookStore', () => {
     it('activates via the bridge, resets chat, refreshes words, navigates to workspace, reconnects auto-draft', async () => {
       const reconnect = vi.fn();
       useAutoDraftStore.setState({ reconnect });
+      useBookStore.setState({ activeSlug: 'book-a' });
       useChatStore.setState({
         activeConversation: makeConversation({ id: 'old-conv' }),
         messages: [makeMessage()],
@@ -93,6 +94,9 @@ describe('bookStore', () => {
       expect(mock.chat.getConversations).toHaveBeenCalledWith('book-b');
       expect(useChatStore.getState().messages).toEqual([]);
       expect(useChatStore.getState().activeConversation).toBeNull();
+      // departing conversation saved under the DEPARTING book's key (S22 bug, fixed)
+      expect(window.localStorage.getItem('novel-engine-convo:book-a')).toBe('old-conv');
+      expect(window.localStorage.getItem('novel-engine-convo:book-b')).toBeNull();
 
       expect(useBookStore.getState().totalWordCount).toBe(42);
       expect(useViewStore.getState().currentView).toBe('workspace');

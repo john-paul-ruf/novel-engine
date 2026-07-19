@@ -74,13 +74,10 @@ describe('ThinkingBlock', () => {
     expect(screen.queryByText(/tokens/)).toBeNull();
   });
 
-  it('stays expanded after streaming ends in place (auto-collapse timer is self-cancelled)', () => {
-    // 🐛 Bug candidate (pinned, not fixed): the auto-collapse effect schedules
-    // its 1500ms timer, but setWasStreaming(false) in the sibling effect
-    // triggers a re-render whose dependency change runs the cleanup —
-    // clearTimeout fires before the timer can. In-place auto-collapse never
-    // happens; blocks only appear collapsed because the streaming block
-    // unmounts and the persisted MessageBubble mounts a fresh collapsed one.
+  it('auto-collapses 1.5s after streaming ends in place (S27 bug, fixed)', () => {
+    // Regression: the collapse timer used to be cancelled by the sibling
+    // setWasStreaming re-render before it could fire. Prev-streaming now
+    // lives in a ref, so the timer survives and collapses the block.
     installNovelEngineMock();
     useSettingsStore.setState({
       settings: makeAppSettings({ autoCollapseThinking: true }),
@@ -92,12 +89,33 @@ describe('ThinkingBlock', () => {
     expect(screen.getByText('▼')).toBeInTheDocument();
 
     rerender(<ThinkingBlock content="live thought" isStreaming={false} />);
+    // Still expanded immediately after streaming ends…
+    expect(screen.getByText('▼')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    // …then collapses in place
+    expect(screen.getByText('▶')).toBeInTheDocument();
+    expect(screen.getByText('Agent Thinking')).toBeInTheDocument();
+  });
+
+  it('does not auto-collapse when autoCollapseThinking is off', () => {
+    installNovelEngineMock();
+    useSettingsStore.setState({
+      settings: makeAppSettings({ autoCollapseThinking: false }),
+    });
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <ThinkingBlock content="live thought" isStreaming={true} />,
+    );
+
+    rerender(<ThinkingBlock content="live thought" isStreaming={false} />);
     act(() => {
       vi.advanceTimersByTime(1500);
     });
 
     expect(screen.getByText('▼')).toBeInTheDocument();
-    expect(screen.getByText('Agent Thinking')).toBeInTheDocument();
   });
 
   it('truncates long preview snippets at 120 characters', () => {

@@ -78,31 +78,41 @@ describe('ensureAgents', () => {
     expect(copied).toEqual(['HELPER.MD', 'SPARK.md', 'VERITY-CORE.md']);
   });
 
-  it('handles the legacy FORGE.MD rename migration (no-op on case-insensitive filesystems)', async () => {
-    // The migration pairs are CASE-ONLY renames. On APFS/NTFS, access('FORGE.md')
-    // matches the existing 'FORGE.MD', so the both-exist branch triggers and the
-    // rename never happens — recorded in STATE.md as a bug candidate. On
-    // case-sensitive filesystems the rename works. Pin whichever applies here.
+  it('renames legacy-cased agent files even on case-insensitive filesystems', async () => {
+    // The migration pairs are CASE-ONLY renames. The implementation compares
+    // readdir's exact on-disk names (access() would match case-insensitively
+    // on APFS/NTFS and skip the rename), so this works on both fs types.
     const agentsDir = path.join(userDataPath, 'custom-agents');
     await mkdir(agentsDir, { recursive: true });
-    await writeFile(path.join(agentsDir, 'probe.md'), 'probe', 'utf-8');
-    const caseInsensitive = await exists(path.join(agentsDir, 'PROBE.MD'));
     await writeFile(path.join(agentsDir, 'FORGE.MD'), 'old-cased forge', 'utf-8');
+    await writeFile(path.join(agentsDir, 'Quill.md'), 'old-cased quill', 'utf-8');
 
     await ensureAgents(agentsDir, agentsSourceDir);
 
     const names = await readdir(agentsDir);
-    if (caseInsensitive) {
-      expect(names).toContain('FORGE.MD'); // migration silently no-ops
-      expect(names).not.toContain('FORGE.md');
-    } else {
-      expect(names).toContain('FORGE.md');
-      expect(names).not.toContain('FORGE.MD');
-    }
-    // Content survives either way
-    expect(await readFile(path.join(agentsDir, 'FORGE.md'), 'utf-8').catch(() =>
-      readFile(path.join(agentsDir, 'FORGE.MD'), 'utf-8'),
-    )).toBe('old-cased forge');
+    expect(names).toContain('FORGE.md');
+    expect(names).not.toContain('FORGE.MD');
+    expect(names).toContain('QUILL.md');
+    expect(names).not.toContain('Quill.md');
+    // Content survives the rename
+    expect(await readFile(path.join(agentsDir, 'FORGE.md'), 'utf-8')).toBe('old-cased forge');
+    expect(await readFile(path.join(agentsDir, 'QUILL.md'), 'utf-8')).toBe('old-cased quill');
+  });
+
+  it('leaves both files alone when old and new genuinely coexist', async () => {
+    const agentsDir = path.join(userDataPath, 'custom-agents');
+    await mkdir(agentsDir, { recursive: true });
+    await writeFile(path.join(agentsDir, 'probe.md'), 'probe', 'utf-8');
+    const caseInsensitive = await exists(path.join(agentsDir, 'PROBE.MD'));
+    if (caseInsensitive) return; // both files cannot coexist on this fs
+
+    await writeFile(path.join(agentsDir, 'FORGE.MD'), 'old forge', 'utf-8');
+    await writeFile(path.join(agentsDir, 'FORGE.md'), 'new forge', 'utf-8');
+
+    await ensureAgents(agentsDir, agentsSourceDir);
+
+    expect(await readFile(path.join(agentsDir, 'FORGE.MD'), 'utf-8')).toBe('old forge');
+    expect(await readFile(path.join(agentsDir, 'FORGE.md'), 'utf-8')).toBe('new forge');
   });
 
   it('warns and returns when the source directory is missing', async () => {

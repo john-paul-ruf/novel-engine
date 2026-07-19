@@ -381,11 +381,11 @@ describe('chatStore', () => {
   });
 
   describe('switchBook', () => {
-    // 🐛 Bug candidate (pinned, not fixed): setActiveBook updates bookStore.activeSlug
-    // BEFORE calling switchBook, so switchBook's "departing book" save writes the old
-    // conversation under the NEW book's key — clobbering the new book's saved spot,
-    // which then fails the membership guard and falls back to "most recent".
-    it('clobbers the new book saved conversation with the departing one (falls back to most recent)', async () => {
+    // Regression (S22 bug candidate, fixed): setActiveBook flips bookStore.activeSlug
+    // BEFORE calling switchBook, so the departing slug is now passed explicitly —
+    // the departing conversation saves under the OLD book's key and the new book's
+    // saved spot survives.
+    it('saves the departing conversation under its own key and restores the new book saved spot', async () => {
       const convB1 = makeConversation({ id: 'conv-b1', bookSlug: 'book-b' });
       const convB2 = makeConversation({ id: 'conv-b2', bookSlug: 'book-b' });
       window.localStorage.setItem('novel-engine-convo:book-b', 'conv-b2');
@@ -394,14 +394,13 @@ describe('chatStore', () => {
       mock.chat.getConversations.mockResolvedValue([convB1, convB2]);
       mock.chat.getMessages.mockResolvedValue([]);
 
-      await useChatStore.getState().switchBook('book-b');
+      await useChatStore.getState().switchBook('book-b', 'book-a');
 
-      // Saved spot conv-b2 was overwritten by conv-a (not in the list) → most recent wins
-      expect(useChatStore.getState().activeConversation?.id).toBe('conv-b1');
-      // The departing book's own key was never written
-      expect(window.localStorage.getItem('novel-engine-convo:book-a')).toBeNull();
-      // setActiveConversation corrected the key afterwards
-      expect(window.localStorage.getItem('novel-engine-convo:book-b')).toBe('conv-b1');
+      // The new book's saved spot survives and is restored
+      expect(useChatStore.getState().activeConversation?.id).toBe('conv-b2');
+      // The departing book's conversation was saved under its own key
+      expect(window.localStorage.getItem('novel-engine-convo:book-a')).toBe(convA.id);
+      expect(window.localStorage.getItem('novel-engine-convo:book-b')).toBe('conv-b2');
     });
 
     it('restores the saved conversation when no conversation was active on the departing book', async () => {
