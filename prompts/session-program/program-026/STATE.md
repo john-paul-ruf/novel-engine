@@ -44,7 +44,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 22 | Renderer test harness + core stores | M10 | done | 2026-07-18 | 69 tests; typed bridge mock + resetStores helpers; setActiveBook/switchBook convo-key bug candidate (see handoff) |
 | 23 | Streaming stores | M10 | done | 2026-07-18 | 57 tests; session-prompt drift adapted (pipeline=cache, revision events live in a hook); autoDraft loop tested on real timers (~6s) |
 | 24 | Remaining stores I | M10 | done | 2026-07-18 | 72 tests; drift adapted (fileChange=counter, palette has no recents, motif has no book-switch sub) |
-| 25 | Remaining stores II | M10 | pending | | |
+| 25 | Remaining stores II | M10 | done | 2026-07-18 | 61 tests; sweep clean — all 26 store files now have co-located tests |
 | 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | pending | | |
 | 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | pending | | |
 | 28 | Components III — Library, Series, PitchRoom, Import, Settings + App smoke | M10 | pending | | |
@@ -705,6 +705,23 @@ S29 gate.
   live from pipeline/book stores.
 - paletteStore's built-in registrations happen at module import — the resetStores snapshot
   includes them, so tests see the Actions/Navigate baseline.
+
+### 2026-07-18 — SESSION-25 (remaining stores II — store layer COMPLETE)
+
+- **Completeness sweep clean:** every non-test file in `src/renderer/stores/` (25 stores +
+  streamHandler) now has a co-located test. No stores were added since program generation.
+- **Session-prompt drift (adapted):** providerStore "selection persistence" =
+  setDefault → providers reload + settingsStore reload (pinned); queryStore is the
+  query-MANAGER (agents/publishers tracker + letters), not saved queries; statisticsStore
+  has no time ranges — only the per-book filter (explicit slug > stored filter > all);
+  tourStore has no step progression (steps live in tour components) — it tracks
+  active/completed tours hydrated from settings; versionStore has no confirmation state.
+- Pins: queryStore strips the Electron IPC prefix from research rejections
+  (`Error invoking remote method '…': Error: X` → `X`); query stream deltas route by
+  isGenerating/isResearching flags; seriesImport toggleVolumeSkip/move renumber only
+  non-skipped volumes, commit falls back to `Volume N` titles and no-ops when all skipped;
+  versionStore diffs against the next-OLDER version (newest-first list; oldest → null);
+  tour completeTour keeps local completion even when settings persistence fails.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
