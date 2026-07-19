@@ -45,7 +45,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 23 | Streaming stores | M10 | done | 2026-07-18 | 57 tests; session-prompt drift adapted (pipeline=cache, revision events live in a hook); autoDraft loop tested on real timers (~6s) |
 | 24 | Remaining stores I | M10 | done | 2026-07-18 | 72 tests; drift adapted (fileChange=counter, palette has no recents, motif has no book-switch sub) |
 | 25 | Remaining stores II | M10 | done | 2026-07-18 | 61 tests; sweep clean — all 26 store files now have co-located tests |
-| 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | pending | | |
+| 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | done | 2026-07-18 | 67 tests; renderApp helper added; AppLayout mount deferred to S28 App smoke (see handoff) |
 | 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | pending | | |
 | 28 | Components III — Library, Series, PitchRoom, Import, Settings + App smoke | M10 | pending | | |
 | 29 | Coverage gate — thresholds, gap fill, CI + FORGE-CONFIG update | all | pending | | |
@@ -734,6 +734,48 @@ S27/S28. Key inputs for S26–S28: `installNovelEngineMock` + `resetStoresBefore
 Components render with @testing-library/react in the jsdom project; remember the
 chatStore/cliActivity recovery-poll cleanup (destroyStreamListener in afterEach) when a
 component wires stream listeners. Then S29 (coverage gate) closes the program.
+
+### 2026-07-18 — SESSION-26 (components I — shell)
+
+- **`renderApp` API for S27/S28 (`src/test/renderWithState.tsx`):**
+  `renderApp(ui, { stores?, bridge? })` → RTL utils + `bridge` (the installed
+  `NovelEngineMock`). `stores` is `[store, partialState]` pairs applied via merging
+  setState after the bridge mock installs; `bridge` forwards to
+  `installNovelEngineMock(overrides)`. Still call `resetStoresBeforeEach(...)` at
+  module scope as before.
+- **Harness fix (`src/test/setup.renderer.ts`):** added explicit RTL `cleanup()` in a
+  global-setup `afterEach` — RTL auto-cleanup never ran because vitest runs without
+  `globals: true`, so rendered trees leaked across tests ("found multiple elements").
+  This applies suite-wide now; store tests are unaffected (nothing rendered).
+- **Import-depth gotcha:** component dirs are 3 levels deep — test helpers import as
+  `../../../test/...` (stores use `../../test/...`).
+- **jsdom recipes:** GuidedTourOverlay.test.tsx carries guarded stubs for
+  `Element.prototype.scrollIntoView` + `ResizeObserver`. `window.location.reload` is
+  unforgeable in jsdom (spy impossible) — ErrorBoundary's Reload is asserted as
+  click-does-not-throw. jsdom prints ErrorBoundary-caught render errors to stderr
+  (expected noise). Tooltip tests drive hover state via real `element.focus()/blur()`
+  (React's delegated onFocus doesn't fire from `fireEvent.focus`); tooltip visibility
+  is fake-timer driven (300ms enter / 100ms exit).
+- **Deviation (deferred, not skipped): no AppLayout.test.tsx.** AppLayout is the whole
+  app composition — mounting it mounts all 8 views + global modals/managers, which is
+  exactly S28's "App smoke" item. Testing it here would duplicate S28 and need every
+  view's bridge surface stubbed. S28 must cover: shell regions render, only the
+  active view is visible (`hidden` class per ViewContent), ⌘K PaletteManager keybind,
+  TourManager hydration.
+- **No `data-testid` added to source; zero source changes.** Coverage: common/ (Icon,
+  agentColors, ProseViewer + useBookFile, Tooltip, VersionHistoryModal,
+  GuidedTourOverlay), Layout/ (TitleBar, ResizeHandle), Sidebar/ (ImportChoiceModal,
+  PitchPreviewModal), Rail/ (IconRail), StatusBar/ (StatusBar, ActivityDrawer),
+  ErrorBoundary/. VersionHistoryModal renders the real VersionHistoryPanel +
+  versionStore against default bridge resolvers ([] history) — deeper Files/ panel
+  behavior stays with S27.
+- Behavior pins: IconRail `needsBook` items are `aria-disabled` + click-inert without
+  an active book; TitleBar breadcrumb = view label in Library, `Book / View` elsewhere,
+  phase label in workspace; word count hidden in Library/no-book; window controls
+  render on non-mac UA (jsdom) and maximize label flips on `window:maximizeChange`;
+  StatusBar sums session tokens across calls (1.5K formatting) and returns to Idle
+  after `done`; ActivityDrawer honors persisted height, drag-up grows (direction
+  'up'), double-click resets to 208 and persists.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
