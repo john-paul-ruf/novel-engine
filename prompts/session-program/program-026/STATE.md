@@ -31,7 +31,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 09 | codex-cli — CodexCliClient | M11 | done | 2026-07-18 | 26 tests across args/stream/lifecycle; retry test costs ~2s wall time |
 | 10 | ollama-cli I — BashEmulator, ToolExecutor, tools, contextCompactor | M12 | done | 2026-07-18 | 46 tests; extended existing ToolExecutor.test.ts; no sandbox escapes found |
 | 11 | ollama-cli II — OllamaCodeClient, OllamaCliRunner, WebSearcher | M12 | done | 2026-07-18 | 29 tests; M12 fully covered; all network via fetch stubs |
-| 12 | llama-server + providers | M13, M15 | pending | | |
+| 12 | llama-server + providers | M13, M15 | done | 2026-07-18 | 32 tests; LlamaServerClient is pure HTTP/SSE (no spawn); infra layer complete |
 | 13 | ChatService, StreamManager, ContextBuilder | M08 | pending | | |
 | 14 | PipelineService, BuildService, SourceGenerationService, ChapterValidator | M08 | pending | | |
 | 15 | RevisionQueueService, AdhocRevisionService | M08 | pending | | |
@@ -340,6 +340,27 @@ OllamaCliRunner 180, WebSearcher 138). S10 handoff lists the tool set + pins; S0
 carry the fakeProcess + child_process mock recipes (check which specifier OllamaCodeClient
 imports — bare vs `node:` — before wiring vi.mock). WebSearcher must be network-mocked (undici
 or global fetch — read the source first). Also eligible: S12–S21, S22.
+
+### 2026-07-18 — SESSION-12 (llama-server + providers)
+
+- **Infrastructure layer (M02–M07, M11–M15) is now fully covered.**
+- **Session-prompt drift:** LlamaServerClient spawns NOTHING — it's a pure HTTP client over
+  global fetch with OpenAI-compatible SSE (`/v1/chat/completions`) + tool loop identical in
+  shape to OllamaCodeClient (shared ToolExecutor/compactor/OLLAMA_TOOLS). fakeProcess unused.
+- New shared fixtures in `src/test/fixtures/ollama-responses.ts`: `rawStreamResponse(chunks)`
+  (control exact read boundaries) and `sseBody(events)` (data:/[DONE] SSE).
+- Wire-format pins: llama-server converts OLLAMA_TOOLS to OpenAI tool format; streamed
+  tool-call fragments accumulate by index and finalize at [DONE]; `<think>` tag parser buffers
+  partial tags across chunks (coalesces deltas — one thinkingDelta per contiguous run);
+  usage from SSE `usage` else chars/4 estimate; assistant tool_calls get `call_<nanoid8>` ids
+  echoed in tool results' tool_call_id. OpenAiCompatibleProvider: Bearer header only with a
+  key; trailing-slash trim; token estimates always (no usage parsing); no tool use.
+- ProviderRegistry pins: first registration becomes default; built-ins win model-ID collisions
+  (registered last in index rebuild) and cannot be removed; immutable id/type/isBuiltIn on
+  update; resolveModelSelection fallback chain requested → preferred-provider default →
+  default-provider default → first enabled (reasons pinned); baseUrl changes call
+  provider.setBaseUrl and fire async ollama `/api/tags` / llama `/v1/models` refreshes
+  (`:latest` stripped from ollama labels; path tail as llama label).
 
 ### 2026-07-18 — Agent stop #5 (context limit)
 

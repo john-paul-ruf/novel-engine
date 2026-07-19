@@ -36,6 +36,29 @@ export function chatResponse(chunks: Json[], extraRawLines: string[] = []): Resp
   return new Response(stream, { status: 200 });
 }
 
+/**
+ * Build a streaming Response from raw string chunks — each chunk is one
+ * reader.read() result, so callers control exactly where splits happen
+ * (e.g. mid-SSE-line, mid-<think>-tag).
+ */
+export function rawStreamResponse(chunks: string[], status = 200): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    },
+  });
+  return new Response(stream, { status });
+}
+
+/** Serialize events to OpenAI-style SSE (`data: {json}` lines + [DONE]). */
+export function sseBody(events: Json[], includeDone = true): string {
+  const lines = events.map((e) => `data: ${JSON.stringify(e)}\n`);
+  if (includeDone) lines.push('data: [DONE]\n');
+  return lines.join('');
+}
+
 export type FetchCall = { url: string; init?: RequestInit };
 
 /**
