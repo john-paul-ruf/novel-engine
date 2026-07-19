@@ -723,6 +723,18 @@ S29 gate.
   versionStore diffs against the next-OLDER version (newest-first list; oldest → null);
   tour completeTour keeps local completion even when settings persistence fails.
 
+### 2026-07-18 — Agent stop #15 (context limit)
+
+Stopped cleanly after SESSIONS 22+23+24+25 (one run). All committed (latest: 9e5840f).
+Suite: 89 files, 897 tests, green; shuffle-stable; `npx tsc --noEmit` clean.
+**Store layer (S22–S25) COMPLETE — 26/26 store files tested.** Next eligible:
+**SESSION-26** (Components I — shell: Layout, Sidebar, Rail, StatusBar, common) — it gates
+S27/S28. Key inputs for S26–S28: `installNovelEngineMock` + `resetStoresBeforeEach`
+(S22 handoff), enriched-event emit patterns (S23 handoff), and the per-store pins above.
+Components render with @testing-library/react in the jsdom project; remember the
+chatStore/cliActivity recovery-poll cleanup (destroyStreamListener in afterEach) when a
+component wires stream listeners. Then S29 (coverage gate) closes the program.
+
 ### 2026-07-18 — Agent stop #13 (context limit)
 
 Stopped cleanly after SESSION-19. All committed (latest: 8b045f5). Suite: 58 files, 566 tests,
