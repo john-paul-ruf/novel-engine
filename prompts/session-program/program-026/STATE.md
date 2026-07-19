@@ -48,7 +48,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | done | 2026-07-18 | 67 tests; renderApp helper added; AppLayout mount deferred to S28 App smoke (see handoff) |
 | 27 | Components II — Chat, Workbench, Manuscript, Files | M10 | done | 2026-07-18 | 197 tests / 28 files; usePhaseConversations covered via ChatPane; ThinkingBlock auto-collapse bug candidate (see handoff) |
 | 28 | Components III — Library, Series, PitchRoom, Import, Settings + App smoke | M10 | done | 2026-07-19 | 222 tests / 43 files; sweep complete incl. deferred AppLayout smoke; zero source changes |
-| 29 | Coverage gate — thresholds, gap fill, CI + FORGE-CONFIG update | all | pending | | |
+| 29 | Coverage gate — thresholds, gap fill, CI + FORGE-CONFIG update | all | done | 2026-07-19 | Thresholds enforced; main set to 54 (achieved−2, handlers follow-up); CI runs npm test |
 
 Status values: pending | in-progress | done | blocked | skipped
 
@@ -859,6 +859,68 @@ renderApp/installNovelEngineMock (S22/S26). After S28 only the S29 coverage gate
   and lands in workspace only when a first book was created.
 - Suite after S28: 178 files, 1383 tests, green ×2; `npx tsc --noEmit` clean. Only S29
   (coverage gate) remains.
+
+### 2026-07-19 — SESSION-29 (coverage gate) + FINAL REPORT
+
+**Program COMPLETE — 29/29 sessions done, 0 blocked.**
+
+#### What was built
+A full Vitest test stack (node + jsdom projects) with exhaustive unit/integration coverage
+over every layer: domain, all 11 infrastructure modules, all application services, main/IPC/
+preload, all 26 renderer stores, and the complete component tree — with enforced coverage
+thresholds wired into `vitest.config.ts` and `npm test` wired into CI packaging.
+
+#### Suite
+- **178 test files, 1383 tests**, green ×3 (S29) + shuffle-stable (S25 check); wall time ~17s.
+- `npx tsc --noEmit` clean; `npm start` boots (bundles built, composition root up,
+  providers detected — renderer URL refusal was an environmental artifact of the check
+  killing Vite early, same as S01).
+
+#### Coverage (lines, enforced threshold in parentheses)
+| Layer | Lines | Threshold |
+|---|---|---|
+| domain | 100% | (90) |
+| application | 90.9% | (90) |
+| infrastructure | 89.5% | (80) |
+| preload | 96.4% | (90) |
+| main | 56.8% | (54) — see delta below |
+| renderer | 83.9% | (70) |
+| global | 85.8 L / 84.1 S / 81.4 F / 72.6 B | (75/75/75/70) |
+
+- **Coverage excludes (justified):** `src/main/index.ts` (composition root — Electron-launch
+  only, S21 pin) and `src/renderer/main.tsx` (ReactDOM bootstrap, S28 pin), alongside tests
+  and `src/test/`.
+- **Threshold delta (per session rule "achieved−2"):** `src/main/**` enforced at 54 vs the
+  80 target. The gap is `src/main/ipc/handlers.ts` (47% stmts): ~124 channels' thin delegation
+  bodies are registered-but-never-invoked by S21's behavioral tests. Follow-up: a
+  channel→service delegation-table test (the `auto()` proxy fake + `invoke()` helper in
+  handlers.test.ts make this mechanical); then raise the threshold to 80.
+- CI: `scripts/ci-build.js` now runs `npm test` after `verify()`, before packaging.
+  FORGE-CONFIG Verification Commands + compliance list updated ("new/changed code ships with
+  co-located tests"). `coverage/` added to .gitignore.
+
+#### Bugs found during the program (recorded, not fixed — see per-session handoffs)
+1. **QueryService** (S17): `extractField('query-letter'/'response-date')` never matches the
+   serialized labels → queryLetterPath/responseDate lost on every tracker round-trip;
+   removeTarget's letter cleanup is dead code. Needs a real fix ticket.
+2. **QueryService** (S17): empty field value makes extractField swallow the next line.
+3. **bootstrap** (S21): FORGE.MD→FORGE.md / Quill.md→QUILL.md rename migration silently
+   no-ops on case-insensitive filesystems (macOS APFS default).
+4. **chatStore** (S22): setActiveBook sets activeSlug before switchBook → per-book
+   conversation restore clobbers the new book's saved spot.
+5. **ThinkingBlock** (S27): 1.5s auto-collapse timer is scheduled and immediately cancelled —
+   in-place auto-collapse never happens.
+6. **ChapterDetector** (S19): mid-prose "Chapter N …" false splits; title-page headings
+   counted; pre-split content silently dropped.
+7. Minor doc/value drift: MAX_CALL_CONTEXT_TOKENS comment (S02), AgentService loadAll
+   comment (S03), BashEmulator valued-flag quirk (S10), SourceGeneration title overwrite +
+   ChapterValidator root-file pattern + BuildService unreachable branch (S14).
+
+#### Follow-ups
+- handlers.ts delegation-table test → raise `src/main/**` threshold 54 → 80.
+- E2E program (Playwright Electron) — out of scope here by design.
+- Fix tickets for bugs 1–5 above (behavior is pinned by tests; fixes will flip specific
+  assertions, which is intended).
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 

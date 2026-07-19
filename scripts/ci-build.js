@@ -65,6 +65,15 @@ function verify() {
   console.log('All prerequisites verified ✓');
 }
 
+// ── Run test suite ─────────────────────────────────────────────────
+function test() {
+  console.log('\nRunning test suite...\n');
+  execSync('npm test', {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+}
+
 // ── Sync version into package.json ─────────────────────────────────
 function syncVersion(version) {
   const pkgPath = path.join(ROOT, 'package.json');
@@ -180,6 +189,7 @@ async function main() {
   console.log(`Platform: ${platform}-${arch}\n`);
 
   verify();
+  test();
   syncVersion(version);
   make();
 

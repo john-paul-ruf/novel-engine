@@ -114,8 +114,11 @@
 ## Verification Commands
 
 **Type check:** `npx tsc --noEmit`
-**Test:** `npm test` (`npm run test:coverage` for coverage)
-**Build:** `npm run build`
+**Test:** `npm test` (full suite — must be green before any session closes)
+**Coverage:** `npm run test:coverage` — thresholds are ENFORCED in `vitest.config.ts`
+(lines: global 75, domain/application 90, infrastructure 80, preload 90, renderer 70,
+main 54 — see the config comment; raise, never lower, without STATE justification)
+**Build:** `npm run build` (CI packaging via `scripts/ci-build.js` runs `npm test` first)
 **Run dev:** `npm start`
 
 ---
@@ -159,6 +162,7 @@ prompts/session-program/program-NNN/input-files/
 - No `any` types
 - All async operations have error handling
 - Every new infrastructure subdirectory has an `index.ts` barrel export
+- New/changed code ships with co-located tests (`Foo.test.ts` beside `Foo.ts`); coverage thresholds in `vitest.config.ts` must keep passing
 
 ---
 

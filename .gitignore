@@ -11,3 +11,6 @@
 *.db-shm
 dist-installers/
 .env
+
+# Test coverage output
+coverage/
