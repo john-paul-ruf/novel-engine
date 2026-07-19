@@ -42,7 +42,7 @@ D Application (13–20) · E Main/IPC (21) · F Renderer (22–28) · G Gate (29
 | 20 | PitchRoom, Dashboard, Statistics, Usage services | M08 | done | 2026-07-18 | 25 tests; Phase D complete — every src/application file now has a co-located test |
 | 21 | main/IPC handlers, preload bridge, bootstrap, notifications | M09 | done | 2026-07-18 | 47 tests; 142 channels wired 1:1 with preload; composition root excluded (window:*); FORGE.MD migration no-ops on APFS (bug candidate) |
 | 22 | Renderer test harness + core stores | M10 | done | 2026-07-18 | 69 tests; typed bridge mock + resetStores helpers; setActiveBook/switchBook convo-key bug candidate (see handoff) |
-| 23 | Streaming stores | M10 | pending | | |
+| 23 | Streaming stores | M10 | done | 2026-07-18 | 57 tests; session-prompt drift adapted (pipeline=cache, revision events live in a hook); autoDraft loop tested on real timers (~6s) |
 | 24 | Remaining stores I | M10 | pending | | |
 | 25 | Remaining stores II | M10 | pending | | |
 | 26 | Components I — shell (Layout, Sidebar, Rail, StatusBar, common) | M10 | pending | | |
@@ -656,6 +656,33 @@ S29 gate.
 - chatStore recovery poll (2s interval, module-level timer): afterEach must call
   `destroyStreamListener()` to clear it; the poll-completion test uses
   `vi.useFakeTimers()` + `advanceTimersByTimeAsync`.
+
+### 2026-07-18 — SESSION-23 (streaming stores)
+
+- **Session-prompt drift (adapted):** pipelineStore is a per-book CACHE over bridge CRUD
+  (no phase-progress events); revisionQueueStore has NO event subscription — revision
+  events are consumed by `src/renderer/hooks/useRevisionQueueEvents.ts` (cover it in the
+  component sessions, S26–S28); cliActivityStore is the "activity feed" (per-call entry
+  log, cap 500/call, completed-call cap 10).
+- **Pins worth knowing:** streamHandler blockEnd is a no-op; unknown event types silently
+  ignored; `rev:`-prefixed callIds only skipped when `source` is absent. cliActivity
+  pruning runs ONLY inside callStart (a completed 11th call survives until the next
+  spawn); events without callId fall back to the newest ACTIVE call; a status event with
+  zero calls creates a synthetic 'Wrangler' `_default` call. revisionQueue: pause/setMode
+  are optimistic (state first, bridge after); a run finishing after `planId` changed
+  leaves state untouched (incl. isRunning=true — pinned). autoDraft: audit runs per new
+  chapter (fix only on moderate/heavy), stop() aborts via chat.abort, finally clears
+  stopRequested.
+- **Module-level state gotchas:** revisionQueueStore's per-book cache + autoDraft/cliActivity
+  recovery-poll timers live OUTSIDE the store — resetStores does NOT clear them. Tests use
+  unique book slugs per switchToBook test and fake timers + poll-self-clear for recovery.
+- **autoDraftStore runs on real timers** (fixed 300/400/600 ms delays in the loop) — the
+  file takes ~6s wall time; loop scenarios script `books.wordCount` / `chat.getMessages`
+  with mockResolvedValueOnce queues (see file for the per-iteration call order).
+- **Event-shape fixtures:** enriched stream events are built inline
+  (`{ type, …, callId, conversationId?, source? }` — see streamHandler/chatStore tests);
+  cliActivity tests show the callStart shape. Component tests (S26–S28) can copy these
+  patterns; no separate fixture module was needed.
 
 ### 2026-07-18 — Agent stop #13 (context limit)
 
