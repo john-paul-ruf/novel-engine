@@ -246,6 +246,8 @@ describe('autoDraftStore', () => {
       skippedAudits: [],
       stopRequested: false,
       _resumeResolve: null,
+      startedAt: Date.now(),
+      noProgressCount: 0,
     };
 
     // No session → no-op
@@ -278,6 +280,8 @@ describe('autoDraftStore', () => {
           skippedAudits: [],
           stopRequested: false,
           _resumeResolve: null,
+          startedAt: Date.now(),
+          noProgressCount: 0,
         },
       },
     });
@@ -286,4 +290,79 @@ describe('autoDraftStore', () => {
 
     expect(useAutoDraftStore.getState().getSession(BOOK)).toBeNull();
   });
+
+  it('pauses when the time budget is exceeded and resets the budget on resume', async () => {
+    // Force Date.now to advance past MAX_AUTO_DRAFT_DURATION_MS (4h) on the
+    // second iteration's top-of-loop check, so the time-budget pause fires
+    // before any other cap. Use real timers for the loop's await delays.
+    const startedAt = Date.now();
+    const dateNowSpy = vi.spyOn(Date, 'now');
+    // First call: start()'s `startedAt: Date.now()`. Subsequent calls: +5h.
+    let callCount = 0;
+    dateNowSpy.mockImplementation(() => {
+      callCount++;
+      // After start()'s initial call, jump 5h so the first iteration's
+      // budget check fires immediately.
+      return callCount <= 1 ? startedAt : startedAt + 5 * 60 * 60 * 1000;
+    });
+
+    try {
+      mock.chat.getConversations.mockResolvedValue([verityConvo]);
+      mock.books.wordCount.mockResolvedValue(chapters('01-one'));
+      // Return ever-growing message lists so the prep branch fires
+      // (gotResponse=true, no DRAFT_COMPLETE, no new chapter).
+      const m1 = makeMessage({ id: 'm1', content: 'I updated notes only.', conversationId: 'ad-conv' });
+      mock.chat.getMessages
+        .mockResolvedValueOnce([]) // iter1 before
+        .mockResolvedValueOnce([m1]) // iter1 after → prep (count=1)
+        .mockResolvedValue([m1]); // iter2 onwards — budget check fires first
+
+      const run = useAutoDraftStore.getState().start(BOOK);
+
+      await vi.waitFor(() => {
+        const session = useAutoDraftStore.getState().getSession(BOOK);
+        expect(session?.isPaused).toBe(true);
+        expect(session?.pauseReason).toMatch(/Time budget reached/);
+      }, { timeout: 5000 });
+
+      // Resume should reset startedAt so the budget restarts.
+      dateNowSpy.mockImplementation(() => Date.now() & 0);
+      useAutoDraftStore.getState().resume(BOOK);
+      useAutoDraftStore.getState().stop(BOOK);
+      await run;
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  }, 15_000);
+
+  it('pauses when the model produces no new chapter for MAX_NO_PROGRESS_RETRIES consecutive iterations', async () => {
+    mock.chat.getConversations.mockResolvedValue([verityConvo]);
+    // Chapter list never grows → the "prep work" branch every iteration.
+    mock.books.wordCount.mockResolvedValue(chapters('01-one'));
+    // Each iteration's "after" must see one MORE assistant message so
+    // gotResponse=true; otherwise the CLI-error pause fires first.
+    const m1 = makeMessage({ id: 'm1', content: 'I updated notes only.', conversationId: 'ad-conv' });
+    const m2 = makeMessage({ id: 'm2', content: 'I updated notes only.', conversationId: 'ad-conv' });
+    const m3 = makeMessage({ id: 'm3', content: 'I updated notes only.', conversationId: 'ad-conv' });
+    mock.chat.getMessages
+      .mockResolvedValueOnce([]) // iter1 before
+      .mockResolvedValueOnce([m1]) // iter1 after — prep (count=1)
+      .mockResolvedValueOnce([m1]) // iter2 before
+      .mockResolvedValueOnce([m1, m2]) // iter2 after — prep (count=2)
+      .mockResolvedValueOnce([m1, m2]) // iter3 before
+      .mockResolvedValue([m1, m2, m3]); // iter3 after — hits cap → pause
+
+    const run = useAutoDraftStore.getState().start(BOOK);
+
+    await vi.waitFor(() => {
+      const session = useAutoDraftStore.getState().getSession(BOOK);
+      expect(session?.isPaused).toBe(true);
+      expect(session?.pauseReason).toMatch(
+        /no new chapter after \d+ attempts — the model may be stuck/,
+      );
+    }, { timeout: 5000 });
+
+    useAutoDraftStore.getState().stop(BOOK);
+    await run;
+  }, 15_000);
 });

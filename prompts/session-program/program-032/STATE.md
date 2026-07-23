@@ -20,7 +20,7 @@ no-progress retry cap.
 | 01 | ManuscriptView default selection skips draftless chapters | M10 | done | 2026-07-23 | All tests green; no API change |
 | 02 | OllamaCodeClient detects phantom empty turns, retries bounded | M12 | done | 2026-07-23 | 2 new tests, all Ollama tests green |
 | 03 | AutoTurnResumer caps attempts + detects no-progress loops | M08 | done | 2026-07-23 | 2 new tests, all 1402 tests green |
-| 04 | autoDraftStore time budget + no-progress retry cap | M10 | pending | | |
+| 04 | autoDraftStore time budget + no-progress retry cap | M10 | done | 2026-07-23 | 2 new tests, all 1404 tests green |
 
 ## Dependency Graph
 
@@ -159,3 +159,23 @@ public API change beyond the two exported constants — the new
 behavior flows through `isMaxTurns: true`. SESSION-04 (autoDraftStore)
 can now rely on the resumer being bounded — needed for the outer time
 budget.
+
+### SESSION-04 (done 2026-07-23)
+Added `MAX_AUTO_DRAFT_DURATION_MS` (4h) time budget and
+`MAX_NO_PROGRESS_RETRIES` (3) iteration cap to autoDraftStore. Time
+budget is checked at the top of every iteration with a
+resume-and-reset-budget continuation; the no-progress cap is in the
+"prep work" branch and pauses with a resume-and-reset counter. Extended
+`AutoDraftSession` with `startedAt: number | null` and
+`noProgressCount: number`. Updated two existing inline-session test
+literals to include the new fields. Added two tests:
+time-budget-exceeded + reset-on-resume, and three-prep-iterations →
+pause. End of program — all four sessions complete.
+
+## Warnings
+- **SESSION-04 time-budget test uses `vi.spyOn(Date, 'now')`** to
+  force the budget to appear exceeded. The implementation uses
+  `Date.now()` for both `startedAt` capture and the budget check, so
+  the spy approach works without exposing the constant. If a future
+  refactor switches to `performance.now()` or a clock injection, the
+  test needs to be updated.

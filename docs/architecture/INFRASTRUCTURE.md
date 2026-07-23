@@ -151,6 +151,7 @@ Key behavior:
 - `OllamaCliRunner.runSmokeTest()` pipes a prompt into `ollama run <model>` with a timeout and boolean result.
 - Startup model discovery in `src/main/index.ts` uses `OllamaCliRunner.listModels()` and `showModelContext()` for local endpoints, and preserves API discovery for configured remote endpoints.
 - Max-turns signaling: tracks `exitReason` (`'natural' | 'context-ceiling' | 'max-turns'`) in the agent loop. Sets `isMaxTurns: exitReason === 'max-turns'` on the `done` StreamEvent. Natural completion (no tool calls) and context-ceiling exits do NOT set `isMaxTurns`.
+- Phantom empty turn detection (added 2026-07-23): a turn with 0 content text AND 0 tool calls is a phantom (the Ollama server returned a 0-token `done` chunk — model OOM, GPU throw, etc.). The agent loop emits a `warning` event and retries the same turn index via `turn--; continue` up to `MAX_CONSECUTIVE_EMPTY_TURNS = 3` times. Exceeding the bound sets `exitReason = 'max-turns'` so the `done` event carries `isMaxTurns: true` — the outer `AutoTurnResumer` can react. Natural finish (content > 0) is unchanged.
 
 ### llama-server/ — llama-server HTTP Provider
 

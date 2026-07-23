@@ -4,6 +4,43 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-23] — Fix phantom turns and renderer reads (program-032)
+
+### Summary
+
+Addresses four issues in the 2026-07-23 crash log that program-031 did not cover: (1) ManuscriptView repeatedly calling `files:read` for chapters without a `draft.md`, (2) OllamaCodeClient treating 0-token "phantom" responses as natural completion, (3) AutoTurnResumer re-spawning forever with no attempt or progress cap, (4) autoDraftStore looping through "Verity did prep work" iterations indefinitely with no time budget and no no-progress cap. Four small, bounded guards now keep the loop from churning silently.
+
+### Added
+- `src/renderer/components/Manuscript/ManuscriptView.tsx` — Default chapter selection now prefers body chapters with `hasDraft === true` before falling back to first body, then first overall. Eliminates repeated `files:read → File not found` IPC noise during auto-draft.
+- `src/infrastructure/ollama-cli/OllamaCodeClient.ts` — Added `MAX_CONSECUTIVE_EMPTY_TURNS = 3` constant + `consecutiveEmptyTurns` counter in the agent loop. Phantom empty turn (0 content + 0 tool calls) emits `warning` and retries same turn index via `turn--; continue`. Exceeding bound sets `exitReason = 'max-turns'` so `done` carries `isMaxTurns: true`.
+- `src/application/AutoTurnResumer.ts` — Added exported `MAX_RESUME_ATTEMPTS = 5` hard cap and exported `NO_PROGRESS_LIMIT = 2` consecutive zero-progress guard. Both stop the loop with `warning` + merged `done` (`isMaxTurns: true`). Added `doneEmitted` flag in `sendMessage` to guard against double-emit on the natural-completion path.
+- `src/renderer/stores/autoDraftStore.ts` — Added `MAX_AUTO_DRAFT_DURATION_MS` (4h) time budget and `MAX_NO_PROGRESS_RETRIES = 3` iteration cap. Extended `AutoDraftSession` type with `startedAt: number | null` and `noProgressCount: number`. Time budget checked at the top of every iteration; exceeding pauses with `Time budget reached (Nh) — resume to continue or stop` and resets `startedAt` on resume. No-progress counter increments in the "prep work" branch and pauses at the cap with `Verity produced no new chapter after N attempts — the model may be stuck. Resume to retry or stop.` Counter resets on chapter written or on resume.
+
+### Changed
+- `src renderer/components/Manuscript/ManuscriptView.tsx` — Default selection effect now prefers `chapters.find((c) => c.kind === 'body' && c.hasDraft)` over the prior `chapters.find((c) => c.kind === 'body')`.
+- `src/infrastructure/ollama-cli/OllamaCodeClient.ts` — Replaced the single-line `if (turnResult.toolCalls.length === 0)` natural-exit branch with a phantom-aware version: content > 0 → natural break; 0 content + 0 tools → bounded retry; otherwise reset the phantom counter.
+- `src/application/AutoTurnResumer.ts` — Class docstring updated to document the two new safety valves (previous version said "No cap on resume attempts — keeps going until the task finishes naturally"). Hard-cap branch inserted at the top of the `while` loop after `attempt++`. No-progress branch inserted between the totals accumulation and the re-spawn logging.
+- `src/renderer/stores/autoDraftStore.ts` — `start()` now stamps `startedAt: Date.now()` at session init; loop top runs the budget check before `iteration++`; happy-path `chaptersWritten` patch also resets `noProgressCount: 0`; "prep work" branch now increments, pauses at cap, and resets on resume.
+
+### Tests
+- `src/renderer/components/Manuscript/ManuscriptView.test.tsx` — Added `skips a draftless body chapter and selects the first drafted one as default`. Asserts the reader loads `chapters/02-written/draft.md` and `files.read` is never called for `chapters/01-empty/draft.md`.
+- `src/infrastructure/ollama-cli/OllamaCodeClient.test.ts` — Added `retries a single phantom empty turn and completes when content follows` and `exits as max-turns after MAX_CONSECUTIVE_EMPTY_TURNS phantom turns`.
+- `src/application/AutoTurnResumer.test.ts` — Imported `MAX_RESUME_ATTEMPTS` and `NO_PROGRESS_LIMIT`; added `stops after MAX_RESUME_ATTEMPTS resume attempts and emits a merged done (isMaxTurns: true)` (uses strictly longer text per attempt so the no-progress guard never fires) and `aborts after NO_PROGRESS_LIMIT consecutive attempts with no new text or files`.
+- `src/renderer/stores/autoDraftStore.test.ts` — Updated two inline session literals (`reconnect` and `reset` tests) to include `startedAt: Date.now()` and `noProgressCount: 0`. Added `pauses when the time budget is exceeded and resets the budget on resume` (uses `vi.spyOn(Date, 'now')` to jump the clock +5h after `start()`) and `pauses when the model produces no new chapter for MAX_NO_PROGRESS_RETRIES consecutive iterations`.
+
+### Architecture Impact
+- Renderer behavior: `ManuscriptView` default selection no longer chooses draftless body chapters — eliminates IPC noise during auto-draft.
+- Ollama protocol: phantom empty turns now bounded-retry instead of silent exit; `isMaxTurns: true` is set on phantom-induced exits.
+- Application safety: `AutoTurnResumer` exports two new constants (`MAX_RESUME_ATTEMPTS`, `NO_PROGRESS_LIMIT`) — first exported symbols on this class. Behavior flows through the existing `isMaxTurns` field in `done`; no new IPC channels, no new stores.
+- Renderer store: `AutoDraftSession` type extended with two non-optional fields; existing inline literals in tests updated.
+
+### Migration Notes
+- **Test update required**: any inline `AutoDraftSession` literal (any object literal that TypeScript checks against the type) must now include `startedAt` and `noProgressCount`. The two existing inline literals in `autoDraftStore.test.ts` were updated; check other test files that construct session objects if any exist outside the tested file.
+- No breaking IPC or schema changes.
+- No user-visible behavior change beyond the new pause reasons and the absence of "phantom done" silent exits.
+
+---
+
 ## [2026-07-23] — Fix renderer crash recovery (program-031)
 
 ### Summary

@@ -238,6 +238,12 @@ File: `stores/autoDraftStore.ts`
 
 Manages auto-drafting state (sequential chapter writing). Tracks `skippedAudits: string[]` — when an audit/fix pass fails, the loop pauses (using existing pause/resume mechanism) with a diagnostic message. Resume skips the failed audit; stop halts the loop. Skipped chapters are logged in the finally block.
 
+Two safety valves (added 2026-07-23):
+- `MAX_AUTO_DRAFT_DURATION_MS = 4h` — checked at the top of every iteration against `session.startedAt`. Exceeding pauses with `Time budget reached (Nh) — resume to continue or stop`. Resume resets `startedAt` so the budget restarts.
+- `MAX_NO_PROGRESS_RETRIES = 3` — consecutive iterations in the "prep work" branch (no new chapter, not `DRAFT_COMPLETE`) before the loop pauses with `Verity produced no new chapter after N attempts — the model may be stuck. Resume to retry or stop.`. Counter resets on chapter written or on resume.
+
+`AutoDraftSession` type extended with `startedAt: number | null` and `noProgressCount: number` — all inline session literals must include both fields.
+
 ### streamHandler (utility)
 
 File: `stores/streamHandler.ts`

@@ -46,6 +46,18 @@ const INTER_CHAPTER_DELAY_MS = 600;
  */
 const POST_SEND_SETTLE_MS = 400;
 
+/** Hard cap on total auto-draft run duration. Acts as a safety valve so an
+ *  unattended run that keeps hitting the resumer's bounded caps cannot
+ *  churn forever. Pauses on exceedance — the user can resume to continue.
+ *  4h mirrors a long writing session; user-driven, not performance-tuned. */
+const MAX_AUTO_DRAFT_DURATION_MS = 4 * 60 * 60 * 1000;
+
+/** Consecutive iterations that return no new chapter (and aren't
+ *  DRAFT_COMPLETE) before the loop pauses for a user decision. Catches
+ *  "Verity did prep work but no actual chapter" loops that could otherwise
+ *  run until MAX_ITERATIONS. */
+const MAX_NO_PROGRESS_RETRIES = 3;
+
 // ── Per-Session State ────────────────────────────────────────────────────────
 
 type AutoDraftSession = {
@@ -78,6 +90,12 @@ type AutoDraftSession = {
 
   /** Internal: Promise resolver that unblocks a pause. */
   _resumeResolve: (() => void) | null;
+
+  /** Timestamp (Date.now()) when the run started. Used for the time budget. */
+  startedAt: number | null;
+
+  /** Consecutive iterations that produced no new chapter. Reset on chapter written. */
+  noProgressCount: number;
 };
 
 function defaultSession(): AutoDraftSession {
@@ -92,6 +110,8 @@ function defaultSession(): AutoDraftSession {
     skippedAudits: [],
     stopRequested: false,
     _resumeResolve: null,
+    startedAt: null,
+    noProgressCount: 0,
   };
 }
 
@@ -213,6 +233,7 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
         [bookSlug]: {
           ...defaultSession(),
           isRunning: true,
+          startedAt: Date.now(),
         },
       },
     }));
@@ -285,6 +306,23 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
       let iteration = 0;
 
       while (!session()?.stopRequested && iteration < MAX_ITERATIONS) {
+        // ── Time budget check ───────────────────────────────────
+        const startedAt = session()?.startedAt;
+        if (startedAt !== null && startedAt !== undefined && Date.now() - startedAt > MAX_AUTO_DRAFT_DURATION_MS) {
+          const elapsedH = Math.floor((Date.now() - startedAt) / (60 * 60 * 1000));
+          await new Promise<void>((resolve) => {
+            patch({
+              isPaused: true,
+              pauseReason: `Time budget reached (${elapsedH}h) — resume to continue or stop`,
+              _resumeResolve: resolve,
+            });
+          });
+          patch({ isPaused: false, pauseReason: null, _resumeResolve: null });
+          if (session()?.stopRequested) break;
+          // After resume, reset startedAt so the budget restarts
+          patch({ startedAt: Date.now() });
+        }
+
         iteration++;
 
         // Capture chapter slugs before this call (for detecting new chapters)
@@ -349,7 +387,10 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
         if (countAfter > countBefore) {
           // ✓ New chapter written — update progress
           const newChapters = countAfter - countBefore;
-          patch({ chaptersWritten: (session()?.chaptersWritten ?? 0) + newChapters });
+          patch({
+            chaptersWritten: (session()?.chaptersWritten ?? 0) + newChapters,
+            noProgressCount: 0,
+          });
 
           // ── Pass 2: Audit ──────────────────────────────────────────
           // Detect which chapter was just written by comparing slug lists
@@ -486,8 +527,25 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           // ✓ All chapters written
           break;
         } else {
-          // Got a response but no new chapter — Verity did prep work. Retry.
-          await delay(INTER_CHAPTER_DELAY_MS);
+          // Got a response but no new chapter — Verity did prep work. Retry,
+          // but cap how many times we'll keep retrying without progress so
+          // the user gets a chance to intervene if the model is stuck.
+          const newCount = (session()?.noProgressCount ?? 0) + 1;
+          patch({ noProgressCount: newCount });
+
+          if (newCount >= MAX_NO_PROGRESS_RETRIES) {
+            await new Promise<void>((resolve) => {
+              patch({
+                isPaused: true,
+                pauseReason: `Verity produced no new chapter after ${newCount} attempts — the model may be stuck. Resume to retry or stop.`,
+                _resumeResolve: resolve,
+              });
+            });
+            patch({ isPaused: false, pauseReason: null, _resumeResolve: null, noProgressCount: 0 });
+            if (session()?.stopRequested) break;
+          } else {
+            await delay(INTER_CHAPTER_DELAY_MS);
+          }
         }
       }
     } catch (err) {

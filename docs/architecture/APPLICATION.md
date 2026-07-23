@@ -503,7 +503,7 @@ Transparent decorator around `IProviderRegistry` that auto-resumes CLI calls whe
 
 | Method | What It Does |
 |--------|-------------|
-| `sendMessage(params)` | Intercepts the call — delegates to the inner registry with a wrapped `onEvent` that captures text deltas and suppresses terminal events. On `done`/`error` with `isMaxTurns: true`: accumulates tokens + file touches, appends partial assistant text + "Continue where you left off" instruction, emits `maxTurnsResume` + `warning` events, and re-spawns with fresh `sessionId` and `maxTurns + 10`. No cap on attempts. On normal completion: emits a merged `done` with accumulated totals. On genuine error: forwards the error and re-throws. |
+| `sendMessage(params)` | Intercepts the call — delegates to the inner registry with a wrapped `onEvent` that captures text deltas and suppresses terminal events. On `done`/`error` with `isMaxTurns: true`: accumulates tokens + file touches, appends partial assistant text + "Continue where you left off" instruction, emits `maxTurnsResume` + `warning` events, and re-spawns with fresh `sessionId` and `maxTurns + 10`. Two safety valves: `MAX_RESUME_ATTEMPTS = 5` hard cap (attempt > cap → emit `warning` + merged `done` `isMaxTurns: true` and return); `NO_PROGRESS_LIMIT = 2` consecutive zero-progress attempts (no new partial text AND no new files touched across attempts → same emit/return). On normal completion: emits a merged `done` with accumulated totals. On genuine error: forwards the error and re-throws. |
 | All other methods | Pure delegation to the inner registry |
 
 Key behaviors:
@@ -512,4 +512,8 @@ Key behaviors:
 - `callStart` forwarded only from the first attempt (suppressed on resumes)
 - Token usage (`inputTokens`, `outputTokens`, `thinkingTokens`) and `filesTouched` accumulated across all attempts into the final merged `done` event
 - Intermediate `done`/`error` events are suppressed (never forwarded to the caller)
+- `MAX_RESUME_ATTEMPTS` and `NO_PROGRESS_LIMIT` are exported constants — tests reference them by name
+- Hard cap fires at the top of the loop on entry to attempt `MAX_RESUME_ATTEMPTS + 1` (after `MAX_RESUME_ATTEMPTS` re-spawns)
+- No-progress guard compares `partialText.length` and `Object.keys(allFilesTouched).length` against the previous attempt's values; resets to 0 on real progress
+- `doneEmitted` flag guards against double-emit on the natural-completion path
 - Composition root wraps the real `ProviderRegistry` after all provider registrations; the wrapper is injected into all services
