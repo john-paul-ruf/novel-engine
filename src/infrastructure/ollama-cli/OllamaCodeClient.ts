@@ -359,6 +359,8 @@ export class OllamaCodeClient implements IModelProvider {
     // silent truncation by the model.
     const contextCeiling = Math.floor(contextWindow * 0.98);
 
+    let exitReason: 'natural' | 'context-ceiling' | 'max-turns' = 'max-turns';
+
     try {
       // ── Multi-turn agent loop ──────────────────────────────────────
       // Each iteration sends the conversation to Ollama. If the response
@@ -386,6 +388,7 @@ export class OllamaCodeClient implements IModelProvider {
           }
 
           if (estimatedTokens > contextCeiling) {
+            exitReason = 'context-ceiling';
             console.warn(
               `[OllamaCodeClient] Context ceiling reached after compaction: ~${estimatedTokens.toLocaleString()} tokens ` +
               `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
@@ -427,6 +430,7 @@ export class OllamaCodeClient implements IModelProvider {
 
         // If no tool calls, the agent is done
         if (turnResult.toolCalls.length === 0) {
+          exitReason = 'natural';
           console.log(`[OllamaCodeClient] No tool calls — agent loop complete after ${turn + 1} turn(s)`);
           break;
         }
@@ -540,6 +544,7 @@ export class OllamaCodeClient implements IModelProvider {
           outputTokens: totalOutputTokens,
           thinkingTokens,
           filesTouched: tracker.getFileTouches(),
+          isMaxTurns: exitReason === 'max-turns',
         });
       }
     } catch (err) {

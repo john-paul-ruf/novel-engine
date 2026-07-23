@@ -17,8 +17,8 @@ When any provider's CLI call hits the max-turns limit (Claude CLI `error_max_tur
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Domain types: signal max-turn exhaustion in StreamEvent | M01 | done | 2026-07-23 | Added `isMaxTurns?` to `done` and `error` variants; added `maxTurnsResume` variant. `npx tsc --noEmit` passes. Domain + streamHandler tests pass. |
-| 02 | Claude CLI: flag `error_max_turns` with `isMaxTurns` | M06 | pending | | |
-| 03 | Ollama & llama-server: flag max-turn exhaustion | M12, M13 | pending | | |
+| 02 | Claude CLI: flag `error_max_turns` with `isMaxTurns` | M06 | done | 2026-07-23 | Set `isMaxTurns: subtype === 'error_max_turns'` on error events. Tests updated + new test for non-max error. All 19 tests pass. |
+| 03 | Ollama & llama-server: flag max-turn exhaustion | M12, M13 | done | 2026-07-23 | Added `exitReason` tracker (`natural`/`context-ceiling`/`max-turns`) to both clients. `isMaxTurns: exitReason === 'max-turns'` on `done` event. Both test suites pass (26 tests total). |
 | 04 | AutoTurnResumer class + composition-root wiring | M08, M09, M15 | pending | | |
 | 05 | Renderer: handle `maxTurnsResume` event + integration tests | M10, M16 | pending | | |
 
@@ -117,3 +117,31 @@ adds a case for it.
 
 Verification: `npx tsc --noEmit` ✅, `npx vitest run src/domain/` ✅ (39 tests),
 `npx vitest run src/renderer/stores/streamHandler.test.ts` ✅ (7 tests).
+
+### SESSION-02 — 2026-07-23
+
+Modified `ClaudeCodeClient.processStreamEvent` to emit `isMaxTurns: subtype === 'error_max_turns'`
+on the error event. Other error subtypes (`error_during_execution`, etc.) get `isMaxTurns: false`.
+
+Tests:
+- Updated the existing `error_max_turns` test to assert `isMaxTurns: true`.
+- Added a new test for `error_during_execution` asserting `isMaxTurns: false`.
+
+Verification: `npx tsc --noEmit` ✅, `npx vitest run ClaudeCodeClient.test.ts` ✅ (19 tests).
+
+### SESSION-03 — 2026-07-23
+
+Both `OllamaCodeClient` and `LlamaServerClient` now track an `exitReason` variable
+(default `'max-turns'`) before the agent loop. On the context-ceiling break path,
+`exitReason` is set to `'context-ceiling'`. On natural completion (no tool calls),
+`exitReason` is set to `'natural'`. After the loop, the `done` event carries
+`isMaxTurns: exitReason === 'max-turns'`.
+
+The catch-block `done` events (AbortError path) do NOT set `isMaxTurns` — those are
+user-initiated aborts, not max-turn exhaustion.
+
+Tests updated:
+- Ollama: maxTurns test asserts `isMaxTurns: true`; happy-path test asserts `isMaxTurns: false`.
+- Llama: maxTurns test asserts `isMaxTurns: true`; happy-path test asserts `isMaxTurns: false`.
+
+Verification: `npx tsc --noEmit` ✅, `npx vitest run OllamaCodeClient.test.ts LlamaServerClient.test.ts` ✅ (26 tests).

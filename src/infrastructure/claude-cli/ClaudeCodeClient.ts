@@ -481,7 +481,7 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
           `[ClaudeCodeClient] Error result event: subtype=${subtype ?? '(none)'}, ` +
           `is_error=${event.is_error === true}`,
         );
-        onEvent({ type: 'error', message });
+        onEvent({ type: 'error', message, isMaxTurns: subtype === 'error_max_turns' });
         return;
       }
 

@@ -306,7 +306,23 @@ describe('sendMessage — failure paths', () => {
     expect(errors.length).toBe(1);
     expect(errors[0].message).toContain('error_max_turns');
     expect(errors[0].message).toContain('Ran out of turns');
+    expect(errors[0]).toMatchObject({ type: 'error', isMaxTurns: true });
     expect(events.some((e) => e.type === 'done')).toBe(false);
+  });
+
+  it('a non-max-turns error result does not set isMaxTurns', async () => {
+    const promise = send();
+    const child = await fake.waitForChild();
+
+    child.pushStdout(
+      ndjson([resultEvent({ subtype: 'error_during_execution', isError: true, result: 'Something broke' })])
+    );
+    child.exit(1);
+
+    await expect(promise).rejects.toThrow();
+    const errors = events.filter((e) => e.type === 'error');
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toMatchObject({ type: 'error', isMaxTurns: false });
   });
 
   it('a failed tool result never counts as a touched file', async () => {

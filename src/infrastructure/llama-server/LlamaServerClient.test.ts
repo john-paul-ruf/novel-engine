@@ -176,7 +176,7 @@ describe('tool-call loop', () => {
     expect(await readFile(path.join(booksDir, 'my-book', 'source/scene.md'), 'utf-8')).toBe('Scene prose.');
 
     expect(events.find((e) => e.type === 'filesChanged')).toMatchObject({ paths: ['source/scene.md'] });
-    expect(events.at(-1)).toMatchObject({ type: 'done', filesTouched: { 'source/scene.md': 1 } });
+    expect(events.at(-1)).toMatchObject({ type: 'done', filesTouched: { 'source/scene.md': 1 }, isMaxTurns: false });
 
     // Second request: assistant tool_calls entry with stringified args + tool result with matching id
     const second = chatBody(1);
@@ -213,7 +213,7 @@ describe('tool-call loop', () => {
     await send({ maxTurns: 2 });
 
     expect(fetchCalls.filter((c) => c.url.endsWith('/v1/chat/completions')).length).toBe(2);
-    expect(events.at(-1)?.type).toBe('done');
+    expect(events.at(-1)).toMatchObject({ type: 'done', isMaxTurns: true });
   });
 });
 

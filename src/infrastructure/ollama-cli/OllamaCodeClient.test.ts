@@ -185,6 +185,7 @@ describe('agent loop with tools', () => {
       inputTokens: 110,
       outputTokens: 30,
       filesTouched: { 'source/query-research.md': 1 },
+      isMaxTurns: false,
     });
 
     // Second request carries the assistant tool_calls message + tool result
@@ -238,7 +239,7 @@ describe('agent loop with tools', () => {
     await send(makeClient(), { maxTurns: 2 });
 
     expect(calls.filter((c) => c.url.endsWith('/api/chat')).length).toBe(2);
-    expect(events.at(-1)).toMatchObject({ type: 'done', inputTokens: 10, outputTokens: 10 });
+    expect(events.at(-1)).toMatchObject({ type: 'done', inputTokens: 10, outputTokens: 10, isMaxTurns: true });
   });
 
   it('breaks the loop with a status event when compaction cannot fit the context ceiling', async () => {

@@ -253,6 +253,8 @@ export class LlamaServerClient implements IModelProvider {
     // silent truncation by the model.
     const contextCeiling = Math.floor(MAX_CALL_CONTEXT_TOKENS * 0.98);
 
+    let exitReason: 'natural' | 'context-ceiling' | 'max-turns' = 'max-turns';
+
     try {
       for (let turn = 0; turn < maxTurns; turn++) {
         // ── Context size guard ──────────────────────────────────────
@@ -272,6 +274,7 @@ export class LlamaServerClient implements IModelProvider {
           }
 
           if (estimatedTokens > contextCeiling) {
+            exitReason = 'context-ceiling';
             console.warn(
               `[LlamaServerClient] Context ceiling reached after compaction: ~${estimatedTokens.toLocaleString()} tokens ` +
               `(ceiling=${contextCeiling.toLocaleString()}) at turn ${turn + 1}. Breaking agent loop.`,
@@ -310,6 +313,7 @@ export class LlamaServerClient implements IModelProvider {
         );
 
         if (turnResult.toolCalls.length === 0) {
+          exitReason = 'natural';
           console.log(
             `[LlamaServerClient] No tool calls \u2014 agent loop complete after ${turn + 1} turn(s)`,
           );
@@ -430,6 +434,7 @@ export class LlamaServerClient implements IModelProvider {
           outputTokens: totalOutputTokens,
           thinkingTokens,
           filesTouched: tracker.getFileTouches(),
+          isMaxTurns: exitReason === 'max-turns',
         });
       }
     } catch (err) {
