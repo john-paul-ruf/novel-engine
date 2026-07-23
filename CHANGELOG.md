@@ -4,6 +4,34 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-23] — Fix renderer crash recovery (program-031)
+
+### Summary
+
+Fixes two crash vectors found in the 2026-07-23 crash log: (1) main process sending stream events to disposed render frames (hundreds of "Render frame was disposed" log lines per crashed stream), and (2) renderer OOM from unbounded thinking buffer accumulation with per-token `setState` causing O(N²) string concatenation and thousands of React re-renders. SESSION-01 guards all 14 `BrowserWindow.getAllWindows()` broadcast loops with an `isWebContentsAlive()` helper. SESSION-02 caps renderer buffers at 50K chars and debatches delta updates via a 100ms `setInterval` flush, reducing re-renders from thousands per second to ~10/sec.
+
+### Added
+- `src/main/ipc/handlers.ts` — Added `isWebContentsAlive()` helper at module top. Checks both `window.isDestroyed()` and `window.webContents.isDestroyed()` before attempting `webContents.send()`.
+- `src/renderer/stores/chatStore.ts` — Added `MAX_BUFFER_CHARS` (50,000) constant, `DELTA_FLUSH_INTERVAL_MS` (100) constant, module-scoped `_pendingThinking`/`_pendingText` accumulators, `startDeltaFlushTimer()`/`stopDeltaFlushTimer()` functions, and `_flushDeltasForTesting()` export for test sync.
+- `src/main/ipc/handlers.test.ts` — Added `broadcast guards` describe block with test verifying windows with destroyed webContents are skipped during stream event broadcast.
+
+### Changed
+- `src/main/ipc/handlers.ts` — Applied `isWebContentsAlive()` guard to all 14 `BrowserWindow.getAllWindows()` broadcast loops: source generation progress + stream, versions:revert filesChanged, chat:send streamEvent + filesChanged, chat:deepDive, hot-take:start, adhoc-revision:start streamEvent + filesChanged, broadcastVerityEvent, emitVerityCallStart, revision queue event forwarding, helper:send, broadcastQueryStreamEvent.
+- `src/main/index.ts` — Tightened BookWatcher and BooksDirWatcher callbacks to also check `!mainWindow.webContents.isDestroyed()` before calling `webContents.send()`.
+- `src/test/mocks/electron.ts` — Added `isDestroyed: vi.fn((): boolean => false)` to `webContents` mock object on `BrowserWindow`.
+- `src/renderer/stores/chatStore.ts` — Replaced direct `setState` in `onThinkingDelta`/`onTextDelta` with module-scoped accumulator + 100ms interval flush. Added `stopDeltaFlushTimer()` + pending cleanup to `onDone`, `onError`, `switchBook`, `destroyStreamListener`, `sendMessage` error path, and recovery poll fallback.
+- `src/renderer/stores/chatStore.test.ts` — Updated delta assertion tests to call `_flushDeltasForTesting()` after emitting deltas where buffer content is asserted. Imported `_flushDeltasForTesting` from chatStore.
+
+### Architecture Impact
+- New helper: `isWebContentsAlive()` in `src/main/ipc/handlers.ts` — used by all broadcast loops
+- Renderer store behavior change: `chatStore` `thinkingBuffer`/`streamBuffer` now capped at 50K chars, updated via 100ms debatched flush instead of per-token `setState`
+- Test mock enhancement: `src/test/mocks/electron.ts` `webContents` now has `isDestroyed()` method
+
+### Migration Notes
+- None — no breaking changes. `_flushDeltasForTesting()` is a test-only export.
+
+---
+
 ## [2026-07-23] — Auto-resume max-turns exhaustion (program-030)
 
 ### Summary

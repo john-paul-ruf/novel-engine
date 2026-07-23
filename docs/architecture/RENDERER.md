@@ -129,8 +129,8 @@ File: `stores/chatStore.ts`
 | `messages` | `Message[]` | Messages for active conversation |
 | `isStreaming` | `boolean` | True during CLI stream |
 | `_streamOrigin` | `'self' \| 'external' \| null` | Discriminates user-initiated (`'self'`) vs background (`'external'`) streams. `switchBook()` only aborts `'self'` streams, preserving background auto-draft/revision streams. Reset to `null` at all 10 terminal points. |
-| `streamBuffer` | `string` | Accumulating response text |
-| `thinkingBuffer` | `string` | Accumulating thinking text |
+| `streamBuffer` | `string` | Accumulating response text (capped at 50K chars, debatched 100ms flush) |
+| `thinkingBuffer` | `string` | Accumulating thinking text (capped at 50K chars, debatched 100ms flush) |
 | `progressStage` | `ProgressStage` | Tool-use stage inferred from stream |
 
 | Action | What It Does |

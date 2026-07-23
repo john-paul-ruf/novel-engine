@@ -285,7 +285,7 @@ Events from main → renderer (not request/response).
 
 | Event | Payload | Emitter |
 |-------|---------|---------|
-| `chat:streamEvent` | `StreamEvent & { callId, conversationId, source?: StreamEventSource }` | ChatService during CLI streaming — broadcast to all windows. `source` discriminates origin (`'chat'`, `'auto-draft'`, `'hot-take'`, `'adhoc-revision'`, `'revision'`, `'audit'`, `'fix'`, `'motif-audit'`, `'query'`). |
+| `chat:streamEvent` | `StreamEvent & { callId, conversationId, source?: StreamEventSource }` | ChatService during CLI streaming — broadcast to all windows via `isWebContentsAlive()` guard (skips disposed render frames). `source` discriminates origin (`'chat'`, `'auto-draft'`, `'hot-take'`, `'adhoc-revision'`, `'revision'`, `'audit'`, `'fix'`, `'motif-audit'`, `'query'`). |
 | `chat:filesChanged` | `string[], bookSlug?` | BookWatcher on file change, or post-sendMessage |
 | `books:changed` | (none) | BooksDirWatcher on folder add/remove |
 | `build:progress` | `string` | BuildService during Pandoc execution |
