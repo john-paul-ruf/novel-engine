@@ -52,6 +52,16 @@ const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
 /** Maximum tool-use turns before forcing completion. */
 const DEFAULT_MAX_TURNS = 30;
 
+/** Maximum consecutive "phantom" empty turns (0 content + 0 tool calls)
+ *  before the agent loop gives up and exits with `isMaxTurns: true`.
+ *
+ *  Ollama can occasionally return a 0-token `done` chunk — the model OOM'd
+ *  on thinking, the GPU ran out of VRAM, the server hiccuped. Retrying
+ *  the same turn is cheap and usually recovers. Three strikes is enough
+ *  to distinguish a transient failure from a stuck model; further retries
+ *  just burn context budget. */
+const MAX_CONSECUTIVE_EMPTY_TURNS = 3;
+
 /**
  * Ollama provider — uses the Ollama HTTP API (`/api/chat`) with streaming,
  * thinking support, and function-calling tool use.
@@ -361,6 +371,8 @@ export class OllamaCodeClient implements IModelProvider {
 
     let exitReason: 'natural' | 'context-ceiling' | 'max-turns' = 'max-turns';
 
+    let consecutiveEmptyTurns = 0;
+
     try {
       // ── Multi-turn agent loop ──────────────────────────────────────
       // Each iteration sends the conversation to Ollama. If the response
@@ -428,12 +440,48 @@ export class OllamaCodeClient implements IModelProvider {
           `tokens=${turnResult.inputTokens}in/${turnResult.outputTokens}out`,
         );
 
-        // If no tool calls, the agent is done
+        // If no tool calls, the agent is done — but distinguish a real
+        // completion from a phantom empty turn (0 content + 0 tool calls),
+        // which is the Ollama server returning a 0-token chunk. Real
+        // completion: the model wrote text. Phantom: only thinking was
+        // produced (or nothing at all).
         if (turnResult.toolCalls.length === 0) {
-          exitReason = 'natural';
-          console.log(`[OllamaCodeClient] No tool calls — agent loop complete after ${turn + 1} turn(s)`);
-          break;
+          if (turnResult.contentText.length > 0) {
+            exitReason = 'natural';
+            console.log(`[OllamaCodeClient] No tool calls — agent loop complete after ${turn + 1} turn(s)`);
+            break;
+          }
+
+          // Phantom empty turn — the model produced no usable output.
+          consecutiveEmptyTurns++;
+          if (consecutiveEmptyTurns >= MAX_CONSECUTIVE_EMPTY_TURNS) {
+            exitReason = 'max-turns';
+            console.warn(
+              `[OllamaCodeClient] ${MAX_CONSECUTIVE_EMPTY_TURNS} consecutive empty turns — ` +
+              `exiting as max-turns at turn ${turn + 1}.`,
+            );
+            wrappedOnEvent({
+              type: 'warning',
+              message: `Model produced no output for ${MAX_CONSECUTIVE_EMPTY_TURNS} consecutive turns — stopping.`,
+            });
+            break;
+          }
+
+          console.warn(
+            `[OllamaCodeClient] Phantom empty turn ${consecutiveEmptyTurns}/${MAX_CONSECUTIVE_EMPTY_TURNS} at turn ${turn + 1} — retrying.`,
+          );
+          wrappedOnEvent({
+            type: 'warning',
+            message: `Empty model response — retrying (attempt ${consecutiveEmptyTurns}/${MAX_CONSECUTIVE_EMPTY_TURNS}).`,
+          });
+          // Re-send the same prompt — do not advance turn counter. `turn--`
+          // then the `for` loop's `turn++` lands on the same index.
+          turn--;
+          continue;
         }
+
+        // We have real tool calls this turn — reset the phantom counter.
+        consecutiveEmptyTurns = 0;
 
         // ── Execute tool calls ────────────────────────────────────
         // Add the assistant's tool-call message to the conversation

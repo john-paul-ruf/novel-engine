@@ -264,6 +264,45 @@ describe('agent loop with tools', () => {
     expect(status?.message).toContain('Context limit approaching');
     expect(events.at(-1)?.type).toBe('done');
   });
+
+  it('retries a single phantom empty turn and completes when content follows', async () => {
+    const phantomTurn = () =>
+      chatResponse([thinkingChunk('processing...'), doneChunk(0, 0)]);
+    const goodTurn = () =>
+      chatResponse([contentChunk('Chapter one.'), doneChunk(20, 5)]);
+    const { stub, calls } = makeOllamaFetchStub({ chatQueue: [phantomTurn, goodTurn] });
+    vi.stubGlobal('fetch', stub);
+
+    await send(makeClient());
+
+    // Two /api/chat calls: phantom retry, then real content.
+    expect(calls.filter((c) => c.url.endsWith('/api/chat')).length).toBe(2);
+    // Warning about the empty response was emitted.
+    expect(events.some((e) => e.type === 'warning' && /Empty model response/.test(e.message))).toBe(true);
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+      inputTokens: 20,
+      outputTokens: 5,
+      isMaxTurns: false,
+    });
+  });
+
+  it('exits as max-turns after MAX_CONSECUTIVE_EMPTY_TURNS phantom turns', async () => {
+    const phantom = () => chatResponse([thinkingChunk('idle'), doneChunk(0, 0)]);
+    const { stub, calls } = makeOllamaFetchStub({ chatQueue: [phantom, phantom, phantom] });
+    vi.stubGlobal('fetch', stub);
+
+    await send(makeClient(), { maxTurns: 10 });
+
+    // Three retries for the same turn, then break — loop never advances.
+    expect(calls.filter((c) => c.url.endsWith('/api/chat')).length).toBe(3);
+    const warnings = events.filter((e) => e.type === 'warning');
+    expect(warnings.length).toBeGreaterThanOrEqual(3);
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+      isMaxTurns: true,
+    });
+  });
 });
 
 describe('failure + lifecycle paths', () => {
