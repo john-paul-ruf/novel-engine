@@ -45,6 +45,7 @@ export interface StreamHandlerConfig {
   onToolDuration?: (tool: TimestampedToolUse) => void;
   onFilesChanged?: (paths: string[]) => void;
   onMultiCallProgress?: (step: number, totalSteps: number, label: string) => void;
+  onMaxTurnsResume?: (attempt: number, newMaxTurns: number) => void;
 }
 
 /**
@@ -141,6 +142,10 @@ export function createStreamHandler(config: StreamHandlerConfig): (event: Stream
 
       case 'multiCallProgress':
         config.onMultiCallProgress?.(event.step, event.totalSteps, event.label);
+        break;
+
+      case 'maxTurnsResume':
+        config.onMaxTurnsResume?.(event.attempt, event.newMaxTurns);
         break;
 
       case 'done':

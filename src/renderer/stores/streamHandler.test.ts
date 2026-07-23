@@ -44,6 +44,7 @@ function makeRecorder(
     onToolDuration: rec('toolDuration'),
     onFilesChanged: rec('filesChanged'),
     onMultiCallProgress: rec('multiCallProgress'),
+    onMaxTurnsResume: rec('maxTurnsResume'),
   });
 
   return { handler, calls, kinds: () => calls.map((c) => c.kind) };
@@ -179,5 +180,11 @@ describe('streamHandler', () => {
     const { handler, calls } = makeRecorder({ activeCallId: 'call-1', isStreaming: true });
     send(handler, { type: 'mystery', callId: 'call-1' } as unknown as EnrichedEvent);
     expect(calls).toEqual([]);
+  });
+
+  it('dispatches maxTurnsResume to onMaxTurnsResume', () => {
+    const { handler, calls } = makeRecorder({ activeCallId: 'call-1', isStreaming: true });
+    send(handler, { type: 'maxTurnsResume', attempt: 2, newMaxTurns: 50, callId: 'call-1' });
+    expect(calls[0].args).toEqual([2, 50]);
   });
 });

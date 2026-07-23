@@ -20,7 +20,7 @@ When any provider's CLI call hits the max-turns limit (Claude CLI `error_max_tur
 | 02 | Claude CLI: flag `error_max_turns` with `isMaxTurns` | M06 | done | 2026-07-23 | Set `isMaxTurns: subtype === 'error_max_turns'` on error events. Tests updated + new test for non-max error. All 19 tests pass. |
 | 03 | Ollama & llama-server: flag max-turn exhaustion | M12, M13 | done | 2026-07-23 | Added `exitReason` tracker (`natural`/`context-ceiling`/`max-turns`) to both clients. `isMaxTurns: exitReason === 'max-turns'` on `done` event. Both test suites pass (26 tests total). |
 | 04 | AutoTurnResumer class + composition-root wiring | M08, M09, M15 | done | 2026-07-23 | Created `AutoTurnResumer` implementing `IProviderRegistry`. Wraps real registry, intercepts `sendMessage`, auto-resumes on `isMaxTurns: true`. 6 tests pass. Composition root wraps `ProviderRegistry` in `AutoTurnResumer` before passing to all services + IPC handlers. |
-| 05 | Renderer: handle `maxTurnsResume` event + integration tests | M10, M16 | pending | | |
+| 05 | Renderer: handle `maxTurnsResume` event + integration tests | M10, M16 | done | 2026-07-23 | Added `onMaxTurnsResume?` to `StreamHandlerConfig` + switch case in `streamHandler.ts`. Added test. Full suite: 1396 tests pass across 179 files. Feature complete. |
 
 (Status: pending | in-progress | done | blocked | skipped)
 
@@ -177,3 +177,21 @@ root calls it on the raw registry before wrapping.
 
 Verification: `npx tsc --noEmit` ✅, AutoTurnResumer tests ✅ (6 tests),
 ProviderRegistry tests ✅ (14 tests), ChatService tests ✅ (17 tests).
+
+### SESSION-05 — 2026-07-23
+
+Added `onMaxTurnsResume?` optional callback to `StreamHandlerConfig` in
+`src/renderer/stores/streamHandler.ts`. Added a `case 'maxTurnsResume'` to the
+switch that dispatches `attempt` and `newMaxTurns` to the callback.
+
+Added test in `streamHandler.test.ts` verifying the dispatch.
+
+No store wiring needed — the `AutoTurnResumer` already emits a `warning` event
+alongside `maxTurnsResume`, so the existing `onWarning` handler in stores shows
+the resume notification. The `onMaxTurnsResume` callback is available for stores
+that want richer UI later.
+
+Full test suite: 1396 tests across 179 files, all green.
+`npx tsc --noEmit` clean.
+
+**Feature is complete.**
