@@ -204,4 +204,43 @@ describe('ManuscriptView', () => {
     expect(screen.getByText('Find & Replace')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Find…')).toBeInTheDocument();
   });
+
+  it('skips a draftless body chapter and selects the first drafted one as default', async () => {
+    const chapterDirs: FileEntry[] = [
+      { name: '00-0-copyright', path: 'chapters/00-0-copyright', isDirectory: true },
+      { name: '01-empty', path: 'chapters/01-empty', isDirectory: true },
+      { name: '02-written', path: 'chapters/02-written', isDirectory: true },
+    ];
+    const drafts: Record<string, string> = {
+      'chapters/02-written/draft.md': 'Written prose.',
+    };
+    const readMock = vi.fn(async (_slug: string, path: string) => {
+      const content = drafts[path];
+      if (content === undefined) throw new Error('ENOENT');
+      return content;
+    });
+    renderApp(<ManuscriptView />, {
+      stores: [
+        [useBookStore, { activeSlug: 'book-a' }],
+        [useViewStore, {}],
+      ],
+      bridge: {
+        files: {
+          listDir: vi.fn(async () => chapterDirs),
+          exists: vi.fn(async (_slug: string, path: string) => path in drafts),
+          read: readMock,
+        },
+        books: {
+          wordCount: vi.fn(async () => [
+            { slug: '01-empty', wordCount: 0 },
+            { slug: '02-written', wordCount: 700 },
+          ]),
+        },
+      },
+    });
+
+    expect(await screen.findByText('Written prose.')).toBeInTheDocument();
+    expect(readMock).not.toHaveBeenCalledWith('book-a', 'chapters/01-empty/draft.md');
+    expect(readMock).toHaveBeenCalledWith('book-a', 'chapters/02-written/draft.md');
+  });
 });

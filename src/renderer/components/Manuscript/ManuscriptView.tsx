@@ -152,12 +152,17 @@ export function ManuscriptView(): React.ReactElement {
     if (payload.manuscriptMode) setMode(payload.manuscriptMode);
   }, [currentView, payload]);
 
-  // Default selection: first body chapter, else first row.
+  // Default selection: first drafted body chapter. Falls back to first body
+  // chapter (EMPTY badge in the rail), then first row overall (front matter).
+  // Preferring drafted chapters avoids repeatedly calling files:read on a
+  // chapter dir whose draft.md doesn't exist yet (especially during auto-draft
+  // runs that bump fileChangeStore.revision on every agent write).
   useEffect(() => {
     if (chapters.length === 0) return;
     if (selectedSlug !== null && chapters.some((c) => c.slug === selectedSlug)) return;
+    const draftedBody = chapters.find((c) => c.kind === 'body' && c.hasDraft);
     const firstBody = chapters.find((c) => c.kind === 'body');
-    setSelectedSlug((firstBody ?? chapters[0]).slug);
+    setSelectedSlug((draftedBody ?? firstBody ?? chapters[0]).slug);
     setFileOverride(null);
   }, [chapters, selectedSlug]);
 
