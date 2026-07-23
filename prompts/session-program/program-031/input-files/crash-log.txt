@@ -1,0 +1,421 @@
+/Users/the.phoenix/.nvm/versions/node/v22.17.0/bin/npm run start
+
+> novel-engine@0.2.0 start
+> electron-forge start
+
+✔ Checking your system
+✔ Locating application
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Locating application
+✔ Loading configuration
+✔ Preparing native dependencies: 1 / 1 [0.1s]
+✔ Locating application
+✔ Loading configuration
+✔ Preparing native dependencies: 1 / 1 [0.1s]
+✔ Locating application
+✔ Loading configuration
+✔ Preparing native dependencies: 1 / 1 [0.1s]
+✔ Running generateAssets hook
+✔ Running preStart hook
+  ✔ [plugin-vite] Preparing Vite bundles
+    ✔ Launched Vite dev servers for renderer process code [0.1s]
+      ✔ Target main_window
+        › ➜  Local:   http://localhost:5173/
+          ➜  Network: use --host to expose
+    ✔ Built main process and preload bundles [0.3s]
+      ✔ Building src/main/index.ts target
+      ✔ Building src/preload/index.ts target
+✔ Launched Electron app. Type rs in terminal to restart main process.
+
+You have set packagerConfig.ignore, the Electron Forge Vite plugin normally sets this automatically.
+
+Your packaged app may be larger than expected if you dont ignore everything other than the '.vite' folder
+10:13:52 AM [@electron-forge/plugin-vite] target built src/preload/index.ts
+10:13:53 AM [@electron-forge/plugin-vite] target built src/main/index.ts
+
+Error occurred in handler for 'settings:load': Error: No handler registered for 'settings:load'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:87136)
+    at WebContents.emit (node:events:518:28)
+[startup] claude-fable-5 not available — skipped
+[startup] Codex CLI detected — 14 model(s) available
+[startup] Ollama detected at http://127.0.0.1:11434 — 6 model(s) available
+[startup] llama-server not reachable at http://127.0.0.1:8080 — provider registered for configuration
+[ChatService] Routing: model=glm-5.2:cloud, provider=ollama-cli, toolUse=true, agent=Verity
+[ChatService] File guidance: 4 source files, 18 chapters listed
+[OllamaCodeClient] Streaming: model=glm-5.2:cloud, think=true, tools=6, maxTurns=30, msgs=9, ~10,496 est tokens (36,735 chars), conversationId=cnGNxtoSXs1UzhC8rFheP
+  [msg] system: 25,585 chars
+  [msg] user: 679 chars
+  [msg] assistant: 2,596 chars
+  [msg] user: 679 chars
+  [msg] assistant: 3,859 chars
+  [msg] user: 679 chars
+  [msg] assistant: 1,002 chars
+  [msg] assistant: 977 chars
+  [msg] user: 679 chars
+[OllamaCodeClient] Model glm-5.2:cloud context window: 1,000,000 tokens
+[OllamaCodeClient] Turn 1/30 starting (est. ~9,184 tokens)...
+[OllamaCodeClient] Turn 1 done: thinking=82 chars, content=0 chars, toolCalls=2, tokens=9690in/41out
+[OllamaCodeClient] Turn 2/30 starting (est. ~28,812 tokens)...
+[OllamaCodeClient] Turn 2 done: thinking=119 chars, content=0 chars, toolCalls=1, tokens=27606in/49out
+[OllamaCodeClient] Turn 3/30 starting (est. ~28,862 tokens)...
+[OllamaCodeClient] Turn 3 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=27661in/22out
+[OllamaCodeClient] Turn 4/30 starting (est. ~29,061 tokens)...
+[OllamaCodeClient] Turn 4 done: thinking=140 chars, content=127 chars, toolCalls=4, tokens=27931in/135out
+[OllamaCodeClient] Turn 5/30 starting (est. ~108,105 tokens)...
+[OllamaCodeClient] Turn 5 done: thinking=97 chars, content=88 chars, toolCalls=3, tokens=105476in/105out
+[OllamaCodeClient] Turn 6/30 starting (est. ~191,563 tokens)...
+[OllamaCodeClient] Turn 6 done: thinking=15294 chars, content=291 chars, toolCalls=1, tokens=182679in/6265out
+[OllamaCodeClient] Turn 7/30 starting (est. ~193,991 tokens)...
+[OllamaCodeClient] Turn 7 done: thinking=0 chars, content=35 chars, toolCalls=1, tokens=184796in/3643out
+[OllamaCodeClient] Turn 8/30 starting (est. ~197,794 tokens)...
+[OllamaCodeClient] Turn 8 done: thinking=0 chars, content=129 chars, toolCalls=1, tokens=188458in/375out
+[OllamaCodeClient] Turn 9/30 starting (est. ~198,161 tokens)...
+[OllamaCodeClient] Turn 9 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=188846in/376out
+[OllamaCodeClient] Turn 10/30 starting (est. ~198,534 tokens)...
+[OllamaCodeClient] Turn 10 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=189235in/387out
+[OllamaCodeClient] Turn 11/30 starting (est. ~198,893 tokens)...
+[OllamaCodeClient] Turn 11 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=189635in/278out
+[OllamaCodeClient] Turn 12/30 starting (est. ~199,156 tokens)...
+[OllamaCodeClient] Turn 12 done: thinking=0 chars, content=82 chars, toolCalls=1, tokens=189926in/52out
+[contextCompactor] Compacted: 251,942 -> 231,114 tokens (budget: 245,000)
+[OllamaCodeClient] Context compacted at turn 13: now ~231,114 tokens (ceiling=245,000)
+[OllamaCodeClient] Turn 13/30 starting (est. ~231,114 tokens)...
+[OllamaCodeClient] Turn 13 done: thinking=0 chars, content=108 chars, toolCalls=1, tokens=224022in/2720out
+[OllamaCodeClient] Turn 14/30 starting (est. ~233,908 tokens)...
+[OllamaCodeClient] Turn 14 done: thinking=0 chars, content=156 chars, toolCalls=1, tokens=226755in/64out
+[contextCompactor] Compacted: 312,541 -> 239,653 tokens (budget: 245,000)
+[OllamaCodeClient] Context compacted at turn 15: now ~239,653 tokens (ceiling=245,000)
+[OllamaCodeClient] Turn 15/30 starting (est. ~239,653 tokens)...
+[OllamaCodeClient] Turn 15 done: thinking=0 chars, content=142 chars, toolCalls=1, tokens=227640in/60out
+[contextCompactor] Compacted: 318,282 -> 233,399 tokens (budget: 245,000)
+[OllamaCodeClient] Context compacted at turn 16: now ~233,399 tokens (ceiling=245,000)
+[OllamaCodeClient] Turn 16/30 starting (est. ~233,399 tokens)...
+[OllamaCodeClient] Turn 16 done: thinking=535 chars, content=229 chars, toolCalls=1, tokens=221978in/754out
+[OllamaCodeClient] Turn 17/30 starting (est. ~234,084 tokens)...
+[OllamaCodeClient] Turn 17 done: thinking=0 chars, content=1810 chars, toolCalls=0, tokens=222631in/470out
+[OllamaCodeClient] No tool calls — agent loop complete after 17 turn(s)
+[OllamaCodeClient] Stream complete: totalThinking=16267 chars, totalText=3197 chars, filesTouched={"chapters/19-the-threshold/draft.md":1,"chapters/19-the-threshold/notes.md":1,"source/motif-ledger.json":5,"source/story-bible.md":1}
+[ChatService] Routing: model=glm-5.2:cloud, provider=ollama-cli, toolUse=true, agent=Verity
+[ChatService] File guidance: 4 source files, 19 chapters listed
+[OllamaCodeClient] Streaming: model=glm-5.2:cloud, think=true, tools=6, maxTurns=30, msgs=11, ~11,652 est tokens (40,781 chars), conversationId=cnGNxtoSXs1UzhC8rFheP
+  [msg] system: 25,755 chars
+  [msg] user: 679 chars
+  [msg] assistant: 2,596 chars
+  [msg] user: 679 chars
+  [msg] assistant: 3,859 chars
+  [msg] user: 679 chars
+  [msg] assistant: 1,002 chars
+  [msg] assistant: 977 chars
+  [msg] user: 679 chars
+  [msg] assistant: 3,197 chars
+  [msg] user: 679 chars
+[OllamaCodeClient] Turn 1/30 starting (est. ~10,196 tokens)...
+[OllamaCodeClient] Turn 1 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=10698in/12out
+[OllamaCodeClient] Turn 2/30 starting (est. ~10,328 tokens)...
+[OllamaCodeClient] Turn 2 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=10875in/49out
+[OllamaCodeClient] Turn 3/30 starting (est. ~10,369 tokens)...
+[OllamaCodeClient] Turn 3 done: thinking=0 chars, content=139 chars, toolCalls=3, tokens=10931in/80out
+[OllamaCodeClient] Turn 4/30 starting (est. ~104,807 tokens)...
+[OllamaCodeClient] Turn 4 done: thinking=174 chars, content=84 chars, toolCalls=3, tokens=102643in/117out
+[OllamaCodeClient] Turn 5/30 starting (est. ~113,413 tokens)...
+[OllamaCodeClient] Turn 5 done: thinking=25577 chars, content=73 chars, toolCalls=2, tokens=110503in/7123out
+[OllamaCodeClient] Turn 6/30 starting (est. ~116,836 tokens)...
+[OllamaCodeClient] Turn 6 done: thinking=29621 chars, content=71 chars, toolCalls=2, tokens=113593in/7888out
+[OllamaCodeClient] Turn 7/30 starting (est. ~121,757 tokens)...
+[OllamaCodeClient] Turn 7 done: thinking=120469 chars, content=432 chars, toolCalls=1, tokens=118024in/29976out
+[OllamaCodeClient] Turn 8/30 starting (est. ~201,002 tokens)...
+[OllamaCodeClient] Turn 8 done: thinking=17607 chars, content=580 chars, toolCalls=1, tokens=191532in/4730out
+[OllamaCodeClient] Turn 9/30 starting (est. ~201,170 tokens)...
+[OllamaCodeClient] Turn 9 done: thinking=31880 chars, content=581 chars, toolCalls=1, tokens=191713in/11995out
+[OllamaCodeClient] Turn 10/30 starting (est. ~205,178 tokens)...
+[OllamaCodeClient] Turn 10 done: thinking=0 chars, content=35 chars, toolCalls=1, tokens=195257in/4245out
+[OllamaCodeClient] Turn 11/30 starting (est. ~209,483 tokens)...
+[OllamaCodeClient] Turn 11 done: thinking=0 chars, content=56 chars, toolCalls=1, tokens=199523in/44out
+[contextCompactor] Compacted: 264,474 -> 242,860 tokens (budget: 245,000)
+[OllamaCodeClient] Context compacted at turn 12: now ~242,860 tokens (ceiling=245,000)
+[OllamaCodeClient] Turn 12/30 starting (est. ~242,860 tokens)...
+[OllamaCodeClient] Turn 12 done: thinking=0 chars, content=190 chars, toolCalls=1, tokens=234975in/419out
+[OllamaCodeClient] Turn 13/30 starting (est. ~243,245 tokens)...
+[OllamaCodeClient] Turn 13 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=235407in/369out
+[OllamaCodeClient] Turn 14/30 starting (est. ~243,594 tokens)...
+[OllamaCodeClient] Turn 14 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=235789in/462out
+[OllamaCodeClient] Turn 15/30 starting (est. ~244,053 tokens)...
+[OllamaCodeClient] Turn 15 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=236264in/271out
+[OllamaCodeClient] Turn 16/30 starting (est. ~244,305 tokens)...
+[OllamaCodeClient] Turn 16 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=236548in/571out
+[OllamaCodeClient] Turn 17/30 starting (est. ~244,835 tokens)...
+[OllamaCodeClient] Turn 17 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=237132in/297out
+[contextCompactor] Compacted: 245,131 -> 225,215 tokens (budget: 245,000)
+[OllamaCodeClient] Context compacted at turn 18: now ~225,215 tokens (ceiling=245,000)
+[OllamaCodeClient] Turn 18/30 starting (est. ~225,215 tokens)...
+[OllamaCodeClient] Turn 18 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=218760in/404out
+[OllamaCodeClient] Turn 19/30 starting (est. ~225,599 tokens)...
+[OllamaCodeClient] Turn 19 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=219177in/593out
+[OllamaCodeClient] Turn 20/30 starting (est. ~226,131 tokens)...
+[OllamaCodeClient] Turn 20 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=219783in/287out
+[OllamaCodeClient] Turn 21/30 starting (est. ~226,405 tokens)...
+[OllamaCodeClient] Turn 21 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=220083in/519out
+[OllamaCodeClient] Turn 22/30 starting (est. ~226,854 tokens)...
+[OllamaCodeClient] Turn 22 done: thinking=0 chars, content=41 chars, toolCalls=1, tokens=220615in/351out
+[OllamaCodeClient] Turn 23/30 starting (est. ~227,205 tokens)...
+[OllamaCodeClient] Turn 23 done: thinking=0 chars, content=42 chars, toolCalls=1, tokens=220979in/398out
+[OllamaCodeClient] Turn 24/30 starting (est. ~227,611 tokens)...
+[OllamaCodeClient] Turn 24 done: thinking=0 chars, content=37 chars, toolCalls=1, tokens=221390in/217out
+[OllamaCodeClient] Turn 25/30 starting (est. ~227,832 tokens)...
+[OllamaCodeClient] Turn 25 done: thinking=0 chars, content=40 chars, toolCalls=1, tokens=221620in/228out
+[OllamaCodeClient] Turn 26/30 starting (est. ~228,065 tokens)...
+[OllamaCodeClient] Turn 26 done: thinking=0 chars, content=37 chars, toolCalls=1, tokens=221861in/464out
+[OllamaCodeClient] Turn 27/30 starting (est. ~228,486 tokens)...
+[OllamaCodeClient] Turn 27 done: thinking=0 chars, content=42 chars, toolCalls=1, tokens=222338in/368out
+[OllamaCodeClient] Turn 28/30 starting (est. ~228,843 tokens)...
+[OllamaCodeClient] Turn 28 done: thinking=0 chars, content=92 chars, toolCalls=1, tokens=222719in/3405out
+[OllamaCodeClient] Turn 29/30 starting (est. ~232,402 tokens)...
+[OllamaCodeClient] Turn 29 done: thinking=0 chars, content=67 chars, toolCalls=1, tokens=226137in/2669out
+[OllamaCodeClient] Turn 30/30 starting (est. ~235,059 tokens)...
+[OllamaCodeClient] Turn 30 done: thinking=0 chars, content=152 chars, toolCalls=1, tokens=228817in/56out
+[OllamaCodeClient] Stream complete: totalThinking=225328 chars, totalText=2791 chars, filesTouched={"chapters/20-the-last-walk":1,"chapters/20-the-last-walk/draft.md":1,"chapters/20-the-last-walk/notes.md":1,"source/motif-ledger.json":17,"source/story-bible.md":1}
+[AutoTurnResumer] Max turns exhausted (attempt 1), re-spawning with 40 turns, partialText=2791 chars
+[OllamaCodeClient] Streaming: model=glm-5.2:cloud, think=true, tools=6, maxTurns=40, msgs=13, ~12,465 est tokens (43,625 chars), conversationId=cnGNxtoSXs1UzhC8rFheP
+  [msg] system: 25,755 chars
+  [msg] user: 679 chars
+  [msg] assistant: 2,596 chars
+  [msg] user: 679 chars
+  [msg] assistant: 3,859 chars
+  [msg] user: 679 chars
+  [msg] assistant: 1,002 chars
+  [msg] assistant: 977 chars
+  [msg] user: 679 chars
+  [msg] assistant: 3,197 chars
+  [msg] user: 679 chars
+  [msg] assistant: 2,791 chars
+  [msg] user: 53 chars
+[OllamaCodeClient] Turn 1/40 starting (est. ~10,907 tokens)...
+[OllamaCodeClient] Turn 1 done: thinking=284 chars, content=0 chars, toolCalls=1, tokens=11402in/67out
+[OllamaCodeClient] Turn 2/40 starting (est. ~11,039 tokens)...
+[OllamaCodeClient] Turn 2 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=11579in/18out
+[OllamaCodeClient] Turn 3/40 starting (est. ~11,053 tokens)...
+[OllamaCodeClient] Turn 3 done: thinking=191 chars, content=0 chars, toolCalls=1, tokens=11606in/66out
+[OllamaCodeClient] Turn 4/40 starting (est. ~11,066 tokens)...
+[OllamaCodeClient] Turn 4 done: thinking=663 chars, content=0 chars, toolCalls=1, tokens=11632in/185out
+[OllamaCodeClient] Turn 5/40 starting (est. ~11,100 tokens)...
+[OllamaCodeClient] Turn 5 done: thinking=617 chars, content=140 chars, toolCalls=2, tokens=11680in/228out
+[OllamaCodeClient] Turn 6/40 starting (est. ~19,173 tokens)...
+[OllamaCodeClient] Turn 6 done: thinking=379 chars, content=150 chars, toolCalls=1, tokens=19322in/137out
+[OllamaCodeClient] Turn 7/40 starting (est. ~77,554 tokens)...
+[OllamaCodeClient] Turn 7 done: thinking=332 chars, content=190 chars, toolCalls=1, tokens=77920in/137out
+[OllamaCodeClient] Turn 8/40 starting (est. ~97,096 tokens)...
+[OllamaCodeClient] Turn 8 done: thinking=76 chars, content=76 chars, toolCalls=1, tokens=95710in/62out
+[OllamaCodeClient] Turn 9/40 starting (est. ~97,168 tokens)...
+[OllamaCodeClient] Turn 9 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=95786in/24out
+[OllamaCodeClient] Turn 10/40 starting (est. ~97,208 tokens)...
+[OllamaCodeClient] Turn 10 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=95845in/19out
+[OllamaCodeClient] Turn 11/40 starting (est. ~97,225 tokens)...
+[OllamaCodeClient] Turn 11 done: thinking=0 chars, content=130 chars, toolCalls=1, tokens=95873in/54out
+[OllamaCodeClient] Turn 12/40 starting (est. ~97,274 tokens)...
+[OllamaCodeClient] Turn 12 done: thinking=0 chars, content=0 chars, toolCalls=1, tokens=95938in/19out
+[OllamaCodeClient] Turn 13/40 starting (est. ~122,287 tokens)...
+
+<--- Last few GCs --->
+
+[93319:0x12800ca0000]  1835031 ms: Mark-Compact (reduce) 43.3 (54.1) -> 26.1 (30.1) MB, pooled: 0 MB, 1767.96 / 0.00 ms  (average mu = 0.324, current mu = 0.382) CppHeap allocation failure; GC in old space requested
+[93319:0x12800ca0000]  1837061 ms: Mark-Compact (reduce) 26.1 (30.1) -> 26.0 (28.8) MB, pooled: 0 MB, 1940.75 / 0.00 ms  (average mu = 0.213, current mu = 0.044) CppHeap allocation failure; GC in old space requested
+
+
+<--- JS stacktrace --->
+
+[93319:0723/104439.933856:ERROR:v8_initializer.cc(791)] V8 process OOM (Oilpan: Large allocation. Ran out of reservation).
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6496:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+[OllamaCodeClient] Turn 13 done: thinking=3948 chars, content=513 chars, toolCalls=1, tokens=119068in/5934out
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6246:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async AutoTurnResumer.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14619:9)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6256:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async AutoTurnResumer.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14619:9)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6265:11)
+    at async AutoTurnResumer.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14619:9)
+    at async _ChatService.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:9691:7)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6274:11)
+    at async AutoTurnResumer.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14619:9)
+    at async _ChatService.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:9691:7)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6287:13)
+    at async AutoTurnResumer.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14619:9)
+    at async _ChatService.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:9691:7)
+[OllamaCodeClient] Turn 14/40 starting (est. ~127,972 tokens)...
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at BookWatcher.onChange (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:16214:30)
+    at Timeout._onTimeout (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:3295:14)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6480:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+Error sending from webFrameMain:  Error: Render frame was disposed before WebFrameMain could be accessed
+    at s.send (node:electron/js2c/browser_init:2:92689)
+    at _.send (node:electron/js2c/browser_init:2:76113)
+    at broadcastStreamEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15018:25)
+    at onEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:15031:9)
+    at Object.streamOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:10744:7)
+    at Object.wrappedOnEvent [as onEvent] (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:14616:16)
+    at wrappedOnEvent (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6160:14)
+    at OllamaCodeClient.streamOneTurn (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6483:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async OllamaCodeClient.sendMessage (/Users/the.phoenix/WebstormProjects/novel-engine/.vite/build/index-DSJheDeH.js:6213:28)
+
+

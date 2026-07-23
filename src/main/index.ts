@@ -704,7 +704,7 @@ async function initializeApp(): Promise<void> {
   // 7. Set up file system watchers
   //    a) Active-book watcher — notifies renderer when files change inside the open book
   bookWatcher = new BookWatcher(booksDir, async (changedPaths) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('chat:filesChanged', changedPaths);
     }
 
@@ -733,7 +733,7 @@ async function initializeApp(): Promise<void> {
   //    b) Books-dir watcher — notifies renderer when a new book directory is
   //       added or removed while the app is running (e.g. manual folder copy)
   booksDirWatcher = new BooksDirWatcher(booksDir, () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('books:changed');
     }
     // Invalidate series reverse-lookup cache when books change

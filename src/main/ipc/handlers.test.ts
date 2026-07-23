@@ -299,6 +299,31 @@ describe('chat:send orchestration', () => {
   });
 });
 
+describe('broadcast guards', () => {
+  const params = { agentName: 'Spark', message: 'hi', conversationId: 'conv-1', bookSlug: 'book-a', callId: 'call-1' };
+
+  beforeEach(() => {
+    vi.mocked(BrowserWindow.fromWebContents).mockReturnValue(win);
+  });
+
+  it('skips windows with destroyed webContents when broadcasting stream events', async () => {
+    const deadWin = new BrowserWindow();
+    deadWin.webContents.isDestroyed = vi.fn((): boolean => true);
+    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([deadWin]);
+
+    svc.chat.sendMessage.mockImplementation(
+      async ({ onEvent }: { onEvent: (e: Record<string, unknown>) => void }) => {
+        onEvent({ type: 'textDelta', text: 'hello' });
+        return { changedFiles: [] };
+      },
+    );
+
+    await invoke('chat:send', params);
+
+    expect(deadWin.webContents.send).not.toHaveBeenCalled();
+  });
+});
+
 describe('hot-take:start', () => {
   it('creates a Ghostlight conversation, fires the stream, and returns the ids', async () => {
     vi.mocked(BrowserWindow.fromWebContents).mockReturnValue(win);

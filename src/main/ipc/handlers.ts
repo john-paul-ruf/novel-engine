@@ -61,6 +61,17 @@ import type {
 } from '@domain/types';
 import type { NotificationManager } from '../notifications';
 
+/**
+ * Check whether a BrowserWindow's webContents is still alive and sendable.
+ * Windows can exist (not destroyed) while their render frame is disposed
+ * (e.g. during a renderer refresh or OOM crash). This guard prevents
+ * hundreds of "Render frame was disposed" log lines when the main process
+ * keeps streaming to a dead renderer.
+ */
+function isWebContentsAlive(w: BrowserWindow): boolean {
+  return !w.isDestroyed() && !w.webContents.isDestroyed();
+}
+
 export function registerIpcHandlers(services: {
   settings: ISettingsService;
   agents: IAgentService;
@@ -279,6 +290,7 @@ export function registerIpcHandlers(services: {
   ipcMain.handle('import:generateSources', async (_, bookSlug: string) => {
     const broadcastGenProgress = (genEvent: SourceGenerationEvent) => {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('import:generationProgress', genEvent);
         } catch { /* window closing */ }
@@ -287,6 +299,7 @@ export function registerIpcHandlers(services: {
 
     const broadcastStreamEvent = (streamEvent: StreamEvent) => {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('chat:streamEvent', {
             ...streamEvent,
@@ -384,6 +397,7 @@ export function registerIpcHandlers(services: {
     const result = await services.version.revertToVersion(bookSlug, filePath, versionId);
     // Notify renderer that a file was changed (revert is a write)
     for (const w of BrowserWindow.getAllWindows()) {
+      if (!isWebContentsAlive(w)) continue;
       try {
         w.webContents.send('chat:filesChanged', [filePath], bookSlug);
       } catch {
@@ -464,6 +478,7 @@ export function registerIpcHandlers(services: {
      */
     const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string; source?: StreamEventSource }) => {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
         } catch {
@@ -504,6 +519,7 @@ export function registerIpcHandlers(services: {
     const changedFiles = result.changedFiles;
     if (changedFiles.length > 0) {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('chat:filesChanged', changedFiles, params.bookSlug);
         } catch {
@@ -656,6 +672,7 @@ export function registerIpcHandlers(services: {
     const callId = params.callId ?? randomUUID();
     const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId?: string; source?: string }) => {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try { w.webContents.send('chat:streamEvent', streamEvent); } catch { /* skip */ }
       }
     };
@@ -759,6 +776,7 @@ export function registerIpcHandlers(services: {
 
     const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string; source?: StreamEventSource }) => {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
         } catch {
@@ -815,6 +833,7 @@ export function registerIpcHandlers(services: {
 
     const broadcastStreamEvent = (streamEvent: StreamEvent & { callId: string; conversationId: string; source?: StreamEventSource }) => {
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('chat:streamEvent', streamEvent);
         } catch {
@@ -841,6 +860,7 @@ export function registerIpcHandlers(services: {
         if (streamEvent.type === 'done' || streamEvent.type === 'error') {
           if (adhocChangedFiles.length > 0) {
             for (const w of BrowserWindow.getAllWindows()) {
+              if (!isWebContentsAlive(w)) continue;
               try {
                 w.webContents.send('chat:filesChanged', adhocChangedFiles, bookSlug);
               } catch {
@@ -866,6 +886,7 @@ export function registerIpcHandlers(services: {
     (streamEvent: StreamEvent) => {
       const tagged = { ...streamEvent, callId, conversationId, source };
       for (const w of BrowserWindow.getAllWindows()) {
+        if (!isWebContentsAlive(w)) continue;
         try {
           w.webContents.send('chat:streamEvent', tagged);
         } catch {
@@ -878,6 +899,7 @@ export function registerIpcHandlers(services: {
   const emitVerityCallStart = (callId: string, conversationId: string, bookSlug: string) => {
     const callStartEvent = { type: 'callStart' as const, callId, conversationId, agentName: 'Verity', model: 'unknown', bookSlug };
     for (const w of BrowserWindow.getAllWindows()) {
+      if (!isWebContentsAlive(w)) continue;
       try { w.webContents.send('chat:streamEvent', callStartEvent); } catch { /* window closing */ }
     }
   };
@@ -1009,6 +1031,7 @@ export function registerIpcHandlers(services: {
   services.revisionQueue.onEvent((event) => {
     const wins = BrowserWindow.getAllWindows();
     for (const win of wins) {
+      if (!isWebContentsAlive(win)) continue;
       win.webContents.send('revision:event', event);
 
       if (event.type === 'session:streamEvent') {
@@ -1092,6 +1115,7 @@ export function registerIpcHandlers(services: {
       callId: resolvedCallId,
       onEvent: (event) => {
         for (const w of BrowserWindow.getAllWindows()) {
+          if (!isWebContentsAlive(w)) continue;
           try {
             w.webContents.send('chat:streamEvent', {
               ...event,
@@ -1169,6 +1193,7 @@ export function registerIpcHandlers(services: {
 
   const broadcastQueryStreamEvent = (streamEvent: StreamEvent, callId: string) => {
     for (const w of BrowserWindow.getAllWindows()) {
+      if (!isWebContentsAlive(w)) continue;
       try { w.webContents.send('query:onStream', streamEvent); } catch { /* skip */ }
       try { w.webContents.send('chat:streamEvent', { ...streamEvent, callId, conversationId: callId, source: 'query' as StreamEventSource }); } catch { /* skip */ }
     }

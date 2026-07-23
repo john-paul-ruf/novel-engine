@@ -35,7 +35,7 @@ export class BrowserWindow {
   static getFocusedWindow = vi.fn((): BrowserWindow | null => null);
   static fromWebContents = vi.fn((): BrowserWindow | null => null);
 
-  webContents = { send: vi.fn() };
+  webContents = { send: vi.fn(), isDestroyed: vi.fn((): boolean => false) };
   on = vi.fn();
   loadURL = vi.fn((): Promise<void> => Promise.resolve());
   loadFile = vi.fn((): Promise<void> => Promise.resolve());
