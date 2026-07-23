@@ -17,7 +17,7 @@ not addressed).
 | # | Session | Modules | Status | Completed | Notes |
 |---|---------|---------|--------|-----------|-------|
 | 01 | Guard broadcastStreamEvent against disposed render frames | M09, M05, M16 | done | 2026-07-23 | See handoff |
-| 02 | Cap thinking/stream buffers + debatch delta updates in chatStore | M10 | pending | | depends on SESSION-01 |
+| 02 | Cap thinking/stream buffers + debatch delta updates in chatStore | M10 | done | 2026-07-23 | See handoff |
 
 ## Dependency Graph
 
@@ -97,3 +97,22 @@ webContents is skipped during stream event broadcast.
 
 SESSION-02 can proceed: chatStore buffer cap + debatching. The main process
 guards are now in place so disposed renderers won't receive events.
+
+### SESSION-02 (completed 2026-07-23)
+
+Added `MAX_BUFFER_CHARS` (50K) cap and debatched delta updates (100ms flush timer)
+to `src/renderer/stores/chatStore.ts`. Thinking/stream buffers accumulate in
+module-scoped `let` variables (`_pendingThinking`, `_pendingText`), flushed via
+`setInterval` at 100ms intervals. Prevents O(N²) string concatenation and
+per-token React re-renders.
+
+Exported `_flushDeltasForTesting()` for test sync — calls `stopDeltaFlushTimer()`
+which does a final flush. Updated existing chatStore tests to call
+`_flushDeltasForTesting()` after emitting deltas where they assert on buffer
+content. The `onDone` and `onError` handlers call `stopDeltaFlushTimer()` which
+auto-flushes pending before resetting state.
+
+Cleanup added to: `switchBook`, `destroyStreamListener`, `sendMessage` error
+path, and recovery poll fallback stream-end path.
+
+No warnings or fragile areas.

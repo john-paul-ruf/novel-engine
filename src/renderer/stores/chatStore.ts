@@ -7,6 +7,63 @@ import { useFileChangeStore } from './fileChangeStore';
 import { usePipelineStore } from './pipelineStore';
 import { useAutoDraftStore } from './autoDraftStore';
 
+/** Maximum chars retained in renderer state for thinking/stream buffers.
+ *  The main process (StreamManager) saves full content to the database —
+ *  the renderer buffer is only for live display. Capping prevents OOM
+ *  when models produce very long thinking sequences (200K+ chars observed). */
+const MAX_BUFFER_CHARS = 50_000;
+
+/** Interval (ms) for flushing buffered text/thinking deltas to Zustand state.
+ *  Without debatching, every token triggers setState + React re-render.
+ *  With 225K chars of thinking, that's thousands of renders → OOM. */
+const DELTA_FLUSH_INTERVAL_MS = 100;
+
+// ── Debatched delta accumulator ───────────────────────────────────
+// Accumulates thinking/text deltas in local variables and flushes to
+// Zustand state on a timer. Prevents per-token setState + re-render
+// when the model produces thousands of small deltas.
+let _pendingThinking = '';
+let _pendingText = '';
+let _deltaFlushTimer: ReturnType<typeof setInterval> | null = null;
+
+function startDeltaFlushTimer(): void {
+  if (_deltaFlushTimer) return;
+  _deltaFlushTimer = setInterval(() => {
+    if (_pendingThinking || _pendingText) {
+      const thinkDelta = _pendingThinking;
+      const textDelta = _pendingText;
+      _pendingThinking = '';
+      _pendingText = '';
+      useChatStore.setState((s) => ({
+        thinkingBuffer: (s.thinkingBuffer + thinkDelta).slice(0, MAX_BUFFER_CHARS),
+        streamBuffer: (s.streamBuffer + textDelta).slice(0, MAX_BUFFER_CHARS),
+      }));
+    }
+  }, DELTA_FLUSH_INTERVAL_MS);
+}
+
+function stopDeltaFlushTimer(): void {
+  if (_deltaFlushTimer) {
+    clearInterval(_deltaFlushTimer);
+    _deltaFlushTimer = null;
+  }
+  if (_pendingThinking || _pendingText) {
+    const thinkDelta = _pendingThinking;
+    const textDelta = _pendingText;
+    _pendingThinking = '';
+    _pendingText = '';
+    useChatStore.setState((s) => ({
+      thinkingBuffer: (s.thinkingBuffer + thinkDelta).slice(0, MAX_BUFFER_CHARS),
+      streamBuffer: (s.streamBuffer + textDelta).slice(0, MAX_BUFFER_CHARS),
+    }));
+  }
+}
+
+/** Test-only export to force-flush pending deltas without clearing the timer. */
+export function _flushDeltasForTesting(): void {
+  stopDeltaFlushTimer();
+}
+
 // ── Per-book conversation persistence ────────────────────────────────────────
 // Each book remembers which conversation was last active, so switching back
 // restores the exact conversation — not just "most recent."
@@ -218,6 +275,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to send message:', error);
+      stopDeltaFlushTimer();
+      _pendingThinking = '';
+      _pendingText = '';
       const errorMessage: Message = {
         id: 'error-' + Date.now(),
         role: 'assistant',
@@ -296,6 +356,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   switchBook: async (newBookSlug: string, departingSlug?: string | null) => {
+    stopDeltaFlushTimer();
+    _pendingThinking = '';
+    _pendingText = '';
     const { activeConversation } = get();
 
     // Step 1: Save the departing book's active conversation (per-book key).
@@ -405,8 +468,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         useChatStore.setState({ isThinking: false, statusMessage: '' });
       }
     },
-    onThinkingDelta: (text) => useChatStore.setState((s) => ({ thinkingBuffer: s.thinkingBuffer + text })),
-    onTextDelta: (text) => useChatStore.setState((s) => ({ streamBuffer: s.streamBuffer + text })),
+    onThinkingDelta: (text) => {
+      _pendingThinking += text;
+      startDeltaFlushTimer();
+    },
+    onTextDelta: (text) => {
+      _pendingText += text;
+      startDeltaFlushTimer();
+    },
 
     onToolUse: (tool) => {
       if (tool.status === 'complete' && tool.filePath) {
@@ -422,6 +491,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     onDone: () => {
       clearRecoveryPoll();
+      stopDeltaFlushTimer();
       const { activeConversation, toolActivity } = useChatStore.getState();
       const doneConversationId = activeConversation?.id ?? null;
 
@@ -513,6 +583,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     onError: (message) => {
       clearRecoveryPoll();
+      stopDeltaFlushTimer();
       useChatStore.setState((state) => {
         const errorMessage: Message = {
           id: 'error-' + Date.now(),
@@ -578,6 +649,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   destroyStreamListener: () => {
+    stopDeltaFlushTimer();
+    _pendingThinking = '';
+    _pendingText = '';
     const { _cleanupListener, _cleanupFilesChanged } = get();
     if (_cleanupListener) {
       _cleanupListener();
@@ -667,6 +741,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           if (!current) {
             // Stream ended — reload final messages from DB and reset
             clearRecoveryPoll();
+            stopDeltaFlushTimer();
+            _pendingThinking = '';
+            _pendingText = '';
             const convId = get().activeConversation?.id;
             if (convId) {
               try {

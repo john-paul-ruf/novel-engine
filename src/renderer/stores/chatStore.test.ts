@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { StreamEvent, StreamEventSource } from '@domain/types';
-import { useChatStore } from './chatStore';
+import { useChatStore, _flushDeltasForTesting } from './chatStore';
 import { useBookStore } from './bookStore';
 import { usePipelineStore } from './pipelineStore';
 import { useFileChangeStore } from './fileChangeStore';
@@ -230,6 +230,7 @@ describe('chatStore', () => {
 
       emit({ type: 'thinkingDelta', text: 'hmm ', callId: 'call-1' });
       emit({ type: 'thinkingDelta', text: 'ok', callId: 'call-1' });
+      _flushDeltasForTesting();
       expect(useChatStore.getState().thinkingBuffer).toBe('hmm ok');
 
       emit({ type: 'blockStart', blockType: 'text', callId: 'call-1' });
@@ -237,6 +238,7 @@ describe('chatStore', () => {
 
       emit({ type: 'textDelta', text: 'Once upon', callId: 'call-1' });
       emit({ type: 'textDelta', text: ' a time', callId: 'call-1' });
+      _flushDeltasForTesting();
       expect(useChatStore.getState().streamBuffer).toBe('Once upon a time');
 
       emit({ type: 'status', message: 'Reading files…', callId: 'call-1' });
@@ -260,11 +262,13 @@ describe('chatStore', () => {
       emit({ type: 'textDelta', text: 'bleed', callId: 'other-call' });
       emit({ type: 'textDelta', text: 'bleed', callId: 'call-1', source: 'revision' });
       emit({ type: 'textDelta', text: 'bleed', callId: 'rev:session-1' });
+      _flushDeltasForTesting();
       expect(useChatStore.getState().streamBuffer).toBe('');
 
       // Stale: no active call, not streaming
       useChatStore.setState({ isStreaming: false, _activeCallId: null });
       emit({ type: 'textDelta', text: 'stale' });
+      _flushDeltasForTesting();
       expect(useChatStore.getState().streamBuffer).toBe('');
     });
 
@@ -277,9 +281,11 @@ describe('chatStore', () => {
       });
 
       emit({ type: 'textDelta', text: 'wrong', conversationId: 'conv-x' });
+      _flushDeltasForTesting();
       expect(useChatStore.getState().streamBuffer).toBe('');
 
       emit({ type: 'textDelta', text: 'right', conversationId: 'conv-a' });
+      _flushDeltasForTesting();
       expect(useChatStore.getState().streamBuffer).toBe('right');
     });
 
