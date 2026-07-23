@@ -19,7 +19,7 @@ no-progress retry cap.
 |---|---------|---------|--------|-----------|-------|
 | 01 | ManuscriptView default selection skips draftless chapters | M10 | done | 2026-07-23 | All tests green; no API change |
 | 02 | OllamaCodeClient detects phantom empty turns, retries bounded | M12 | done | 2026-07-23 | 2 new tests, all Ollama tests green |
-| 03 | AutoTurnResumer caps attempts + detects no-progress loops | M08 | pending | | |
+| 03 | AutoTurnResumer caps attempts + detects no-progress loops | M08 | done | 2026-07-23 | 2 new tests, all 1402 tests green |
 | 04 | autoDraftStore time budget + no-progress retry cap | M10 | pending | | |
 
 ## Dependency Graph
@@ -145,3 +145,17 @@ triple-phantom. No public API change — the new behavior flows through the
 existing `isMaxTurns` field in the `done` event. SESSION-03
 (AutoTurnResumer) can now rely on `isMaxTurns: true` being set for
 phantom-induced exits.
+
+### SESSION-03 (done 2026-07-23)
+Capped AutoTurnResumer at `MAX_RESUME_ATTEMPTS = 5` (exported). Added
+no-progress guard: 2 consecutive attempts (`NO_PROGRESS_LIMIT`,
+exported) with zero new partial text AND zero new file touches trigger
+stop. Both new branches emit `warning` + merged `done` (`isMaxTurns:
+true`) and `return`. The natural-completion path is unchanged; the
+hard cap only fires on attempts that re-spawned at least once. Added
+2 tests. Added `doneEmitted` guard inside the existing natural branch
+to avoid double-emit if a future caller wires an edge condition. No
+public API change beyond the two exported constants — the new
+behavior flows through `isMaxTurns: true`. SESSION-04 (autoDraftStore)
+can now rely on the resumer being bounded — needed for the outer time
+budget.

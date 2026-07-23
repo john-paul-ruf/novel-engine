@@ -20,6 +20,18 @@ const AUTO_RESUME_EXTRA_TURNS = 10;
 /** Instruction appended on resume so the model picks up where it left off. */
 const RESUME_INSTRUCTION = 'Continue where you left off. You had more work to do.';
 
+/** Hard cap on resume attempts. After this, the resumer emits a final
+ *  merged done (isMaxTurns: true) and stops. Five attempts yields a total
+ *  turn budget of base + (10+20+30+40+50) = base + 150 turns — generous
+ *  for a single chapter draft. */
+export const MAX_RESUME_ATTEMPTS = 5;
+
+/** Consecutive zero-progress attempts that trigger a no-progress abort.
+ *  "Zero progress" means: no new files touched AND no new partial text
+ *  emitted relative to the previous attempt. Two is the smallest sample
+ *  that distinguishes a one-off hiccup from a stuck model. */
+export const NO_PROGRESS_LIMIT = 2;
+
 /**
  * AutoTurnResumer — transparent wrapper around IProviderRegistry that
  * auto-resumes CLI calls when the max-turns limit is reached.
@@ -31,7 +43,11 @@ const RESUME_INSTRUCTION = 'Continue where you left off. You had more work to do
  *   - A higher turn budget (original + AUTO_RESUME_EXTRA_TURNS per attempt)
  *   - A fresh sessionId (for DB orphan-recovery tracking)
  *
- * No cap on resume attempts — keeps going until the task finishes naturally.
+ * Safety valves:
+ *   - `MAX_RESUME_ATTEMPTS` (5) — hard cap on resume attempts before
+ *     stopping with `isMaxTurns: true`.
+ *   - `NO_PROGRESS_LIMIT` (2) — if consecutive attempts produce no new
+ *     partial text and no new file touches, stop with `isMaxTurns: true`.
  *
  * Token usage and file touches are accumulated across all attempts and emitted
  * in a single merged `done` event when the task finally completes.
@@ -65,8 +81,37 @@ export class AutoTurnResumer implements IProviderRegistry {
 
     let callStartForwarded = false;
 
+    let previousPartialTextLength = 0;
+    let previousFilesTouchedCount = 0;
+    let consecutiveNoProgressAttempts = 0;
+
+    let doneEmitted = false;
+
     while (true) {
       attempt++;
+
+      if (attempt > MAX_RESUME_ATTEMPTS) {
+        console.warn(
+          `[AutoTurnResumer] Hit hard cap of ${MAX_RESUME_ATTEMPTS} resume attempts — stopping.`,
+        );
+        params.onEvent({
+          type: 'warning',
+          message: `Reached max resume attempts (${MAX_RESUME_ATTEMPTS}) — the task is taking too many turns. Stop and retry with a different prompt.`,
+        });
+        if (!doneEmitted) {
+          params.onEvent({
+            type: 'done',
+            inputTokens: totalInputTokens,
+            outputTokens: totalOutputTokens,
+            thinkingTokens: totalThinkingTokens,
+            filesTouched: allFilesTouched,
+            isMaxTurns: true,
+          });
+          doneEmitted = true;
+        }
+        return;
+      }
+
       const currentMaxTurns = baseMaxTurns + (attempt - 1) * AUTO_RESUME_EXTRA_TURNS;
       const resumeSessionId = nanoid();
 
@@ -144,6 +189,7 @@ export class AutoTurnResumer implements IProviderRegistry {
               thinkingTokens: totalThinkingTokens,
               filesTouched: allFilesTouched,
             });
+            doneEmitted = true;
           } else {
             params.onEvent(terminalEvent);
           }
@@ -155,6 +201,44 @@ export class AutoTurnResumer implements IProviderRegistry {
       totalOutputTokens += attemptOutputTokens;
       totalThinkingTokens += attemptThinkingTokens;
       allFilesTouched = { ...allFilesTouched, ...attemptFilesTouched };
+
+      // ── No-progress detection ──────────────────────────────────
+      const currentFilesTouchedCount = Object.keys(allFilesTouched).length;
+      const currentPartialTextLength = partialText.length;
+      const hasProgress =
+        currentPartialTextLength > previousPartialTextLength ||
+        currentFilesTouchedCount > previousFilesTouchedCount;
+
+      if (!hasProgress) {
+        consecutiveNoProgressAttempts++;
+      } else {
+        consecutiveNoProgressAttempts = 0;
+      }
+
+      previousPartialTextLength = currentPartialTextLength;
+      previousFilesTouchedCount = currentFilesTouchedCount;
+
+      if (consecutiveNoProgressAttempts >= NO_PROGRESS_LIMIT) {
+        console.warn(
+          `[AutoTurnResumer] No progress for ${consecutiveNoProgressAttempts} consecutive attempts — stopping.`,
+        );
+        params.onEvent({
+          type: 'warning',
+          message: `No progress across ${consecutiveNoProgressAttempts} resume attempts (no new text, no new files) — the model may be stuck. Stop and retry with a different prompt.`,
+        });
+        if (!doneEmitted) {
+          params.onEvent({
+            type: 'done',
+            inputTokens: totalInputTokens,
+            outputTokens: totalOutputTokens,
+            thinkingTokens: totalThinkingTokens,
+            filesTouched: allFilesTouched,
+            isMaxTurns: true,
+          });
+          doneEmitted = true;
+        }
+        return;
+      }
 
       console.log(
         `[AutoTurnResumer] Max turns exhausted (attempt ${attempt}), ` +

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { IModelProvider, IProviderRegistry } from '@domain/interfaces';
 import type { ModelInfo, ProviderConfig, ProviderId, ProviderStatus, ResolvedModelSelection, StreamEvent } from '@domain/types';
-import { AutoTurnResumer } from './AutoTurnResumer';
+import { AutoTurnResumer, MAX_RESUME_ATTEMPTS, NO_PROGRESS_LIMIT } from './AutoTurnResumer';
 
 function makeMockRegistry(opts: {
   doneIsMaxTurns?: boolean;
@@ -195,5 +195,75 @@ describe('AutoTurnResumer', () => {
 
     const callStarts = events.filter(e => e.type === 'callStart');
     expect(callStarts).toHaveLength(1);
+  });
+
+  it('stops after MAX_RESUME_ATTEMPTS resume attempts and emits a merged done (isMaxTurns: true)', async () => {
+    const events: StreamEvent[] = [];
+    let callCount = 0;
+    const inner = makeMockRegistry({
+      onSend: (onEvent) => {
+        callCount++;
+        // Strictly longer text each attempt so the no-progress guard
+        // never fires — only the hard cap should stop the loop.
+        onEvent({ type: 'textDelta', text: 'x'.repeat(callCount * 10) });
+        onEvent({ type: 'done', inputTokens: 1, outputTokens: 1, thinkingTokens: 0, filesTouched: {}, isMaxTurns: true });
+        return Promise.resolve();
+      },
+    });
+    const resumer = new AutoTurnResumer(inner);
+
+    await resumer.sendMessage({
+      model: 'test-model',
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'do work' }],
+      maxTokens: 4096,
+      maxTurns: 30,
+      conversationId: 'conv-1',
+      onEvent: (e) => events.push(e),
+    });
+
+    // Five attempts that hit max-turns; the sixth attempt entry triggers
+    // the hard cap. Total inner sendMessage calls = MAX_RESUME_ATTEMPTS.
+    expect(callCount).toBe(MAX_RESUME_ATTEMPTS);
+    const warnings = events.filter((e) => e.type === 'warning');
+    expect(warnings.some((w) => /max resume attempts/.test(w.message))).toBe(true);
+    const done = events.find((e) => e.type === 'done');
+    expect(done).toBeDefined();
+    expect((done as { isMaxTurns?: boolean }).isMaxTurns).toBe(true);
+    // One maxTurnsResume per attempt that re-spawned = MAX_RESUME_ATTEMPTS
+    const resumeEvents = events.filter((e) => e.type === 'maxTurnsResume');
+    expect(resumeEvents.length).toBe(MAX_RESUME_ATTEMPTS);
+  });
+
+  it('aborts after NO_PROGRESS_LIMIT consecutive attempts with no new text or files', async () => {
+    const events: StreamEvent[] = [];
+    let callCount = 0;
+    const inner = makeMockRegistry({
+      onSend: (onEvent) => {
+        callCount++;
+        onEvent({ type: 'done', inputTokens: 1, outputTokens: 0, thinkingTokens: 0, filesTouched: {}, isMaxTurns: true });
+        return Promise.resolve();
+      },
+    });
+    const resumer = new AutoTurnResumer(inner);
+
+    await resumer.sendMessage({
+      model: 'test-model',
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'do work' }],
+      maxTokens: 4096,
+      maxTurns: 30,
+      conversationId: 'conv-1',
+      onEvent: (e) => events.push(e),
+    });
+
+    // Initial attempt + one resume, then the second no-progress attempt
+    // triggers the NO_PROGRESS_LIMIT abort. Total = NO_PROGRESS_LIMIT.
+    expect(callCount).toBe(NO_PROGRESS_LIMIT);
+    const warnings = events.filter((e) => e.type === 'warning');
+    expect(warnings.some((w) => /No progress across 2/.test(w.message))).toBe(true);
+    const done = events.find((e) => e.type === 'done');
+    expect(done).toBeDefined();
+    expect((done as { isMaxTurns?: boolean }).isMaxTurns).toBe(true);
   });
 });
