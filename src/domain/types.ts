@@ -253,6 +253,21 @@ export type StreamSessionRecord = {
 /** Discriminator for the origin of a stream event — injected by the IPC layer. */
 export type StreamEventSource = 'chat' | 'auto-draft' | 'hot-take' | 'adhoc-revision' | 'revision' | 'audit' | 'fix' | 'motif-audit' | 'query';
 
+/**
+ * Stream events emitted by model providers during a `sendMessage` call.
+ *
+ * Terminal events:
+ * - `done` — the call completed. `isMaxTurns: true` means the provider's
+ *   internal turn loop exited because the turn budget was exhausted (the model
+ *   was still requesting tool calls when the limit hit). A wrapper can detect
+ *   this and auto-resume with a higher budget.
+ * - `error` — the call failed. `isMaxTurns: true` means the failure was
+ *   specifically a max-turns exhaustion (e.g. Claude CLI `error_max_turns`),
+ *   not a crash or timeout. A wrapper can swallow this and auto-resume.
+ *
+ * `maxTurnsResume` is emitted by the auto-resume wrapper to notify the UI
+ * that a re-spawn is happening (attempt number + new turn budget).
+ */
 export type StreamEvent =
   | { type: 'callStart'; agentName: AgentName; model: string; bookSlug: string }
   | { type: 'status'; message: string }
@@ -262,13 +277,14 @@ export type StreamEvent =
   | { type: 'blockEnd'; blockType: StreamBlockType }
   | { type: 'toolUse'; tool: ToolUseInfo }
   | { type: 'filesChanged'; paths: string[] }
-  | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number; filesTouched: FileTouchMap }
+  | { type: 'done'; inputTokens: number; outputTokens: number; thinkingTokens: number; filesTouched: FileTouchMap; isMaxTurns?: boolean }
   | { type: 'progressStage'; stage: ProgressStage }
   | { type: 'thinkingSummary'; summary: ThinkingSummary }
   | { type: 'toolDuration'; tool: TimestampedToolUse }
   | { type: 'warning'; message: string }
-  | { type: 'error'; message: string }
-  | { type: 'multiCallProgress'; step: number; totalSteps: number; label: string };
+  | { type: 'error'; message: string; isMaxTurns?: boolean }
+  | { type: 'multiCallProgress'; step: number; totalSteps: number; label: string }
+  | { type: 'maxTurnsResume'; attempt: number; newMaxTurns: number };
 
 /**
  * Snapshot of an in-progress CLI stream, exposed via IPC so the renderer
