@@ -1,6 +1,6 @@
 # Renderer — Stores, Components, Views
 
-> Last updated: 2026-07-12 (program-019 SESSION-07)
+> Last updated: 2026-07-23 (program-030)
 
 Everything in `src/renderer/`. React + Zustand UI layer. Talks to backend only through `window.novelEngine`.
 
@@ -248,6 +248,7 @@ Shared stream event handler factory used by chatStore, modalChatStore, and pitch
 - Recovery mode guard (when no callId is active)
 - Optional `alwaysCheckConversationId` — modalChatStore and pitchRoomStore enable this; chatStore does not (allows mid-stream conversation switching)
 - Event type dispatch to store-specific callbacks
+- `onMaxTurnsResume?` callback for `maxTurnsResume` events (emitted by `AutoTurnResumer` during auto-resume). Optional — stores that don't wire it still see the `warning` event emitted alongside.
 
 Stores initialize the handler via a lazy IIFE pattern to avoid circular TypeScript type inference.
 

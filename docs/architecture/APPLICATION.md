@@ -1,6 +1,6 @@
 # Application — Services & Orchestration
 
-> Last updated: 2026-07-12 (program-019 SESSION-07)
+> Last updated: 2026-07-23 (program-030)
 
 Everything in `src/application/`. Business logic that orchestrates infrastructure through injected interfaces.
 
@@ -492,3 +492,24 @@ Dynamic turn budget based on remaining context window:
 | Moderate | 20-40% | 8 recent | Prepend summary note |
 | Tight | 10-20% | 4 recent | Prepend summary note |
 | Critical | <10% | 2 (current) | Brief recap only |
+
+### AutoTurnResumer
+
+File: `src/application/AutoTurnResumer.ts`
+
+Dependencies: `IProviderRegistry` (wraps the real `ProviderRegistry`)
+
+Transparent decorator around `IProviderRegistry` that auto-resumes CLI calls when the max-turns limit is reached.
+
+| Method | What It Does |
+|--------|-------------|
+| `sendMessage(params)` | Intercepts the call — delegates to the inner registry with a wrapped `onEvent` that captures text deltas and suppresses terminal events. On `done`/`error` with `isMaxTurns: true`: accumulates tokens + file touches, appends partial assistant text + "Continue where you left off" instruction, emits `maxTurnsResume` + `warning` events, and re-spawns with fresh `sessionId` and `maxTurns + 10`. No cap on attempts. On normal completion: emits a merged `done` with accumulated totals. On genuine error: forwards the error and re-throws. |
+| All other methods | Pure delegation to the inner registry |
+
+Key behaviors:
+- Turn budget bump: `AUTO_RESUME_EXTRA_TURNS = 10` per attempt (30 → 40 → 50 → …)
+- Fresh `sessionId` per attempt (via `nanoid()`) for DB orphan-recovery tracking
+- `callStart` forwarded only from the first attempt (suppressed on resumes)
+- Token usage (`inputTokens`, `outputTokens`, `thinkingTokens`) and `filesTouched` accumulated across all attempts into the final merged `done` event
+- Intermediate `done`/`error` events are suppressed (never forwarded to the caller)
+- Composition root wraps the real `ProviderRegistry` after all provider registrations; the wrapper is injected into all services

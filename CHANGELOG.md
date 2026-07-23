@@ -4,6 +4,41 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-23] — Auto-resume max-turns exhaustion (program-030)
+
+### Summary
+
+When any provider's CLI call hits the max-turns limit (Claude CLI `error_max_turns`, Ollama/llama-server loop exhaustion), the new `AutoTurnResumer` wrapper transparently re-spawns the call with the full conversation so far (including partial assistant output) plus a higher turn budget (+10 turns per attempt). No cap on resumes — keeps going until the task finishes naturally. Applies to every provider and every feature area via a single wrapper in the composition root.
+
+### Added
+- `src/application/AutoTurnResumer.ts` — Decorator class implementing `IProviderRegistry`. Wraps the real `ProviderRegistry`, intercepts `sendMessage`, detects `isMaxTurns: true` on terminal `done`/`error` events, suppresses the terminal event, accumulates partial text + tokens + file touches, appends the partial assistant output + a "Continue where you left off" instruction, and re-spawns with a fresh `sessionId` and bumped `maxTurns`. Emits `maxTurnsResume` and `warning` events to notify the UI.
+- `src/application/AutoTurnResumer.test.ts` — 6 tests covering normal forwarding, error-path auto-resume (Claude pattern), done-path auto-resume (Ollama/Llama pattern), genuine error forwarding, `abortStream` delegation, and `callStart` deduplication across attempts.
+- `src/domain/types.ts` — Added `isMaxTurns?: boolean` to the `done` and `error` `StreamEvent` variants; added new `maxTurnsResume` variant `{ attempt: number; newMaxTurns: number }`. Added JSDoc on the `StreamEvent` union documenting all three new fields.
+- `src/renderer/stores/streamHandler.ts` — Added `onMaxTurnsResume?` optional callback to `StreamHandlerConfig` and a `case 'maxTurnsResume'` to the event dispatch switch.
+- `src/renderer/stores/streamHandler.test.ts` — Added test for `maxTurnsResume` dispatch.
+- `src/infrastructure/claude-cli/ClaudeCodeClient.test.ts` — Added test asserting `isMaxTurns: false` for `error_during_execution` subtype.
+- `src/infrastructure/ollama-cli/OllamaCodeClient.test.ts` — Added `isMaxTurns: true` assertion on maxTurns test; `isMaxTurns: false` on happy-path test.
+- `src/infrastructure/llama-server/LlamaServerClient.test.ts` — Same assertions as Ollama.
+
+### Changed
+- `src/infrastructure/claude-cli/ClaudeCodeClient.ts` — `processStreamEvent` now emits `isMaxTurns: subtype === 'error_max_turns'` on the error event (line ~484).
+- `src/infrastructure/ollama-cli/OllamaCodeClient.ts` — Added `exitReason` tracker (`'natural' | 'context-ceiling' | 'max-turns'`) before the agent loop; sets `exitReason` on context-ceiling and natural-completion breaks; passes `isMaxTurns: exitReason === 'max-turns'` on the `done` event.
+- `src/infrastructure/llama-server/LlamaServerClient.ts` — Same `exitReason` pattern as Ollama.
+- `src/application/index.ts` — Added `export { AutoTurnResumer } from './AutoTurnResumer'`.
+- `src/main/index.ts` — After all provider registrations on the raw `ProviderRegistry`, wraps it in `new AutoTurnResumer(providerRegistry)` and passes the wrapper (`providers`) to all service constructors and the IPC handler context. Raw registry still used for `setDefaultProvider` and `resolveModelSelection` before wrapping.
+
+### Architecture Impact
+- New service: `AutoTurnResumer` in application layer — decorator around `IProviderRegistry`
+- New dependency: All services that take `IProviderRegistry` now receive the `AutoTurnResumer` wrapper instead of the raw `ProviderRegistry`. The wrapper is transparent for all methods except `sendMessage` (which has the resume logic).
+- New StreamEvent variant: `maxTurnsResume` — emitted by `AutoTurnResumer` during resume
+- Extended StreamEvent variants: `done` and `error` now carry optional `isMaxTurns: boolean`
+- New renderer callback: `onMaxTurnsResume?` in `StreamHandlerConfig`
+
+### Migration Notes
+- None — all new fields are optional. Existing code that constructs `done`/`error` events without `isMaxTurns` still compiles. The `streamHandler` switch has no exhaustive check, so the `maxTurnsResume` variant was safely ignored until the new case was added.
+
+---
+
 ## [2026-07-19] — ChapterDetector downstream ripple + docs (program-028 SESSION-02)
 
 ### Summary

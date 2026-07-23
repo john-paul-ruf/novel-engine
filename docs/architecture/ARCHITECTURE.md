@@ -1,6 +1,6 @@
 # Architecture — Novel Engine
 
-> Last updated: 2026-07-12 (program-019 SESSION-07)
+> Last updated: 2026-07-23 (program-030)
 
 Electron + React 18 + TypeScript 5 + Tailwind v4 + Zustand + better-sqlite3 + Claude Code CLI + Codex CLI + Ollama CLI + Pandoc
 
@@ -96,6 +96,7 @@ src/
 │   ├── SourceGenerationService.ts           # Multi-agent source document generation
 │   ├── HelperService.ts                     # In-app help assistant (user guide as context)
 │   ├── FindReplaceService.ts               # Bulk find & replace across chapter drafts; safe revert via snapshots
+│   ├── AutoTurnResumer.ts                  # Decorator: auto-resumes provider calls on max-turns exhaustion
 │   ├── QueryService.ts                    # Query tracker I/O, target CRUD, AI query letter generation via Quill
 │   ├── import/
 │   │   └── ChapterDetector.ts               # Pure chapter break detection utility
@@ -183,6 +184,7 @@ OllamaCliRunner()
 OllamaCodeClient(booksDir, db, savedOllamaConfig?.baseUrl, ollamaCliRunner)
 LlamaServerClient(booksDir, db, savedLlamaConfig?.baseUrl)
 ProviderRegistry(settings)
+AutoTurnResumer(providerRegistry)  ← wraps ProviderRegistry; all services receive the wrapper
 
 UsageService
 └── IDatabaseService (DatabaseService)
@@ -193,7 +195,7 @@ ChatService
 ├── ISettingsService (SettingsService)
 ├── IAgentService (AgentService)
 ├── IDatabaseService (DatabaseService)
-├── IProviderRegistry (ProviderRegistry)
+├── IProviderRegistry (AutoTurnResumer → ProviderRegistry)
 ├── IFileSystemService (FileSystemService)
 ├── UsageService
 └── ChapterValidator
@@ -208,7 +210,7 @@ BuildService
 
 RevisionQueueService
 ├── IFileSystemService (FileSystemService)
-├── IProviderRegistry (ProviderRegistry)
+├── IProviderRegistry (AutoTurnResumer → ProviderRegistry)
 ├── IAgentService (AgentService)
 ├── IDatabaseService (DatabaseService)
 └── ISettingsService (SettingsService)
@@ -240,7 +242,7 @@ HelperService
 ├── IAgentService (AgentService)
 ├── IDatabaseService (DatabaseService)
 ├── IFileSystemService (FileSystemService)
-├── IProviderRegistry (ProviderRegistry)
+├── IProviderRegistry (AutoTurnResumer → ProviderRegistry)
 ├── StreamManager
 └── userDataPath: string
 

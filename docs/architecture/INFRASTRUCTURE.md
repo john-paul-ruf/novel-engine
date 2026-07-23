@@ -1,6 +1,6 @@
 # Infrastructure — Implementations
 
-> Last updated: 2026-07-13
+> Last updated: 2026-07-23 (program-030)
 
 Everything in `src/infrastructure/`. Implements domain interfaces using Node.js builtins and npm packages.
 
@@ -92,6 +92,7 @@ Key behavior:
 - `hasActiveProcesses()` / `hasActiveProcessesForBook()` for idle detection
 - EPIPE/ERR_STREAM_DESTROYED on stdin logged with diagnostic info (stdinBytes, writableFinished, writableEnded)
 - System prompt size guard: rejects prompts > 500KB with clear error before spawn
+- Max-turns signaling: emits `isMaxTurns: true` on the `error` StreamEvent when the CLI result subtype is `error_max_turns` (vs. `false` for other error subtypes like `error_during_execution`)
 
 
 ### codex-cli/ — Codex CLI Provider
@@ -149,6 +150,7 @@ Key behavior:
 - `OllamaCliRunner.startServe()` spawns `ollama serve` once and warns, rather than throwing, if the process exits because the service is already running.
 - `OllamaCliRunner.runSmokeTest()` pipes a prompt into `ollama run <model>` with a timeout and boolean result.
 - Startup model discovery in `src/main/index.ts` uses `OllamaCliRunner.listModels()` and `showModelContext()` for local endpoints, and preserves API discovery for configured remote endpoints.
+- Max-turns signaling: tracks `exitReason` (`'natural' | 'context-ceiling' | 'max-turns'`) in the agent loop. Sets `isMaxTurns: exitReason === 'max-turns'` on the `done` StreamEvent. Natural completion (no tool calls) and context-ceiling exits do NOT set `isMaxTurns`.
 
 ### llama-server/ — llama-server HTTP Provider
 
@@ -164,6 +166,7 @@ Key behavior:
 - Parses `<think>...</think>` tags in model content for reasoning-model support (QwQ, DeepSeek-R1, etc.)
 - `isAvailable()` probes the configured base URL `/v1/models` endpoint
 - `abortStream()` signals the `AbortController` backing the active `fetch` SSE connection
+- Max-turns signaling: same `exitReason` pattern as Ollama — sets `isMaxTurns: exitReason === 'max-turns'` on the `done` StreamEvent when the agent loop exhausts all turns
 
 ### providers/ — Model Provider Registry
 
