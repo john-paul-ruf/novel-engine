@@ -19,7 +19,7 @@ When any provider's CLI call hits the max-turns limit (Claude CLI `error_max_tur
 | 01 | Domain types: signal max-turn exhaustion in StreamEvent | M01 | done | 2026-07-23 | Added `isMaxTurns?` to `done` and `error` variants; added `maxTurnsResume` variant. `npx tsc --noEmit` passes. Domain + streamHandler tests pass. |
 | 02 | Claude CLI: flag `error_max_turns` with `isMaxTurns` | M06 | done | 2026-07-23 | Set `isMaxTurns: subtype === 'error_max_turns'` on error events. Tests updated + new test for non-max error. All 19 tests pass. |
 | 03 | Ollama & llama-server: flag max-turn exhaustion | M12, M13 | done | 2026-07-23 | Added `exitReason` tracker (`natural`/`context-ceiling`/`max-turns`) to both clients. `isMaxTurns: exitReason === 'max-turns'` on `done` event. Both test suites pass (26 tests total). |
-| 04 | AutoTurnResumer class + composition-root wiring | M08, M09, M15 | pending | | |
+| 04 | AutoTurnResumer class + composition-root wiring | M08, M09, M15 | done | 2026-07-23 | Created `AutoTurnResumer` implementing `IProviderRegistry`. Wraps real registry, intercepts `sendMessage`, auto-resumes on `isMaxTurns: true`. 6 tests pass. Composition root wraps `ProviderRegistry` in `AutoTurnResumer` before passing to all services + IPC handlers. |
 | 05 | Renderer: handle `maxTurnsResume` event + integration tests | M10, M16 | pending | | |
 
 (Status: pending | in-progress | done | blocked | skipped)
@@ -145,3 +145,35 @@ Tests updated:
 - Llama: maxTurns test asserts `isMaxTurns: true`; happy-path test asserts `isMaxTurns: false`.
 
 Verification: `npx tsc --noEmit` ✅, `npx vitest run OllamaCodeClient.test.ts LlamaServerClient.test.ts` ✅ (26 tests).
+
+### SESSION-04 — 2026-07-23
+
+Created `src/application/AutoTurnResumer.ts` — implements `IProviderRegistry` and wraps
+the real `ProviderRegistry`. Key behaviors:
+- Intercepts `sendMessage`; delegates all other methods to the inner registry.
+- On each attempt, generates a fresh `sessionId` via `nanoid()`.
+- Wraps `onEvent` to capture `textDelta` + `thinkingDelta` for context accumulation.
+- Suppresses terminal `done`/`error` events (never forwards them during the loop).
+- On `done` with `isMaxTurns: true` or `error` with `isMaxTurns: true`:
+  - Accumulates token counts and file touches from the attempt.
+  - Appends partial assistant text + "Continue where you left off…" as resume context.
+  - Emits a `maxTurnsResume` event and a `warning` event.
+  - Re-spawns with turn budget + `AUTO_RESUME_EXTRA_TURNS` (10).
+- On normal completion: emits a merged `done` with accumulated totals.
+- On genuine error (non-maxTurns): forwards the error event and re-throws.
+- No cap on resume attempts.
+- Forwards `callStart` only from the first attempt (suppresses duplicates).
+
+Wiring change in `src/main/index.ts`:
+- After all provider registrations on the raw `providerRegistry`, wraps it:
+  `const providers = new AutoTurnResumer(providerRegistry);`
+- Passes `providers` (the wrapper) to all service constructors and the IPC handler context.
+- The raw `providerRegistry` is still used directly for `setDefaultProvider` and `resolveModelSelection`
+  before wrapping (those methods are on the concrete class, not on `IProviderRegistry`).
+
+Note: `IProviderRegistry` does NOT declare `setDefaultProvider` — it's only on
+`ProviderRegistry`. The `AutoTurnResumer` class does not implement it; the composition
+root calls it on the raw registry before wrapping.
+
+Verification: `npx tsc --noEmit` ✅, AutoTurnResumer tests ✅ (6 tests),
+ProviderRegistry tests ✅ (14 tests), ChatService tests ✅ (17 tests).

@@ -85,6 +85,7 @@ import { FindReplaceService } from '@app/FindReplaceService';
 import { DashboardService } from '@app/DashboardService';
 import { StatisticsService } from '@app/StatisticsService';
 import { QueryService } from '@app/QueryService';
+import { AutoTurnResumer } from '@app/AutoTurnResumer';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
@@ -601,6 +602,8 @@ async function initializeApp(): Promise<void> {
     console.error('[startup] Failed to reconcile model selection:', err);
   }
 
+  const providers = new AutoTurnResumer(providerRegistry);
+
   // 3.5 Auto-reconcile any book folders whose name diverged from the
   //      title stored in about.json (e.g. after a direct on-disk edit).
   //      This runs once at startup before the window opens, so it is
@@ -618,18 +621,17 @@ async function initializeApp(): Promise<void> {
   const usage = new UsageService(db);
   const chapterValidator = new ChapterValidator(booksDir);
   const streamManager = new StreamManager(db, usage);
-  const audit = new AuditService(settings, agents, providerRegistry, db, fs, usage);
-  const pitchRoom = new PitchRoomService(agents, providerRegistry, db, fs, streamManager);
-  const hotTake = new HotTakeService(agents, providerRegistry, db, fs, streamManager);
-  const adhocRevision = new AdhocRevisionService(agents, audit, providerRegistry, db, fs, streamManager);
+  const audit = new AuditService(settings, agents, providers, db, fs, usage);
+  const pitchRoom = new PitchRoomService(agents, providers, db, fs, streamManager);
+  const hotTake = new HotTakeService(agents, providers, db, fs, streamManager);
+  const adhocRevision = new AdhocRevisionService(agents, audit, providers, db, fs, streamManager);
   const series = new SeriesService(userDataPath);
-  // VersionService must be constructed before its consumers (ChatService, RevisionQueueService)
   const version = new VersionService(db, fs);
-  const chat = new ChatService(settings, agents, db, providerRegistry, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager, series, version);
+  const chat = new ChatService(settings, agents, db, providers, fs, chapterValidator, pitchRoom, hotTake, adhocRevision, streamManager, series, version);
   const pipeline = new PipelineService(fs);
   const build = new BuildService(fs, pandocPath, booksDir);
-  const revisionQueue = new RevisionQueueService(fs, providerRegistry, agents, db, settings, version);
-  const motifLedger = new MotifLedgerService(fs, providerRegistry, settings);
+  const revisionQueue = new RevisionQueueService(fs, providers, agents, db, settings, version);
+  const motifLedger = new MotifLedgerService(fs, providers, settings);
   motifLedger.setNormalizationCallback((status, error) => {
     for (const w of BrowserWindow.getAllWindows()) {
       try {
@@ -640,8 +642,8 @@ async function initializeApp(): Promise<void> {
   const findReplace = new FindReplaceService(fs, version);
   const manuscriptImport = new ManuscriptImportService(fs, pandocPath);
   const seriesImport = new SeriesImportService(manuscriptImport, series);
-  const sourceGeneration = new SourceGenerationService(settings, agents, db, fs, providerRegistry);
-  const helper = new HelperService(settings, agents, db, fs, providerRegistry, streamManager, userDataPath);
+  const sourceGeneration = new SourceGenerationService(settings, agents, db, fs, providers);
+  const helper = new HelperService(settings, agents, db, fs, providers, streamManager, userDataPath);
   const dashboard = new DashboardService(db, fs, pipeline);
   const statistics = new StatisticsService(db, fs);
   const queryService = new QueryService(fs, chat);
@@ -741,7 +743,7 @@ async function initializeApp(): Promise<void> {
 
   // 8. Register IPC handlers (with hook to switch watcher on book change)
   registerIpcHandlers(
-    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry, manuscriptImport, sourceGeneration, series, seriesImport, helper, findReplace, dashboard, statistics, query: queryService },
+    { settings, agents, db, fs, chat, audit, pipeline, build, usage, revisionQueue, motifLedger, notifications, version, providerRegistry: providers, manuscriptImport, sourceGeneration, series, seriesImport, helper, findReplace, dashboard, statistics, query: queryService },
     { userDataPath, booksDir },
     {
       onActiveBookChanged: (slug: string) => {
