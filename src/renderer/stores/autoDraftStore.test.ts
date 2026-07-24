@@ -161,6 +161,115 @@ describe('autoDraftStore', () => {
     expect(callIdArg).toBeTruthy();
   }, 10_000);
 
+  it('retries the audit/fix pass on transient failures and succeeds on the second attempt', async () => {
+    const audit: AuditResult = {
+      chapter: '02-two',
+      violations: [],
+      summary: { total: 3, by_type: {}, severity: 'moderate' },
+    };
+    const cleanAudit: AuditResult = {
+      chapter: '03-three',
+      violations: [],
+      summary: { total: 0, by_type: {}, severity: 'clean' },
+    };
+    mock.verity.auditChapter
+      .mockResolvedValueOnce(audit)    // chapter 02, attempt 1 — fix attempted, times out
+      .mockResolvedValueOnce(audit)    // chapter 02, attempt 2 (retry) — fix succeeds
+      .mockResolvedValue(cleanAudit);  // chapter 03 — no fix needed
+    mock.verity.fixChapter
+      .mockRejectedValueOnce(new Error('Fix pass timed out after 300s'))  // attempt 1 — transient
+      .mockResolvedValueOnce(undefined);                                  // attempt 2 — succeeds
+    mock.chat.getConversations.mockResolvedValue([verityConvo]);
+    mock.books.wordCount
+      .mockResolvedValueOnce(chapters('01-one'))                       // iter1 slugsBefore / countBefore
+      .mockResolvedValueOnce(chapters('01-one', '02-two'))              // iter1 countAfter — 2 > 1, progress!
+      .mockResolvedValueOnce(chapters('01-one', '02-two'))              // iter1 slugsAfter (new slug 02-two)
+      .mockResolvedValueOnce(chapters('01-one', '02-two'))              // iter2 slugsBefore / countBefore
+      .mockResolvedValueOnce(chapters('01-one', '02-two', '03-three')) // iter2 countAfter — 3 > 2, progress!
+      .mockResolvedValueOnce(chapters('01-one', '02-two', '03-three')) // iter2 slugsAfter (new slug 03-three)
+      .mockResolvedValueOnce(chapters('01-one', '02-two', '03-three')) // iter3 slugsBefore / countBefore
+      .mockResolvedValue(chapters('01-one', '02-two', '03-three'));     // iter3 countAfter — equal, fall through to DRAFT_COMPLETE
+    const a1 = makeMessage({ id: 'a1', content: 'Wrote chapter two.', conversationId: 'ad-conv' });
+    const a2 = makeMessage({ id: 'a2', content: 'Wrote chapter three.', conversationId: 'ad-conv' });
+    mock.chat.getMessages
+      .mockResolvedValueOnce([])                          // iter1 msgsBefore
+      .mockResolvedValueOnce([a1])                        // iter1 msgsAfter — chapter written
+      .mockResolvedValueOnce([a1])                        // iter2 msgsBefore
+      .mockResolvedValueOnce([a1, a2])                    // iter2 msgsAfter — chapter written
+      .mockResolvedValueOnce([a1, a2])                    // iter3 msgsBefore
+      .mockResolvedValue([a1, a2, draftCompleteMsg]);     // iter3+ msgsAfter — complete
+
+    const run = useAutoDraftStore.getState().start(BOOK);
+
+    await vi.waitFor(
+      () => expect(useAutoDraftStore.getState().getSession(BOOK)?.chaptersWritten).toBe(2),
+      { timeout: 8000 },
+    );
+
+    await run;
+
+    const session = useAutoDraftStore.getState().getSession(BOOK);
+    expect(session?.skippedAudits).toEqual([]);  // retried successfully — not skipped
+    expect(session?.isPaused).toBe(false);
+    expect(session?.error).toBeNull();
+    // Two fix attempts on chapter 02 (first timed out, second succeeded) — then chapter 03 audit (clean) needed no fix
+    expect(mock.verity.fixChapter).toHaveBeenCalledTimes(2);
+    expect(mock.verity.auditChapter).toHaveBeenCalledTimes(3);  // 02 (×2) + 03 (×1)
+    expect(mock.chat.send).toHaveBeenCalledTimes(3);
+  }, 15_000);
+
+  it('records the chapter in skippedAudits after exhausting transient retries', async () => {
+    const audit: AuditResult = {
+      chapter: '02-two',
+      violations: [],
+      summary: { total: 3, by_type: {}, severity: 'moderate' },
+    };
+    const cleanAudit: AuditResult = {
+      chapter: '03-three',
+      violations: [],
+      summary: { total: 0, by_type: {}, severity: 'clean' },
+    };
+    mock.verity.auditChapter
+      .mockResolvedValueOnce(audit)    // 02 attempt 1
+      .mockResolvedValueOnce(audit)    // 02 attempt 2
+      .mockResolvedValueOnce(audit)    // 02 attempt 3 — all fix calls time out
+      .mockResolvedValue(cleanAudit);  // 03 — clean
+    mock.verity.fixChapter.mockRejectedValue(new Error('Fix pass timed out after 300s'));
+    mock.chat.getConversations.mockResolvedValue([verityConvo]);
+    mock.books.wordCount
+      .mockResolvedValueOnce(chapters('01-one'))
+      .mockResolvedValueOnce(chapters('01-one', '02-two'))
+      .mockResolvedValueOnce(chapters('01-one', '02-two'))
+      .mockResolvedValueOnce(chapters('01-one', '02-two'))
+      .mockResolvedValueOnce(chapters('01-one', '02-two', '03-three'))
+      .mockResolvedValueOnce(chapters('01-one', '02-two', '03-three'))
+      .mockResolvedValueOnce(chapters('01-one', '02-two', '03-three'))
+      .mockResolvedValue(chapters('01-one', '02-two', '03-three'));
+    const a1 = makeMessage({ id: 'a1', content: 'Wrote chapter two.', conversationId: 'ad-conv' });
+    const a2 = makeMessage({ id: 'a2', content: 'Wrote chapter three.', conversationId: 'ad-conv' });
+    mock.chat.getMessages
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([a1])
+      .mockResolvedValueOnce([a1])
+      .mockResolvedValueOnce([a1, a2])
+      .mockResolvedValueOnce([a1, a2])
+      .mockResolvedValue([a1, a2, draftCompleteMsg]);
+
+    const run = useAutoDraftStore.getState().start(BOOK);
+
+    await vi.waitFor(
+      () => expect(useAutoDraftStore.getState().getSession(BOOK)?.chaptersWritten).toBe(2),
+      { timeout: 8000 },
+    );
+
+    await run;
+
+    const session = useAutoDraftStore.getState().getSession(BOOK);
+    expect(session?.skippedAudits).toEqual(['02-two']);
+    expect(session?.isPaused).toBe(false);
+    expect(mock.verity.fixChapter).toHaveBeenCalledTimes(3);  // MAX_AUDIT_FIX_RETRIES
+  }, 15_000);
+
   it('pauses on a CLI error, guards against a second start, and exits on stop with an abort', async () => {
     mock.chat.getConversations.mockResolvedValue([verityConvo]);
     mock.books.wordCount.mockResolvedValue(chapters('01-one'));

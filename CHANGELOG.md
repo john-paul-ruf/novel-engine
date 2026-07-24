@@ -4,6 +4,30 @@ All notable changes to Novel Engine are documented here.
 
 ---
 
+## [2026-07-23] — Auto-draft retries transient audit/fix failures and respects active provider for model resolution
+
+### Summary
+
+Two fixes for the auto-draft workflow. (1) The audit/fix pass paused the loop on every failure, including transient ones (timeouts, aborts, network blips). For unattended runs with slow cloud models, a single fix pass exceeding the 5-minute `FIX_TIMEOUT_MS` cap would abort the stream and pause the loop until the user clicked Resume — defeating the "come back to a finished book" workflow. The audit/fix block now retries transient failures up to `MAX_AUDIT_FIX_RETRIES` (3) times before recording the chapter in `skippedAudits` and continuing. Genuine logic errors still pause for human decision. (2) All three AuditService entry points (`auditChapter`, `fixChapter`, `runMotifAudit` single + multi-call) bypassed `ProviderRegistry.resolveModelSelection` and passed `appSettings.model` directly, ignoring `appSettings.activeProviderId`. When the user's selected model ID was registered to a non-default provider (e.g. Ollama), `ProviderRegistry.resolveModelSelection` fell back to the default provider (Claude CLI) — silently routing calls to Claude Opus instead of the user's selected model. All three entry points now resolve the model via `resolveModelSelection(appSettings.model, appSettings.activeProviderId)` before calling `providers.sendMessage`, and emit a `warning` event when fallback occurs.
+
+### Changed
+- `src/renderer/stores/autoDraftStore.ts` — Added `MAX_AUDIT_FIX_RETRIES = 3` constant. Replaced the single-try audit/fix `try/catch` with a `while` retry loop. Transient failures (matched by `'timed out'`, `'aborted'`, `'network'`, `'fetch'`) trigger a brief delay then retry the entire audit+fix pass from scratch. After exhausting retries the chapter is recorded in `skippedAudits` and the loop continues. Non-transient errors still record the skip and pause for human decision. Stage labels and IPC attach messages now include `(retry N/M)` suffix on retry attempts.
+- `src/application/AuditService.ts` — `resolveAuditModel()` now calls `this.providers.resolveModelSelection(appSettings.model, appSettings.activeProviderId)` instead of returning `appSettings.model` directly. `fixChapter()` resolves the model the same way before calling `providers.sendMessage`, replacing `model: appSettings.model` with `model: fixModel`. `runMotifAuditSingleCall()` and `runMotifAuditMultiCall()` both resolve via `resolveModelSelection` before calling `providers.sendMessage`. All three methods now emit a `warning` event when fallback occurs. `runMotifAudit` and both private methods' `appSettings` param type extended with `activeProviderId: ProviderId`. Imported `ProviderId` type.
+
+### Fixed
+- `src/application/AuditService.test.ts` — Added `activeProviderId: 'ollama-cli'` to `APP_SETTINGS` test fixture to satisfy the extended type.
+
+### Tests
+- `src/renderer/stores/autoDraftStore.test.ts` — Added `retries the audit/fix pass on transient failures and succeeds on the second attempt` (first fix times out, retry succeeds, `skippedAudits` empty, `fixChapter` called twice) and `records the chapter in skippedAudits after exhausting transient retries` (all 3 fix attempts time out, chapter recorded in `skippedAudits`, loop continues).
+
+### Architecture Impact
+- None — no new IPC channels, stores, or DI wiring changes. The `runMotifAudit` handler in `src/main/ipc/handlers.ts` already passes the full `appSettings` object (including `activeProviderId`) from `services.settings.load()`.
+
+### Migration Notes
+- None — no breaking changes. Existing pause-on-error behavior is preserved for non-transient errors; only transient failures now retry before skipping. Model resolution now honors `activeProviderId` consistently with `ChatService`.
+
+---
+
 ## [2026-07-23] — Fix phantom turns and renderer reads (program-032)
 
 ### Summary

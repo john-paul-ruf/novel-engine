@@ -7,7 +7,7 @@ import type {
   ISettingsService,
   IUsageService,
 } from '@domain/interfaces';
-import type { AuditResult, StreamEvent } from '@domain/types';
+import type { AuditResult, ProviderId, StreamEvent } from '@domain/types';
 import { nanoid } from 'nanoid';
 import {
   VERITY_AUDIT_AGENT_FILE,
@@ -51,7 +51,8 @@ export class AuditService implements IAuditService {
       return { model: appSettings.secondaryModel, maxTokens: VERITY_AUDIT_MAX_TOKENS };
     }
 
-    return { model: appSettings.model, maxTokens: appSettings.maxTokens };
+    const resolved = this.providers.resolveModelSelection(appSettings.model, appSettings.activeProviderId);
+    return { model: resolved.model, maxTokens: appSettings.maxTokens };
   }
 
   /**
@@ -218,6 +219,15 @@ export class AuditService implements IAuditService {
     const appSettings = await this.settings.load();
     const thinkingBudget = resolveThinkingBudget(appSettings, AGENT_REGISTRY.Verity.thinkingBudget);
 
+    const fixResolved = this.providers.resolveModelSelection(appSettings.model, appSettings.activeProviderId);
+    const fixModel = fixResolved.model;
+    if (fixResolved.didFallback) {
+      onEvent({
+        type: 'warning',
+        message: `Selected model ${fixResolved.requestedModel} is unavailable. Using ${fixModel} instead.`,
+      });
+    }
+
     // Build the fix prompt with audit findings (loaded from agent file)
     const auditJson = JSON.stringify(auditResult.violations, null, 2);
     const verityFixTemplate = await this.agents.loadRaw('VERITY-FIX.md');
@@ -241,14 +251,14 @@ export class AuditService implements IAuditService {
     let thinkingBuffer = '';
     const fixConversationId = `${conversationId}-fix`;
 
-    const FIX_TIMEOUT_MS = 300_000; // 5 minutes — fix pass uses Opus with tool use
+    const FIX_TIMEOUT_MS = 300_000; // 5 minutes — fix pass uses tool use
 
     // Emit callStart so CLI Activity panel tracks this call
-    onEvent({ type: 'callStart', agentName: 'Verity', model: appSettings.model, bookSlug });
+    onEvent({ type: 'callStart', agentName: 'Verity', model: fixModel, bookSlug });
     onEvent({ type: 'status', message: `Fixing ${auditResult.violations.length} violations in ${chapterSlug}…` });
 
     const cliPromise = this.providers.sendMessage({
-      model: appSettings.model, // Opus for fix pass — needs creative judgment
+      model: fixModel,
       systemPrompt,
       messages: [{ role: 'user' as const, content: userMessage }],
       maxTokens: appSettings.maxTokens,
@@ -278,7 +288,7 @@ export class AuditService implements IAuditService {
             inputTokens: event.inputTokens,
             outputTokens: event.outputTokens,
             thinkingTokens: event.thinkingTokens,
-            model: appSettings.model,
+            model: fixModel,
           });
         }
 
@@ -314,7 +324,7 @@ export class AuditService implements IAuditService {
    */
   async runMotifAudit(params: {
     bookSlug: string;
-    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean; activeProviderId: ProviderId };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
   }): Promise<void> {
@@ -335,7 +345,7 @@ export class AuditService implements IAuditService {
 
   private async runMotifAuditSingleCall(params: {
     bookSlug: string;
-    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean; activeProviderId: ProviderId };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
   }): Promise<void> {
@@ -373,14 +383,23 @@ export class AuditService implements IAuditService {
 
     const thinkingBudget = resolveThinkingBudget(appSettings, lumenAgent.thinkingBudget);
 
+    const motifResolved = this.providers.resolveModelSelection(appSettings.model, appSettings.activeProviderId);
+    const motifModel = motifResolved.model;
+    if (motifResolved.didFallback) {
+      onEvent({
+        type: 'warning',
+        message: `Selected model ${motifResolved.requestedModel} is unavailable. Using ${motifModel} instead.`,
+      });
+    }
+
     // Emit callStart so CLI Activity panel tracks this call
     const motifConvId = `motif-audit-${sessionId}`;
     this.ensureEphemeralConversation(motifConvId, bookSlug, 'Lumen');
-    onEvent({ type: 'callStart', agentName: 'Lumen', model: appSettings.model, bookSlug });
+    onEvent({ type: 'callStart', agentName: 'Lumen', model: motifModel, bookSlug });
     onEvent({ type: 'status', message: 'Auditing phrase patterns across manuscript…' });
 
     await this.providers.sendMessage({
-      model: appSettings.model,
+      model: motifModel,
       systemPrompt,
       messages: [{ role: 'user' as const, content: 'Run the motif/phrase audit now. Read every chapter, build the inventory, and update the flaggedPhrases section in source/motif-ledger.json.' }],
       maxTokens: appSettings.maxTokens,
@@ -396,7 +415,7 @@ export class AuditService implements IAuditService {
             inputTokens: event.inputTokens,
             outputTokens: event.outputTokens,
             thinkingTokens: event.thinkingTokens,
-            model: appSettings.model,
+            model: motifModel,
           });
         }
         // Forward ALL events to IPC layer for CLI Activity visibility
@@ -409,12 +428,19 @@ export class AuditService implements IAuditService {
 
   private async runMotifAuditMultiCall(params: {
     bookSlug: string;
-    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean };
+    appSettings: { model: string; maxTokens: number; enableThinking: boolean; thinkingBudget: number; overrideThinkingBudget: boolean; activeProviderId: ProviderId };
     onEvent: (event: StreamEvent) => void;
     sessionId: string;
   }): Promise<void> {
     const { bookSlug, appSettings, onEvent, sessionId } = params;
-    const model = appSettings.model;
+    const resolved = this.providers.resolveModelSelection(appSettings.model, appSettings.activeProviderId);
+    const model = resolved.model;
+    if (resolved.didFallback) {
+      onEvent({
+        type: 'warning',
+        message: `Selected model ${resolved.requestedModel} is unavailable. Using ${model} instead.`,
+      });
+    }
 
     let lumenAgent;
     try {

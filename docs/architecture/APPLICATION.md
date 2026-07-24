@@ -107,21 +107,22 @@ Owns the chapter audit/fix subsystem — three cohesive operations that were ext
 
 | Method | What It Does |
 |--------|-------------|
-| `auditChapter(params)` | Runs Verity audit agent on a single chapter draft. Returns parsed `AuditResult` or null. Uses `AppSettings.secondaryModel` through `IProviderRegistry` when that model is available, then falls back to the primary model. |
-| `fixChapter(params)` | Runs Verity fix pass using audit findings. Edits draft in-place. Uses Opus for creative judgment. |
-| `runMotifAudit(params)` | Runs Lumen's phrase/motif audit (Lens 8) across the full manuscript. Updates motif-ledger.json flaggedPhrases. |
+| `auditChapter(params)` | Runs Verity audit agent on a single chapter draft. Returns parsed `AuditResult` or null. Uses `AppSettings.secondaryModel` when registered; falls back to primary model resolved via `resolveModelSelection(appSettings.model, appSettings.activeProviderId)`. |
+| `fixChapter(params)` | Runs Verity fix pass using audit findings. Edits draft in-place. Resolves model via `resolveModelSelection(appSettings.model, appSettings.activeProviderId)` to honor the active provider. |
+| `runMotifAudit(params)` | Runs Lumen's phrase/motif audit (Lens 8) across the full manuscript. Updates motif-ledger.json flaggedPhrases. Resolves model via `resolveModelSelection` in both single-call (Claude CLI) and multi-call sipping modes. |
 
 **Audit flow:**
 1. Read chapter draft + voice profile + motif ledger (non-fatal if missing)
 2. Load auditor prompt via `agents.loadRaw(VERITY_AUDIT_AGENT_FILE)`
-3. Resolve secondary model through `IProviderRegistry`, falling back to the primary model if unavailable
+3. Resolve secondary model through `IProviderRegistry`; fall back to primary model resolved via `resolveModelSelection(model, activeProviderId)`
 4. Spawn provider stream with 120s timeout
 5. Parse JSON response → `AuditResult`
 
 **Fix flow:**
 1. Load Verity core prompt + VERITY-FIX.md template + audit JSON
-2. Spawn CLI with Opus, 5min timeout
-3. Verity edits the draft file in-place
+2. Resolve model via `resolveModelSelection(appSettings.model, appSettings.activeProviderId)` — honors active provider, emits `warning` on fallback
+3. Spawn provider stream with 5min timeout
+4. Verity edits the draft file in-place
 
 ### StreamManager
 

@@ -58,6 +58,13 @@ const MAX_AUTO_DRAFT_DURATION_MS = 4 * 60 * 60 * 1000;
  *  run until MAX_ITERATIONS. */
 const MAX_NO_PROGRESS_RETRIES = 3;
 
+/** Max retry attempts for the audit/fix pass on transient failures
+ *  (timeouts, aborts, network blips). The audit is critical — we retry
+ *  instead of skipping — but we cap it so a persistently failing model
+ *  doesn't stall the loop forever. After exhausting retries the chapter
+ *  is recorded in skippedAudits and the loop continues. */
+const MAX_AUDIT_FIX_RETRIES = 3;
+
 // ── Per-Session State ────────────────────────────────────────────────────────
 
 type AutoDraftSession = {
@@ -398,75 +405,100 @@ export const useAutoDraftStore = create<AutoDraftState>((set, get) => ({
           const newChapterSlug = slugsAfter?.find((s) => !slugsBefore.has(s));
 
           if (newChapterSlug && !session()?.stopRequested) {
-            try {
-              await waitForCliIdle(bookSlug);
+            let auditFixAttempt = 0;
+            let auditFixResolved = false;
 
-              patch({ stageLabel: `Auditing ${newChapterSlug}…` });
-              console.log(`[auto-draft] Starting audit for ${newChapterSlug}`);
+            while (!auditFixResolved && !session()?.stopRequested && auditFixAttempt < MAX_AUDIT_FIX_RETRIES) {
+              auditFixAttempt++;
+              try {
+                await waitForCliIdle(bookSlug);
 
-              const auditCallId = crypto.randomUUID();
-              const userIsWatchingAudit = useChatStore.getState().activeConversation?.id === conversationId;
-              if (userIsWatchingAudit) {
-                useChatStore.getState().attachToExternalStream(auditCallId, conversationId, `[Auto-audit: ${newChapterSlug}]`);
-              }
+                patch({ stageLabel: `Auditing ${newChapterSlug}${auditFixAttempt > 1 ? ` (retry ${auditFixAttempt}/${MAX_AUDIT_FIX_RETRIES})` : ''}…` });
+                console.log(`[auto-draft] Starting audit for ${newChapterSlug}${auditFixAttempt > 1 ? ` (retry ${auditFixAttempt})` : ''}`);
 
-              const auditResult = await window.novelEngine.verity.auditChapter(
-                bookSlug,
-                newChapterSlug,
-                { callId: auditCallId, conversationId },
-              );
-              console.log(`[auto-draft] Audit returned for ${newChapterSlug}:`, auditResult ? `${auditResult.summary.severity} (${auditResult.summary.total} violations)` : 'null');
+                const auditCallId = crypto.randomUUID();
+                const userIsWatchingAudit = useChatStore.getState().activeConversation?.id === conversationId;
+                if (userIsWatchingAudit) {
+                  useChatStore.getState().attachToExternalStream(auditCallId, conversationId, `[Auto-audit${auditFixAttempt > 1 ? ` retry ${auditFixAttempt}` : ''}: ${newChapterSlug}]`);
+                }
 
-              if (userIsWatchingAudit && useChatStore.getState().activeConversation?.id === conversationId) {
-                await useChatStore.getState().setActiveConversation(conversationId);
-              }
+                const auditResult = await window.novelEngine.verity.auditChapter(
+                  bookSlug,
+                  newChapterSlug,
+                  { callId: auditCallId, conversationId },
+                );
+                console.log(`[auto-draft] Audit returned for ${newChapterSlug}:`, auditResult ? `${auditResult.summary.severity} (${auditResult.summary.total} violations)` : 'null');
 
-              if (auditResult && shouldFix(auditResult.summary.severity)) {
-                if (!session()?.stopRequested) {
-                  await waitForCliIdle(bookSlug);
+                if (userIsWatchingAudit && useChatStore.getState().activeConversation?.id === conversationId) {
+                  await useChatStore.getState().setActiveConversation(conversationId);
+                }
 
-                  patch({ stageLabel: `Fixing ${auditResult.summary.total} violations in ${newChapterSlug}…` });
-                  console.log(`[auto-draft] Starting fix for ${newChapterSlug}`);
+                if (auditResult && shouldFix(auditResult.summary.severity)) {
+                  if (!session()?.stopRequested) {
+                    await waitForCliIdle(bookSlug);
 
-                  const fixCallId = crypto.randomUUID();
-                  const userIsWatchingFix = useChatStore.getState().activeConversation?.id === conversationId;
-                  if (userIsWatchingFix) {
-                    useChatStore.getState().attachToExternalStream(fixCallId, conversationId, `[Auto-fix: ${auditResult.summary.total} violations in ${newChapterSlug}]`);
+                    patch({ stageLabel: `Fixing ${auditResult.summary.total} violations in ${newChapterSlug}${auditFixAttempt > 1 ? ` (retry ${auditFixAttempt}/${MAX_AUDIT_FIX_RETRIES})` : ''}…` });
+                    console.log(`[auto-draft] Starting fix for ${newChapterSlug}`);
+
+                    const fixCallId = crypto.randomUUID();
+                    const userIsWatchingFix = useChatStore.getState().activeConversation?.id === conversationId;
+                    if (userIsWatchingFix) {
+                      useChatStore.getState().attachToExternalStream(fixCallId, conversationId, `[Auto-fix${auditFixAttempt > 1 ? ` retry ${auditFixAttempt}` : ''}: ${auditResult.summary.total} violations in ${newChapterSlug}]`);
+                    }
+
+                    await window.novelEngine.verity.fixChapter(
+                      bookSlug,
+                      newChapterSlug,
+                      conversationId,
+                      auditResult,
+                      fixCallId,
+                    );
+                    console.log(`[auto-draft] Fix completed for ${newChapterSlug}`);
                   }
+                }
+                auditFixResolved = true;
+              } catch (err) {
+                const errMsg = err instanceof Error ? err.message : String(err);
+                console.warn(`[auto-draft] Audit/fix pass failed (attempt ${auditFixAttempt}/${MAX_AUDIT_FIX_RETRIES}) for ${newChapterSlug}:`, errMsg);
 
-                  await window.novelEngine.verity.fixChapter(
-                    bookSlug,
-                    newChapterSlug,
-                    conversationId,
-                    auditResult,
-                    fixCallId,
-                  );
-                  console.log(`[auto-draft] Fix completed for ${newChapterSlug}`);
+                const isTransient =
+                  errMsg.includes('timed out') ||
+                  errMsg.includes('aborted') ||
+                  errMsg.includes('network') ||
+                  errMsg.includes('fetch');
+
+                if (!isTransient) {
+                  // Genuine logic error — record and pause for human decision
+                  if (newChapterSlug) {
+                    patch({
+                      skippedAudits: [...(session()?.skippedAudits ?? []), newChapterSlug],
+                    });
+                  }
+                  await new Promise<void>((resolve) => {
+                    patch({
+                      isPaused: true,
+                      pauseReason: `Audit/fix failed for ${newChapterSlug ?? 'chapter'}: ${errMsg}. Resume to skip audit, or stop the loop.`,
+                      _resumeResolve: resolve,
+                    });
+                  });
+                  patch({ isPaused: false, pauseReason: null, _resumeResolve: null });
+                  if (session()?.stopRequested) break;
+                  auditFixResolved = true; // don't retry after user resume — they chose to skip
+                } else if (auditFixAttempt >= MAX_AUDIT_FIX_RETRIES) {
+                  // Exhausted retries — record the skip and continue
+                  console.warn(`[auto-draft] Audit/fix for ${newChapterSlug} failed after ${MAX_AUDIT_FIX_RETRIES} transient retries — skipping.`);
+                  if (newChapterSlug) {
+                    patch({
+                      skippedAudits: [...(session()?.skippedAudits ?? []), newChapterSlug],
+                    });
+                  }
+                  auditFixResolved = true;
+                } else {
+                  // Transient failure with retries remaining — brief pause then retry
+                  console.log(`[auto-draft] Transient failure, will retry audit/fix for ${newChapterSlug} (attempt ${auditFixAttempt + 1}/${MAX_AUDIT_FIX_RETRIES})`);
+                  await delay(INTER_CHAPTER_DELAY_MS);
                 }
               }
-            } catch (err) {
-              console.warn('[auto-draft] Audit/fix pass failed:', err);
-
-              // Track the skipped audit so the user knows which chapters need manual review
-              if (newChapterSlug) {
-                patch({
-                  skippedAudits: [...(session()?.skippedAudits ?? []), newChapterSlug],
-                });
-              }
-
-              // Pause the loop — let the user decide: resume (skip audit), or stop
-              await new Promise<void>((resolve) => {
-                patch({
-                  isPaused: true,
-                  pauseReason: `Audit/fix failed for ${newChapterSlug ?? 'chapter'}: ${err instanceof Error ? err.message : String(err)}. Resume to skip audit, or stop the loop.`,
-                  _resumeResolve: resolve,
-                });
-              });
-
-              // Pause resolved — clean up
-              patch({ isPaused: false, pauseReason: null, _resumeResolve: null });
-
-              if (session()?.stopRequested) break;
             }
           }
 

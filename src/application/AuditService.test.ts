@@ -28,6 +28,7 @@ const APP_SETTINGS = {
   enableThinking: false,
   thinkingBudget: 5000,
   overrideThinkingBudget: false,
+  activeProviderId: 'ollama-cli',
 };
 
 let db: ReturnType<typeof makeDb>;

@@ -236,7 +236,7 @@ Manages revision plan state, session execution, approval gates.
 
 File: `stores/autoDraftStore.ts`
 
-Manages auto-drafting state (sequential chapter writing). Tracks `skippedAudits: string[]` — when an audit/fix pass fails, the loop pauses (using existing pause/resume mechanism) with a diagnostic message. Resume skips the failed audit; stop halts the loop. Skipped chapters are logged in the finally block.
+Manages auto-drafting state (sequential chapter writing). Tracks `skippedAudits: string[]` — chapters where the audit/fix pass could not complete. The audit/fix block retries transient failures (timeouts, aborts, network blips — matched by `'timed out'`, `'aborted'`, `'network'`, `'fetch'`) up to `MAX_AUDIT_FIX_RETRIES` (3) times before recording the chapter in `skippedAudits` and continuing to the next chapter. Genuine logic errors still pause the loop (using existing pause/resume mechanism) with a diagnostic message. Resume skips the failed audit; stop halts the loop. Skipped chapters are logged in the finally block.
 
 Two safety valves (added 2026-07-23):
 - `MAX_AUTO_DRAFT_DURATION_MS = 4h` — checked at the top of every iteration against `session.startedAt`. Exceeding pauses with `Time budget reached (Nh) — resume to continue or stop`. Resume resets `startedAt` so the budget restarts.
