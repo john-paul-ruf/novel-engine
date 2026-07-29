@@ -1,6 +1,7 @@
 # Novel Engine
 
-[Youtube Demo](https://www.youtube.com/watch?v=nRG4_2phOgU)
+# Pitch to Publish - Youtube Demo
+[![Pitch to Publish - Demo](https://img.youtube.com/vi/OBsg2iKu_Io/maxresdefault.jpg)](https://www.youtube.com/watch?v=OBsg2iKu_Io)
 
 **A Desktop Publishing Studio for Novels**
 
