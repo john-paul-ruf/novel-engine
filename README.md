@@ -1,5 +1,9 @@
 # Novel Engine
 
+ALERT: I have published this as a skill called Novel Engine: AI Editorial Team, From Pitch to Publish on Agensi. Seven specialist agents take your novel from rough idea to copy-edited DOCX/EPUB through 15 approval-gated phases: pitch, outline, draft, cold read, dev edit, revision, copy edit, publish. This project will no longer be maintained.  
+
+<a href="https://www.agensi.io/skills/novel-engine-ai-editorial-team-from-pitch-to-publish" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:9999px;background:#1f6feb;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;text-decoration:none;line-height:1;border:1px solid #1a5fcc"><span style="font-weight:600">Novel Engine: AI Editorial Team, From Pitch to Publish</span><span style="opacity:.85"> on Agensi</span></a>
+
 # Pitch to Publish - Youtube Demo
 [![Pitch to Publish - Demo](https://img.youtube.com/vi/OBsg2iKu_Io/maxresdefault.jpg)](https://www.youtube.com/watch?v=OBsg2iKu_Io)
 
