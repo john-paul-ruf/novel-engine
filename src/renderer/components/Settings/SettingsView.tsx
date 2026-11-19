@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useModalChatStore } from '../../stores/modalChatStore';
@@ -649,7 +649,7 @@ function AuthorProfileSection(): React.ReactElement {
           {authorProfile ? (
             <div
               className="prose dark:prose-invert prose-sm"
-              dangerouslySetInnerHTML={{ __html: String(marked.parse(authorProfile)) }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(authorProfile) }}
             />
           ) : (
             <p className="italic text-zinc-500">No author profile yet.</p>

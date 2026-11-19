@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { useSettingsStore } from '../../stores/settingsStore';
-
-marked.setOptions({ breaks: true, gfm: true });
 
 type ThinkingBlockProps = {
   content: string;
@@ -55,7 +53,7 @@ export function ThinkingBlock({
   // Only parse markdown when content changes — avoids re-parsing on every render
   // caused by parent re-renders or state changes (expanded toggle, scroll, etc.)
   const renderedHtml = useMemo(
-    () => (content ? String(marked.parse(content)) : ''),
+    () => (content ? renderMarkdown(content) : ''),
     [content],
   );
 
