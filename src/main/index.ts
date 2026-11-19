@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, protocol, net, shell } from 'electron';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -350,6 +350,25 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Lock the window to the app origin: block any navigation or redirect away
+  // from it, and deny new windows (safe https: links go to the OS browser).
+  // Without this, injected content (meta-refresh / window.open) could send the
+  // main window to a remote page that keeps the full window.novelEngine bridge.
+  const isAppUrl = (url: string): boolean =>
+    MAIN_WINDOW_VITE_DEV_SERVER_URL
+      ? url.startsWith(MAIN_WINDOW_VITE_DEV_SERVER_URL)
+      : url.startsWith('file://');
+
+  const blockNav = (e: Electron.Event, url: string): void => {
+    if (!isAppUrl(url)) e.preventDefault();
+  };
+  mainWindow.webContents.on('will-navigate', blockNav);
+  mainWindow.webContents.on('will-redirect', blockNav);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   // Forward maximize/unmaximize events to renderer for title bar button state
