@@ -120,7 +120,7 @@ export function registerIpcHandlers(services: {
   // Sender-validating wrapper around ipcMain.handle — the `any[]` is the
   // Electron handler shape (the one allowed exception in this file).
   const handle = (channel: string, listener: (event: IpcMainInvokeEvent, ...args: any[]) => unknown) =>
-    ipcMain.handle(channel, (event, ...args) => {
+    ipcMain.handle(channel, async (event, ...args) => {
       if (!isTrustedSender(event)) throw new Error(`Untrusted IPC sender for ${channel}`);
       return listener(event, ...args);
     });

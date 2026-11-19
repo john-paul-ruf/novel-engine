@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
@@ -42,18 +41,21 @@ let hooks: { onActiveBookChanged: ReturnType<typeof vi.fn<(slug: string) => void
 let handlers: Map<string, Handler>;
 let win: BrowserWindow;
 
-const fakeEvent = { sender: {} } as unknown as IpcMainInvokeEvent;
-const invoke = (channel: string, ...args: unknown[]): unknown => {
+/** A trusted sender: the app's own `file://` frame, backed by a real window. */
+const fakeEvent = { sender: {}, senderFrame: { url: 'file:///app/index.html' } } as unknown as IpcMainInvokeEvent;
+const invokeAs = (event: IpcMainInvokeEvent, channel: string, ...args: unknown[]): unknown => {
   const handler = handlers.get(channel);
   if (!handler) throw new Error(`No handler registered for ${channel}`);
-  return handler(fakeEvent, ...args);
+  return handler(event, ...args);
 };
+const invoke = (channel: string, ...args: unknown[]): unknown => invokeAs(fakeEvent, channel, ...args);
 
 beforeEach(async () => {
   vi.clearAllMocks();
   userDataPath = await makeTempDir();
   win = new BrowserWindow();
-  vi.mocked(BrowserWindow.fromWebContents).mockReturnValue(null);
+  // Default: a trusted sender resolves to a real window so the IPC guard passes.
+  vi.mocked(BrowserWindow.fromWebContents).mockReturnValue(win);
   vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([]);
   vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: true, filePaths: [] });
 
@@ -114,6 +116,73 @@ describe('channel completeness', () => {
     for (const channel of handlers.keys()) {
       expect(channel).toMatch(/^[a-zA-Z-]+:[a-zA-Z]+$/);
     }
+  });
+});
+
+describe('IPC sender trust guard', () => {
+  const trusted = (url: string) => ({ sender: {}, senderFrame: { url } }) as unknown as IpcMainInvokeEvent;
+
+  it('accepts the app\'s own file:// frame and runs the handler', async () => {
+    expect(await invokeAs(trusted('file:///app/index.html'), 'settings:load')).toEqual(settings.current);
+  });
+
+  it.each([
+    'http://localhost:5173/index.html',
+    'http://127.0.0.1:5173/index.html',
+  ])('accepts the dev-server origin %s', async (url) => {
+    expect(await invokeAs(trusted(url), 'settings:load')).toEqual(settings.current);
+  });
+
+  it('rejects a foreign origin before the handler runs', async () => {
+    const evil = trusted('https://evil.test/phish.html');
+    await expect(Promise.resolve(invokeAs(evil, 'books:list'))).rejects.toThrow(
+      'Untrusted IPC sender for books:list',
+    );
+    // The guard short-circuits — the service is never touched.
+    expect(svc.fs.listBooks).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the event has no sender frame', async () => {
+    const noFrame = { sender: {} } as unknown as IpcMainInvokeEvent;
+    await expect(Promise.resolve(invokeAs(noFrame, 'books:list'))).rejects.toThrow(
+      'Untrusted IPC sender for books:list',
+    );
+  });
+
+  it('rejects when the sender has no backing BrowserWindow', async () => {
+    vi.mocked(BrowserWindow.fromWebContents).mockReturnValue(null);
+    await expect(Promise.resolve(invokeAs(trusted('file:///app/index.html'), 'books:list'))).rejects.toThrow(
+      'Untrusted IPC sender for books:list',
+    );
+    expect(svc.fs.listBooks).not.toHaveBeenCalled();
+  });
+});
+
+describe('shell IPC allowlist', () => {
+  it.each(['https://example.com/doc', 'mailto:someone@example.com'])(
+    'shell:openExternal allows %s',
+    async (url) => {
+      await invoke('shell:openExternal', url);
+      expect(shell.openExternal).toHaveBeenCalledWith(url);
+    },
+  );
+
+  it.each(['javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,<script>'])(
+    'shell:openExternal blocks %s',
+    async (url) => {
+      await expect(Promise.resolve(invoke('shell:openExternal', url))).rejects.toThrow();
+      expect(shell.openExternal).not.toHaveBeenCalled();
+    },
+  );
+
+  it('shell:openPath rejects a non-absolute path and opens an absolute one', async () => {
+    await expect(Promise.resolve(invoke('shell:openPath', 'relative/export.pdf'))).rejects.toThrow(
+      'absolute path',
+    );
+    expect(shell.openPath).not.toHaveBeenCalled();
+
+    await invoke('shell:openPath', '/Users/me/exports/book.pdf');
+    expect(shell.openPath).toHaveBeenCalledWith('/Users/me/exports/book.pdf');
   });
 });
 
@@ -178,10 +247,7 @@ describe('books namespace', () => {
     expect(hooks.onActiveBookChanged).toHaveBeenCalledWith('new-slug');
   });
 
-  it('books:uploadCover requires a window and returns null on a canceled dialog', async () => {
-    await expect(Promise.resolve(invoke('books:uploadCover', 'book-a'))).rejects.toThrow('No window found');
-
-    vi.mocked(BrowserWindow.fromWebContents).mockReturnValue(win);
+  it('books:uploadCover returns null on a canceled dialog and forwards the chosen file', async () => {
     expect(await invoke('books:uploadCover', 'book-a')).toBeNull();
     expect(svc.fs.saveCoverImage).not.toHaveBeenCalled();
 
@@ -190,9 +256,21 @@ describe('books namespace', () => {
     expect(svc.fs.saveCoverImage).toHaveBeenCalledWith('book-a', '/tmp/cover.png');
   });
 
-  it('books:getAbsolutePath joins against the injected books dir', async () => {
-    expect(await invoke('books:getAbsolutePath', 'book-a', 'chapters/01/draft.md')).toBe(
-      path.join('/fake/books-dir', 'book-a', 'chapters/01/draft.md'),
+  it('books:getAbsolutePath delegates to the containment-checked fs.getAbsolutePath', async () => {
+    svc.fs.getAbsolutePath.mockReturnValue('/fake/books-dir/book-a/chapters/01/draft.md');
+
+    const result = await invoke('books:getAbsolutePath', 'book-a', 'chapters/01/draft.md');
+
+    expect(svc.fs.getAbsolutePath).toHaveBeenCalledWith('book-a', 'chapters/01/draft.md');
+    expect(result).toBe('/fake/books-dir/book-a/chapters/01/draft.md');
+  });
+
+  it('books:getAbsolutePath surfaces an escape rejection from fs.getAbsolutePath', async () => {
+    svc.fs.getAbsolutePath.mockImplementation(() => {
+      throw new Error('Path escapes book directory: ../../secret');
+    });
+    await expect(Promise.resolve(invoke('books:getAbsolutePath', 'book-a', '../../secret'))).rejects.toThrow(
+      'Path escapes book directory',
     );
   });
 });
