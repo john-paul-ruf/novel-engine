@@ -643,6 +643,11 @@ export class FileSystemService implements IFileSystemService {
 
     await fs.rename(archivedDir, destDir);
 
+    // Strip any untrusted agent config copied into the archive so restored
+    // hook/settings files can't run (defense-in-depth; SESSION-04's
+    // --setting-sources user is the primary fix).
+    await fs.rm(path.join(destDir, '.claude'), { recursive: true, force: true });
+
     // Read and return the meta
     return this.getBookMeta(slug);
   }

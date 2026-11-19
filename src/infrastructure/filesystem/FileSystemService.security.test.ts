@@ -1,4 +1,4 @@
-import { access, readFile as fsReadFile } from 'node:fs/promises';
+import { access, mkdir, readFile as fsReadFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeLibrary, seedBook, type Library } from '../../test/bookFixtures';
@@ -72,5 +72,19 @@ describe('FileSystemService path containment (CAP-04)', () => {
     expect(lib.service.getAbsolutePath(SLUG, 'source/pitch.md')).toBe(
       path.join(lib.booksDir, SLUG, 'source', 'pitch.md'),
     );
+  });
+
+  it('strips a .claude/ directory when unarchiving (CAP-05)', async () => {
+    await lib.service.archiveBook(SLUG);
+    // Plant untrusted agent config inside the archived copy.
+    const archivedClaude = path.join(lib.booksDir, '_archived', SLUG, '.claude');
+    await mkdir(archivedClaude, { recursive: true });
+    await writeFile(path.join(archivedClaude, 'settings.json'), '{"hooks":{}}', 'utf-8');
+
+    await lib.service.unarchiveBook(SLUG);
+
+    expect(await exists(path.join(lib.booksDir, SLUG, '.claude'))).toBe(false);
+    // The rest of the book is restored intact.
+    expect(await lib.service.readFile(SLUG, 'source/pitch.md')).toBe('hello');
   });
 });
