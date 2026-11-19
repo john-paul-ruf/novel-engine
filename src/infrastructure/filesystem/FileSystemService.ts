@@ -15,6 +15,7 @@ import type {
   ShelvedPitchMeta,
 } from '@domain/types';
 import { PITCH_ROOM_SLUG } from '@domain/constants';
+import { resolveWithinBook } from './pathSafety';
 
 const VALID_COVER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
@@ -341,8 +342,12 @@ export class FileSystemService implements IFileSystemService {
 
   // ── File Operations ───────────────────────────────────────────────
 
+  getAbsolutePath(slug: string, relativePath: string): string {
+    return resolveWithinBook(this.booksDir, slug, relativePath);
+  }
+
   async readFile(bookSlug: string, relativePath: string): Promise<string> {
-    const filePath = path.join(this.booksDir, bookSlug, relativePath);
+    const filePath = resolveWithinBook(this.booksDir, bookSlug, relativePath);
     try {
       return await fs.readFile(filePath, 'utf-8');
     } catch {
@@ -351,13 +356,13 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async writeFile(bookSlug: string, relativePath: string, content: string): Promise<void> {
-    const filePath = path.join(this.booksDir, bookSlug, relativePath);
+    const filePath = resolveWithinBook(this.booksDir, bookSlug, relativePath);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, 'utf-8');
   }
 
   async deleteFile(bookSlug: string, relativePath: string): Promise<void> {
-    const filePath = path.join(this.booksDir, bookSlug, relativePath);
+    const filePath = resolveWithinBook(this.booksDir, bookSlug, relativePath);
     try {
       await fs.unlink(filePath);
     } catch (err: unknown) {
@@ -369,7 +374,7 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async deletePath(bookSlug: string, relativePath: string): Promise<void> {
-    const fullPath = path.join(this.booksDir, bookSlug, relativePath);
+    const fullPath = resolveWithinBook(this.booksDir, bookSlug, relativePath);
     try {
       const stat = await fs.stat(fullPath);
       if (stat.isDirectory()) {
@@ -385,8 +390,8 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async renameFile(bookSlug: string, oldPath: string, newPath: string): Promise<void> {
-    const sourcePath = path.join(this.booksDir, bookSlug, oldPath);
-    const destPath = path.join(this.booksDir, bookSlug, newPath);
+    const sourcePath = resolveWithinBook(this.booksDir, bookSlug, oldPath);
+    const destPath = resolveWithinBook(this.booksDir, bookSlug, newPath);
 
     // Verify source exists
     try {
@@ -401,7 +406,7 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async fileExists(bookSlug: string, relativePath: string): Promise<boolean> {
-    const filePath = path.join(this.booksDir, bookSlug, relativePath);
+    const filePath = resolveWithinBook(this.booksDir, bookSlug, relativePath);
     try {
       await fs.access(filePath);
       return true;
@@ -411,8 +416,10 @@ export class FileSystemService implements IFileSystemService {
   }
 
   async listDirectory(bookSlug: string, relativePath?: string): Promise<FileEntry[]> {
+    const rel = relativePath ?? '';
+    resolveWithinBook(this.booksDir, bookSlug, rel); // throws on escape
     const bookRoot = path.join(this.booksDir, bookSlug);
-    return this.buildFileTree(bookRoot, relativePath ?? '', 0, 3);
+    return this.buildFileTree(bookRoot, rel, 0, 3);
   }
 
   // ── Word Count ────────────────────────────────────────────────────
@@ -636,6 +643,11 @@ export class FileSystemService implements IFileSystemService {
 
     await fs.rename(archivedDir, destDir);
 
+    // Strip any untrusted agent config copied into the archive so restored
+    // hook/settings files can't run (defense-in-depth; SESSION-04's
+    // --setting-sources user is the primary fix).
+    await fs.rm(path.join(destDir, '.claude'), { recursive: true, force: true });
+
     // Read and return the meta
     return this.getBookMeta(slug);
   }
@@ -760,7 +772,13 @@ export class FileSystemService implements IFileSystemService {
     const meta = await this.getBookMeta(bookSlug);
     if (!meta.coverImage) return null;
 
-    const absPath = path.join(this.booksDir, bookSlug, meta.coverImage);
+    let absPath: string;
+    try {
+      absPath = resolveWithinBook(this.booksDir, bookSlug, meta.coverImage);
+    } catch {
+      // coverImage escapes the book directory — treat as no cover
+      return null;
+    }
     try {
       await fs.access(absPath);
       return absPath;

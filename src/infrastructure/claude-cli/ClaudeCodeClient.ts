@@ -223,6 +223,20 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       });
     };
 
+    // Scope the agent's file tools to the books directory and drop WebFetch, so an
+    // injected manuscript can't read or write outside the book, nor pair a read with
+    // a send-out. `--setting-sources user` makes the CLI ignore project/book
+    // settings — including `<book>/.claude/settings.json` hooks, which would
+    // otherwise run untrusted commands on first chat in --print mode.
+    const booksGlob = `${this.booksDir}/**`;
+    const allowedTools = [
+      `Read(${booksGlob})`, `Write(${booksGlob})`, `Edit(${booksGlob})`,
+      'LS', 'Glob', 'Grep', 'WebSearch', 'Task', 'TodoWrite',
+      'Bash(mkdir:*)', 'Bash(cat:*)', 'Bash(mv:*)', 'Bash(cp:*)', 'Bash(ls:*)',
+      'Bash(find:*)', 'Bash(grep:*)', 'Bash(wc:*)', 'Bash(head:*)', 'Bash(tail:*)',
+      'Bash(rm:*)', 'Bash(rmdir:*)',
+    ].join(',');
+
     const args = [
       '--print',
       '--output-format', 'stream-json',
@@ -230,7 +244,8 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       '--model', model,
       '--max-turns', String(params.maxTurns ?? 30),
       '--system-prompt-file', systemPromptFile,
-      '--allowedTools', 'Read,Write,Edit,LS,Glob,Grep,WebSearch,WebFetch,Task,TodoWrite,Bash(mkdir:*),Bash(cat:*),Bash(mv:*),Bash(cp:*),Bash(ls:*),Bash(find:*),Bash(grep:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(rm:*),Bash(rmdir:*)',
+      '--allowedTools', allowedTools,
+      '--setting-sources', 'user',
       '--add-dir', this.booksDir,
     ];
 

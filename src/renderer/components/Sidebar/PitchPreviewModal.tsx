@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { usePitchShelfStore } from '../../stores/pitchShelfStore';
 
 export function PitchPreviewModal(): React.ReactElement | null {
@@ -26,7 +26,7 @@ export function PitchPreviewModal(): React.ReactElement | null {
   if (!previewPitch && !previewLoading) return null;
 
   const renderedHtml = previewPitch
-    ? (marked.parse(previewPitch.content, { async: false }) as string)
+    ? renderMarkdown(previewPitch.content)
     : '';
 
   return (

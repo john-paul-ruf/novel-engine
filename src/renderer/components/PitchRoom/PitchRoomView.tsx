@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { AGENT_REGISTRY } from '@domain/constants';
 import { randomPitchRoomFlavor } from '@domain/statusMessages';
 import { usePitchRoomStore } from '../../stores/pitchRoomStore';
@@ -11,8 +11,6 @@ import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
 import { ChatInput } from '../Chat/ChatInput';
 import { useRotatingStatus } from '../../hooks/useRotatingStatus';
-
-marked.setOptions({ breaks: true, gfm: true });
 
 /**
  * Streaming message for the Pitch Room — subscribes to pitchRoomStore.
@@ -28,7 +26,7 @@ function PitchRoomStreamingMessage(): React.ReactElement | null {
 
   const renderedHtml = useMemo(() => {
     if (!streamBuffer) return '';
-    return marked.parse(streamBuffer) as string;
+    return renderMarkdown(streamBuffer);
   }, [streamBuffer]);
 
   if (!isStreaming) return null;

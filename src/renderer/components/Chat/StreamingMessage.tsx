@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import type { ProgressStage, TimestampedToolUse } from '@domain/types';
 import { useChatStore } from '../../stores/chatStore';
 import { ThinkingBlock } from './ThinkingBlock';
 import { useRotatingStatus } from '../../hooks/useRotatingStatus';
-
-marked.setOptions({ breaks: true, gfm: true });
 
 const STAGE_CONFIG: Record<ProgressStage, { label: string; icon: string; color: string }> = {
   idle: { label: 'Waiting', icon: '⏳', color: 'text-zinc-400' },
@@ -73,7 +71,7 @@ export function StreamingMessage(): React.ReactElement | null {
 
   const renderedHtml = useMemo(() => {
     if (!streamBuffer) return '';
-    return String(marked.parse(streamBuffer));
+    return renderMarkdown(streamBuffer);
   }, [streamBuffer]);
 
   const showThinking = thinkingBuffer.length > 0 || isThinking;
