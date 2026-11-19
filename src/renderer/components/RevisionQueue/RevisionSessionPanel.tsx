@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { useRevisionQueueStore } from '../../stores/revisionQueueStore';
 import { useBookStore } from '../../stores/bookStore';
 import { useCliActivityStore } from '../../stores/cliActivityStore';
@@ -7,8 +7,6 @@ import { KIND_ICONS, KIND_COLORS, formatTime } from '../CliActivity/constants';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { ThinkingBlock } from '../Chat/ThinkingBlock';
 import type { RevisionSession, StreamEvent } from '@domain/types';
-
-marked.setOptions({ breaks: true, gfm: true });
 
 // ── CLI Activity Mini Viewer ──────────────────────────────────────────
 // Reads from the global cliActivityStore (which already receives revision
@@ -160,7 +158,7 @@ function StreamingBubble() {
 
   const renderedHtml = useMemo(() => {
     if (!streamingResponse) return '';
-    return String(marked.parse(streamingResponse));
+    return renderMarkdown(streamingResponse);
   }, [streamingResponse]);
 
   const hasThinking = streamingThinking.length > 0;
@@ -393,7 +391,7 @@ function VerificationPanel() {
 
   const renderedStreamHtml = useMemo(() => {
     if (!streamingText) return '';
-    return String(marked.parse(streamingText));
+    return renderMarkdown(streamingText);
   }, [streamingText]);
 
   return (
@@ -583,7 +581,7 @@ function PanelChatView() {
 
   const renderedStreamHtml = useMemo(() => {
     if (!streamingText) return '';
-    return String(marked.parse(streamingText));
+    return renderMarkdown(streamingText);
   }, [streamingText]);
 
   return (

@@ -1,10 +1,8 @@
 import { memo, useMemo } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import type { Conversation, Message } from '@domain/types';
 import { ThinkingBlock } from './ThinkingBlock';
 import { CHARS_PER_TOKEN } from '@domain/constants';
-
-marked.setOptions({ breaks: true, gfm: true });
 
 type MessageBubbleProps = {
   message: Message;
@@ -18,7 +16,7 @@ export const MessageBubble = memo(function MessageBubble({ message, toolActivity
 
   const renderedHtml = useMemo(() => {
     if (isUser) return '';
-    return String(marked.parse(message.content));
+    return renderMarkdown(message.content);
   }, [message.content, isUser]);
 
   const thinkingTokenEstimate = hasThinking

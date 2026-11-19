@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { useModalChatStore } from '../../stores/modalChatStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { MessageBubble } from './MessageBubble';
@@ -8,8 +8,6 @@ import { ChatInput } from './ChatInput';
 import { useRotatingStatus } from '../../hooks/useRotatingStatus';
 import { AGENT_REGISTRY } from '@domain/constants';
 import type { ConversationPurpose } from '@domain/types';
-
-marked.setOptions({ breaks: true, gfm: true });
 
 const PURPOSE_LABELS: Record<ConversationPurpose, { title: string; subtitle: string; badge: string }> = {
   'voice-setup': {
@@ -116,7 +114,7 @@ function ModalMessageList(): React.ReactElement {
 
   const streamHtml = useMemo(() => {
     if (!streamBuffer) return '';
-    return String(marked.parse(streamBuffer));
+    return renderMarkdown(streamBuffer);
   }, [streamBuffer]);
 
   const showStatus = isStreaming && !isThinking && !streamHtml;

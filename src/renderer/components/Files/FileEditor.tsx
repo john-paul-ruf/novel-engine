@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { useBookStore } from '../../stores/bookStore';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 
@@ -105,7 +105,7 @@ export function FileEditor({
 
   const fileName = filePath.split('/').pop() ?? filePath;
   const wordCount = countWords(content);
-  const previewHtml = showPreview ? (marked.parse(content) as string) : '';
+  const previewHtml = showPreview ? renderMarkdown(content) : '';
 
   return (
     <div className="flex h-full flex-col">

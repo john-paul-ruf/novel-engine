@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../../util/renderMarkdown';
 import { useFileChangeStore } from '../../stores/fileChangeStore';
-
-marked.setOptions({ async: false });
 
 /** Literary typeset styling per the streamlined-workspace mock. */
 const PROSE_CLASS = [
@@ -42,7 +40,7 @@ export function ProseViewer({ content, raw = false, wide = false }: ProseViewerP
       </pre>
     );
   }
-  const html = marked.parse(content) as string;
+  const html = renderMarkdown(content);
   return (
     <div
       className={`${PROSE_CLASS} ${wide ? 'max-w-[68ch]' : 'max-w-[62ch]'}`}
