@@ -184,9 +184,13 @@ describe('sendMessage — spawn contract', () => {
 
     // File tools are scoped to the books directory, not granted unscoped.
     const allowedTools = args[args.indexOf('--allowedTools') + 1];
-    expect(allowedTools).toContain(`Read(${BOOKS_DIR}/**)`);
-    expect(allowedTools).toContain(`Write(${BOOKS_DIR}/**)`);
-    expect(allowedTools).toContain(`Edit(${BOOKS_DIR}/**)`);
+    // Absolute-path scoping uses the `//` prefix (single slash = project-relative).
+    const booksGlob = `//${BOOKS_DIR.replace(/^\/+/, '')}/**`;
+    expect(allowedTools).toContain(`Read(${booksGlob})`);
+    expect(allowedTools).toContain(`Write(${booksGlob})`);
+    expect(allowedTools).toContain(`Edit(${booksGlob})`);
+    // Guard against the single-slash (project-relative) regression.
+    expect(allowedTools).not.toContain(`Read(${BOOKS_DIR}/**)`);
     const allowedToolNames = allowedTools.split(',');
     expect(allowedToolNames).not.toContain('Read');
     expect(allowedToolNames).not.toContain('Write');

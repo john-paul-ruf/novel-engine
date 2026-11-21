@@ -37,4 +37,22 @@ describe('resolveWithinBook', () => {
       /escapes book directory/,
     );
   });
+
+  it.each([
+    '/home/u/.ssh',
+    '../other-book',
+    '..',
+    '.',
+    'nested/slug',
+    'a/../b',
+    '',
+  ])('throws for an unsafe slug: %j', (slug) => {
+    expect(() => resolveWithinBook(BOOKS_DIR, slug, 'id_ed25519')).toThrow(/Invalid book slug/);
+  });
+
+  it('allows a legitimate dotted filename that is not a traversal', () => {
+    expect(resolveWithinBook(BOOKS_DIR, SLUG, '..notes.md')).toBe(
+      path.join(BOOK_ROOT, '..notes.md'),
+    );
+  });
 });

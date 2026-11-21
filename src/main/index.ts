@@ -89,6 +89,7 @@ import { AutoTurnResumer } from '@app/AutoTurnResumer';
 
 // IPC
 import { registerIpcHandlers } from './ipc/handlers';
+import { setTrustedUrlConfig, isTrustedAppUrl } from './trustedUrl';
 
 // Notifications
 import { NotificationManager } from './notifications';
@@ -352,17 +353,23 @@ function createWindow(): void {
     },
   });
 
-  // Lock the window to the app origin: block any navigation or redirect away
+  // Lock the window to the app's own page: block any navigation or redirect away
   // from it, and deny new windows (safe https: links go to the OS browser).
-  // Without this, injected content (meta-refresh / window.open) could send the
-  // main window to a remote page that keeps the full window.novelEngine bridge.
-  const isAppUrl = (url: string): boolean =>
-    MAIN_WINDOW_VITE_DEV_SERVER_URL
-      ? url.startsWith(MAIN_WINDOW_VITE_DEV_SERVER_URL)
-      : url.startsWith('file://');
+  // Without this, injected content (meta-refresh / window.open), or an .html file
+  // the agent writes into the books folder and links in a reply, could load into
+  // the main window and keep the full window.novelEngine bridge. The trusted URL
+  // is the exact dev origin, or in a packaged build the exact index.html file —
+  // a bare `file://` prefix is not enough. Shared with the IPC sender guard.
+  const prodIndexPath = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`);
+  setTrustedUrlConfig({
+    devServerUrl: MAIN_WINDOW_VITE_DEV_SERVER_URL,
+    prodIndexHref: MAIN_WINDOW_VITE_DEV_SERVER_URL
+      ? undefined
+      : pathToFileURL(prodIndexPath).href,
+  });
 
   const blockNav = (e: Electron.Event, url: string): void => {
-    if (!isAppUrl(url)) e.preventDefault();
+    if (!isTrustedAppUrl(url)) e.preventDefault();
   };
   mainWindow.webContents.on('will-navigate', blockNav);
   mainWindow.webContents.on('will-redirect', blockNav);
@@ -383,9 +390,7 @@ function createWindow(): void {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
+    mainWindow.loadFile(prodIndexPath);
   }
 }
 

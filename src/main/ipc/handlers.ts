@@ -5,6 +5,7 @@ import * as fsPromises from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import * as path from 'node:path';
 import archiver from 'archiver';
+import { isTrustedAppUrl } from '../trustedUrl';
 import type {
   IAuditService,
   IChatService,
@@ -113,8 +114,10 @@ export function registerIpcHandlers(services: {
   const isTrustedSender = (event: IpcMainInvokeEvent): boolean => {
     const frame = event.senderFrame;
     if (!frame || !BrowserWindow.fromWebContents(event.sender)) return false;
-    const u = frame.url;
-    return u.startsWith('file://') || u.startsWith('http://localhost') || u.startsWith('http://127.0.0.1');
+    // Exact match against the app's own page (dev origin or packaged index.html).
+    // A `file://`/`http://localhost` prefix check would trust any local page,
+    // including one the agent writes into the books folder.
+    return isTrustedAppUrl(frame.url);
   };
 
   // Sender-validating wrapper around ipcMain.handle — the `any[]` is the

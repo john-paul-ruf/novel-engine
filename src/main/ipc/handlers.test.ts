@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import { registerIpcHandlers } from './handlers';
+import { setTrustedUrlConfig } from '../trustedUrl';
 import { makeFakeAgents, makeFakeSettings, type FakeSettings } from '../../test/fakes';
 import { cleanupTempDirs, makeTempDir } from '../../test/tempDir';
 
@@ -52,6 +53,8 @@ const invoke = (channel: string, ...args: unknown[]): unknown => invokeAs(fakeEv
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // The trusted sender frames in these tests use this exact index href.
+  setTrustedUrlConfig({ prodIndexHref: 'file:///app/index.html' });
   userDataPath = await makeTempDir();
   win = new BrowserWindow();
   // Default: a trusted sender resolves to a real window so the IPC guard passes.
@@ -126,11 +129,27 @@ describe('IPC sender trust guard', () => {
     expect(await invokeAs(trusted('file:///app/index.html'), 'settings:load')).toEqual(settings.current);
   });
 
-  it.each([
-    'http://localhost:5173/index.html',
-    'http://127.0.0.1:5173/index.html',
-  ])('accepts the dev-server origin %s', async (url) => {
-    expect(await invokeAs(trusted(url), 'settings:load')).toEqual(settings.current);
+  it('accepts the exact dev-server origin when running against Vite', async () => {
+    setTrustedUrlConfig({ devServerUrl: 'http://localhost:5173' });
+    expect(await invokeAs(trusted('http://localhost:5173/#/chapters'), 'settings:load')).toEqual(
+      settings.current,
+    );
+  });
+
+  it('rejects a look-alike localhost host that a prefix check would pass', async () => {
+    setTrustedUrlConfig({ devServerUrl: 'http://localhost:5173' });
+    await expect(
+      Promise.resolve(invokeAs(trusted('http://localhost:5173.evil.com/'), 'books:list')),
+    ).rejects.toThrow('Untrusted IPC sender for books:list');
+    expect(svc.fs.listBooks).not.toHaveBeenCalled();
+  });
+
+  it('rejects an arbitrary file:// page planted in the books folder (packaged build)', async () => {
+    // beforeEach configures prodIndexHref = file:///app/index.html.
+    await expect(
+      Promise.resolve(invokeAs(trusted('file:///app/books/mybook/pwn.html'), 'books:list')),
+    ).rejects.toThrow('Untrusted IPC sender for books:list');
+    expect(svc.fs.listBooks).not.toHaveBeenCalled();
   });
 
   it('rejects a foreign origin before the handler runs', async () => {
