@@ -228,7 +228,13 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
     // a send-out. `--setting-sources user` makes the CLI ignore project/book
     // settings — including `<book>/.claude/settings.json` hooks, which would
     // otherwise run untrusted commands on first chat in --print mode.
-    const booksGlob = `${this.booksDir}/**`;
+    // Claude Code permission paths treat a single leading slash as
+    // project-relative; an absolute filesystem path must be prefixed with `//`.
+    // Without this, Read/Write/Edit are scoped to a non-existent relative path
+    // and the agent is refused when writing book files. (The CLI permission
+    // behaviour is only exercised end-to-end, not by the argv unit test below.)
+    // Windows absolute-path form is unverified.
+    const booksGlob = `//${this.booksDir.replace(/^\/+/, '')}/**`;
     const allowedTools = [
       `Read(${booksGlob})`, `Write(${booksGlob})`, `Edit(${booksGlob})`,
       'LS', 'Glob', 'Grep', 'WebSearch', 'Task', 'TodoWrite',
