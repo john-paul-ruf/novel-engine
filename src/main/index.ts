@@ -52,7 +52,7 @@ if (squirrelStartup) {
 import { SettingsService } from '@infra/settings';
 import { DatabaseService } from '@infra/database';
 import { AgentService } from '@infra/agents';
-import { FileSystemService, BookWatcher, BooksDirWatcher } from '@infra/filesystem';
+import { FileSystemService, BookWatcher, BooksDirWatcher, resolveWithinBook } from '@infra/filesystem';
 import { ClaudeCodeClient } from '@infra/claude-cli';
 import { CodexCliClient } from '@infra/codex-cli';
 import { OllamaCodeClient, OllamaCliRunner } from '@infra/ollama-cli';
@@ -704,19 +704,21 @@ async function initializeApp(): Promise<void> {
 
     if (url.hostname === 'cover') {
       const bookSlug = url.pathname.replace(/^\//, '');
-      const bookDir = path.join(booksDir, bookSlug);
-      const aboutPath = path.join(bookDir, 'about.json');
 
       try {
+        // Confine both the slug and the stored coverImage to the book directory:
+        // about.coverImage is attacker-controllable (imported/shared book), and
+        // this protocol handler is reachable by any page, bypassing the IPC guard.
+        const aboutPath = resolveWithinBook(booksDir, bookSlug, 'about.json');
         const aboutRaw = readFileSync(aboutPath, 'utf-8');
         const about = JSON.parse(aboutRaw) as { coverImage?: string };
 
         if (about.coverImage) {
-          const coverAbsPath = path.join(bookDir, about.coverImage);
+          const coverAbsPath = resolveWithinBook(booksDir, bookSlug, about.coverImage);
           return net.fetch(pathToFileURL(coverAbsPath).href);
         }
       } catch {
-        // about.json doesn't exist or is malformed — fall through to 404
+        // Missing/malformed about.json, or a path that escapes the book — 404.
       }
 
       return new Response('Not found', { status: 404 });

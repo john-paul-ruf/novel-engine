@@ -8,11 +8,26 @@
  * in a packaged build the exact `index.html` file URL.
  */
 
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 export interface TrustedUrlConfig {
   /** MAIN_WINDOW_VITE_DEV_SERVER_URL when running against the Vite dev server. */
   devServerUrl?: string;
   /** pathToFileURL(indexHtmlPath).href for a packaged build. */
   prodIndexHref?: string;
+}
+
+/** Compare two file:// URLs by resolved filesystem path, so encoding or
+ *  drive-letter-case differences (notably on Windows) don't fail closed. */
+function sameFilePath(aHref: string, bHref: string): boolean {
+  try {
+    const a = path.resolve(fileURLToPath(aHref));
+    const b = path.resolve(fileURLToPath(bHref));
+    return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
+  } catch {
+    return false;
+  }
 }
 
 /** Pure check — exported for testing. Fail closed on anything unparsable. */
@@ -33,9 +48,12 @@ export function isTrustedUrl(url: string, cfg: TrustedUrlConfig): boolean {
     return u.origin === dev.origin;
   }
   if (cfg.prodIndexHref) {
-    // Allow hash/query routing on the same index document, nothing else.
+    // The exact packaged index.html, allowing hash/query routing on it.
+    // Compared by filesystem path, not raw href, so a Windows packaged build
+    // whose window URL is encoded slightly differently still matches.
+    if (u.protocol !== 'file:') return false;
     const base = u.href.split('#')[0].split('?')[0];
-    return base === cfg.prodIndexHref;
+    return sameFilePath(base, cfg.prodIndexHref);
   }
   return false;
 }

@@ -178,17 +178,24 @@ describe('sendMessage — spawn contract', () => {
     expect(args.join(' ')).toContain('--model claude-opus-4-20250514');
     expect(args.join(' ')).toContain('--max-turns 12');
     expect(args).toContain('--system-prompt-file');
-    expect(args.join(' ')).toContain(`--add-dir ${BOOKS_DIR}`);
+    // Workspace root is userData (parent of books), so the agent can also reach
+    // series/ and author-profile.md; access is gated by --allowedTools below.
+    const userDataDir = path.dirname(BOOKS_DIR);
+    expect(args[args.indexOf('--add-dir') + 1]).toBe(userDataDir);
     expect(args).not.toContain('--effort'); // no thinking budget requested
     expect(options.cwd).toBe(path.join(BOOKS_DIR, 'my-book'));
 
-    // File tools are scoped to the books directory, not granted unscoped.
+    // File tools are scoped to books/, series/ and author-profile.md — not unscoped.
     const allowedTools = args[args.indexOf('--allowedTools') + 1];
     // Absolute-path scoping uses the `//` prefix (single slash = project-relative).
     const booksGlob = `//${BOOKS_DIR.replace(/^\/+/, '')}/**`;
-    expect(allowedTools).toContain(`Read(${booksGlob})`);
-    expect(allowedTools).toContain(`Write(${booksGlob})`);
-    expect(allowedTools).toContain(`Edit(${booksGlob})`);
+    const seriesGlob = `//${path.join(userDataDir, 'series').replace(/^\/+/, '')}/**`;
+    const authorProfile = `//${path.join(userDataDir, 'author-profile.md').replace(/^\/+/, '')}`;
+    for (const abs of [booksGlob, seriesGlob, authorProfile]) {
+      expect(allowedTools).toContain(`Read(${abs})`);
+      expect(allowedTools).toContain(`Write(${abs})`);
+      expect(allowedTools).toContain(`Edit(${abs})`);
+    }
     // Guard against the single-slash (project-relative) regression.
     expect(allowedTools).not.toContain(`Read(${BOOKS_DIR}/**)`);
     const allowedToolNames = allowedTools.split(',');
