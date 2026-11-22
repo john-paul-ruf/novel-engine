@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { isTrustedUrl } from './trustedUrl';
 
 describe('isTrustedUrl — dev server', () => {
@@ -31,6 +31,21 @@ describe('isTrustedUrl — packaged build', () => {
     expect(isTrustedUrl('file:///Users/me/books/mybook/pwn.html', cfg)).toBe(false);
     expect(isTrustedUrl('file:///etc/passwd', cfg)).toBe(false);
     expect(isTrustedUrl('http://localhost:5173/', cfg)).toBe(false);
+  });
+});
+
+describe('isTrustedUrl — packaged build, path-based comparison', () => {
+  const realPlatform = process.platform;
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: realPlatform });
+  });
+
+  it('matches a drive-letter-case difference on Windows', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const cfg = { prodIndexHref: 'file:///C:/app/index.html' };
+    // Electron may hand back the drive letter in a different case.
+    expect(isTrustedUrl('file:///c:/app/index.html', cfg)).toBe(true);
+    expect(isTrustedUrl('file:///C:/app/evil.html', cfg)).toBe(false);
   });
 });
 

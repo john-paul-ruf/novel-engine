@@ -233,10 +233,30 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
     // Without this, Read/Write/Edit are scoped to a non-existent relative path
     // and the agent is refused when writing book files. (The CLI permission
     // behaviour is only exercised end-to-end, not by the argv unit test below.)
-    // Windows absolute-path form is unverified.
-    const booksGlob = `//${this.booksDir.replace(/^\/+/, '')}/**`;
+    // On Windows the CLI wants a POSIX-style `//c/Users/...` form (drive letter
+    // lowercased, no colon, forward slashes) — best effort, unverified against a
+    // packaged Windows build.
+    const toClaudeAbs = (p: string): string => {
+      if (process.platform === 'win32') {
+        const drive = /^([A-Za-z]):[\\/]?(.*)$/.exec(p);
+        if (drive) return `//${drive[1].toLowerCase()}/${drive[2].replace(/\\/g, '/')}`;
+        return `//${p.replace(/^[\\/]+/, '').replace(/\\/g, '/')}`;
+      }
+      return `//${p.replace(/^\/+/, '')}`;
+    };
+
+    // The agent runs inside a book, but the pipeline also updates the series
+    // bible and the author profile, which live beside books/ under userData.
+    // Scope the file tools to exactly those three locations — not the rest of
+    // userData (settings.json, active-book.json, other state).
+    const userDataDir = path.dirname(this.booksDir);
+    const scopedTools = (abs: string): string[] => [
+      `Read(${abs})`, `Write(${abs})`, `Edit(${abs})`,
+    ];
     const allowedTools = [
-      `Read(${booksGlob})`, `Write(${booksGlob})`, `Edit(${booksGlob})`,
+      ...scopedTools(`${toClaudeAbs(this.booksDir)}/**`),
+      ...scopedTools(`${toClaudeAbs(path.join(userDataDir, 'series'))}/**`),
+      ...scopedTools(toClaudeAbs(path.join(userDataDir, 'author-profile.md'))),
       'LS', 'Glob', 'Grep', 'WebSearch', 'Task', 'TodoWrite',
       'Bash(mkdir:*)', 'Bash(cat:*)', 'Bash(mv:*)', 'Bash(cp:*)', 'Bash(ls:*)',
       'Bash(find:*)', 'Bash(grep:*)', 'Bash(wc:*)', 'Bash(head:*)', 'Bash(tail:*)',
@@ -252,7 +272,10 @@ export class ClaudeCodeClient implements IClaudeClient, IModelProvider {
       '--system-prompt-file', systemPromptFile,
       '--allowedTools', allowedTools,
       '--setting-sources', 'user',
-      '--add-dir', this.booksDir,
+      // userData is the workspace root so the agent can reach books/, series/ and
+      // author-profile.md; what it may actually read/write is gated by the scoped
+      // --allowedTools above, not by this directory.
+      '--add-dir', userDataDir,
     ];
 
     // The Claude Code CLI uses --effort to control thinking depth.
